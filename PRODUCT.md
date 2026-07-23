@@ -33,6 +33,6 @@ Precise, clean, effective.
 ## Accessibility & Inclusion
 
 - WCAG AA contrast ratios on all text
-- Inter font at readable sizes (no text below 10px equivalent)
+- Inter font at readable sizes — titles `text-xl`, inputs `text-sm` to `text-lg`, labels `text-sm`, minimum `text-[10px]` (ruler bounds only)
 - Touch targets minimum 44x44px
-- Reduced motion support via React Native Reanimated
+- Reduced motion support via React Native Reanimated (planned, not yet wired)

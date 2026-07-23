@@ -23,12 +23,17 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "splash": {
+      "image": "./assets/splash-scale-static.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111318"
+    },
     "plugins": [
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#111318",
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/splash-scale-static.png",
           "imageWidth": 200
         }
       ],
