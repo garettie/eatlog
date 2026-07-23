@@ -204,6 +204,13 @@ When the user corrects your approach, append a one-line rule here before ending 
 
 - (empty)
 
+- NativeWind `space-y-*` bug out inside ScrollViews — use flex `gap-*` on wrapper `<View>` instead
+- `react-native-date-picker` requires dev build, won't work with Expo Go — always confirm env constraints before installing native deps
+- RulerSlider: decouple visual tick step from value step when small increments flood the UI — `TICK_STEP=1` for rendering, `step=0.1` for snapping
+- PanResponder created in `useRef` avoids stale closures only if all props are read from refs, not captured at creation time
+- `react-native-reanimated` and `react-native-worklets` cause strict mode warnings even when unused — remove dead deps aggressively
+- Expo config plugins in `app.json` must match installed packages — removing a package without removing its plugin crashes `expo export`
+
 ---
 
 ## 12. How this file was built
