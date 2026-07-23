@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import SetupCompleteScreen from '../screens/SetupCompleteScreen';
+import TabNavigator from './TabNavigator';
 import { getProfile, getLatestDailyTarget } from '../db/database';
 
 // ─── Route param types ────────────────────────────────────────────────────
@@ -18,11 +19,12 @@ export type RootStackParamList = {
     targetFat: number;
     targetCarbs: number;
   };
+  Tabs: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-type InitialRoute = 'Onboarding' | 'SetupComplete';
+type InitialRoute = 'Onboarding' | 'SetupComplete' | 'Tabs';
 
 export default function RootNavigator() {
   const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null);
@@ -36,19 +38,8 @@ export default function RootNavigator() {
         setInitialRoute('Onboarding');
         return;
       }
-      // Profile exists — load latest targets to show SetupComplete summary
-      const target = await getLatestDailyTarget();
-      if (target) {
-        setInitialParams({
-          displayName: profile.display_name,
-          tdee: Math.round(target.tdee_estimate),
-          targetCalories: Math.round(target.target_calories),
-          targetProtein: Math.round(target.target_protein_g),
-          targetFat: Math.round(target.target_fat_g),
-          targetCarbs: Math.round(target.target_carbs_g),
-        });
-      }
-      setInitialRoute('SetupComplete');
+      // Profile exists — go straight to the tab dashboard
+      setInitialRoute('Tabs');
     }
     checkOnboarding();
   }, []);
@@ -73,6 +64,7 @@ export default function RootNavigator() {
         component={SetupCompleteScreen}
         initialParams={initialParams}
       />
+      <Stack.Screen name="Tabs" component={TabNavigator} />
     </Stack.Navigator>
   );
 }

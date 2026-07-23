@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupComplete'>;
 
-export default function SetupCompleteScreen({ route }: Props) {
+export default function SetupCompleteScreen({ route, navigation }: Props) {
   const { displayName, tdee, targetCalories, targetProtein, targetFat, targetCarbs } =
     route.params;
 
@@ -118,6 +118,15 @@ export default function SetupCompleteScreen({ route }: Props) {
           </View>
         </View>
       </Card>
+
+      {/* ── Get Started button ── */}
+      <Pressable
+        onPress={() => navigation.replace('Tabs')}
+        className="bg-m3-primary rounded-full py-5 flex-row items-center justify-center gap-2 active:opacity-70"
+      >
+        <MaterialIcons name="arrow-forward" size={18} color="#0f1117" />
+        <Text className="text-m3-on-primary font-semibold text-base">Get Started</Text>
+      </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>

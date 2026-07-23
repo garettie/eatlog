@@ -45,7 +45,7 @@ export default function RulerSlider({ value, onValueChange, min, max, step = 1, 
       },
       onPanResponderRelease: () => {
         const { min: lo, max: hi, step: s } = configRef.current;
-        const snapped = Math.round(startValRef.current / s) * s;
+        const snapped = Math.round(valueRef.current / s) * s;
         onValueChangeRef.current(Math.min(hi, Math.max(lo, snapped)));
       },
     })

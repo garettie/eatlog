@@ -191,9 +191,67 @@ export async function insertDailyTarget(params: {
   );
 }
 
+export interface FoodLog {
+  id: number;
+  log_date: string;
+  name: string;
+  source: string;
+  source_food_id: string | null;
+  grams_logged: number | null;
+  calories_per_100g: number | null;
+  protein_g_per_100g: number | null;
+  carbs_g_per_100g: number | null;
+  fat_g_per_100g: number | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  logged_at: string;
+}
+
 export async function getLatestDailyTarget(): Promise<DailyTarget | null> {
   const db = await getDb();
   return db.getFirstAsync<DailyTarget>(
     'SELECT * FROM daily_targets ORDER BY id DESC LIMIT 1'
+  );
+}
+
+export async function getMostRecentFoodLog(): Promise<FoodLog | null> {
+  const db = await getDb();
+  return db.getFirstAsync<FoodLog>(
+    'SELECT * FROM food_logs ORDER BY id DESC LIMIT 1'
+  );
+}
+
+export async function getTodayMacros(dateISO: string): Promise<{
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  }>(
+    `SELECT
+      COALESCE(SUM(calories), 0) AS calories,
+      COALESCE(SUM(protein_g), 0) AS protein_g,
+      COALESCE(SUM(carbs_g), 0) AS carbs_g,
+      COALESCE(SUM(fat_g), 0) AS fat_g
+     FROM food_logs
+     WHERE log_date = ?`,
+    [dateISO]
+  );
+  return row!;
+}
+
+export async function getRecentWeightLogs(limit: number): Promise<WeightLog[]> {
+  const db = await getDb();
+  return db.getAllAsync<WeightLog>(
+    'SELECT * FROM weight_logs ORDER BY log_date DESC LIMIT ?',
+    [limit]
   );
 }

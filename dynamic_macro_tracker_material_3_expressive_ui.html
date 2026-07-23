@@ -116,7 +116,7 @@
     <div class="flex items-center bg-m3-surface-container-low p-1 rounded-full border border-m3-outline-variant/50">
       <button id="btn-showcase-mode" onclick="setMode('showcase')" class="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all bg-white text-black">
         <span class="material-symbols-outlined text-base">view_quilt</span>
-        Canvas (7 Screens)
+        Canvas (8 Screens)
       </button>
       <button id="btn-interactive-mode" onclick="setMode('interactive')" class="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium text-m3-on-surface-variant hover:text-m3-on-surface transition-all">
         <span class="material-symbols-outlined text-base">smartphone</span>
@@ -190,24 +190,9 @@
                     <div class="text-[10px] text-m3-on-surface-variant">Goal: Weight Loss (-0.40 kg/wk)</div>
                   </div>
                 </div>
-                <span class="bg-m3-surface-container-high text-m3-on-surface text-[10px] px-2.5 py-1 rounded-full font-medium flex items-center gap-1 border border-m3-outline-variant/50">
-                  <span class="w-1.5 h-1.5 rounded-full bg-white"></span> Strategy Ready
+                <span class="bg-m3-surface-container-high text-m3-on-surface text-[10px] px-2.5 py-1 rounded-full font-medium border border-m3-outline-variant/50">
+                  Check-in in 3 days
                 </span>
-              </div>
-
-              <!-- M3 Dynamic Strategy Banner Card -->
-              <div class="bg-m3-surface-container-high p-3.5 rounded-3xl space-y-2 border border-m3-outline-variant/30">
-                <div class="flex justify-between items-center">
-                  <span class="text-[10px] font-semibold text-white uppercase tracking-wider">Dynamic Strategy</span>
-                  <span class="text-[9px] bg-m3-surface-container text-m3-on-surface-variant px-2 py-0.5 rounded-full font-medium">Weekly Analysis</span>
-                </div>
-                <p class="text-xs font-semibold text-m3-on-surface">Weekly Calorie Target Recalibration</p>
-                <div class="flex justify-between items-center pt-1">
-                  <span class="text-[10px] text-m3-on-surface-variant">Based on 7-day weight & intake data</span>
-                  <button class="bg-white text-black px-3.5 py-1.5 rounded-full text-[10px] font-bold flex items-center gap-1 active:scale-95 transition-transform shadow-sm">
-                    Review <span class="material-symbols-outlined text-xs">arrow_forward</span>
-                  </button>
-                </div>
               </div>
 
               <!-- Energy Budget Card -->
@@ -260,16 +245,33 @@
                 </div>
               </div>
 
+              <!-- Last Logged Card -->
+              <div class="bg-m3-surface-container p-3.5 rounded-3xl flex items-center justify-between border border-m3-outline-variant/30 active:scale-[0.98] transition-transform">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-9 h-9 rounded-full bg-m3-surface-container-high flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-base text-m3-on-surface-variant">restaurant</span>
+                  </div>
+                  <div>
+                    <div class="text-xs font-semibold text-m3-on-surface">Grilled Chicken Salad</div>
+                    <div class="text-[10px] text-m3-on-surface-variant">420 kcal &middot; 2h ago</div>
+                  </div>
+                </div>
+                <span class="material-symbols-outlined text-m3-on-surface-variant text-base">chevron_right</span>
+              </div>
+
               <!-- Weight Trend Card -->
               <div class="bg-m3-surface-container p-3.5 rounded-3xl space-y-2 border border-m3-outline-variant/30">
                 <div class="flex justify-between items-center">
                   <span class="text-xs font-semibold text-m3-on-surface">Weight Trend</span>
                   <span class="text-[10px] text-emerald-400 num-tabular font-medium">-0.40 kg / week</span>
                 </div>
+                <div class="h-20 w-full relative">
+                  <canvas id="chart-weight-dashboard"></canvas>
+                </div>
                 <div class="grid grid-cols-2 gap-2 text-[10px]">
                   <div class="bg-m3-surface-container-high p-2.5 rounded-2xl">
                     <div class="text-m3-on-surface-variant text-[9px] font-medium">Trend Weight</div>
-                    <div class="text-emerald-400 font-bold text-sm num-tabular">78.4 kg</div>
+                    <div class="text-emerald-400 font-bold text-sm num-tabular">78.2 kg</div>
                   </div>
                   <div class="bg-m3-surface-container-high p-2.5 rounded-2xl">
                     <div class="text-m3-on-surface-variant text-[9px] font-medium">Scale Weight</div>
@@ -277,15 +279,138 @@
                   </div>
                 </div>
               </div>
+            </div>
 
-              <!-- Quick Log Row -->
-              <div class="grid grid-cols-2 gap-2 pt-0.5">
-                <button class="bg-m3-surface-container-high hover:bg-m3-surface-container-highest p-3 rounded-2xl flex items-center justify-center gap-2 text-white font-medium text-xs active:scale-95 transition-transform border border-m3-outline-variant/30">
-                  <span class="material-symbols-outlined text-sm">add</span> Breakfast
-                </button>
-                <button class="bg-m3-surface-container-high hover:bg-m3-surface-container-highest p-3 rounded-2xl flex items-center justify-center gap-2 text-white font-medium text-xs active:scale-95 transition-transform border border-m3-outline-variant/30">
-                  <span class="material-symbols-outlined text-sm">add</span> Lunch
-                </button>
+            <!-- Bottom Nav -->
+            <div class="bg-m3-surface-container-low border-t border-m3-outline-variant/40 px-5 py-2 flex justify-between items-center text-[10px] text-m3-on-surface-variant shrink-0 z-10">
+              <div class="text-white font-semibold flex flex-col items-center">
+                <span class="material-symbols-outlined text-lg">grid_view</span>
+                <span>Today</span>
+              </div>
+              <div class="flex flex-col items-center hover:text-m3-on-surface">
+                <span class="material-symbols-outlined text-lg">menu_book</span>
+                <span>Diary</span>
+              </div>
+              <div class="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center -mt-4 shadow-md font-bold">
+                <span class="material-symbols-outlined">add</span>
+              </div>
+              <div class="flex flex-col items-center hover:text-m3-on-surface">
+                <span class="material-symbols-outlined text-lg">monitoring</span>
+                <span>Analytics</span>
+              </div>
+              <div class="flex flex-col items-center hover:text-m3-on-surface">
+                <span class="material-symbols-outlined text-lg">sync</span>
+                <span>Sync</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="sc-1b" class="flex flex-col gap-2">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-xs font-semibold text-m3-primary tracking-wide">Screen 01b</span>
+            <span class="text-xs text-m3-on-surface-variant">Dashboard — Day 1 (Empty State)</span>
+          </div>
+
+          <div class="phone-frame w-full h-[680px] bg-m3-surface rounded-[36px] border border-m3-outline-variant/60 flex flex-col overflow-hidden relative text-xs select-none">
+            <!-- Status Bar -->
+            <div class="px-5 pt-3 pb-2 flex justify-between items-center text-[11px] text-m3-on-surface-variant shrink-0 bg-m3-surface z-10">
+              <span class="font-medium text-m3-on-surface">9:41</span>
+              <div class="w-16 h-3.5 bg-black rounded-full mx-auto my-0"></div>
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-xs">wifi</span>
+                <span class="material-symbols-outlined text-xs">battery_full</span>
+              </div>
+            </div>
+
+            <!-- Content Container -->
+            <div class="phone-screen-body flex-1 overflow-y-auto px-4 py-3 space-y-3.5">
+              <!-- Top Profile Bar -->
+              <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center font-bold text-xs">JD</div>
+                  <div>
+                    <div class="font-semibold text-m3-on-surface text-xs">Thursday, Oct 24</div>
+                    <div class="text-[10px] text-m3-on-surface-variant">Goal: Weight Loss (-0.40 kg/wk)</div>
+                  </div>
+                </div>
+                <span class="bg-m3-surface-container-high text-m3-on-surface text-[10px] px-2.5 py-1 rounded-full font-medium border border-m3-outline-variant/50">
+                  Check-in in 7 days
+                </span>
+              </div>
+
+              <!-- Energy Budget Card (0 consumed, real targets) -->
+              <div class="bg-m3-surface-container p-3.5 rounded-3xl space-y-3 border border-m3-outline-variant/30">
+                <div class="flex justify-between items-baseline">
+                  <span class="text-xs font-semibold text-m3-on-surface">Energy Budget</span>
+                  <div class="num-tabular text-xs">
+                    <span class="text-m3-on-surface font-bold text-sm">0</span>
+                    <span class="text-m3-on-surface-variant"> / 2,400 kcal</span>
+                  </div>
+                </div>
+
+                <div class="w-full bg-m3-surface-container-highest h-2.5 rounded-full overflow-hidden p-0.5">
+                  <div class="bg-white h-full rounded-full" style="width: 0%"></div>
+                </div>
+                <div class="text-[10px] text-right num-tabular text-m3-on-surface font-medium">2,400 kcal remaining</div>
+
+                <div class="grid grid-cols-3 gap-2 pt-2 border-t border-m3-outline-variant/40">
+                  <div class="bg-m3-surface-container-high p-2.5 rounded-2xl">
+                    <div class="flex justify-between text-[10px] mb-1.5">
+                      <span class="text-m3-protein font-semibold">Protein</span>
+                      <span class="num-tabular text-m3-on-surface-variant text-[9px]">0g</span>
+                    </div>
+                    <div class="w-full bg-m3-surface-container-highest h-1.5 rounded-full overflow-hidden">
+                      <div class="bg-m3-protein h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                  </div>
+
+                  <div class="bg-m3-surface-container-high p-2.5 rounded-2xl">
+                    <div class="flex justify-between text-[10px] mb-1.5">
+                      <span class="text-m3-carbs font-semibold">Carbs</span>
+                      <span class="num-tabular text-m3-on-surface-variant text-[9px]">0g</span>
+                    </div>
+                    <div class="w-full bg-m3-surface-container-highest h-1.5 rounded-full overflow-hidden">
+                      <div class="bg-m3-carbs h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                  </div>
+
+                  <div class="bg-m3-surface-container-high p-2.5 rounded-2xl">
+                    <div class="flex justify-between text-[10px] mb-1.5">
+                      <span class="text-m3-fat font-semibold">Fat</span>
+                      <span class="num-tabular text-m3-on-surface-variant text-[9px]">0g</span>
+                    </div>
+                    <div class="w-full bg-m3-surface-container-highest h-1.5 rounded-full overflow-hidden">
+                      <div class="bg-m3-fat h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Last Logged Card — empty state -->
+              <div class="bg-m3-surface-container p-3.5 rounded-3xl flex items-center gap-2.5 border border-m3-outline-variant/30 active:scale-[0.98] transition-transform">
+                <div class="w-9 h-9 rounded-full bg-m3-surface-container-high flex items-center justify-center shrink-0">
+                  <span class="material-symbols-outlined text-base text-m3-on-surface-variant">restaurant</span>
+                </div>
+                <span class="text-xs text-m3-on-surface-variant">Log your first entry to see it here</span>
+              </div>
+
+              <!-- Weight Trend Card — single data point, no chart yet -->
+              <div class="bg-m3-surface-container p-3.5 rounded-3xl space-y-2 border border-m3-outline-variant/30">
+                <span class="text-xs font-semibold text-m3-on-surface">Weight Trend</span>
+                <div class="h-20 w-full flex items-center justify-center text-center px-4">
+                  <span class="text-[10px] text-m3-on-surface-variant leading-relaxed">Log a few more check-ins to see your trend</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[10px]">
+                  <div class="bg-m3-surface-container-high p-2.5 rounded-2xl">
+                    <div class="text-m3-on-surface-variant text-[9px] font-medium">Trend Weight</div>
+                    <div class="text-m3-on-surface font-bold text-sm num-tabular">78.8 kg</div>
+                  </div>
+                  <div class="bg-m3-surface-container-high p-2.5 rounded-2xl">
+                    <div class="text-m3-on-surface-variant text-[9px] font-medium">Scale Weight</div>
+                    <div class="text-m3-on-surface font-bold text-sm num-tabular">78.8 kg</div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1380,6 +1505,44 @@
 
     // Chart.js Setup
     function initStaticCharts() {
+      const ctxDashboardWeight = document.getElementById('chart-weight-dashboard');
+      if (ctxDashboardWeight) {
+        new Chart(ctxDashboardWeight, {
+          type: 'line',
+          data: {
+            labels: ['Oct 1', 'Oct 5', 'Oct 10', 'Oct 15', 'Oct 20', 'Oct 24'],
+            datasets: [
+              {
+                label: 'Scale Weight',
+                data: [80.2, 79.5, 79.8, 78.9, 79.2, 78.8],
+                borderColor: 'rgba(255, 255, 255, 0.25)',
+                borderWidth: 1,
+                pointRadius: 2.5,
+                pointBackgroundColor: 'rgba(255, 255, 255, 0.5)',
+                showLine: false
+              },
+              {
+                label: 'Trend Weight',
+                data: [80.0, 79.7, 79.4, 79.0, 78.6, 78.2],
+                borderColor: '#34d399',
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { display: false },
+              y: { display: false, min: 77, max: 81 }
+            }
+          }
+        });
+      }
+
       const ctxWeight = document.getElementById('chart-weight-sc5');
       if (ctxWeight) {
         new Chart(ctxWeight, {
