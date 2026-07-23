@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import SetupCompleteScreen from '../screens/SetupCompleteScreen';
+import FoodSearchScreen from '../screens/FoodSearchScreen';
 import TabNavigator from './TabNavigator';
 import { getProfile, getLatestDailyTarget } from '../db/database';
 
@@ -20,6 +21,7 @@ export type RootStackParamList = {
     targetCarbs: number;
   };
   Tabs: undefined;
+  FoodSearch: { prefilledQuery?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -65,6 +67,11 @@ export default function RootNavigator() {
         initialParams={initialParams}
       />
       <Stack.Screen name="Tabs" component={TabNavigator} />
+      <Stack.Screen
+        name="FoodSearch"
+        component={FoodSearchScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
     </Stack.Navigator>
   );
 }

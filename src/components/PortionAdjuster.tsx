@@ -1,0 +1,299 @@
+import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { MaterialIcons } from '@expo/vector-icons';
+
+import { MealType, insertFoodLog } from '../db/database';
+import { FoodResult } from '../services/foodSearch';
+import { todayISO } from '../utils/calculations';
+
+interface PortionAdjusterProps {
+  food: FoodResult | null;
+  onLogComplete: () => void;
+}
+
+const MEALS: { label: string; value: MealType }[] = [
+  { label: 'Breakfast', value: 'breakfast' },
+  { label: 'Lunch', value: 'lunch' },
+  { label: 'Dinner', value: 'dinner' },
+  { label: 'Snack', value: 'snack' },
+];
+
+type UnitMode = 'servings' | 'grams';
+
+const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
+  ({ food, onLogComplete }, ref) => {
+    const hasServing = useMemo(
+      () => !!(food?.servingSizeGrams && food.servingSizeGrams > 0),
+      [food]
+    );
+
+    const [mode, setMode] = useState<UnitMode>(hasServing ? 'servings' : 'grams');
+    const [servings, setServings] = useState(1);
+    const [gramsInput, setGramsInput] = useState('');
+    const [meal, setMeal] = useState<MealType>('lunch');
+    const [logging, setLogging] = useState(false);
+
+    useEffect(() => {
+      if (!food) return;
+      if (food.servingSizeGrams && food.servingSizeGrams > 0) {
+        setMode('servings');
+        setServings(1);
+        setGramsInput(String(Math.round(food.servingSizeGrams)));
+      } else {
+        setMode('grams');
+        setGramsInput('150');
+        setServings(1);
+      }
+      setMeal('lunch');
+    }, [food]);
+
+    const gramsNum = useMemo(() => {
+      if (mode === 'servings' && food?.servingSizeGrams) {
+        return servings * food.servingSizeGrams;
+      }
+      const n = parseFloat(gramsInput);
+      return isNaN(n) || n <= 0 ? 0 : n;
+    }, [mode, servings, gramsInput, food]);
+
+    const macros = useMemo(() => {
+      if (!food || gramsNum <= 0) return null;
+      const ratio = gramsNum / 100;
+      return {
+        calories: Math.round(food.caloriesPer100g * ratio),
+        protein: Math.round(food.proteinPer100g * ratio * 10) / 10,
+        carbs: Math.round(food.carbsPer100g * ratio * 10) / 10,
+        fat: Math.round(food.fatPer100g * ratio * 10) / 10,
+      };
+    }, [food, gramsNum]);
+
+    const handleModeChange = useCallback(
+      (newMode: UnitMode) => {
+        if (newMode === mode) return;
+        if (newMode === 'servings' && food?.servingSizeGrams) {
+          const s = gramsNum / food.servingSizeGrams;
+          setServings(Math.round(s * 10) / 10 || 1);
+        } else {
+          setGramsInput(String(Math.round(gramsNum) || 150));
+        }
+        setMode(newMode);
+      },
+      [mode, gramsNum, food]
+    );
+
+    const handleServingChange = useCallback(
+      (delta: number) => {
+        setServings((prev) => {
+          const next = Math.round((prev + delta) * 10) / 10;
+          return Math.max(0.25, next);
+        });
+      },
+      []
+    );
+
+    const handleLog = useCallback(async () => {
+      if (!food || !macros || gramsNum <= 0) return;
+
+      setLogging(true);
+      try {
+        await insertFoodLog({
+          log_date: todayISO(),
+          name: food.name,
+          source: food.source,
+          source_food_id: food.sourceFoodId,
+          meal,
+          grams_logged: gramsNum,
+          calories_per_100g: food.caloriesPer100g,
+          protein_g_per_100g: food.proteinPer100g,
+          carbs_g_per_100g: food.carbsPer100g,
+          fat_g_per_100g: food.fatPer100g,
+          calories: macros.calories,
+          protein_g: macros.protein,
+          carbs_g: macros.carbs,
+          fat_g: macros.fat,
+        });
+        onLogComplete();
+      } finally {
+        setLogging(false);
+      }
+    }, [food, macros, gramsNum, meal, onLogComplete]);
+
+    if (!food) return null;
+
+    return (
+      <BottomSheetModal
+        ref={ref}
+        snapPoints={['62%']}
+        backgroundStyle={{ backgroundColor: '#1d2024' }}
+        handleIndicatorStyle={{ backgroundColor: '#44474f', width: 40 }}
+        animationConfigs={{ duration: 300 }}
+        enableDynamicSizing={false}
+      >
+        <BottomSheetScrollView
+          className="flex-1 px-5"
+          contentContainerClassName="pb-8 gap-5"
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── Header ── */}
+          <View className="flex-row justify-between items-start pt-2">
+            <View className="flex-1 mr-3">
+              <Text className="text-m3-on-surface font-bold text-base leading-5" numberOfLines={2}>
+                {food.name}
+              </Text>
+              <Text className="text-m3-on-surface-variant text-[10px] mt-1">
+                {food.source === 'usda' ? 'USDA Foundation Entry' : 'Open Food Facts'}
+              </Text>
+            </View>
+            <View className="bg-m3-surface-container px-3 py-1 rounded-full">
+              <Text className="text-m3-on-surface num-tabular text-[10px] font-semibold">
+                {Math.round(food.caloriesPer100g)} kcal / 100g
+              </Text>
+            </View>
+          </View>
+
+          {/* ── Unit Mode Toggle ── */}
+          {hasServing && (
+            <View className="flex-row bg-m3-surface-container-high rounded-full p-1.5">
+              <Pressable
+                onPress={() => handleModeChange('servings')}
+                className={`flex-1 py-2 rounded-full items-center ${mode === 'servings' ? 'bg-m3-surface-container' : ''}`}
+              >
+                <Text
+                  className={`text-xs font-semibold ${mode === 'servings' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
+                >
+                  Servings
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => handleModeChange('grams')}
+                className={`flex-1 py-2 rounded-full items-center ${mode === 'grams' ? 'bg-m3-surface-container' : ''}`}
+              >
+                <Text
+                  className={`text-xs font-semibold ${mode === 'grams' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
+                >
+                  Grams
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* ── Quantity Input ── */}
+          <View className="bg-m3-surface-container rounded-2xl px-4 py-4 gap-3">
+            <Text className="text-[9px] font-semibold text-m3-on-surface-variant uppercase tracking-wider mb-1">
+              Quantity
+            </Text>
+
+            {mode === 'servings' ? (
+              /* ── Servings Stepper ── */
+              <View className="flex-row items-center justify-center gap-5">
+                <Pressable
+                  onPress={() => handleServingChange(-0.5)}
+                  className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
+                >
+                  <MaterialIcons name="remove" size={22} color="#e2e2e9" />
+                </Pressable>
+
+                <View className="items-center min-w-[70px]">
+                  <Text className="text-m3-on-surface font-bold text-3xl num-tabular leading-9">
+                    {servings % 1 === 0 ? servings.toFixed(0) : servings.toFixed(1)}
+                  </Text>
+                  <Text className="text-m3-on-surface-variant text-[10px] mt-1 text-center">
+                    {food.servingLabel
+                      ? `${food.servingLabel}`
+                      : `${Math.round(food.servingSizeGrams!)}g`}
+                    {mode === 'servings' && food.servingSizeGrams
+                      ? ` (${Math.round(servings * food.servingSizeGrams)}g total)`
+                      : ''}
+                  </Text>
+                </View>
+
+                <Pressable
+                  onPress={() => handleServingChange(0.5)}
+                  className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
+                >
+                  <MaterialIcons name="add" size={22} color="#e2e2e9" />
+                </Pressable>
+              </View>
+            ) : (
+              /* ── Grams Input ── */
+              <View className="flex-row items-center gap-3">
+                <View className="flex-1">
+                  <TextInput
+                    value={gramsInput}
+                    onChangeText={setGramsInput}
+                    keyboardType="numeric"
+                    className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-bold text-lg rounded-xl px-4 py-3 border border-white/60 text-center"
+                  />
+                </View>
+                <Text className="text-m3-on-surface-variant text-sm font-semibold">grams</Text>
+              </View>
+            )}
+          </View>
+
+          {/* ── Calculated Nutrition ── */}
+          {macros && (
+            <View className="bg-m3-surface-container rounded-2xl p-4 gap-2">
+              <Text className="text-[9px] font-semibold text-m3-on-surface-variant uppercase tracking-wider">
+                Calculated Nutrition
+              </Text>
+              <View className="flex-row gap-2">
+                <View className="flex-1 bg-m3-surface-container-high rounded-xl p-3 items-center gap-0.5">
+                  <Text className="text-[9px] text-white/70 font-semibold tracking-wider">CAL</Text>
+                  <Text className="text-white font-bold text-sm num-tabular">{macros.calories}</Text>
+                </View>
+                <View className="flex-1 bg-m3-surface-container-high rounded-xl p-3 items-center gap-0.5">
+                  <Text className="text-[9px] text-m3-protein font-semibold tracking-wider">PRO</Text>
+                  <Text className="text-m3-on-surface font-bold text-sm num-tabular">{macros.protein}g</Text>
+                </View>
+                <View className="flex-1 bg-m3-surface-container-high rounded-xl p-3 items-center gap-0.5">
+                  <Text className="text-[9px] text-m3-carbs font-semibold tracking-wider">CARB</Text>
+                  <Text className="text-m3-on-surface font-bold text-sm num-tabular">{macros.carbs}g</Text>
+                </View>
+                <View className="flex-1 bg-m3-surface-container-high rounded-xl p-3 items-center gap-0.5">
+                  <Text className="text-[9px] text-m3-fat font-semibold tracking-wider">FAT</Text>
+                  <Text className="text-m3-on-surface font-bold text-sm num-tabular">{macros.fat}g</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* ── Meal Selector ── */}
+          <View className="flex-row bg-m3-surface-container-high rounded-full p-1.5">
+            {MEALS.map((m) => (
+              <Pressable
+                key={m.value}
+                onPress={() => setMeal(m.value)}
+                className={`flex-1 py-2 rounded-full items-center ${meal === m.value ? 'bg-m3-surface-container' : ''}`}
+              >
+                <Text
+                  className={`text-[11px] font-semibold ${meal === m.value ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
+                >
+                  {m.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* ── Log Button ── */}
+          <Pressable
+            onPress={handleLog}
+            disabled={logging || !macros || gramsNum <= 0}
+            className="bg-white py-3.5 rounded-full items-center justify-center active:scale-95"
+          >
+            {logging ? (
+              <Text className="text-black font-bold text-sm">Logging...</Text>
+            ) : (
+              <View className="flex-row items-center gap-1.5">
+                <MaterialIcons name="check" size={18} color="#111318" />
+                <Text className="text-black font-bold text-sm">Log Entry</Text>
+              </View>
+            )}
+          </Pressable>
+        </BottomSheetScrollView>
+      </BottomSheetModal>
+    );
+  }
+);
+
+PortionAdjuster.displayName = 'PortionAdjuster';
+export default PortionAdjuster;

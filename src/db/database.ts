@@ -10,6 +10,7 @@ export type ActivityLevel =
 export type GoalType = 'cut' | 'maintain' | 'bulk';
 export type CalculationMethod = 'initial_estimate' | 'adaptive';
 export type ProteinPreference = 'low' | 'moderate' | 'high' | 'extra_high';
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface Profile {
   id: number;
@@ -92,6 +93,7 @@ export async function initDatabase(): Promise<void> {
       name TEXT NOT NULL,
       source TEXT NOT NULL CHECK (source IN ('usda','off','manual')),
       source_food_id TEXT,
+      meal TEXT NOT NULL DEFAULT 'snack' CHECK (meal IN ('breakfast','lunch','dinner','snack')),
       grams_logged REAL,
       calories_per_100g REAL,
       protein_g_per_100g REAL,
@@ -197,6 +199,7 @@ export interface FoodLog {
   name: string;
   source: string;
   source_food_id: string | null;
+  meal: MealType;
   grams_logged: number | null;
   calories_per_100g: number | null;
   protein_g_per_100g: number | null;
@@ -220,6 +223,83 @@ export async function getMostRecentFoodLog(): Promise<FoodLog | null> {
   const db = await getDb();
   return db.getFirstAsync<FoodLog>(
     'SELECT * FROM food_logs ORDER BY id DESC LIMIT 1'
+  );
+}
+
+export async function insertFoodLog(params: {
+  log_date: string;
+  name: string;
+  source: 'usda' | 'off' | 'manual';
+  source_food_id?: string | null;
+  meal: MealType;
+  grams_logged?: number | null;
+  calories_per_100g?: number | null;
+  protein_g_per_100g?: number | null;
+  carbs_g_per_100g?: number | null;
+  fat_g_per_100g?: number | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO food_logs
+      (log_date, name, source, source_food_id, meal, grams_logged, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      params.log_date,
+      params.name,
+      params.source,
+      params.source_food_id ?? null,
+      params.meal,
+      params.grams_logged ?? null,
+      params.calories_per_100g ?? null,
+      params.protein_g_per_100g ?? null,
+      params.carbs_g_per_100g ?? null,
+      params.fat_g_per_100g ?? null,
+      params.calories,
+      params.protein_g,
+      params.carbs_g,
+      params.fat_g,
+    ]
+  );
+}
+
+export async function getFoodLogsByDate(logDate: string): Promise<FoodLog[]> {
+  const db = await getDb();
+  return db.getAllAsync<FoodLog>(
+    'SELECT * FROM food_logs WHERE log_date = ? ORDER BY logged_at ASC',
+    [logDate]
+  );
+}
+
+export async function deleteFoodLog(id: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);
+}
+
+export interface RecentFood {
+  name: string;
+  source: string;
+  source_food_id: string | null;
+  calories_per_100g: number | null;
+  protein_g_per_100g: number | null;
+  carbs_g_per_100g: number | null;
+  fat_g_per_100g: number | null;
+  logged_at: string;
+}
+
+export async function getRecentFoodLogs(limit: number): Promise<RecentFood[]> {
+  const db = await getDb();
+  return db.getAllAsync<RecentFood>(
+    `SELECT name, source, source_food_id, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, MAX(logged_at) as logged_at
+     FROM food_logs
+     WHERE source != 'manual'
+     GROUP BY name, COALESCE(source_food_id, name)
+     ORDER BY logged_at DESC
+     LIMIT ?`,
+    [limit]
   );
 }
 

@@ -2,6 +2,8 @@ import './global.css';
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -55,15 +57,17 @@ export default function App() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#111318' }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#111318' }}>
       <StatusBar style="light" />
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
+      <BottomSheetModalProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </BottomSheetModalProvider>
       
       {!splashAnimationFinished && (
         <AnimatedSplashScreen onAnimationFinish={() => setSplashAnimationFinished(true)} />
       )}
-    </View>
+    </GestureHandlerRootView>
   );
 }

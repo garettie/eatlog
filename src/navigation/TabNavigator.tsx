@@ -1,15 +1,26 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
+import QuickActionSheet from '../components/QuickActionSheet';
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
+  const navigation = useNavigation<any>();
+  const quickActionRef = useRef<BottomSheetModal>(null);
+
+  const handleAddPress = useCallback(() => {
+    quickActionRef.current?.present();
+  }, []);
+
   return (
+    <>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -50,6 +61,12 @@ export default function TabNavigator() {
       </Tab.Screen>
       <Tab.Screen
         name="AddEntry"
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            handleAddPress();
+          },
+        }}
         options={{
           tabBarLabel: () => null,
           tabBarIcon: () => (
@@ -69,7 +86,7 @@ export default function TabNavigator() {
           ),
         }}
       >
-        {() => <PlaceholderScreen title="Add Entry" />}
+        {() => <View />}
       </Tab.Screen>
       <Tab.Screen
         name="Analytics"
@@ -92,5 +109,7 @@ export default function TabNavigator() {
         {() => <PlaceholderScreen title="Sync" />}
       </Tab.Screen>
     </Tab.Navigator>
+      <QuickActionSheet ref={quickActionRef} />
+    </>
   );
 }
