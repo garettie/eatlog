@@ -16,6 +16,7 @@ export interface FoodResult {
   fatPer100g: number | null;
   servingSizeGrams: number | null;
   servingLabel: string | null;
+  estimatedGrams?: number | null;
   alternateSourceIds: { source: 'usda' | 'off' | 'scan' | 'describe' | 'manual'; id: string }[];
 }
 

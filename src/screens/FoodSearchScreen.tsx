@@ -7,11 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 
 import { searchFood, FoodResult, DataType } from '../services/foodSearch';
-import { scanFood, describeMeal } from '../services/foodScan';
+import { scanFood, describeMeal, DescribeResult } from '../services/foodScan';
 import { getRecentFoodLogs, RecentFood } from '../db/database';
 import PortionAdjuster from '../components/PortionAdjuster';
 import ManualEntrySheet from '../components/ManualEntrySheet';
-import MealReviewSheet, { DescribeResult } from '../components/MealReviewSheet';
+import MealReviewSheet from '../components/MealReviewSheet';
 
 function dataTypeBadge(dt: DataType): string {
   switch (dt) {
@@ -108,12 +108,13 @@ export default function FoodSearchScreen() {
         quality: 0.5,
       });
       if (result.canceled || !result.assets?.[0]?.base64) return;
-      const foodResult = await scanFood(result.assets[0].base64);
-      if (!foodResult) {
+      const scanResult = await scanFood(result.assets[0].base64);
+      if (!scanResult) {
         Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
         return;
       }
-      openInReview(foodResult);
+      setDescribeResult(scanResult);
+      setTimeout(() => mealReviewRef.current?.present(), 100);
     } finally {
       setScanning(false);
     }
@@ -128,21 +129,16 @@ export default function FoodSearchScreen() {
         quality: 0.5,
       });
       if (result.canceled || !result.assets?.[0]?.base64) return;
-      const foodResult = await scanFood(result.assets[0].base64);
-      if (!foodResult) {
+      const scanResult = await scanFood(result.assets[0].base64);
+      if (!scanResult) {
         Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
         return;
       }
-      openInReview(foodResult);
+      setDescribeResult(scanResult);
+      setTimeout(() => mealReviewRef.current?.present(), 100);
     } finally {
       setScanning(false);
     }
-  }, []);
-
-  const openInReview = useCallback((food: FoodResult) => {
-    const result: DescribeResult = { mealName: food.name, components: [food] };
-    setDescribeResult(result);
-    setTimeout(() => mealReviewRef.current?.present(), 100);
   }, []);
 
   const handleDescribeToggle = useCallback(() => {
