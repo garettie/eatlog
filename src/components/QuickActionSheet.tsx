@@ -1,20 +1,28 @@
-import React, { forwardRef, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
-interface ActionOptionProps {
+import SlideModal from './SlideModal';
+
+interface QuickActionSheetProps {
+  visible: boolean;
+  onClose: () => void;
+  onCamera: () => void;
+  onGallery: () => void;
+  onDescribe: () => void;
+}
+
+function ActionOption({ icon, label, subtitle, onPress }: {
   icon: React.ComponentProps<typeof MaterialIcons>['name'];
   label: string;
   subtitle: string;
   onPress: () => void;
-}
-
-function ActionOption({ icon, label, subtitle, onPress }: ActionOptionProps) {
+}) {
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
       className="flex-row items-center gap-4 px-4 py-4 active:opacity-60"
     >
       <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
@@ -29,56 +37,32 @@ function ActionOption({ icon, label, subtitle, onPress }: ActionOptionProps) {
   );
 }
 
-const QuickActionSheet = forwardRef<BottomSheetModal>((_, ref) => {
+export default function QuickActionSheet({ visible, onClose, onCamera, onGallery, onDescribe }: QuickActionSheetProps) {
   const navigation = useNavigation<any>();
 
-  const dismiss = useCallback(() => {
-    (ref as React.RefObject<BottomSheetModal>).current?.dismiss();
-  }, [ref]);
+  const handleSearch = useCallback(() => {
+    onClose();
+    setTimeout(() => navigation.navigate('FoodSearch'), 200);
+  }, [onClose, navigation]);
 
-  const handleLogFood = useCallback(() => {
-    dismiss();
-    setTimeout(() => {
-      navigation.navigate('FoodSearch');
-    }, 350);
-  }, [dismiss, navigation]);
-
-  const handleLogWeight = useCallback(() => {
-    dismiss();
-  }, [dismiss]);
+  const run = useCallback((fn: () => void) => {
+    onClose();
+    setTimeout(fn, 200);
+  }, [onClose]);
 
   return (
-    <BottomSheetModal
-      ref={ref}
-      snapPoints={['26%']}
-      backgroundStyle={{ backgroundColor: '#1d2024' }}
-      handleIndicatorStyle={{ backgroundColor: '#44474f', width: 40 }}
-      animationConfigs={{ duration: 300 }}
-    >
-      <BottomSheetView className="flex-1 px-2 pb-4">
-        <View className="px-4 py-3">
-          <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider">
-            Quick Actions
-          </Text>
-        </View>
-
-        <ActionOption
-          icon="restaurant"
-          label="Log Food"
-          subtitle="Search database or enter manually"
-          onPress={handleLogFood}
-        />
+    <SlideModal visible={visible} onClose={onClose}>
+      <View className="px-2 pt-1 pb-6">
+        <ActionOption icon="search" label="Search" subtitle="Look up food in USDA & Open Food Facts" onPress={handleSearch} />
         <View className="h-px bg-m3-outline-variant/30 mx-4" />
-        <ActionOption
-          icon="monitor-weight"
-          label="Log Weight"
-          subtitle="Record today's scale weight"
-          onPress={handleLogWeight}
-        />
-      </BottomSheetView>
-    </BottomSheetModal>
+        <ActionOption icon="photo-camera" label="Camera" subtitle="Take a photo of food or a nutrition label" onPress={() => run(onCamera)} />
+        <View className="h-px bg-m3-outline-variant/30 mx-4" />
+        <ActionOption icon="photo-library" label="Gallery" subtitle="Use an existing photo" onPress={() => run(onGallery)} />
+        <View className="h-px bg-m3-outline-variant/30 mx-4" />
+        <ActionOption icon="edit-note" label="Describe" subtitle="Type your meal, AI estimates it" onPress={() => run(onDescribe)} />
+        <View className="h-px bg-m3-outline-variant/30 mx-4" />
+        <ActionOption icon="monitor-weight" label="Log Weight" subtitle="Record today's scale weight" onPress={onClose} />
+      </View>
+    </SlideModal>
   );
-});
-
-QuickActionSheet.displayName = 'QuickActionSheet';
-export default QuickActionSheet;
+}

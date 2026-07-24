@@ -286,9 +286,9 @@ export async function insertFoodLog(params: {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-}): Promise<void> {
+}): Promise<number> {
   const db = await getDb();
-  await db.runAsync(
+  const result = await db.runAsync(
     `INSERT INTO food_logs
       (log_date, name, source, source_food_id, meal, meal_id, brand, data_type, preparation, grams_logged, serving_size_g, serving_label, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -315,6 +315,7 @@ export async function insertFoodLog(params: {
       params.fat_g,
     ]
   );
+  return result.lastInsertRowId;
 }
 
 export async function getFoodLogsByDate(logDate: string): Promise<FoodLog[]> {
@@ -328,6 +329,12 @@ export async function getFoodLogsByDate(logDate: string): Promise<FoodLog[]> {
 export async function deleteFoodLog(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);
+}
+
+export async function deleteMeal(id: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM food_logs WHERE meal_id = ?', [id]);
+  await db.runAsync('DELETE FROM meals WHERE id = ?', [id]);
 }
 
 export interface RecentFood {

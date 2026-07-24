@@ -1,17 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 
 import { searchFood, FoodResult, DataType } from '../services/foodSearch';
-import { scanFood, describeMeal, DescribeResult } from '../services/foodScan';
-import { getRecentFoodLogs, RecentFood } from '../db/database';
+import { deleteFoodLog, getRecentFoodLogs, MealType, RecentFood } from '../db/database';
 import PortionAdjuster from '../components/PortionAdjuster';
 import ManualEntrySheet from '../components/ManualEntrySheet';
-import MealReviewSheet from '../components/MealReviewSheet';
+import LogToast from '../components/LogToast';
 
 function dataTypeBadge(dt: DataType): string {
   switch (dt) {
@@ -26,6 +23,10 @@ function dataTypeBadge(dt: DataType): string {
   }
 }
 
+function mealLabel(m: MealType): string {
+  return m.charAt(0).toUpperCase() + m.slice(1);
+}
+
 export default function FoodSearchScreen() {
   const navigation = useNavigation<any>();
 
@@ -35,16 +36,12 @@ export default function FoodSearchScreen() {
   const [hasSearched, setHasSearched] = useState(false);
   const [recents, setRecents] = useState<RecentFood[]>([]);
   const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [describing, setDescribing] = useState(false);
-  const [descriptionText, setDescriptionText] = useState('');
-  const [describeResult, setDescribeResult] = useState<{ mealName: string; components: FoodResult[] } | null>(null);
+  const [portionVisible, setPortionVisible] = useState(false);
+  const [manualVisible, setManualVisible] = useState(false);
+  const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
-  const portionRef = useRef<BottomSheetModal>(null);
-  const manualRef = useRef<BottomSheetModal>(null);
-  const mealReviewRef = useRef<BottomSheetModal>(null);
 
   useEffect(() => {
     getRecentFoodLogs(10).then(setRecents);
@@ -79,97 +76,28 @@ export default function FoodSearchScreen() {
   const handleResultPress = useCallback((food: FoodResult) => {
     Keyboard.dismiss();
     setSelectedFood(food);
-    setTimeout(() => portionRef.current?.present(), 100);
+    setPortionVisible(true);
   }, []);
 
   const handleManualEntry = useCallback(() => {
     Keyboard.dismiss();
-    setTimeout(() => manualRef.current?.present(), 100);
+    setManualVisible(true);
   }, []);
 
-  const handleLogComplete = useCallback(() => {
-    portionRef.current?.dismiss();
-    manualRef.current?.dismiss();
-    mealReviewRef.current?.dismiss();
+  const handleSingleLog = useCallback(({ logId, meal }: { logId: number; meal: MealType }) => {
+    setPortionVisible(false);
+    setManualVisible(false);
     getRecentFoodLogs(10).then(setRecents);
+    setToast({
+      message: `Logged to ${mealLabel(meal)}`,
+      undo: async () => { await deleteFoodLog(logId); setToast(null); getRecentFoodLogs(10).then(setRecents); },
+    });
   }, []);
-
-  const handleCameraScan = useCallback(async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera access is needed to scan labels.');
-      return;
-    }
-    setScanning(true);
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        base64: true,
-        quality: 0.5,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-      const scanResult = await scanFood(result.assets[0].base64);
-      if (!scanResult) {
-        Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
-        return;
-      }
-      setDescribeResult(scanResult);
-      setTimeout(() => mealReviewRef.current?.present(), 100);
-    } finally {
-      setScanning(false);
-    }
-  }, []);
-
-  const handleGalleryScan = useCallback(async () => {
-    setScanning(true);
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        base64: true,
-        quality: 0.5,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-      const scanResult = await scanFood(result.assets[0].base64);
-      if (!scanResult) {
-        Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
-        return;
-      }
-      setDescribeResult(scanResult);
-      setTimeout(() => mealReviewRef.current?.present(), 100);
-    } finally {
-      setScanning(false);
-    }
-  }, []);
-
-  const handleDescribeToggle = useCallback(() => {
-    setDescribing((prev) => !prev);
-    setDescriptionText('');
-  }, []);
-
-  const handleDescribeEstimate = useCallback(async () => {
-    const text = descriptionText.trim();
-    if (!text) return;
-    Keyboard.dismiss();
-    setScanning(true);
-    try {
-      const result = await describeMeal(text);
-      if (!result) {
-        Alert.alert('Description Failed', 'Could not analyze the meal. Try again or enter manually.');
-        return;
-      }
-      setDescribing(false);
-      setDescriptionText('');
-      setDescribeResult(result);
-      setTimeout(() => mealReviewRef.current?.present(), 100);
-    } finally {
-      setScanning(false);
-    }
-  }, [descriptionText]);
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface">
       <View className="px-4 pt-2 pb-3 flex-row items-center gap-2 bg-m3-surface-container-low">
-        <Pressable onPress={() => navigation.goBack()} className="p-1" hitSlop={10}>
+        <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" className="p-2">
           <MaterialIcons name="arrow-back" size={22} color="#e2e2e9" />
         </Pressable>
         <View className="flex-1 flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
@@ -189,7 +117,7 @@ export default function FoodSearchScreen() {
             <ActivityIndicator size="small" color="#c4c6d0" style={{ marginRight: 8 }} />
           )}
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} hitSlop={10}>
+            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="p-1">
               <MaterialIcons name="close" size={18} color="#c4c6d0" />
             </Pressable>
           )}
@@ -201,65 +129,6 @@ export default function FoodSearchScreen() {
         contentContainerClassName="pb-8 gap-1.5"
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Scan Actions ── */}
-        <View className="flex-row gap-2 mb-3">
-          <Pressable
-            onPress={handleCameraScan}
-            disabled={scanning}
-            className="flex-1 flex-row items-center justify-center gap-1.5 bg-m3-surface-container-high rounded-full py-2.5 border border-m3-outline-variant/30 active:opacity-70"
-          >
-            <MaterialIcons name="photo-camera" size={14} color="#e2e2e9" />
-            <Text className="text-white text-[11px] font-semibold">Camera</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleGalleryScan}
-            disabled={scanning}
-            className="flex-1 flex-row items-center justify-center gap-1.5 bg-m3-surface-container-high rounded-full py-2.5 border border-m3-outline-variant/30 active:opacity-70"
-          >
-            <MaterialIcons name="photo-library" size={14} color="#e2e2e9" />
-            <Text className="text-white text-[11px] font-semibold">Gallery</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleDescribeToggle}
-            disabled={scanning}
-            className="flex-1 flex-row items-center justify-center gap-1.5 bg-m3-surface-container-high rounded-full py-2.5 border border-m3-outline-variant/30 active:opacity-70"
-          >
-            <MaterialIcons name="edit-note" size={14} color="#e2e2e9" />
-            <Text className="text-white text-[11px] font-semibold">Describe</Text>
-          </Pressable>
-        </View>
-
-        {scanning && (
-          <View className="py-4 items-center">
-            <ActivityIndicator size="small" color="#ffffff" />
-            <Text className="text-m3-on-surface-variant text-xs mt-2">Analyzing with Gemini...</Text>
-          </View>
-        )}
-
-        {/* ── Describe Card ── */}
-        {describing && (
-          <View className="mb-3 bg-m3-surface-container rounded-xl p-3 gap-3 border border-m3-outline-variant/30">
-            <TextInput
-              value={descriptionText}
-              onChangeText={setDescriptionText}
-              placeholder="e.g. chicken rice bowl with broccoli, about 500g"
-              placeholderTextColor="#c4c6d0"
-              multiline
-              numberOfLines={3}
-              className="bg-m3-surface-container-high text-m3-on-surface text-sm rounded-xl px-4 py-3 border border-m3-outline-variant/50"
-              autoFocus
-            />
-            <Pressable
-              onPress={handleDescribeEstimate}
-              disabled={scanning || !descriptionText.trim()}
-              className="bg-white py-2.5 rounded-full items-center justify-center active:scale-95 disabled:opacity-40"
-            >
-              <Text className="text-black font-semibold text-sm">Estimate</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {/* ── Loading (initial search only; refinements use the inline spinner) ── */}
         {isSearching && results.length === 0 && (
           <View className="py-12 items-center">
             <ActivityIndicator size="small" color="#ffffff" />
@@ -267,7 +136,6 @@ export default function FoodSearchScreen() {
           </View>
         )}
 
-        {/* ── Recents ── */}
         {!query.trim() && !isSearching && recents.length > 0 && (
           <View className="gap-1.5">
             <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-1">
@@ -303,7 +171,6 @@ export default function FoodSearchScreen() {
           </View>
         )}
 
-        {/* ── Empty recents ── */}
         {!query.trim() && !isSearching && recents.length === 0 && (
           <View className="py-12 items-center">
             <MaterialIcons name="restaurant" size={36} color="#44474f" />
@@ -311,7 +178,6 @@ export default function FoodSearchScreen() {
           </View>
         )}
 
-        {/* ── Search results ── */}
         {hasSearched && results.length > 0 && (
           <View className="gap-1.5">
             <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-1">
@@ -323,7 +189,6 @@ export default function FoodSearchScreen() {
           </View>
         )}
 
-        {/* ── No results ── */}
         {hasSearched && !isSearching && results.length === 0 && (
           <View className="py-10 items-center gap-4">
             <View className="items-center">
@@ -341,7 +206,6 @@ export default function FoodSearchScreen() {
           </View>
         )}
 
-        {/* ── Manual entry ── */}
         {hasSearched && results.length > 0 && (
           <Pressable
             onPress={handleManualEntry}
@@ -353,14 +217,23 @@ export default function FoodSearchScreen() {
         )}
       </ScrollView>
 
-      <PortionAdjuster ref={portionRef} food={selectedFood} onLogComplete={handleLogComplete} />
-      <ManualEntrySheet ref={manualRef} onLogComplete={handleLogComplete} />
-      <MealReviewSheet ref={mealReviewRef} result={describeResult} onLogComplete={handleLogComplete} />
+      <PortionAdjuster
+        food={selectedFood}
+        visible={portionVisible}
+        onClose={() => setPortionVisible(false)}
+        onLogComplete={handleSingleLog}
+      />
+      <ManualEntrySheet
+        visible={manualVisible}
+        onClose={() => setManualVisible(false)}
+        onLogComplete={handleSingleLog}
+      />
+      {toast && (
+        <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
+      )}
     </SafeAreaView>
   );
 }
-
-// ── Result Row ────────────────────────────────────────────────────────────
 
 function ResultRow({ item, onPress }: { item: FoodResult; onPress: () => void }) {
   const badge = item.dataType !== 'manual' ? dataTypeBadge(item.dataType) : '';

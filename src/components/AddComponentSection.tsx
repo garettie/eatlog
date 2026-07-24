@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { searchFood, FoodResult, DataType } from '../services/foodSearch';
 import { describeMeal } from '../services/foodScan';
+import PrimaryButton from './PrimaryButton';
 
 type AddMode = 'search' | 'describe' | 'manual' | null;
 
@@ -123,7 +124,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     return (
       <Pressable
         onPress={() => setMode('search')}
-        className="flex-row items-center justify-center gap-2 py-2"
+        className="flex-row items-center justify-center gap-2 py-3"
       >
         <MaterialIcons name="add-circle-outline" size={18} color="#c4c6d0" />
         <Text className="text-m3-on-surface-variant text-xs font-medium">Add Component</Text>
@@ -134,10 +135,11 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   return (
     <View className="bg-m3-surface-container-high rounded-xl px-3 py-3 gap-3">
       {/* ── Mode Chips ── */}
-      <View className="flex-row gap-2">
-        <Pressable
-          onPress={() => setMode('search')}
-          className={`flex-1 py-2 rounded-full items-center ${mode === 'search' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => setMode('search')}
+            accessibilityRole="button"
+            className={`flex-1 py-3 rounded-full items-center ${mode === 'search' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
         >
           <View className="flex-row items-center gap-1">
             <MaterialIcons name="search" size={12} color={mode === 'search' ? '#e2e2e9' : '#c4c6d0'} />
@@ -148,7 +150,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         </Pressable>
         <Pressable
           onPress={() => setMode('describe')}
-          className={`flex-1 py-2 rounded-full items-center ${mode === 'describe' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+          accessibilityRole="button"
+          className={`flex-1 py-3 rounded-full items-center ${mode === 'describe' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
         >
           <View className="flex-row items-center gap-1">
             <MaterialIcons name="auto-awesome" size={12} color={mode === 'describe' ? '#e2e2e9' : '#c4c6d0'} />
@@ -159,12 +162,14 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         </Pressable>
         <Pressable
           onPress={() => setMode('manual')}
-          className={`py-2 px-3 rounded-full items-center ${mode === 'manual' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+          accessibilityRole="button"
+          accessibilityLabel="Manual entry"
+          className={`py-3 px-4 rounded-full items-center ${mode === 'manual' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
         >
           <MaterialIcons name="edit" size={12} color={mode === 'manual' ? '#e2e2e9' : '#c4c6d0'} />
         </Pressable>
-        <Pressable onPress={reset} className="p-1" hitSlop={8}>
-          <MaterialIcons name="close" size={14} color="#c4c6d0" />
+        <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel" className="p-2">
+          <MaterialIcons name="close" size={16} color="#c4c6d0" />
         </Pressable>
       </View>
 
@@ -199,7 +204,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 <Text className="text-m3-on-surface text-xs font-medium" numberOfLines={1}>
                   {item.name}
                 </Text>
-                <Text className="text-m3-on-surface-variant text-[8px]" numberOfLines={1}>
+                <Text className="text-m3-on-surface-variant text-[10px]" numberOfLines={1}>
                   {dataTypeShort(item.dataType)}
                   {item.brand ? ` · ${item.brand}` : ''}
                   {item.servingLabel ? ` · ${item.servingLabel}` : ''}
@@ -229,17 +234,12 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             className="bg-m3-surface-container text-m3-on-surface text-xs rounded-lg px-3 py-2 border border-m3-outline-variant/50"
             autoFocus
           />
-          <Pressable
+          <PrimaryButton
+            title="Estimate"
             onPress={handleDescribe}
-            disabled={isEstimating || !describeText.trim()}
-            className="bg-white py-2 rounded-full items-center active:scale-95 disabled:opacity-40"
-          >
-            {isEstimating ? (
-              <ActivityIndicator size="small" color="#111318" />
-            ) : (
-              <Text className="text-black font-semibold text-xs">Estimate</Text>
-            )}
-          </Pressable>
+            loading={isEstimating}
+            disabled={!describeText.trim()}
+          />
         </View>
       )}
 
@@ -256,7 +256,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           />
           <View className="flex-row gap-2">
             <View className="flex-1 gap-1">
-              <Text className="text-[7px] text-white/60 font-semibold tracking-wider">CAL</Text>
+              <Text className="text-[10px] text-white/60 font-semibold tracking-wider">CAL</Text>
               <TextInput
                 value={manualCal}
                 onChangeText={setManualCal}
@@ -267,7 +267,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               />
             </View>
             <View className="flex-1 gap-1">
-              <Text className="text-[7px] text-m3-protein font-semibold tracking-wider">PRO</Text>
+              <Text className="text-[10px] text-m3-protein font-semibold tracking-wider">PRO</Text>
               <TextInput
                 value={manualPro}
                 onChangeText={setManualPro}
@@ -278,7 +278,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               />
             </View>
             <View className="flex-1 gap-1">
-              <Text className="text-[7px] text-m3-carbs font-semibold tracking-wider">CARB</Text>
+              <Text className="text-[10px] text-m3-carbs font-semibold tracking-wider">CARB</Text>
               <TextInput
                 value={manualCarb}
                 onChangeText={setManualCarb}
@@ -289,7 +289,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               />
             </View>
             <View className="flex-1 gap-1">
-              <Text className="text-[7px] text-m3-fat font-semibold tracking-wider">FAT</Text>
+              <Text className="text-[10px] text-m3-fat font-semibold tracking-wider">FAT</Text>
               <TextInput
                 value={manualFat}
                 onChangeText={setManualFat}
@@ -307,14 +307,14 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               placeholder="150"
               placeholderTextColor="#c4c6d0"
               keyboardType="numeric"
-              className="w-20 text-center bg-m3-surface-container rounded-lg py-1.5 px-2 text-m3-on-surface text-xs font-semibold border border-m3-outline-variant/50"
+              className="w-20 text-center bg-m3-surface-container rounded-lg py-2.5 px-2 text-m3-on-surface text-xs font-semibold border border-m3-outline-variant/50"
             />
-            <Text className="text-[9px] text-m3-on-surface-variant">grams</Text>
+            <Text className="text-[10px] text-m3-on-surface-variant">grams</Text>
           </View>
           <Pressable
             onPress={handleManualAdd}
             disabled={!manualName.trim()}
-            className="bg-m3-surface-container rounded-full py-2 items-center active:opacity-70"
+            className="bg-m3-surface-container rounded-full py-3 items-center active:opacity-70"
           >
             <Text className="text-m3-on-surface text-xs font-semibold">Add</Text>
           </Pressable>

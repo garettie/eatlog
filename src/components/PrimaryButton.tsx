@@ -16,9 +16,8 @@ export default function PrimaryButton({ title, onPress, disabled, loading, icon,
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
-      className={`w-full bg-white rounded-full py-4 flex-row items-center justify-center gap-2 active:scale-95 transition-transform shadow-md ${
-        disabled || loading ? 'opacity-50' : ''
-      }`}
+      style={disabled || loading ? { opacity: 0.4 } : undefined}
+      className={`w-full bg-white rounded-full py-4 flex-row items-center justify-center gap-2 active:scale-95 transition-transform shadow-md`}
     >
       {loading ? (
         <ActivityIndicator color="#000000" />

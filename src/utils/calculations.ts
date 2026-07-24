@@ -1,4 +1,4 @@
-import type { ActivityLevel, GoalType, ProteinPreference, Sex } from '../db/database';
+import type { ActivityLevel, GoalType, MealType, ProteinPreference, Sex } from '../db/database';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -94,6 +94,15 @@ export function todayISO(): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+/** Infer the most likely meal from the current time of day. */
+export function defaultMealForNow(now: Date = new Date()): MealType {
+  const h = now.getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 16) return 'lunch';
+  if (h < 22) return 'dinner';
+  return 'snack';
 }
 
 export function ftInToCm(feet: number, inches: number): number {

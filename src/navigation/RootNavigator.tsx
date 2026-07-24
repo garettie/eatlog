@@ -70,7 +70,6 @@ export default function RootNavigator() {
       <Stack.Screen
         name="FoodSearch"
         component={FoodSearchScreen}
-        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
     </Stack.Navigator>
   );
