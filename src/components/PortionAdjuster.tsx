@@ -16,6 +16,7 @@ function dataTypeLabel(dt: DataType): string {
     case 'off': return 'Open Food Facts';
     case 'manual': return 'Manual Entry';
     case 'scan': return 'AI Scan';
+    case 'describe': return 'AI Estimate';
     default: return 'Unknown Source';
   }
 }

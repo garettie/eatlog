@@ -62,6 +62,8 @@ export async function initDatabase(): Promise<void> {
     DROP TABLE IF EXISTS profile;
     DROP TABLE IF EXISTS weight_logs;
     DROP TABLE IF EXISTS food_logs;
+    DROP TABLE IF EXISTS food_cache;
+    DROP TABLE IF EXISTS meals;
     DROP TABLE IF EXISTS daily_targets;
 
     CREATE TABLE profile (
@@ -91,11 +93,12 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       log_date TEXT NOT NULL,
       name TEXT NOT NULL,
-      source TEXT NOT NULL CHECK (source IN ('usda','off','manual','scan')),
+      source TEXT NOT NULL CHECK (source IN ('usda','off','manual','scan','describe')),
       source_food_id TEXT,
       meal TEXT NOT NULL DEFAULT 'snack' CHECK (meal IN ('breakfast','lunch','dinner','snack')),
+      meal_id INTEGER REFERENCES meals(id),
       brand TEXT,
-      data_type TEXT CHECK (data_type IN ('Foundation','SR Legacy','Branded','off','manual','scan','')),
+      data_type TEXT CHECK (data_type IN ('Foundation','SR Legacy','Branded','off','manual','scan','describe','')),
       preparation TEXT,
       grams_logged REAL,
       serving_size_g REAL,
@@ -110,6 +113,31 @@ export async function initDatabase(): Promise<void> {
       fat_g REAL NOT NULL,
       logged_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE meals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      log_date TEXT NOT NULL,
+      meal_type TEXT NOT NULL DEFAULT 'snack' CHECK (meal_type IN ('breakfast','lunch','dinner','snack')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE food_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      normalizedName TEXT NOT NULL,
+      brand TEXT,
+      preparation TEXT,
+      calories_per_100g REAL NOT NULL,
+      protein_g_per_100g REAL NOT NULL,
+      carbs_g_per_100g REAL NOT NULL,
+      fat_g_per_100g REAL NOT NULL,
+      serving_size_g REAL,
+      serving_label TEXT,
+      source TEXT NOT NULL CHECK (source IN ('scan','describe')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX idx_food_cache_normalized ON food_cache(normalizedName);
 
     CREATE TABLE daily_targets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -205,6 +233,7 @@ export interface FoodLog {
   source: string;
   source_food_id: string | null;
   meal: MealType;
+  meal_id: number | null;
   brand: string | null;
   data_type: string | null;
   preparation: string | null;
@@ -239,9 +268,10 @@ export async function getMostRecentFoodLog(): Promise<FoodLog | null> {
 export async function insertFoodLog(params: {
   log_date: string;
   name: string;
-  source: 'usda' | 'off' | 'manual' | 'scan';
+  source: 'usda' | 'off' | 'manual' | 'scan' | 'describe';
   source_food_id?: string | null;
   meal: MealType;
+  meal_id?: number | null;
   brand?: string | null;
   data_type?: string | null;
   preparation?: string | null;
@@ -260,14 +290,15 @@ export async function insertFoodLog(params: {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO food_logs
-      (log_date, name, source, source_food_id, meal, brand, data_type, preparation, grams_logged, serving_size_g, serving_label, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (log_date, name, source, source_food_id, meal, meal_id, brand, data_type, preparation, grams_logged, serving_size_g, serving_label, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       params.log_date,
       params.name,
       params.source,
       params.source_food_id ?? null,
       params.meal,
+      params.meal_id ?? null,
       params.brand ?? null,
       params.data_type ?? null,
       params.preparation ?? null,
@@ -320,7 +351,7 @@ export async function getRecentFoodLogs(limit: number): Promise<RecentFood[]> {
   return db.getAllAsync<RecentFood>(
     `SELECT name, source, source_food_id, brand, data_type, preparation, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, serving_size_g, serving_label, MAX(logged_at) as logged_at
      FROM food_logs
-     WHERE source != 'manual'
+     WHERE source NOT IN ('manual', 'scan', 'describe')
      GROUP BY name, COALESCE(source_food_id, name)
      ORDER BY logged_at DESC
      LIMIT ?`,
@@ -358,5 +389,119 @@ export async function getRecentWeightLogs(limit: number): Promise<WeightLog[]> {
   return db.getAllAsync<WeightLog>(
     'SELECT * FROM weight_logs ORDER BY log_date DESC LIMIT ?',
     [limit]
+  );
+}
+
+export async function insertMeal(params: {
+  name: string;
+  log_date: string;
+  meal_type: MealType;
+}): Promise<number> {
+  const db = await getDb();
+  const result = await db.runAsync(
+    `INSERT INTO meals (name, log_date, meal_type) VALUES (?, ?, ?)`,
+    [params.name, params.log_date, params.meal_type]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function cacheFoodItem(params: {
+  name: string;
+  normalizedName: string;
+  brand: string | null;
+  preparation: string | null;
+  calories_per_100g: number;
+  protein_g_per_100g: number;
+  carbs_g_per_100g: number;
+  fat_g_per_100g: number;
+  serving_size_g: number | null;
+  serving_label: string | null;
+  source: 'scan' | 'describe';
+}): Promise<void> {
+  const db = await getDb();
+  const existing = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM food_cache WHERE normalizedName = ?',
+    [params.normalizedName]
+  );
+  if (existing) {
+    await db.runAsync(
+      `UPDATE food_cache SET
+         name = ?, brand = COALESCE(?, brand), preparation = COALESCE(?, preparation),
+         calories_per_100g = ?, protein_g_per_100g = ?, carbs_g_per_100g = ?,
+         fat_g_per_100g = ?, serving_size_g = ?, serving_label = ?,
+         source = ?, created_at = datetime('now')
+       WHERE id = ?`,
+      [
+        params.name,
+        params.brand,
+        params.preparation,
+        params.calories_per_100g,
+        params.protein_g_per_100g,
+        params.carbs_g_per_100g,
+        params.fat_g_per_100g,
+        params.serving_size_g,
+        params.serving_label,
+        params.source,
+        existing.id,
+      ]
+    );
+  } else {
+    await db.runAsync(
+      `INSERT INTO food_cache
+         (name, normalizedName, brand, preparation,
+          calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g,
+          serving_size_g, serving_label, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.name,
+        params.normalizedName,
+        params.brand,
+        params.preparation,
+        params.calories_per_100g,
+        params.protein_g_per_100g,
+        params.carbs_g_per_100g,
+        params.fat_g_per_100g,
+        params.serving_size_g,
+        params.serving_label,
+        params.source,
+      ]
+    );
+  }
+}
+
+export interface CachedFood {
+  id: number;
+  name: string;
+  normalizedName: string;
+  brand: string | null;
+  preparation: string | null;
+  calories_per_100g: number;
+  protein_g_per_100g: number;
+  carbs_g_per_100g: number;
+  fat_g_per_100g: number;
+  serving_size_g: number | null;
+  serving_label: string | null;
+  source: 'scan' | 'describe';
+}
+
+export async function getCachedFood(normalizedName: string): Promise<CachedFood | null> {
+  const db = await getDb();
+  return db.getFirstAsync<CachedFood>(
+    'SELECT * FROM food_cache WHERE normalizedName = ?',
+    [normalizedName]
+  );
+}
+
+export async function searchFoodCache(query: string): Promise<CachedFood[]> {
+  const db = await getDb();
+  return db.getAllAsync<CachedFood>(
+    `SELECT * FROM food_cache WHERE normalizedName LIKE ?
+     ORDER BY CASE
+       WHEN normalizedName = ? THEN 0
+       WHEN normalizedName LIKE ? THEN 1
+       ELSE 2
+     END
+     LIMIT 15`,
+    [`%${query}%`, query, `${query}%`]
   );
 }

@@ -1,11 +1,12 @@
 import { USDA_API_KEY } from '../config/api';
+import { searchFoodCache, CachedFood } from '../db/database';
 
 export interface FoodResult {
   id: string;
   name: string;
-  source: 'usda' | 'off' | 'scan';
+  source: 'usda' | 'off' | 'scan' | 'describe' | 'manual';
   sourceFoodId: string;
-  dataType: 'Foundation' | 'SR Legacy' | 'Branded' | 'off' | 'manual' | 'scan';
+  dataType: 'Foundation' | 'SR Legacy' | 'Branded' | 'off' | 'manual' | 'scan' | 'describe';
   brand: string | null;
   preparation: string | null;
   normalizedName: string;
@@ -15,7 +16,7 @@ export interface FoodResult {
   fatPer100g: number | null;
   servingSizeGrams: number | null;
   servingLabel: string | null;
-  alternateSourceIds: { source: 'usda' | 'off' | 'scan'; id: string }[];
+  alternateSourceIds: { source: 'usda' | 'off' | 'scan' | 'describe' | 'manual'; id: string }[];
 }
 
 export type DataType = FoodResult['dataType'];
@@ -556,19 +557,48 @@ async function searchOFF(query: string): Promise<FoodResult[]> {
   }
 }
 
+// ── Local Cache ──────────────────────────────────────────────────────────
+
+async function searchLocalCache(query: string): Promise<FoodResult[]> {
+  try {
+    const rows = await searchFoodCache(query);
+    return rows.map((row) => ({
+      id: `cache-${row.id}`,
+      name: row.name,
+      source: row.source as 'scan' | 'describe',
+      sourceFoodId: String(row.id),
+      dataType: row.source as 'scan' | 'describe',
+      brand: row.brand,
+      preparation: row.preparation,
+      normalizedName: row.normalizedName,
+      caloriesPer100g: row.calories_per_100g,
+      proteinPer100g: row.protein_g_per_100g,
+      carbsPer100g: row.carbs_g_per_100g,
+      fatPer100g: row.fat_g_per_100g,
+      servingSizeGrams: row.serving_size_g,
+      servingLabel: row.serving_label,
+      alternateSourceIds: [],
+    }));
+  } catch {
+    return [];
+  }
+}
+
 // ── Public API ────────────────────────────────────────────────────────────
 
 export async function searchFood(query: string): Promise<FoodResult[]> {
   const q = query.trim();
   if (!q) return [];
 
-  const [generic, branded, off] = await Promise.allSettled([
+  const [local, generic, branded, off] = await Promise.allSettled([
+    searchLocalCache(q),
     searchUSDAGeneric(q),
     searchUSDABranded(q),
     searchOFF(q),
   ]);
 
   const all: FoodResult[] = [
+    ...(local.status === 'fulfilled' ? local.value : []),
     ...(generic.status === 'fulfilled' ? generic.value : []),
     ...(branded.status === 'fulfilled' ? branded.value : []),
     ...(off.status === 'fulfilled' ? off.value : []),
