@@ -505,3 +505,46 @@ export async function searchFoodCache(query: string): Promise<CachedFood[]> {
     [`%${query}%`, query, `${query}%`]
   );
 }
+
+export interface LastEntry {
+  name: string;
+  calories: number;
+  logged_at: string;
+  isMeal: boolean;
+  mealId: number | null;
+}
+
+export async function getMostRecentEntry(): Promise<LastEntry | null> {
+  const db = await getDb();
+  const recent = await db.getFirstAsync<FoodLog>(
+    'SELECT * FROM food_logs ORDER BY id DESC LIMIT 1'
+  );
+  if (!recent) return null;
+
+  if (recent.meal_id) {
+    const meal = await db.getFirstAsync<{ name: string }>(
+      'SELECT name FROM meals WHERE id = ?',
+      [recent.meal_id]
+    );
+    const totals = await db.getFirstAsync<{ calories: number; logged_at: string }>(
+      `SELECT COALESCE(SUM(calories), 0) AS calories, MAX(logged_at) AS logged_at
+       FROM food_logs WHERE meal_id = ?`,
+      [recent.meal_id]
+    );
+    return {
+      name: meal?.name ?? 'Meal',
+      calories: totals?.calories ?? 0,
+      logged_at: totals?.logged_at ?? recent.logged_at,
+      isMeal: true,
+      mealId: recent.meal_id,
+    };
+  }
+
+  return {
+    name: recent.name,
+    calories: recent.calories,
+    logged_at: recent.logged_at,
+    isMeal: false,
+    mealId: null,
+  };
+}

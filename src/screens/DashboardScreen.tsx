@@ -9,12 +9,12 @@ import Card from '../components/Card';
 import {
   getProfile,
   getLatestDailyTarget,
-  getMostRecentFoodLog,
+  getMostRecentEntry,
   getTodayMacros,
   getRecentWeightLogs,
   Profile,
   DailyTarget,
-  FoodLog,
+  LastEntry,
   WeightLog,
 } from '../db/database';
 import { todayISO } from '../utils/calculations';
@@ -82,7 +82,7 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
-  const [recentFood, setRecentFood] = useState<FoodLog | null>(null);
+  const [recentFood, setRecentFood] = useState<LastEntry | null>(null);
   const [todayMacros, setTodayMacros] = useState<{
     calories: number;
     protein_g: number;
@@ -97,7 +97,7 @@ export default function DashboardScreen() {
         const today = todayISO();
         const prof = await getProfile();
         const targ = await getLatestDailyTarget();
-        const rFood = await getMostRecentFoodLog();
+        const rFood = await getMostRecentEntry();
         const tMacros = await getTodayMacros(today);
         const wLogs = await getRecentWeightLogs(30);
 

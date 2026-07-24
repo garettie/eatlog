@@ -27,11 +27,13 @@ interface EditableComponent {
   servings: number;
   servingSizeGrams: number | null;
   servingLabel: string | null;
+  unitMode: 'servings' | 'grams' | 'ml';
 }
 
 function toEditable(food: FoodResult): EditableComponent {
   const hasServing = !!(food.servingSizeGrams && food.servingSizeGrams > 0);
   const defaultGrams = food.estimatedGrams ?? (hasServing ? food.servingSizeGrams! : 150);
+  const isBeverage = !!(food.servingLabel && /ml\b/i.test(food.servingLabel));
   return {
     food,
     per100g: {
@@ -44,6 +46,7 @@ function toEditable(food: FoodResult): EditableComponent {
     servings: hasServing ? Math.round((defaultGrams / food.servingSizeGrams!) * 10) / 10 : 1,
     servingSizeGrams: food.servingSizeGrams ?? null,
     servingLabel: food.servingLabel ?? null,
+    unitMode: isBeverage ? 'ml' : hasServing ? 'servings' : 'grams',
   };
 }
 
@@ -112,6 +115,30 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
             servings: newServings,
             grams: Math.round(newServings * c.servingSizeGrams),
           };
+        }),
+      );
+    }, []);
+
+    const updateName = useCallback((idx: number, name: string) => {
+      setComponents((prev) =>
+        prev.map((c, i) => {
+          if (i !== idx) return c;
+          return {
+            ...c,
+            food: { ...c.food, name, normalizedName: name.toLowerCase() },
+          };
+        }),
+      );
+    }, []);
+
+    const updateUnitMode = useCallback((idx: number, mode: EditableComponent['unitMode']) => {
+      setComponents((prev) =>
+        prev.map((c, i) => {
+          if (i !== idx || c.unitMode === mode) return c;
+          const newGrams = mode === 'servings' && c.servingSizeGrams && c.servingSizeGrams > 0
+            ? Math.round(c.servings * c.servingSizeGrams)
+            : c.grams;
+          return { ...c, unitMode: mode, grams: newGrams };
         }),
       );
     }, []);
@@ -295,9 +322,11 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
                 /* ── Expanded Row ── */
                 <View key={`${comp.food.id}-${idx}`} className="bg-m3-surface-container-high rounded-xl px-3 py-3 gap-3">
                   <View className="flex-row justify-between items-center">
-                    <Text className="text-m3-on-surface font-medium text-xs" numberOfLines={1}>
-                      {comp.food.name}
-                    </Text>
+                    <TextInput
+                      value={comp.food.name}
+                      onChangeText={(t) => updateName(idx, t)}
+                      className="flex-1 bg-m3-surface-container text-m3-on-surface font-medium text-xs rounded-lg px-2 py-1.5 border border-m3-outline-variant/50 mr-2"
+                    />
                     <Pressable onPress={() => setExpandedIndex(null)} hitSlop={8}>
                       <MaterialIcons name="expand-less" size={18} color="#c4c6d0" />
                     </Pressable>
@@ -342,15 +371,73 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
                     </View>
                   </View>
 
-                  <View className="flex-row items-center gap-2">
-                    <TextInput
-                      value={String(comp.grams)}
-                      onChangeText={(t) => updateGrams(idx, parseFloat(t) || 1)}
-                      keyboardType="numeric"
-                      className="w-20 text-center bg-m3-surface-container rounded-lg py-1.5 px-2 text-m3-on-surface text-xs font-semibold border border-m3-outline-variant/50"
-                    />
-                    <Text className="text-[9px] text-m3-on-surface-variant">grams</Text>
+                  {/* ── Unit Toggle ── */}
+                  <View className="flex-row gap-1.5">
+                    {hasServing && (
+                      <Pressable
+                        onPress={() => updateUnitMode(idx, 'servings')}
+                        className={`flex-1 py-1.5 rounded-full items-center ${comp.unitMode === 'servings' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+                      >
+                        <Text className={`text-[10px] font-semibold ${comp.unitMode === 'servings' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+                          Servings
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      onPress={() => updateUnitMode(idx, 'grams')}
+                      className={`flex-1 py-1.5 rounded-full items-center ${comp.unitMode === 'grams' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+                    >
+                      <Text className={`text-[10px] font-semibold ${comp.unitMode === 'grams' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+                        Grams
+                      </Text>
+                    </Pressable>
+                    {comp.servingLabel && /ml\b/i.test(comp.servingLabel) && (
+                      <Pressable
+                        onPress={() => updateUnitMode(idx, 'ml')}
+                        className={`flex-1 py-1.5 rounded-full items-center ${comp.unitMode === 'ml' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+                      >
+                        <Text className={`text-[10px] font-semibold ${comp.unitMode === 'ml' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+                          ml
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
+
+                  {/* ── Quantity ── */}
+                  {comp.unitMode === 'servings' && hasServing ? (
+                    <View className="flex-row items-center gap-1">
+                      <Pressable
+                        onPress={() => updateServings(idx, -0.5)}
+                        className="w-7 h-7 rounded bg-m3-surface-container-highest items-center justify-center active:opacity-60"
+                      >
+                        <MaterialIcons name="remove" size={16} color="#e2e2e9" />
+                      </Pressable>
+                      <Text className="text-sm font-bold num-tabular text-m3-on-surface w-10 text-center">
+                        {comp.servings % 1 === 0 ? comp.servings.toFixed(0) : comp.servings.toFixed(1)}
+                      </Text>
+                      <Pressable
+                        onPress={() => updateServings(idx, 0.5)}
+                        className="w-7 h-7 rounded bg-m3-surface-container-highest items-center justify-center active:opacity-60"
+                      >
+                        <MaterialIcons name="add" size={16} color="#e2e2e9" />
+                      </Pressable>
+                      <Text className="text-[10px] text-m3-on-surface-variant ml-1" numberOfLines={1}>
+                        {comp.servingLabel ?? `${comp.servingSizeGrams}g`}{' · '}{comp.grams}g
+                      </Text>
+                    </View>
+                  ) : (
+                    <View className="flex-row items-center gap-2">
+                      <TextInput
+                        value={String(comp.grams)}
+                        onChangeText={(t) => updateGrams(idx, parseFloat(t) || 1)}
+                        keyboardType="numeric"
+                        className="w-20 text-center bg-m3-surface-container rounded-lg py-1.5 px-2 text-m3-on-surface text-xs font-semibold border border-m3-outline-variant/50"
+                      />
+                      <Text className="text-[9px] text-m3-on-surface-variant">
+                        {comp.unitMode === 'ml' ? 'ml' : 'grams'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               ) : (
                 /* ── Collapsed Row ── */
@@ -376,7 +463,7 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
                     </Pressable>
                   </View>
 
-                  {hasServing ? (
+                  {hasServing && comp.unitMode === 'servings' ? (
                     /* ── Servings Mode ── */
                     <View className="flex-row items-center gap-1">
                       <Pressable
@@ -428,7 +515,9 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
                           onPressIn={(e) => e.stopPropagation()}
                           className="w-16 text-center bg-m3-surface-container rounded-lg py-1 px-1 text-m3-on-surface text-xs font-semibold border border-m3-outline-variant/50"
                         />
-                        <Text className="text-[9px] text-m3-on-surface-variant">g</Text>
+                        <Text className="text-[9px] text-m3-on-surface-variant">
+                          {comp.unitMode === 'ml' ? 'ml' : 'g'}
+                        </Text>
                         <View className="flex-1 flex-row gap-1 justify-end">
                           <View className="bg-m3-surface-container rounded px-1.5 py-0.5 items-center">
                             <Text className="text-[7px] text-white/60 font-semibold">CAL</Text>
