@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useMemo, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import { FoodResult } from '../services/foodSearch';
 import { defaultMealForNow, todayISO } from '../utils/calculations';
 import SheetBackdrop from './SheetBackdrop';
 
-interface DescribeResult {
+export interface DescribeResult {
   mealName: string;
   components: FoodResult[];
 }
@@ -66,6 +66,15 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
     const [newGrams, setNewGrams] = useState('150');
     const [meal, setMeal] = useState<MealType>(() => defaultMealForNow());
     const [logging, setLogging] = useState(false);
+
+    useEffect(() => {
+      if (result) {
+        setMealName(result.mealName);
+        setComponents(result.components.map(toEditable));
+        setExpandedIndex(null);
+        setAdding(false);
+      }
+    }, [result]);
 
     const totalMacros = useMemo(() => {
       let cal = 0;
@@ -214,7 +223,21 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
       }
     }, [components, mealName, meal, onLogComplete]);
 
-    if (!result) return null;
+    if (!result) return (
+      <BottomSheetModal
+        ref={ref}
+        snapPoints={['85%']}
+        backgroundStyle={{ backgroundColor: '#1d2024' }}
+        handleIndicatorStyle={{ backgroundColor: '#44474f', width: 40 }}
+        animationConfigs={{ duration: 300 }}
+        enableDynamicSizing={false}
+        backdropComponent={SheetBackdrop}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+      >
+        <View />
+      </BottomSheetModal>
+    );
 
     return (
       <BottomSheetModal

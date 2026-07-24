@@ -11,7 +11,7 @@ import { scanFood, describeMeal } from '../services/foodScan';
 import { getRecentFoodLogs, RecentFood } from '../db/database';
 import PortionAdjuster from '../components/PortionAdjuster';
 import ManualEntrySheet from '../components/ManualEntrySheet';
-import MealReviewSheet from '../components/MealReviewSheet';
+import MealReviewSheet, { DescribeResult } from '../components/MealReviewSheet';
 
 function dataTypeBadge(dt: DataType): string {
   switch (dt) {
@@ -113,8 +113,7 @@ export default function FoodSearchScreen() {
         Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
         return;
       }
-      setSelectedFood(foodResult);
-      setTimeout(() => portionRef.current?.present(), 100);
+      openInReview(foodResult);
     } finally {
       setScanning(false);
     }
@@ -134,11 +133,16 @@ export default function FoodSearchScreen() {
         Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
         return;
       }
-      setSelectedFood(foodResult);
-      setTimeout(() => portionRef.current?.present(), 100);
+      openInReview(foodResult);
     } finally {
       setScanning(false);
     }
+  }, []);
+
+  const openInReview = useCallback((food: FoodResult) => {
+    const result: DescribeResult = { mealName: food.name, components: [food] };
+    setDescribeResult(result);
+    setTimeout(() => mealReviewRef.current?.present(), 100);
   }, []);
 
   const handleDescribeToggle = useCallback(() => {
