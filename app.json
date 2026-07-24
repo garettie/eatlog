@@ -38,7 +38,14 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to scan food labels for nutritional information",
+          "cameraPermission": "Used to scan food labels with the camera"
+        }
+      ]
     ]
   }
 }

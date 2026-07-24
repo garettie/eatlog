@@ -4,8 +4,21 @@ import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MealType, insertFoodLog } from '../db/database';
-import { FoodResult } from '../services/foodSearch';
-import { todayISO } from '../utils/calculations';
+import { DataType, FoodResult } from '../services/foodSearch';
+import { defaultMealForNow, todayISO } from '../utils/calculations';
+import SheetBackdrop from './SheetBackdrop';
+
+function dataTypeLabel(dt: DataType): string {
+  switch (dt) {
+    case 'Foundation': return 'USDA Foundation Database';
+    case 'SR Legacy': return 'USDA SR Legacy';
+    case 'Branded': return 'USDA Branded';
+    case 'off': return 'Open Food Facts';
+    case 'manual': return 'Manual Entry';
+    case 'scan': return 'AI Scan';
+    default: return 'Unknown Source';
+  }
+}
 
 interface PortionAdjusterProps {
   food: FoodResult | null;
@@ -31,7 +44,7 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
     const [mode, setMode] = useState<UnitMode>(hasServing ? 'servings' : 'grams');
     const [servings, setServings] = useState(1);
     const [gramsInput, setGramsInput] = useState('');
-    const [meal, setMeal] = useState<MealType>('lunch');
+    const [meal, setMeal] = useState<MealType>(() => defaultMealForNow());
     const [logging, setLogging] = useState(false);
 
     useEffect(() => {
@@ -45,7 +58,7 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
         setGramsInput('150');
         setServings(1);
       }
-      setMeal('lunch');
+      setMeal(defaultMealForNow());
     }, [food]);
 
     const gramsNum = useMemo(() => {
@@ -60,10 +73,10 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
       if (!food || gramsNum <= 0) return null;
       const ratio = gramsNum / 100;
       return {
-        calories: Math.round(food.caloriesPer100g * ratio),
-        protein: Math.round(food.proteinPer100g * ratio * 10) / 10,
-        carbs: Math.round(food.carbsPer100g * ratio * 10) / 10,
-        fat: Math.round(food.fatPer100g * ratio * 10) / 10,
+        calories: food.caloriesPer100g != null ? Math.round(food.caloriesPer100g * ratio) : 0,
+        protein: food.proteinPer100g != null ? Math.round(food.proteinPer100g * ratio * 10) / 10 : 0,
+        carbs: food.carbsPer100g != null ? Math.round(food.carbsPer100g * ratio * 10) / 10 : 0,
+        fat: food.fatPer100g != null ? Math.round(food.fatPer100g * ratio * 10) / 10 : 0,
       };
     }, [food, gramsNum]);
 
@@ -102,7 +115,12 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
           source: food.source,
           source_food_id: food.sourceFoodId,
           meal,
+          brand: food.brand,
+          data_type: food.dataType,
+          preparation: food.preparation,
           grams_logged: gramsNum,
+          serving_size_g: food.servingSizeGrams,
+          serving_label: food.servingLabel,
           calories_per_100g: food.caloriesPer100g,
           protein_g_per_100g: food.proteinPer100g,
           carbs_g_per_100g: food.carbsPer100g,
@@ -128,6 +146,9 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
         handleIndicatorStyle={{ backgroundColor: '#44474f', width: 40 }}
         animationConfigs={{ duration: 300 }}
         enableDynamicSizing={false}
+        backdropComponent={SheetBackdrop}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
       >
         <BottomSheetScrollView
           className="flex-1 px-5"
@@ -140,13 +161,17 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
               <Text className="text-m3-on-surface font-bold text-base leading-5" numberOfLines={2}>
                 {food.name}
               </Text>
-              <Text className="text-m3-on-surface-variant text-[10px] mt-1">
-                {food.source === 'usda' ? 'USDA Foundation Entry' : 'Open Food Facts'}
+              {!!food.brand && (
+                <Text className="text-m3-on-surface-variant text-xs mt-0.5">{food.brand}</Text>
+              )}
+              <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">
+                {dataTypeLabel(food.dataType)}
+                {food.preparation && ` · ${food.preparation}`}
               </Text>
             </View>
-            <View className="bg-m3-surface-container px-3 py-1 rounded-full">
+            <View className="bg-m3-surface-container-high px-3 py-1 rounded-full">
               <Text className="text-m3-on-surface num-tabular text-[10px] font-semibold">
-                {Math.round(food.caloriesPer100g)} kcal / 100g
+                {food.caloriesPer100g != null ? `${Math.round(food.caloriesPer100g)} kcal / 100g` : '---'}
               </Text>
             </View>
           </View>
@@ -218,12 +243,12 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
               /* ── Grams Input ── */
               <View className="flex-row items-center gap-3">
                 <View className="flex-1">
-                  <TextInput
-                    value={gramsInput}
-                    onChangeText={setGramsInput}
-                    keyboardType="numeric"
-                    className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-bold text-lg rounded-xl px-4 py-3 border border-white/60 text-center"
-                  />
+                <TextInput
+                  value={gramsInput}
+                  onChangeText={setGramsInput}
+                  keyboardType="numeric"
+                  className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-bold text-lg rounded-xl px-4 py-3 border border-m3-outline-variant/50 text-center"
+                />
                 </View>
                 <Text className="text-m3-on-surface-variant text-sm font-semibold">grams</Text>
               </View>
@@ -266,7 +291,7 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
                 className={`flex-1 py-2 rounded-full items-center ${meal === m.value ? 'bg-m3-surface-container' : ''}`}
               >
                 <Text
-                  className={`text-[11px] font-semibold ${meal === m.value ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
+                  className={`text-xs font-semibold ${meal === m.value ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
                 >
                   {m.label}
                 </Text>
@@ -278,7 +303,7 @@ const PortionAdjuster = forwardRef<BottomSheetModal, PortionAdjusterProps>(
           <Pressable
             onPress={handleLog}
             disabled={logging || !macros || gramsNum <= 0}
-            className="bg-white py-3.5 rounded-full items-center justify-center active:scale-95"
+            className="bg-white py-3.5 rounded-full items-center justify-center active:scale-95 disabled:opacity-40"
           >
             {logging ? (
               <Text className="text-black font-bold text-sm">Logging...</Text>

@@ -91,10 +91,15 @@ export async function initDatabase(): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       log_date TEXT NOT NULL,
       name TEXT NOT NULL,
-      source TEXT NOT NULL CHECK (source IN ('usda','off','manual')),
+      source TEXT NOT NULL CHECK (source IN ('usda','off','manual','scan')),
       source_food_id TEXT,
       meal TEXT NOT NULL DEFAULT 'snack' CHECK (meal IN ('breakfast','lunch','dinner','snack')),
+      brand TEXT,
+      data_type TEXT CHECK (data_type IN ('Foundation','SR Legacy','Branded','off','manual','scan','')),
+      preparation TEXT,
       grams_logged REAL,
+      serving_size_g REAL,
+      serving_label TEXT,
       calories_per_100g REAL,
       protein_g_per_100g REAL,
       carbs_g_per_100g REAL,
@@ -200,7 +205,12 @@ export interface FoodLog {
   source: string;
   source_food_id: string | null;
   meal: MealType;
+  brand: string | null;
+  data_type: string | null;
+  preparation: string | null;
   grams_logged: number | null;
+  serving_size_g: number | null;
+  serving_label: string | null;
   calories_per_100g: number | null;
   protein_g_per_100g: number | null;
   carbs_g_per_100g: number | null;
@@ -229,10 +239,15 @@ export async function getMostRecentFoodLog(): Promise<FoodLog | null> {
 export async function insertFoodLog(params: {
   log_date: string;
   name: string;
-  source: 'usda' | 'off' | 'manual';
+  source: 'usda' | 'off' | 'manual' | 'scan';
   source_food_id?: string | null;
   meal: MealType;
+  brand?: string | null;
+  data_type?: string | null;
+  preparation?: string | null;
   grams_logged?: number | null;
+  serving_size_g?: number | null;
+  serving_label?: string | null;
   calories_per_100g?: number | null;
   protein_g_per_100g?: number | null;
   carbs_g_per_100g?: number | null;
@@ -245,15 +260,20 @@ export async function insertFoodLog(params: {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO food_logs
-      (log_date, name, source, source_food_id, meal, grams_logged, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (log_date, name, source, source_food_id, meal, brand, data_type, preparation, grams_logged, serving_size_g, serving_label, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       params.log_date,
       params.name,
       params.source,
       params.source_food_id ?? null,
       params.meal,
+      params.brand ?? null,
+      params.data_type ?? null,
+      params.preparation ?? null,
       params.grams_logged ?? null,
+      params.serving_size_g ?? null,
+      params.serving_label ?? null,
       params.calories_per_100g ?? null,
       params.protein_g_per_100g ?? null,
       params.carbs_g_per_100g ?? null,
@@ -283,17 +303,22 @@ export interface RecentFood {
   name: string;
   source: string;
   source_food_id: string | null;
+  brand: string | null;
+  data_type: string | null;
+  preparation: string | null;
   calories_per_100g: number | null;
   protein_g_per_100g: number | null;
   carbs_g_per_100g: number | null;
   fat_g_per_100g: number | null;
+  serving_size_g: number | null;
+  serving_label: string | null;
   logged_at: string;
 }
 
 export async function getRecentFoodLogs(limit: number): Promise<RecentFood[]> {
   const db = await getDb();
   return db.getAllAsync<RecentFood>(
-    `SELECT name, source, source_food_id, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, MAX(logged_at) as logged_at
+    `SELECT name, source, source_food_id, brand, data_type, preparation, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, serving_size_g, serving_label, MAX(logged_at) as logged_at
      FROM food_logs
      WHERE source != 'manual'
      GROUP BY name, COALESCE(source_food_id, name)

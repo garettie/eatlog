@@ -42,3 +42,6 @@ yarn-error.*
 .ijfw/
 ijfw/
 fix_imports.py
+
+# API keys
+src/config/api.ts
