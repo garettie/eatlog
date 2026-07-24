@@ -136,6 +136,11 @@ async function mapComponents(
         ? `${perServingGrams ?? ''}g`
         : null;
 
+      const calPer100g = cached?.calories_per_100g ?? comp.caloriesPer100g;
+      const proPer100g = cached?.protein_g_per_100g ?? comp.proteinPer100g;
+      const carbPer100g = cached?.carbs_g_per_100g ?? comp.carbsPer100g;
+      const fatPer100g = cached?.fat_g_per_100g ?? comp.fatPer100g;
+
       return {
         id: `${source}-${timestamp}-${idx}`,
         name: cleanName,
@@ -145,10 +150,10 @@ async function mapComponents(
         brand: cached?.brand ?? comp.brand ?? null,
         preparation: cached?.preparation ?? comp.preparation ?? null,
         normalizedName,
-        caloriesPer100g: cached?.calories_per_100g ?? comp.caloriesPer100g,
-        proteinPer100g: cached?.protein_g_per_100g ?? comp.proteinPer100g,
-        carbsPer100g: cached?.carbs_g_per_100g ?? comp.carbsPer100g,
-        fatPer100g: cached?.fat_g_per_100g ?? comp.fatPer100g,
+        caloriesPer100g: Math.round(calPer100g * 10) / 10,
+        proteinPer100g: Math.round(proPer100g * 10) / 10,
+        carbsPer100g: Math.round(carbPer100g * 10) / 10,
+        fatPer100g: Math.round(fatPer100g * 10) / 10,
         servingSizeGrams: cached?.serving_size_g ?? perServingGrams,
         servingLabel: cached?.serving_label ?? perServingLabel,
         estimatedGrams: comp.estimatedGrams,

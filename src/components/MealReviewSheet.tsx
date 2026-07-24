@@ -293,7 +293,7 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
 
               return isExpanded ? (
                 /* ── Expanded Row ── */
-                <View key={comp.food.id} className="bg-m3-surface-container-high rounded-xl px-3 py-3 gap-3">
+                <View key={`${comp.food.id}-${idx}`} className="bg-m3-surface-container-high rounded-xl px-3 py-3 gap-3">
                   <View className="flex-row justify-between items-center">
                     <Text className="text-m3-on-surface font-medium text-xs" numberOfLines={1}>
                       {comp.food.name}
@@ -354,7 +354,7 @@ const MealReviewSheet = forwardRef<BottomSheetModal, MealReviewSheetProps>(
                 </View>
               ) : (
                 /* ── Collapsed Row ── */
-                <View className="bg-m3-surface-container-high rounded-xl px-3 py-2.5 gap-2 active:opacity-70">
+                <View key={`${comp.food.id}-${idx}`} className="bg-m3-surface-container-high rounded-xl px-3 py-2.5 gap-2 active:opacity-70">
                   <View className="flex-row justify-between items-center">
                     <Pressable onPress={() => setExpandedIndex(idx)} className="flex-1">
                       <View className="flex-1 mr-2">
