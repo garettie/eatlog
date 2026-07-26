@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Dimensions, Keyboard, Modal, Platform, Pressable, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
@@ -68,6 +68,9 @@ export default function Sheet({
     peek: Math.round(sheetH - Math.min(sheetH, 0.25 * screenH)),
   };
 
+  const detentTargetsRef = useRef(detentTargets);
+  detentTargetsRef.current = detentTargets;
+
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const detentRef = useRef(detent);
@@ -96,10 +99,10 @@ export default function Sheet({
       return () => { willShow.remove(); willHide.remove(); };
     }
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      keyboardH.value = withTiming(e.endCoordinates.height, { duration: 0 });
+      keyboardH.value = withTiming(e.endCoordinates.height, { duration: 1 });
     });
     const hide = Keyboard.addListener('keyboardDidHide', () => {
-      keyboardH.value = withTiming(0, { duration: 0 });
+      keyboardH.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) });
     });
     return () => { show.remove(); hide.remove(); };
   }, []);
@@ -121,16 +124,15 @@ export default function Sheet({
   const requestClose = useCallback(() => {
     const allowed = canCloseRef.current();
     if (!allowed) {
-      animateSnap(detentTargets[detentRef.current]);
+      animateSnap(detentTargetsRef.current[detentRef.current]);
       backdrop.value = withTiming(scrimOpacity, { duration: 200 });
       return;
     }
     onCloseRef.current();
-  }, [animateSnap, detentTargets, scrimOpacity, backdrop, canCloseRef]);
+  }, [animateSnap, scrimOpacity, backdrop, canCloseRef]);
 
-  const finishDismiss = useCallback(() => {
-    requestClose();
-  }, [requestClose]);
+  const finishDismissRef = useRef<() => void>(() => {});
+  finishDismissRef.current = () => requestClose();
 
   // Render staging
   useEffect(() => {
@@ -202,7 +204,7 @@ export default function Sheet({
     [visible, screenH],
   );
 
-  const pan = Gesture.Pan()
+  const pan = useMemo(() => Gesture.Pan()
     .activeOffsetY(20)
     .onBegin(() => {
       dragStartY.value = translateY.value;
@@ -215,26 +217,23 @@ export default function Sheet({
       const current = translateY.value;
       const pastDismissThreshold =
         current > DRAG_DISMISS_FRACTION * screenH || e.velocityY > DRAG_DISMISS_VELOCITY;
-
       if (pastDismissThreshold) {
-        runOnJS(finishDismiss)();
+        runOnJS(() => finishDismissRef.current())();
         return;
       }
-
-      // Snap to nearest detent
-      const targets = [detentTargets.full, detentTargets.half, detentTargets.peek];
-      let nearest = targets[0];
+      const targets = detentTargetsRef.current;
+      const values = [targets.full, targets.half, targets.peek];
+      let nearest = values[0];
       let bestDelta = Math.abs(current - nearest);
-      for (let i = 1; i < targets.length; i++) {
-        const t = targets[i];
-        const delta = Math.abs(current - t);
+      for (let i = 1; i < values.length; i++) {
+        const delta = Math.abs(current - values[i]);
         if (delta < bestDelta) {
           bestDelta = delta;
-          nearest = t;
+          nearest = values[i];
         }
       }
       animateSnap(nearest);
-    });
+    }), [animateSnap, screenH, dragStartY, translateY]);
 
   useEffect(() => {
     return () => {
@@ -244,7 +243,7 @@ export default function Sheet({
   }, [translateY, backdrop]);
 
   const sheetStyle = useAnimatedStyle(() => ({
-    maxHeight: Math.max(0, maxSheetH - keyboardH.value),
+    height: maxSheetH - keyboardH.value,
     paddingBottom: keyboardH.value > 0 ? 0 : insets.bottom,
     transform: [
       { translateY: translateY.value - keyboardH.value },
@@ -287,6 +286,7 @@ export default function Sheet({
               bottom: 0,
               left: 0,
               right: 0,
+              overflow: 'hidden',
               backgroundColor: '#1d2024',
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
@@ -303,7 +303,7 @@ export default function Sheet({
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#44474f' }} />
             </View>
           </GestureDetector>
-          <View onLayout={(e) => setContentH(Math.ceil(e.nativeEvent.layout.height))}>
+          <View style={{ flex: 1 }} onLayout={(e) => setContentH(Math.ceil(e.nativeEvent.layout.height))}>
             {children}
           </View>
         </Animated.View>
