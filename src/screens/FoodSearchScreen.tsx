@@ -6,8 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { searchFood, FoodResult, DataType } from '../services/foodSearch';
 import { deleteFoodLog, getRecentFoodLogs, MealType, RecentFood } from '../db/database';
-import PortionAdjuster from '../components/PortionAdjuster';
-import ManualEntrySheet from '../components/ManualEntrySheet';
+import Sheet from '../components/Sheet';
+import SheetState from '../components/SheetState';
+import SingleFoodReviewState from '../components/sheet-states/SingleFoodReviewState';
+import ManualInputState from '../components/sheet-states/ManualInputState';
 import LogToast from '../components/LogToast';
 
 function dataTypeBadge(dt: DataType): string {
@@ -16,8 +18,8 @@ function dataTypeBadge(dt: DataType): string {
     case 'SR Legacy': return 'USDA SR Legacy';
     case 'Branded': return 'USDA Branded';
     case 'off': return 'Open Food Facts';
-    case 'scan': return 'AI Scan';
-    case 'describe': return 'AI Estimate';
+    case 'scan': return 'Scan';
+    case 'describe': return 'Estimate';
     case 'manual': return '';
     default: return '';
   }
@@ -35,13 +37,14 @@ export default function FoodSearchScreen() {
   const [results, setResults] = useState<FoodResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [recents, setRecents] = useState<RecentFood[]>([]);
-  const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
   const [portionVisible, setPortionVisible] = useState(false);
+  const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
   const [manualVisible, setManualVisible] = useState(false);
   const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
+  const canCloseRef = useRef<() => boolean>(() => true);
 
   useEffect(() => {
     getRecentFoodLogs(10).then(setRecents);
@@ -217,17 +220,30 @@ export default function FoodSearchScreen() {
         )}
       </ScrollView>
 
-      <PortionAdjuster
-        food={selectedFood}
+      <Sheet
         visible={portionVisible}
+        detent="half"
+        stateKey="single-food-review"
+        canCloseRef={canCloseRef}
         onClose={() => setPortionVisible(false)}
-        onLogComplete={handleSingleLog}
-      />
-      <ManualEntrySheet
+      >
+        <SheetState stateKey="single-food-review">
+          {selectedFood && <SingleFoodReviewState food={selectedFood} onLogComplete={handleSingleLog} />}
+        </SheetState>
+      </Sheet>
+
+      <Sheet
         visible={manualVisible}
+        detent="half"
+        stateKey="manual-input"
+        canCloseRef={canCloseRef}
         onClose={() => setManualVisible(false)}
-        onLogComplete={handleSingleLog}
-      />
+      >
+        <SheetState stateKey="manual-input">
+          <ManualInputState onLogComplete={handleSingleLog} />
+        </SheetState>
+      </Sheet>
+
       {toast && (
         <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
       )}

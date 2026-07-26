@@ -23,6 +23,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
 
   const [describeText, setDescribeText] = useState('');
   const [isEstimating, setIsEstimating] = useState(false);
+  const [describeError, setDescribeError] = useState<string | null>(null);
 
   const [manualName, setManualName] = useState('');
   const [manualCal, setManualCal] = useState('');
@@ -36,6 +37,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     setSearchQuery('');
     setSearchResults([]);
     setDescribeText('');
+    setDescribeError(null);
   }, []);
 
   useEffect(() => {
@@ -70,13 +72,18 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const handleDescribe = useCallback(async () => {
     const text = describeText.trim();
     if (!text) return;
+    setDescribeError(null);
     setIsEstimating(true);
     try {
       const result = await describeMeal(text);
       if (result && result.components.length > 0) {
         onAdd(result.components);
         reset();
+      } else {
+        setDescribeError("Couldn't estimate this meal. Try a different description.");
       }
+    } catch {
+      setDescribeError('Estimate failed. Check your connection.');
     } finally {
       setIsEstimating(false);
     }
@@ -240,6 +247,11 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             loading={isEstimating}
             disabled={!describeText.trim()}
           />
+          {describeError && (
+            <View className="bg-m3-error-container rounded-lg px-3 py-2 gap-1.5">
+              <Text className="text-m3-on-surface text-[10px] font-medium">{describeError}</Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -311,13 +323,11 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             />
             <Text className="text-[10px] text-m3-on-surface-variant">grams</Text>
           </View>
-          <Pressable
+          <PrimaryButton
+            title="Add"
             onPress={handleManualAdd}
             disabled={!manualName.trim()}
-            className="bg-m3-surface-container rounded-full py-3 items-center active:opacity-70"
-          >
-            <Text className="text-m3-on-surface text-xs font-semibold">Add</Text>
-          </Pressable>
+          />
         </View>
       )}
     </View>
@@ -330,8 +340,8 @@ function dataTypeShort(dt: DataType): string {
     case 'SR Legacy':
     case 'Branded': return 'USDA';
     case 'off': return 'Open Food Facts';
-    case 'describe': return 'AI Estimate';
-    case 'scan': return 'AI Scan';
+    case 'describe': return 'Estimate';
+    case 'scan': return 'Scan';
     case 'manual': return 'Manual';
     default: return '';
   }

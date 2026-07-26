@@ -555,3 +555,42 @@ export async function getMostRecentEntry(): Promise<LastEntry | null> {
     mealId: null,
   };
 }
+
+export interface RecentMeal {
+  meal_id: number;
+  meal_name: string;
+  meal_type: MealType;
+  component_count: number;
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fat: number;
+  last_logged_at: string;
+}
+
+export async function getRecentMeals(limit: number = 5): Promise<RecentMeal[]> {
+  const db = await getDb();
+  return db.getAllAsync<RecentMeal>(
+    `SELECT m.id AS meal_id, m.name AS meal_name, m.meal_type,
+            COUNT(f.id) AS component_count,
+            COALESCE(SUM(f.calories), 0) AS total_calories,
+            COALESCE(SUM(f.protein_g), 0) AS total_protein,
+            COALESCE(SUM(f.carbs_g), 0) AS total_carbs,
+            COALESCE(SUM(f.fat_g), 0) AS total_fat,
+            MAX(f.logged_at) AS last_logged_at
+     FROM meals m
+     JOIN food_logs f ON f.meal_id = m.id
+     GROUP BY m.id
+     ORDER BY last_logged_at DESC
+     LIMIT ?`,
+    [limit]
+  );
+}
+
+export async function getMealComponents(mealId: number): Promise<FoodLog[]> {
+  const db = await getDb();
+  return db.getAllAsync<FoodLog>(
+    'SELECT * FROM food_logs WHERE meal_id = ? ORDER BY id',
+    [mealId]
+  );
+}

@@ -1,16 +1,14 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import Animated, { SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
-import QuickActionSheet from '../components/QuickActionSheet';
-import MealReviewSheet from '../components/MealReviewSheet';
-import DescribeSheet from '../components/DescribeSheet';
 import LogToast from '../components/LogToast';
-import { scanFood, DescribeResult } from '../services/foodScan';
+import Sheet from '../components/Sheet';
+import FoodSheetContent, { type FoodSheetState } from '../components/sheet-states/FoodSheetContent';
 import { deleteMeal, MealType } from '../db/database';
 
 function mealLabel(m: MealType): string {
@@ -19,71 +17,61 @@ function mealLabel(m: MealType): string {
 
 const Tab = createBottomTabNavigator();
 
+const INITIAL: FoodSheetState = {
+  visible: false,
+  detent: 'half',
+  stateKey: 'entry',
+  describeResult: null,
+};
+
+function FabIcon({ scale }: { scale: SharedValue<number> }) {
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  return (
+    <Animated.View
+      style={[
+        {
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#ffffff',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+        },
+        style,
+      ]}
+    >
+      <MaterialIcons name="add" size={28} color="#111318" />
+    </Animated.View>
+  );
+}
+
 export default function TabNavigator() {
-  const [quickActionVisible, setQuickActionVisible] = useState(false);
-  const [mealReviewVisible, setMealReviewVisible] = useState(false);
-  const [describeVisible, setDescribeVisible] = useState(false);
-  const [describeResult, setDescribeResult] = useState<DescribeResult | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
   const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
+  const canCloseRef = useRef<() => boolean>(() => true);
+  const fabScale = useSharedValue(1);
 
-  const handleCamera = useCallback(async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera access is needed to scan labels.');
-      return;
-    }
-    setQuickActionVisible(false);
-    setScanning(true);
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        base64: true,
-        quality: 0.5,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-      const scanResult = await scanFood(result.assets[0].base64);
-      if (!scanResult) {
-        Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
-        return;
-      }
-      setDescribeResult(scanResult);
-      setMealReviewVisible(true);
-    } finally {
-      setScanning(false);
-    }
+  const setCanClose = useCallback((cb: () => boolean) => {
+    canCloseRef.current = cb;
   }, []);
 
-  const handleGallery = useCallback(async () => {
-    setQuickActionVisible(false);
-    setScanning(true);
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        base64: true,
-        quality: 0.5,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-      const scanResult = await scanFood(result.assets[0].base64);
-      if (!scanResult) {
-        Alert.alert('Scan Failed', 'Could not extract nutritional info. Try again or enter manually.');
-        return;
-      }
-      setDescribeResult(scanResult);
-      setMealReviewVisible(true);
-    } finally {
-      setScanning(false);
-    }
+  const openEntry = useCallback(() => {
+    setSheet({ ...INITIAL, visible: true });
   }, []);
 
-  const handleDescribeResult = useCallback((result: DescribeResult) => {
-    setDescribeResult(result);
-    setMealReviewVisible(true);
+  const resetToEntry = useCallback(() => {
+    setSheet((s) => ({ ...s, visible: false }));
   }, []);
 
-  const handleMealLog = useCallback(
+  const handleCloseSheet = useCallback(() => {
+    setSheet((s) => ({ ...s, visible: false }));
+  }, []);
+
+  const handleMealLogged = useCallback(
     ({ mealId, meal, name }: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
-      setMealReviewVisible(false);
       setToast({
         message: `Logged ${name} to ${mealLabel(meal)}`,
         undo: async () => {
@@ -140,26 +128,12 @@ export default function TabNavigator() {
           listeners={{
             tabPress: (e) => {
               e.preventDefault();
-              setQuickActionVisible(true);
+              openEntry();
             },
           }}
           options={{
             tabBarLabel: () => null,
-            tabBarIcon: () => (
-              <View
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: '#ffffff',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
-                }}
-              >
-                <MaterialIcons name="add" size={28} color="#111318" />
-              </View>
-            ),
+            tabBarIcon: () => <FabIcon scale={fabScale} />,
           }}
         >
           {() => <View />}
@@ -186,35 +160,25 @@ export default function TabNavigator() {
         </Tab.Screen>
       </Tab.Navigator>
 
-      <QuickActionSheet
-        visible={quickActionVisible}
-        onClose={() => setQuickActionVisible(false)}
-        onCamera={handleCamera}
-        onGallery={handleGallery}
-        onDescribe={() => setDescribeVisible(true)}
-      />
-      <MealReviewSheet
-        result={describeResult}
-        visible={mealReviewVisible}
-        onClose={() => setMealReviewVisible(false)}
-        onLogComplete={handleMealLog}
-      />
-      <DescribeSheet
-        visible={describeVisible}
-        onClose={() => setDescribeVisible(false)}
-        onResult={handleDescribeResult}
-      />
+      <Sheet
+        visible={sheet.visible}
+        detent={sheet.detent}
+        stateKey={sheet.stateKey}
+        canCloseRef={canCloseRef}
+        onClose={handleCloseSheet}
+        fabScale={fabScale}
+      >
+        <FoodSheetContent
+          state={sheet}
+          setState={setSheet}
+          resetToEntry={resetToEntry}
+          registerCanClose={setCanClose}
+          onMealLogged={handleMealLogged}
+        />
+      </Sheet>
+
       {toast && (
         <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
-      )}
-      {scanning && (
-        <View className="absolute inset-0 bg-black/60 items-center justify-center z-50">
-          <View className="bg-m3-surface-container-high rounded-2xl px-8 py-6 items-center gap-3">
-            <ActivityIndicator size="large" color="#ffffff" />
-            <Text className="text-m3-on-surface text-sm font-semibold">Analyzing your photo…</Text>
-            <Text className="text-m3-on-surface-variant text-xs">This takes a few seconds</Text>
-          </View>
-        </View>
       )}
     </>
   );
