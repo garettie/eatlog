@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Dimensions, Keyboard, KeyboardAvoidingView, Modal, Pressable, View } from 'react-native';
+import { AccessibilityInfo, Dimensions, Keyboard, Modal, Platform, Pressable, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -80,16 +80,28 @@ export default function Sheet({
   }, [reduceMotion]);
 
   useEffect(() => {
+    if (Platform.OS === 'ios') {
+      const willShow = Keyboard.addListener('keyboardWillShow', (e) => {
+        keyboardH.value = withTiming(e.endCoordinates.height, {
+          duration: e.duration || 250,
+          easing: Easing.out(Easing.cubic),
+        });
+      });
+      const willHide = Keyboard.addListener('keyboardWillHide', (e) => {
+        keyboardH.value = withTiming(0, {
+          duration: e.duration || 200,
+          easing: Easing.in(Easing.cubic),
+        });
+      });
+      return () => { willShow.remove(); willHide.remove(); };
+    }
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      keyboardH.value = withTiming(e.endCoordinates.height, { duration: 250, easing: Easing.out(Easing.cubic) });
+      keyboardH.value = withTiming(e.endCoordinates.height, { duration: 0 });
     });
     const hide = Keyboard.addListener('keyboardDidHide', () => {
-      keyboardH.value = withTiming(0, { duration: 200 });
+      keyboardH.value = withTiming(0, { duration: 0 });
     });
-    return () => {
-      show.remove();
-      hide.remove();
-    };
+    return () => { show.remove(); hide.remove(); };
   }, []);
 
   const animateSnap = useCallback(
@@ -191,7 +203,7 @@ export default function Sheet({
   );
 
   const pan = Gesture.Pan()
-    .activeOffsetY(8)
+    .activeOffsetY(20)
     .onBegin(() => {
       dragStartY.value = translateY.value;
     })
@@ -232,6 +244,8 @@ export default function Sheet({
   }, [translateY, backdrop]);
 
   const sheetStyle = useAnimatedStyle(() => ({
+    maxHeight: Math.max(0, maxSheetH - keyboardH.value),
+    paddingBottom: keyboardH.value > 0 ? 0 : insets.bottom,
     transform: [
       { translateY: translateY.value - keyboardH.value },
       { scale: contentScale.value },
@@ -266,23 +280,21 @@ export default function Sheet({
           />
         </Animated.View>
 
-        <GestureDetector gesture={pan}>
-          <Animated.View
+        <Animated.View
             style={[
-              {
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                maxHeight: maxSheetH,
-                paddingBottom: insets.bottom,
-                backgroundColor: '#1d2024',
-                borderTopLeftRadius: 28,
-                borderTopRightRadius: 28,
-              },
-              sheetStyle,
-            ]}
-          >
+            {
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: '#1d2024',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+            },
+            sheetStyle,
+          ]}
+        >
+          <GestureDetector gesture={pan}>
             <View
               style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}
               accessibilityRole="button"
@@ -290,11 +302,11 @@ export default function Sheet({
             >
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#44474f' }} />
             </View>
-            <View onLayout={(e) => setContentH(Math.ceil(e.nativeEvent.layout.height))}>
-              {children}
-            </View>
-          </Animated.View>
-        </GestureDetector>
+          </GestureDetector>
+          <View onLayout={(e) => setContentH(Math.ceil(e.nativeEvent.layout.height))}>
+            {children}
+          </View>
+        </Animated.View>
       </View>
       </GestureHandlerRootView>
     </Modal>
