@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
 
 import { scanFood, DescribeResult } from '../../services/foodScan';
 import { type FoodResult, type DataType } from '../../services/foodSearch';
@@ -12,19 +11,26 @@ import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
 import ScanningState from './ScanningState';
 import ReviewState, { type ReviewStateHandle } from './ReviewState';
+import SearchInputState from './SearchInputState';
+import SingleFoodReviewState from './SingleFoodReviewState';
+import ManualInputState from './ManualInputState';
 
 export type FoodSheetStateKey =
   | 'entry'
   | 'describe'
   | 'scanning'
   | 'permission-denied'
-  | 'review';
+  | 'review'
+  | 'search'
+  | 'single-food-review'
+  | 'manual-input';
 
 export interface FoodSheetState {
   visible: boolean;
   detent: 'peek' | 'half' | 'full';
   stateKey: FoodSheetStateKey;
   describeResult: DescribeResult | null;
+  selectedFood: FoodResult | null;
 }
 
 export interface FoodSheetControls {
@@ -48,8 +54,6 @@ export default function FoodSheetContent({
   registerCanClose,
   onMealLogged,
 }: FoodSheetContentProps) {
-  const navigation = useNavigation<any>();
-
   const dirtyRef = useRef<() => boolean>(() => false);
   const loggedRef = useRef<() => boolean>(() => false);
   const markCleanRef = useRef<() => void>(() => {});
@@ -165,9 +169,33 @@ export default function FoodSheetContent({
   }, [transitionTo]);
 
   const handleSearch = useCallback(() => {
-    resetToEntry();
-    navigation.navigate('FoodSearch');
-  }, [navigation, resetToEntry]);
+    transitionTo('search', 'full');
+  }, [transitionTo]);
+
+  const handleSelectFood = useCallback((food: FoodResult) => {
+    setState((s) => ({ ...s, selectedFood: food }));
+    transitionTo('single-food-review', 'full');
+  }, [transitionTo, setState]);
+
+  const handleManualEntry = useCallback(() => {
+    transitionTo('manual-input', 'half');
+  }, [transitionTo]);
+
+  const handleSingleLogComplete = useCallback(
+    ({ logId, meal }: { logId: number; meal: MealType }) => {
+      setState((s) => ({ ...s, visible: false, selectedFood: null }));
+      onMealLogged({ mealId: logId, logIds: [logId], meal, name: '' });
+    },
+    [onMealLogged, setState],
+  );
+
+  const handleManualLogComplete = useCallback(
+    ({ logId, meal }: { logId: number; meal: MealType }) => {
+      setState((s) => ({ ...s, visible: false }));
+      onMealLogged({ mealId: logId, logIds: [logId], meal, name: '' });
+    },
+    [onMealLogged, setState],
+  );
 
   const handleScanCancel = useCallback(() => {
     cancelScanRef.current = true;
@@ -244,6 +272,15 @@ export default function FoodSheetContent({
             markCleanRef.current = markClean;
           }}
         />
+      )}
+      {state.stateKey === 'search' && (
+        <SearchInputState onSelectFood={handleSelectFood} onManualEntry={handleManualEntry} />
+      )}
+      {state.stateKey === 'single-food-review' && (
+        <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} />
+      )}
+      {state.stateKey === 'manual-input' && (
+        <ManualInputState onLogComplete={handleManualLogComplete} />
       )}
     </SheetState>
   );

@@ -22,6 +22,7 @@ const INITIAL: FoodSheetState = {
   detent: 'half',
   stateKey: 'entry',
   describeResult: null,
+  selectedFood: null,
 };
 
 function FabIcon({ scale }: { scale: SharedValue<number> }) {

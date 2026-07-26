@@ -1,16 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { searchFood, FoodResult, DataType } from '../services/foodSearch';
-import { deleteFoodLog, getRecentFoodLogs, MealType, RecentFood } from '../db/database';
-import Sheet from '../components/Sheet';
-import SheetState from '../components/SheetState';
-import SingleFoodReviewState from '../components/sheet-states/SingleFoodReviewState';
-import ManualInputState from '../components/sheet-states/ManualInputState';
-import LogToast from '../components/LogToast';
+import { searchFood, FoodResult, DataType } from '../../services/foodSearch';
+import { getRecentFoodLogs, RecentFood } from '../../db/database';
 
 function dataTypeBadge(dt: DataType): string {
   switch (dt) {
@@ -25,26 +18,53 @@ function dataTypeBadge(dt: DataType): string {
   }
 }
 
-function mealLabel(m: MealType): string {
-  return m.charAt(0).toUpperCase() + m.slice(1);
+interface ResultRowProps {
+  item: FoodResult;
+  onPress: () => void;
 }
 
-export default function FoodSearchScreen() {
-  const navigation = useNavigation<any>();
+function ResultRow({ item, onPress }: ResultRowProps) {
+  const badge = item.dataType !== 'manual' ? dataTypeBadge(item.dataType) : '';
+  const meta = [badge, item.brand, item.preparation, item.servingLabel]
+    .filter(Boolean)
+    .join(' · ');
 
+  return (
+    <Pressable
+      onPress={onPress}
+      className="px-4 py-3 bg-m3-surface-container rounded-2xl border border-m3-outline-variant/30 active:opacity-70"
+    >
+      <View className="flex-row justify-between items-start">
+        <View className="flex-1 mr-3">
+          <Text className="text-m3-on-surface font-medium text-sm" numberOfLines={1}>{item.name}</Text>
+          {meta.length > 0 && (
+            <Text className="text-m3-on-surface-variant text-[10px] mt-0.5" numberOfLines={1}>
+              {meta}
+            </Text>
+          )}
+        </View>
+        <Text className="num-tabular font-semibold text-xs text-m3-primary">
+          {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal/100g` : '---'}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+interface SearchInputStateProps {
+  onSelectFood: (food: FoodResult) => void;
+  onManualEntry: () => void;
+}
+
+export default function SearchInputState({ onSelectFood, onManualEntry }: SearchInputStateProps) {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<FoodResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [recents, setRecents] = useState<RecentFood[]>([]);
-  const [portionVisible, setPortionVisible] = useState(false);
-  const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
-  const [manualVisible, setManualVisible] = useState(false);
-  const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
-  const canCloseRef = useRef<() => boolean>(() => true);
 
   useEffect(() => {
     getRecentFoodLogs(10).then(setRecents);
@@ -78,32 +98,33 @@ export default function FoodSearchScreen() {
 
   const handleResultPress = useCallback((food: FoodResult) => {
     Keyboard.dismiss();
-    setSelectedFood(food);
-    setPortionVisible(true);
-  }, []);
+    onSelectFood(food);
+  }, [onSelectFood]);
 
-  const handleManualEntry = useCallback(() => {
-    Keyboard.dismiss();
-    setManualVisible(true);
-  }, []);
-
-  const handleSingleLog = useCallback(({ logId, meal }: { logId: number; meal: MealType }) => {
-    setPortionVisible(false);
-    setManualVisible(false);
-    getRecentFoodLogs(10).then(setRecents);
-    setToast({
-      message: `Logged to ${mealLabel(meal)}`,
-      undo: async () => { await deleteFoodLog(logId); setToast(null); getRecentFoodLogs(10).then(setRecents); },
-    });
+  const recentToFood = useCallback((item: RecentFood, idx: number): FoodResult => {
+    return {
+      id: `recent-${idx}`,
+      name: item.name,
+      source: item.source as 'usda' | 'off',
+      sourceFoodId: item.source_food_id ?? '',
+      dataType: (item.data_type as DataType) || (item.source === 'usda' ? 'Branded' : 'off'),
+      brand: item.brand,
+      preparation: item.preparation,
+      normalizedName: '',
+      caloriesPer100g: item.calories_per_100g,
+      proteinPer100g: item.protein_g_per_100g,
+      carbsPer100g: item.carbs_g_per_100g,
+      fatPer100g: item.fat_g_per_100g,
+      servingSizeGrams: item.serving_size_g ?? null,
+      servingLabel: item.serving_label ?? null,
+      alternateSourceIds: [],
+    };
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-m3-surface">
-      <View className="px-4 pt-2 pb-3 flex-row items-center gap-2 bg-m3-surface-container-low">
-        <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Go back" className="p-2">
-          <MaterialIcons name="arrow-back" size={22} color="#e2e2e9" />
-        </Pressable>
-        <View className="flex-1 flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
+    <View className="flex-1">
+      <View className="px-5 pt-2 pb-3">
+        <View className="flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
           <MaterialIcons name="search" size={18} color="#c4c6d0" />
           <TextInput
             value={query}
@@ -128,8 +149,8 @@ export default function FoodSearchScreen() {
       </View>
 
       <ScrollView
-        className="flex-1 px-4 pt-3"
-        contentContainerClassName="pb-8 gap-1.5"
+        className="flex-1 px-5"
+        contentContainerClassName="pb-6 gap-1.5"
         keyboardShouldPersistTaps="handled"
       >
         {isSearching && results.length === 0 && (
@@ -150,23 +171,7 @@ export default function FoodSearchScreen() {
               const ca = item.carbs_g_per_100g;
               const fa = item.fat_g_per_100g;
               if (cal == null && pro == null && ca == null && fa == null) return null;
-              const food: FoodResult = {
-                id: `recent-${idx}`,
-                name: item.name,
-                source: item.source as 'usda' | 'off',
-                sourceFoodId: item.source_food_id ?? '',
-                dataType: (item.data_type as DataType) || (item.source === 'usda' ? 'Branded' : 'off'),
-                brand: item.brand,
-                preparation: item.preparation,
-                normalizedName: '',
-                caloriesPer100g: cal,
-                proteinPer100g: pro,
-                carbsPer100g: ca,
-                fatPer100g: fa,
-                servingSizeGrams: item.serving_size_g ?? null,
-                servingLabel: item.serving_label ?? null,
-                alternateSourceIds: [],
-              };
+              const food = recentToFood(item, idx);
               return (
                 <ResultRow key={food.id} item={food} onPress={() => handleResultPress(food)} />
               );
@@ -200,7 +205,7 @@ export default function FoodSearchScreen() {
               <Text className="text-m3-on-surface-variant text-xs mt-1">Try a different search term</Text>
             </View>
             <Pressable
-              onPress={handleManualEntry}
+              onPress={onManualEntry}
               className="flex-row items-center gap-2 bg-m3-surface-container-high px-5 py-3 rounded-full"
             >
               <MaterialIcons name="edit-note" size={18} color="#e2e2e9" />
@@ -211,7 +216,7 @@ export default function FoodSearchScreen() {
 
         {hasSearched && results.length > 0 && (
           <Pressable
-            onPress={handleManualEntry}
+            onPress={onManualEntry}
             className="flex-row items-center justify-center gap-2 py-4 mt-1"
           >
             <MaterialIcons name="add-circle-outline" size={18} color="#c4c6d0" />
@@ -219,62 +224,6 @@ export default function FoodSearchScreen() {
           </Pressable>
         )}
       </ScrollView>
-
-      <Sheet
-        visible={portionVisible}
-        detent="half"
-        stateKey="single-food-review"
-        canCloseRef={canCloseRef}
-        onClose={() => setPortionVisible(false)}
-      >
-        <SheetState stateKey="single-food-review">
-          {selectedFood && <SingleFoodReviewState food={selectedFood} onLogComplete={handleSingleLog} />}
-        </SheetState>
-      </Sheet>
-
-      <Sheet
-        visible={manualVisible}
-        detent="half"
-        stateKey="manual-input"
-        canCloseRef={canCloseRef}
-        onClose={() => setManualVisible(false)}
-      >
-        <SheetState stateKey="manual-input">
-          <ManualInputState onLogComplete={handleSingleLog} />
-        </SheetState>
-      </Sheet>
-
-      {toast && (
-        <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
-      )}
-    </SafeAreaView>
-  );
-}
-
-function ResultRow({ item, onPress }: { item: FoodResult; onPress: () => void }) {
-  const badge = item.dataType !== 'manual' ? dataTypeBadge(item.dataType) : '';
-  const meta = [badge, item.brand, item.preparation, item.servingLabel]
-    .filter(Boolean)
-    .join(' · ');
-
-  return (
-    <Pressable
-      onPress={onPress}
-      className="px-4 py-3 bg-m3-surface-container rounded-2xl border border-m3-outline-variant/30 active:opacity-70"
-    >
-      <View className="flex-row justify-between items-start">
-        <View className="flex-1 mr-3">
-          <Text className="text-m3-on-surface font-medium text-sm" numberOfLines={1}>{item.name}</Text>
-          {meta.length > 0 && (
-            <Text className="text-m3-on-surface-variant text-[10px] mt-0.5" numberOfLines={1}>
-              {meta}
-            </Text>
-          )}
-        </View>
-        <Text className="num-tabular font-semibold text-xs text-m3-primary">
-          {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal/100g` : '---'}
-        </Text>
-      </View>
-    </Pressable>
+    </View>
   );
 }
