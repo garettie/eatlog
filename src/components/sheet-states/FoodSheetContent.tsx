@@ -56,7 +56,9 @@ export default function FoodSheetContent({
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
 
   useEffect(() => {
-    getRecentMeals(5).then(setRecentMeals).catch(() => {});
+    getRecentMeals(5)
+      .then(setRecentMeals)
+      .catch((e) => console.error('[FoodSheet] getRecentMeals failed', e));
   }, []);
 
   const transitionTo = useCallback(
@@ -104,7 +106,8 @@ export default function FoodSheetContent({
         return;
       }
       transitionTo('review', { describeResult: scanResult });
-    } catch {
+    } catch (e) {
+      console.error('[FoodSheet] camera flow failed', e);
       if (fromBarRef.current) { resetToEntry(); return; }
       transitionTo('entry', { pushHistory: false });
     }
@@ -135,7 +138,8 @@ export default function FoodSheetContent({
         return;
       }
       transitionTo('review', { describeResult: scanResult });
-    } catch {
+    } catch (e) {
+      console.error('[FoodSheet] gallery flow failed', e);
       if (fromBarRef.current) { resetToEntry(); return; }
       transitionTo('entry', { pushHistory: false });
     }

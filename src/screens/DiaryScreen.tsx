@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import {
   getFoodLogsByDate,
@@ -12,20 +13,21 @@ import {
   updateFoodLog,
   deleteFoodLog,
   deleteMeal,
+  insertFoodLog,
+  insertMeal,
   FoodLog,
   DailyTarget,
   DayMacros,
   MealType,
   MealRow,
 } from '../db/database';
-import { todayISO, isoFromDate, getWeekDates, isToday, isFuture, formatDayHeader, formatWeekRange } from '../utils/calendar';
+import { todayISO, isoFromDate, getMonthStart, getMonthDates, isToday, isFuture, formatDayHeader, formatMonthLabel } from '../utils/calendar';
 import { M3 } from '../theme/tokens';
 import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
 import JournalSection, { JournalEntryKind } from '../components/JournalSection';
 import EntryBar from '../components/EntryBar';
 
-const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
   { meal: 'lunch', label: 'Lunch' },
@@ -48,20 +50,16 @@ interface DiaryScreenProps {
   onSearch: () => void;
   onEditMeal: (mealId: number) => void;
   logVersion: number;
+  showToast: (message: string, undo?: () => void) => void;
 }
 
-export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescribe, onSearch, onEditMeal, logVersion }: DiaryScreenProps) {
+export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescribe, onSearch, onEditMeal, logVersion, showToast }: DiaryScreenProps) {
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
-  const [weekAnchor, setWeekAnchor] = useState(() => {
-    const d = new Date();
-    const day = d.getDay();
-    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    return d;
-  });
+  const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
   const [loading, setLoading] = useState(true);
   const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
   const [dayTargetMap, setDayTargetMap] = useState<Map<string, DailyTarget>>(new Map());
-  const [weekMacros, setWeekMacros] = useState<DayMacros[]>([]);
+  const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
   const [edit, setEdit] = useState<EditState>({ visible: false, food: null, grams: 0, saving: false });
   const [refreshCount, setRefreshCount] = useState(0);
@@ -70,19 +68,19 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const loadData = useCallback(async (date: string, anchor: Date, showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const weekDates = getWeekDates(anchor);
-      const startISO = isoFromDate(weekDates[0]);
-      const endISO = isoFromDate(weekDates[6]);
+      const monthDates = getMonthDates(anchor);
+      const startISO = isoFromDate(monthDates[0]);
+      const endISO = isoFromDate(monthDates[monthDates.length - 1]);
 
-      const [logs, macros, weekTargets] = await Promise.all([
+      const [logs, macros, monthTargets] = await Promise.all([
         getFoodLogsByDate(date),
         getMacrosByDateRange(startISO, endISO),
-        Promise.all(weekDates.map((d) => getDailyTargetForDate(isoFromDate(d)))),
+        Promise.all(monthDates.map((d) => getDailyTargetForDate(isoFromDate(d)))),
       ]);
 
       const targetMap = new Map<string, DailyTarget>();
-      weekDates.forEach((d, i) => {
-        const t = weekTargets[i];
+      monthDates.forEach((d, i) => {
+        const t = monthTargets[i];
         if (t) targetMap.set(isoFromDate(d), t);
       });
 
@@ -92,10 +90,11 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
       meals.forEach((m) => mealMap.set(m.id, m));
 
       setFoodLogs(logs);
-      setWeekMacros(macros);
+      setMonthMacros(macros);
       setDayTargetMap(targetMap);
       setMealRows(mealMap);
-    } catch {
+    } catch (e) {
+      console.error('[Diary] loadData failed', e);
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -105,27 +104,27 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
     useCallback(() => {
       const isInitial = !initialLoadDone.current;
       initialLoadDone.current = true;
-      loadData(selectedDate, weekAnchor, isInitial);
-    }, [selectedDate, weekAnchor, refreshCount]),
+      loadData(selectedDate, monthAnchor, isInitial);
+    }, [selectedDate, monthAnchor, refreshCount]),
   );
 
   useEffect(() => {
     if (logVersion > 0) {
-      loadData(selectedDate, weekAnchor, false);
+      loadData(selectedDate, monthAnchor, false);
     }
   }, [logVersion]);
 
-  const weekDates = getWeekDates(weekAnchor);
+  const monthDates = getMonthDates(monthAnchor);
 
-  const dayCells = weekDates.map((d, i) => {
+  const dayCells = monthDates.map((d) => {
     const iso = isoFromDate(d);
-    const macros = weekMacros.find((m) => m.log_date === iso);
+    const macros = monthMacros.find((m) => m.log_date === iso);
     const target = dayTargetMap.get(iso);
     return {
       date: d,
       isoDate: iso,
-      label: formatDayHeader(iso),
-      dayLetter: DAY_LETTERS[i],
+      dayNumber: d.getDate(),
+      dayLetter: ['S','M','T','W','T','F','S'][d.getDay()],
       isToday: isToday(d),
       isFuture: isFuture(d),
       calories: macros?.calories ?? 0,
@@ -133,26 +132,22 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
     };
   });
 
-  const shiftWeek = useCallback((delta: number) => {
-    setWeekAnchor((a) => {
+  const shiftMonth = useCallback((delta: number) => {
+    setMonthAnchor((a) => {
       const d = new Date(a);
-      d.setDate(d.getDate() + delta * 7);
+      d.setMonth(d.getMonth() + delta);
       return d;
     });
   }, []);
 
-  const prevWeek = useCallback(() => shiftWeek(-1), [shiftWeek]);
-  const nextWeek = useCallback(() => shiftWeek(1), [shiftWeek]);
+  const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
+  const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
+
   const selectDate = useCallback((iso: string) => {
     setSelectedDate(iso);
     const d = new Date(iso + 'T12:00:00');
-    if (d.getDay() === 0) d.setDate(d.getDate() + 1);
-    setWeekAnchor((a) => {
-      const targetMonday = new Date(d);
-      const day = targetMonday.getDay();
-      targetMonday.setDate(targetMonday.getDate() - (day === 0 ? 6 : day - 1));
-      return targetMonday;
-    });
+    const monthStart = getMonthStart(d);
+    setMonthAnchor(monthStart);
   }, []);
 
   const todayTarget = dayTargetMap.get(selectedDate);
@@ -230,14 +225,87 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   }, [onEditMeal]);
 
   const handleDeleteFood = useCallback(async (food: FoodLog) => {
-    await deleteFoodLog(food.id);
-    setRefreshCount((r) => r + 1);
-  }, []);
+    try {
+      await deleteFoodLog(food.id);
+      setRefreshCount((r) => r + 1);
+      showToast(`Deleted ${food.name}`, () => {
+        insertFoodLog({
+          log_date: food.log_date,
+          name: food.name,
+          source: food.source as 'usda' | 'off' | 'manual' | 'scan' | 'describe',
+          source_food_id: food.source_food_id,
+          meal: food.meal,
+          meal_id: food.meal_id,
+          brand: food.brand,
+          data_type: food.data_type,
+          preparation: food.preparation,
+          grams_logged: food.grams_logged,
+          serving_size_g: food.serving_size_g,
+          serving_label: food.serving_label,
+          calories_per_100g: food.calories_per_100g,
+          protein_g_per_100g: food.protein_g_per_100g,
+          carbs_g_per_100g: food.carbs_g_per_100g,
+          fat_g_per_100g: food.fat_g_per_100g,
+          calories: food.calories,
+          protein_g: food.protein_g,
+          carbs_g: food.carbs_g,
+          fat_g: food.fat_g,
+        })
+          .then(() => setRefreshCount((r) => r + 1))
+          .catch((e) => console.error('[Diary] undo delete failed', e));
+      });
+    } catch (e) {
+      console.error('[Diary] deleteFoodLog failed', e);
+      Alert.alert('Delete failed', 'The entry could not be deleted. Please try again.');
+    }
+  }, [showToast]);
 
   const handleDeleteMeal = useCallback(async (mealId: number) => {
-    await deleteMeal(mealId);
-    setRefreshCount((r) => r + 1);
-  }, []);
+    const mealRow = mealRows.get(mealId);
+    const components = foodLogs.filter((l) => l.meal_id === mealId);
+    const mealName = mealRow?.name ?? 'Meal';
+    try {
+      await deleteMeal(mealId);
+      setRefreshCount((r) => r + 1);
+      showToast(`Deleted ${mealName}`, () => {
+        (async () => {
+          const newMealId = await insertMeal({
+            name: mealName,
+            log_date: mealRow?.log_date ?? selectedDate,
+            meal_type: mealRow?.meal_type ?? components[0]?.meal ?? 'snack',
+          });
+          for (const c of components) {
+            await insertFoodLog({
+              log_date: c.log_date,
+              name: c.name,
+              source: c.source as 'usda' | 'off' | 'manual' | 'scan' | 'describe',
+              source_food_id: c.source_food_id,
+              meal: c.meal,
+              meal_id: newMealId,
+              brand: c.brand,
+              data_type: c.data_type,
+              preparation: c.preparation,
+              grams_logged: c.grams_logged,
+              serving_size_g: c.serving_size_g,
+              serving_label: c.serving_label,
+              calories_per_100g: c.calories_per_100g,
+              protein_g_per_100g: c.protein_g_per_100g,
+              carbs_g_per_100g: c.carbs_g_per_100g,
+              fat_g_per_100g: c.fat_g_per_100g,
+              calories: c.calories,
+              protein_g: c.protein_g,
+              carbs_g: c.carbs_g,
+              fat_g: c.fat_g,
+            });
+          }
+          setRefreshCount((r) => r + 1);
+        })().catch((e) => console.error('[Diary] undo meal delete failed', e));
+      });
+    } catch (e) {
+      console.error('[Diary] deleteMeal failed', e);
+      Alert.alert('Delete failed', 'The meal could not be deleted. Please try again.');
+    }
+  }, [showToast, mealRows, foodLogs, selectedDate]);
 
   const handleSaveEdit = useCallback(async () => {
     if (!edit.food || edit.grams <= 0) return;
@@ -263,7 +331,9 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
         fat_g: newFat,
       });
       setRefreshCount((r) => r + 1);
-    } catch {
+    } catch (e) {
+      console.error('[Diary] updateFoodLog failed', e);
+      Alert.alert('Save failed', 'Your changes could not be saved. Please try again.');
     } finally {
       setEdit({ visible: false, food: null, grams: 0, saving: false });
     }
@@ -277,18 +347,17 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const previewC = edit.food ? Math.round(edit.food.carbs_g * gramsRatio * 10) / 10 : 0;
   const previewF = edit.food ? Math.round(edit.food.fat_g * gramsRatio * 10) / 10 : 0;
 
-  const isSelectedToday = selectedDate === todayISO();
+  const insets = useSafeAreaInsets();
 
-  return (
-    <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
-      {/* Week strip */}
+  return (    <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
+      {/* Day strip */}
       <WeekStrip
         days={dayCells}
         selectedDate={selectedDate}
         onSelectDate={selectDate}
-        onPrevWeek={prevWeek}
-        onNextWeek={nextWeek}
-        weekLabel={formatWeekRange(weekDates)}
+        onPrevMonth={prevMonth}
+        onNextMonth={nextMonth}
+        monthLabel={formatMonthLabel(monthAnchor)}
       />
 
       {/* Divider */}
@@ -314,11 +383,6 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
             <Text className="text-m3-on-surface text-sm font-bold">
               {formatDayHeader(selectedDate)}
             </Text>
-            {!isSelectedToday && (
-              <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">
-                {isoFromDate(new Date(selectedDate + 'T12:00:00'))}
-              </Text>
-            )}
           </View>
 
           {/* Journal sections */}
@@ -337,9 +401,6 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
               onDeleteMeal={handleDeleteMeal}
             />
           ))}
-
-          {/* Bottom spacer for entry bar */}
-          <View className="h-10" />
         </ScrollView>
       )}
 
@@ -354,11 +415,17 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
       {/* Edit food modal */}
       {edit.visible && edit.food && (
         <View className="absolute inset-0 z-50">
-          <Pressable
-            className="flex-1 bg-black/55"
-            onPress={() => setEdit({ visible: false, food: null, grams: 0, saving: false })}
-          />
-          <View className="bg-m3-surface-container rounded-t-3xl border-t border-m3-outline-variant/30 px-5 pt-5 pb-8 gap-4">
+          <Animated.View entering={FadeIn.duration(180)} style={{ flex: 1 }}>
+            <Pressable
+              className="flex-1 bg-black/55"
+              onPress={() => setEdit({ visible: false, food: null, grams: 0, saving: false })}
+            />
+          </Animated.View>
+          <Animated.View entering={FadeInUp.duration(220)}>
+            <View
+              className="bg-m3-surface-container rounded-t-3xl border-t border-m3-outline-variant/30 px-5 pt-5 gap-4"
+              style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+            >
             <View className="flex-row justify-between items-start">
               <View className="flex-1 mr-3">
                 <Text className="text-m3-on-surface font-bold text-base" numberOfLines={2}>
@@ -379,9 +446,9 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
             <View className="flex-row items-center justify-center gap-4 bg-m3-surface-container-high rounded-2xl py-4">
               <Pressable
                 onPress={() => setEdit((e) => ({ ...e, grams: Math.max(1, e.grams - 10) }))}
-                className="w-10 h-10 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
+                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
               >
-                <MaterialIcons name="remove" size={20} color="#e2e2e9" />
+                <MaterialIcons name="remove" size={22} color="#e2e2e9" />
               </Pressable>
               <View className="items-center min-w-[80px]">
                 <TextInput
@@ -398,9 +465,9 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
               </View>
               <Pressable
                 onPress={() => setEdit((e) => ({ ...e, grams: e.grams + 10 }))}
-                className="w-10 h-10 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
+                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
               >
-                <MaterialIcons name="add" size={20} color="#e2e2e9" />
+                <MaterialIcons name="add" size={22} color="#e2e2e9" />
               </Pressable>
             </View>
 
@@ -436,7 +503,8 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
                 </Text>
               </Pressable>
             </View>
-          </View>
+            </View>
+          </Animated.View>
         </View>
       )}
     </SafeAreaView>

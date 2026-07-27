@@ -73,25 +73,25 @@ export default function TabNavigator() {
   const openDescribe = useCallback(() => {
     backHistoryRef.current = [];
     skipHistoryRef.current = true;
-    setSheet({ ...INITIAL, visible: true, stateKey: 'describe' });
+    setSheet({ ...INITIAL, visible: true, stateKey: 'describe', fromBar: true });
   }, []);
 
   const openSearch = useCallback(() => {
     backHistoryRef.current = [];
     skipHistoryRef.current = true;
-    setSheet({ ...INITIAL, visible: true, stateKey: 'search' });
+    setSheet({ ...INITIAL, visible: true, stateKey: 'search', fromBar: true });
   }, []);
 
   const openCamera = useCallback(() => {
     backHistoryRef.current = [];
     skipHistoryRef.current = true;
-    setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'camera' });
+    setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'camera', fromBar: true });
   }, []);
 
   const openGallery = useCallback(() => {
     backHistoryRef.current = [];
     skipHistoryRef.current = true;
-    setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'gallery' });
+    setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'gallery', fromBar: true });
   }, []);
 
   const openEditMeal = useCallback(async (mealId: number) => {
@@ -187,7 +187,7 @@ export default function TabNavigator() {
       case 'describe':
         return ['35%'];
       case 'review':
-        return ['50%', '92%'];
+        return ['92%'];
       case 'search':
       case 'single-food-review':
         return ['92%'];
@@ -217,6 +217,18 @@ export default function TabNavigator() {
     },
     [],
   );
+
+  const showToast = useCallback((message: string, undo?: () => void) => {
+    setToast({
+      message,
+      undo: undo
+        ? () => {
+            undo();
+            setToast(null);
+          }
+        : undefined,
+    });
+  }, []);
 
   return (
     <DiscardGuardContext.Provider value={discardGuard}>
@@ -265,6 +277,7 @@ export default function TabNavigator() {
               onSearch={openSearch}
               onEditMeal={openEditMeal}
               logVersion={logVersion}
+              showToast={showToast}
             />
           )}
         </Tab.Screen>

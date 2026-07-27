@@ -1,20 +1,18 @@
-import React, { useRef } from 'react';
-import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
+import React from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 
 import { M3 } from '../theme/tokens';
 
-const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const RING_R = 17;
-const RING_STROKE = 2.5;
+const RING_R = 15;
+const RING_STROKE = 2;
 const CIRCUMFERENCE = 2 * Math.PI * RING_R;
-const SWIPE_THRESHOLD = 40;
 
 interface DayCell {
   date: Date;
   isoDate: string;
-  label: string;
+  dayNumber: number;
   dayLetter: string;
   isToday: boolean;
   isFuture: boolean;
@@ -22,124 +20,53 @@ interface DayCell {
   targetCalories: number;
 }
 
-interface WeekStripProps {
+interface DayStripProps {
   days: DayCell[];
   selectedDate: string;
+  monthLabel: string;
   onSelectDate: (isoDate: string) => void;
-  onPrevWeek: () => void;
-  onNextWeek: () => void;
-  weekLabel: string;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
 }
 
-export default function WeekStrip({ days, selectedDate, onSelectDate, onPrevWeek, onNextWeek, weekLabel }: WeekStripProps) {
-  const slideX = useRef(new Animated.Value(0)).current;
-  const gestureX = useRef(0);
-  const navInProgress = useRef(false);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gs) => {
-        if (navInProgress.current) return false;
-        return Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy);
-      },
-      onPanResponderMove: (_, gs) => {
-        gestureX.current = gs.dx;
-        slideX.setValue(gs.dx);
-      },
-      onPanResponderRelease: (_, gs) => {
-        if (navInProgress.current) return;
-
-        if (gs.dx > SWIPE_THRESHOLD) {
-          navInProgress.current = true;
-          Animated.timing(slideX, {
-            toValue: gs.dx * 2,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            gestureX.current = 0;
-            slideX.setValue(0);
-            onPrevWeek();
-            navInProgress.current = false;
-          });
-        } else if (gs.dx < -SWIPE_THRESHOLD) {
-          navInProgress.current = true;
-          Animated.timing(slideX, {
-            toValue: gs.dx * 2,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            gestureX.current = 0;
-            slideX.setValue(0);
-            onNextWeek();
-            navInProgress.current = false;
-          });
-        } else {
-          Animated.spring(slideX, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 4,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
+export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth }: DayStripProps) {
   return (
     <View>
       <View className="flex-row items-center justify-between px-2 py-2">
         <Pressable
-          onPress={() => {
-            if (navInProgress.current) return;
-            slideX.setValue(300);
-            Animated.timing(slideX, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: true,
-            }).start();
-            onPrevWeek();
-          }}
-          className="w-11 h-11 items-center justify-center active:opacity-50"
+          onPress={onPrevMonth}
+          className="w-12 h-12 items-center justify-center active:opacity-50"
           accessibilityRole="button"
-          accessibilityLabel="Previous week"
+          accessibilityLabel="Previous month"
         >
-          <MaterialIcons name="chevron-left" size={22} color={M3.onSurfaceVariant} />
+          <MaterialIcons name="chevron-left" size={24} color={M3.onSurfaceVariant} />
         </Pressable>
 
         <Text className="text-m3-on-surface-variant text-[11px] font-semibold">
-          {weekLabel}
+          {monthLabel}
         </Text>
 
         <Pressable
-          onPress={() => {
-            if (navInProgress.current) return;
-            slideX.setValue(-300);
-            Animated.timing(slideX, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: true,
-            }).start();
-            onNextWeek();
-          }}
-          className="w-11 h-11 items-center justify-center active:opacity-50"
+          onPress={onNextMonth}
+          className="w-12 h-12 items-center justify-center active:opacity-50"
           accessibilityRole="button"
-          accessibilityLabel="Next week"
+          accessibilityLabel="Next month"
         >
-          <MaterialIcons name="chevron-right" size={22} color={M3.onSurfaceVariant} />
+          <MaterialIcons name="chevron-right" size={24} color={M3.onSurfaceVariant} />
         </Pressable>
       </View>
 
-      <Animated.View
-        style={{ transform: [{ translateX: slideX }] }}
-        {...panResponder.panHandlers}
-        className="flex-row justify-around px-2"
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="px-2 pb-2 gap-1"
       >
         {days.map((day) => {
+          const isSelected = day.isoDate === selectedDate;
           const fraction = day.isFuture || day.targetCalories <= 0
             ? 0
             : Math.min(1, day.calories / day.targetCalories);
           const isOver = !day.isFuture && day.targetCalories > 0 && day.calories > day.targetCalories;
-          const isSelected = day.isoDate === selectedDate;
 
           const ringStrokeColor = day.isFuture
             ? 'transparent'
@@ -148,26 +75,23 @@ export default function WeekStrip({ days, selectedDate, onSelectDate, onPrevWeek
               : M3.calories;
           const trackStrokeColor = day.isFuture ? 'transparent' : M3.outline;
           const offset = CIRCUMFERENCE * (1 - fraction);
-          const selectionRingColor = day.isToday
-            ? M3.primary
-            : isSelected
-              ? M3.outline
-              : 'transparent';
 
           return (
             <Pressable
               key={day.isoDate}
-              onPress={() => onSelectDate(day.isoDate)}
-              className="items-center py-2 px-1 active:opacity-70"
+              onPress={() => !day.isFuture && onSelectDate(day.isoDate)}
+              className="items-center py-1 px-1.5 active:opacity-70"
               accessibilityRole="button"
-              accessibilityLabel={`${day.label}${day.isToday ? ', today' : ''}`}
+              accessibilityLabel={`${day.dayLetter} ${day.date.getDate()}${day.isToday ? ', today' : ''}`}
             >
-              <Text className={`text-[10px] font-semibold mb-1 ${
-                day.isToday
-                  ? 'text-m3-primary'
-                  : isSelected
-                    ? 'text-m3-on-surface'
-                    : 'text-m3-on-surface-variant'
+              <Text className={`text-[10px] font-semibold mb-0.5 ${
+                isSelected
+                  ? 'text-m3-on-primary'
+                  : day.isToday
+                    ? 'text-m3-primary'
+                    : day.isFuture
+                      ? 'text-m3-on-surface-variant/30'
+                      : 'text-m3-on-surface-variant'
               }`}>
                 {day.dayLetter}
               </Text>
@@ -175,17 +99,22 @@ export default function WeekStrip({ days, selectedDate, onSelectDate, onPrevWeek
               <View
                 className="items-center justify-center rounded-full"
                 style={{
-                  width: 42,
-                  height: 42,
-                  borderWidth: selectionRingColor !== 'transparent' ? 1.5 : 0,
-                  borderColor: selectionRingColor !== 'transparent' ? selectionRingColor : undefined,
+                  width: 36,
+                  height: 36,
+                  borderWidth: 1.5,
+                  borderColor: isSelected
+                    ? M3.primary
+                    : day.isToday
+                      ? M3.primary
+                      : 'transparent',
+                  backgroundColor: isSelected ? M3.primary : 'transparent',
                 }}
               >
-                <Svg width={42} height={42} viewBox="0 0 42 42" style={{ position: 'absolute' }}>
+                <Svg width={36} height={36} viewBox="0 0 36 36" style={{ position: 'absolute' }}>
                   {!day.isFuture && (
                     <Circle
-                      cx={21}
-                      cy={21}
+                      cx={18}
+                      cy={18}
                       r={RING_R}
                       fill="none"
                       stroke={trackStrokeColor}
@@ -195,8 +124,8 @@ export default function WeekStrip({ days, selectedDate, onSelectDate, onPrevWeek
                   )}
                   {fraction > 0 && (
                     <Circle
-                      cx={21}
-                      cy={21}
+                      cx={18}
+                      cy={18}
                       r={RING_R}
                       fill="none"
                       stroke={ringStrokeColor}
@@ -205,25 +134,27 @@ export default function WeekStrip({ days, selectedDate, onSelectDate, onPrevWeek
                       strokeDasharray={CIRCUMFERENCE}
                       strokeDashoffset={offset}
                       rotation={-90}
-                      originX={21}
-                      originY={21}
+                      originX={18}
+                      originY={18}
                     />
                   )}
                 </Svg>
                 <Text className={`text-xs font-bold tabular-nums ${
-                  day.isToday
-                    ? 'text-m3-primary'
-                    : isSelected
-                      ? 'text-m3-on-surface'
-                      : 'text-m3-on-surface'
+                  isSelected
+                    ? 'text-m3-on-primary'
+                    : day.isToday
+                      ? 'text-m3-primary'
+                      : day.isFuture
+                        ? 'text-m3-on-surface-variant/30'
+                        : 'text-m3-on-surface'
                 }`}>
-                  {day.date.getDate()}
+                  {day.dayNumber}
                 </Text>
               </View>
             </Pressable>
           );
         })}
-      </Animated.View>
+      </ScrollView>
     </View>
   );
 }

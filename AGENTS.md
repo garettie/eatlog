@@ -210,6 +210,8 @@ When the user corrects your approach, append a one-line rule here before ending 
 - PanResponder created in `useRef` avoids stale closures only if all props are read from refs, not captured at creation time
 - `react-native-reanimated` is installed (planned for animations) but causes strict mode warnings when unused — `react-native-worklets` was removed as unneeded
 - Expo config plugins in `app.json` must match installed packages — removing a package without removing its plugin crashes `expo export`
+- Sheet openers that bypass the `entry` state (EntryBar buttons) must set `fromBar: true` in the sheet state — `forceClose` and every cancel gate in FoodSheetContent read it; the FAB's `openEntry` intentionally omits it (entry IS its start state)
+- Undo for destructive deletes: capture the row(s) before `deleteFoodLog`/`deleteMeal`, then re-insert via `insertFoodLog`/`insertMeal` in the toast undo closure (no soft-delete needed; IDs may change, that's fine)
 
 ---
 

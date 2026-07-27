@@ -20,8 +20,8 @@ export default function EntryBar({ onCamera, onGallery, onDescribe, onSearch }: 
         accessibilityRole="button"
         accessibilityLabel="Log with camera"
       >
-        <View className="w-10 h-10 rounded-full bg-white items-center justify-center">
-          <MaterialIcons name="photo-camera" size={20} color={M3.onPrimary} />
+        <View className="w-12 h-12 rounded-full bg-white items-center justify-center">
+          <MaterialIcons name="photo-camera" size={22} color={M3.onPrimary} />
         </View>
         <Text className="text-white text-[10px] font-semibold">Camera</Text>
       </Pressable>
@@ -32,8 +32,8 @@ export default function EntryBar({ onCamera, onGallery, onDescribe, onSearch }: 
         accessibilityRole="button"
         accessibilityLabel="Log from gallery"
       >
-        <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
-          <MaterialIcons name="photo-library" size={20} color={M3.onSurface} />
+        <View className="w-12 h-12 rounded-full bg-m3-surface-container-high items-center justify-center">
+          <MaterialIcons name="photo-library" size={22} color={M3.onSurface} />
         </View>
         <Text className="text-m3-on-surface-variant text-[10px] font-semibold">Gallery</Text>
       </Pressable>
@@ -44,8 +44,8 @@ export default function EntryBar({ onCamera, onGallery, onDescribe, onSearch }: 
         accessibilityRole="button"
         accessibilityLabel="Describe a meal"
       >
-        <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
-          <MaterialIcons name="edit-note" size={20} color={M3.onSurface} />
+        <View className="w-12 h-12 rounded-full bg-m3-surface-container-high items-center justify-center">
+          <MaterialIcons name="edit-note" size={22} color={M3.onSurface} />
         </View>
         <Text className="text-m3-on-surface-variant text-[10px] font-semibold">Describe</Text>
       </Pressable>
@@ -56,8 +56,8 @@ export default function EntryBar({ onCamera, onGallery, onDescribe, onSearch }: 
         accessibilityRole="button"
         accessibilityLabel="Search food"
       >
-        <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
-          <MaterialIcons name="search" size={20} color={M3.onSurface} />
+        <View className="w-12 h-12 rounded-full bg-m3-surface-container-high items-center justify-center">
+          <MaterialIcons name="search" size={22} color={M3.onSurface} />
         </View>
         <Text className="text-m3-on-surface-variant text-[10px] font-semibold">Search</Text>
       </Pressable>

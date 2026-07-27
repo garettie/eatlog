@@ -32,10 +32,10 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
         )}
         <Text className="text-m3-on-surface-variant text-[10px] font-semibold num-tabular">
           {unit === 'kcal' ? Math.round(consumed).toLocaleString() : Math.round(consumed)}
-          <Text className="text-m3-on-surface-variant/40"> / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}</Text>
+          <Text className="text-m3-on-surface-variant/60"> / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}</Text>
         </Text>
       </View>
-      <View className="h-0.5 bg-m3-surface-container-highest rounded-full overflow-hidden">
+      <View className="h-1 bg-m3-surface-container-highest rounded-full overflow-hidden">
         <View
           className="h-full rounded-full"
           style={{ width: `${fraction * 100}%`, backgroundColor: barColor }}

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeInUp, FadeOutDown, Layout, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeOutDown, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MealType, insertFoodLog, insertMeal, deleteMealComponents, updateMealName } from '../../db/database';
@@ -354,10 +354,13 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
       </View>
 
       <View className="px-5 pt-4 pb-6 items-center gap-2">
-        <Text className="text-m3-on-surface text-4xl font-bold num-tabular">
-          {totalMacros.calories}
-          <Text className="text-m3-on-surface-variant text-sm font-medium"> kcal</Text>
-        </Text>
+        <View className="items-center">
+          <Text className="text-m3-on-surface text-4xl font-bold num-tabular">
+            {totalMacros.calories}
+            <Text className="text-m3-on-surface-variant text-sm font-medium"> kcal</Text>
+          </Text>
+          <Text className="text-[10px] text-m3-on-surface-variant font-medium mt-0.5">Calories</Text>
+        </View>
         <View className="w-full">
           <MacroChipGroup
             calories={totalMacros.calories}
@@ -382,18 +385,14 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
           const showMl = !!(comp.servingLabel && /ml\b/i.test(comp.servingLabel));
 
           return (
-            <Animated.View
-              key={`${comp.food.id}-${idx}`}
-              entering={reducedMotion ? undefined : FadeInUp.duration(180).delay(idx * 25)}
-              layout={
-                reducedMotion
-                  ? undefined
-                  : Layout.springify().mass(0.9).stiffness(260).damping(30)
-              }
-              className="border-b border-m3-outline-variant/20"
-            >
+            <View className="border-b border-m3-outline-variant/20">
               {isExpanded ? (
-                <View className="py-4 gap-4">
+                <Animated.View
+                  key={`exp-${comp.food.id}`}
+                  entering={reducedMotion ? undefined : FadeInUp.duration(200)}
+                  exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
+                  className="py-4 gap-4"
+                >
                   <View className="flex-row items-center gap-2">
                     <BottomSheetTextInput
                       value={comp.food.name}
@@ -440,25 +439,6 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
 
                       return (
                         <View key={field} className="flex-1 gap-1">
-                          <Text
-                             className={`text-xs font-semibold tracking-wider text-center ${
-                              field === 'protein'
-                                ? 'text-m3-protein'
-                                : field === 'carbs'
-                                  ? 'text-m3-carbs'
-                                  : field === 'fat'
-                                    ? 'text-m3-fat'
-                                    : 'text-white/70'
-                            }`}
-                          >
-                            {field === 'calories'
-                              ? 'CAL'
-                              : field === 'protein'
-                                ? 'PRO'
-                                : field === 'carbs'
-                                  ? 'CARB'
-                                  : 'FAT'}
-                          </Text>
                           <BottomSheetTextInput
                             value={String(displayVal)}
                             onChangeText={(t) => {
@@ -476,6 +456,17 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
                             keyboardType="numeric"
                             className="bg-m3-surface-container text-m3-on-surface text-base font-medium rounded-xl px-3 py-3 border border-m3-outline-variant/50 text-center"
                           />
+                          <Text className={`text-[10px] text-center font-medium ${
+                            field === 'protein'
+                              ? 'text-m3-protein'
+                              : field === 'carbs'
+                                ? 'text-m3-carbs'
+                                : field === 'fat'
+                                  ? 'text-m3-fat'
+                                  : 'text-m3-on-surface-variant'
+                          }`}>
+                            {field === 'calories' ? 'Calories' : field === 'protein' ? 'Protein' : field === 'carbs' ? 'Carbs' : 'Fat'}
+                          </Text>
                         </View>
                       );
                     })}
@@ -483,9 +474,14 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
                       {comp.unitMode === 'servings' ? 'per serving' : comp.unitMode === 'ml' ? 'per 100ml' : 'per 100g'}
                     </Text>
                   </View>
-                </View>
+                </Animated.View>
               ) : (
-                <View className="flex-row items-center py-3.5">
+                <Animated.View
+                  key={`col-${comp.food.id}`}
+                  entering={reducedMotion ? undefined : FadeInUp.duration(200)}
+                  exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
+                  className="flex-row items-center py-3.5"
+                >
                   <Pressable
                     onPress={() => setExpandedIndex(idx)}
                     accessibilityRole="button"
@@ -527,9 +523,9 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
                   >
                     <MaterialIcons name="close" size={14} color="#c4c6d0" />
                   </Pressable>
-                </View>
+                </Animated.View>
               )}
-            </Animated.View>
+            </View>
           );
         })}
 

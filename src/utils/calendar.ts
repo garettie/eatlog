@@ -31,6 +31,28 @@ export function getWeekDates(date: Date): Date[] {
   });
 }
 
+export function getMonthStart(date: Date): Date {
+  const d = new Date(date);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export function getMonthDates(monthStart: Date): Date[] {
+  const d = new Date(monthStart);
+  const days: Date[] = [];
+  while (d.getMonth() === monthStart.getMonth()) {
+    days.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
+export function formatMonthLabel(monthStart: Date): string {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return `${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`;
+}
+
 export function isSameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
 }

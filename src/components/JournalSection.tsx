@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Animated, Pressable, Text, View } from 'react-native';
+import Reanimated, { FadeIn, FadeOut, FadeInDown, Layout, useReducedMotion } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 
-import { FoodLog, } from '../db/database';
+import { FoodLog } from '../db/database';
 import { M3 } from '../theme/tokens';
 
 function sourceIcon(source: string): React.ComponentProps<typeof MaterialIcons>['name'] {
@@ -39,7 +40,7 @@ function MacroPill({ letter, grams, color }: { letter: string; grams: number; co
 
 function MacroPills({ protein, carbs, fat }: { protein: number; carbs: number; fat: number }) {
   return (
-    <View className="flex-row gap-1.5">
+    <View className="flex-row gap-1.5 flex-wrap">
       <MacroPill letter="P" grams={protein} color={M3.protein} />
       <MacroPill letter="C" grams={carbs} color={M3.carbs} />
       <MacroPill letter="F" grams={fat} color={M3.fat} />
@@ -142,8 +143,8 @@ function FoodRow({
         <View className="items-end pt-0.5">
           <Text className="text-m3-on-surface text-base font-bold tabular-nums">
             {Math.round(food.calories)}
+            <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
           </Text>
-          <Text className="text-m3-on-surface-variant text-[10px]">kcal</Text>
         </View>
       </View>
     </SwipeRow>
@@ -168,16 +169,27 @@ function MealRow({
   onDeleteMeal: (mealId: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const rotation = useRef(new Animated.Value(0)).current;
+  const reducedMotion = useReducedMotion();
   const totalCalories = meal.components.reduce((s, c) => s + c.calories, 0);
   const totalP = meal.components.reduce((s, c) => s + c.protein_g, 0);
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
+  const toggleExpand = () => {
+    Animated.timing(rotation, {
+      toValue: expanded ? 0 : 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    setExpanded(!expanded);
+  };
+
   return (
     <View>
       <SwipeRow onEdit={() => onEditMeal(meal.id)} onDelete={() => onDeleteMeal(meal.id)}>
         <Pressable
-          onPress={() => setExpanded(!expanded)}
+          onPress={toggleExpand}
           className="flex-row items-start px-4 py-4 bg-m3-surface-container border-b border-m3-outline-variant/20 active:opacity-80"
           accessibilityRole="button"
         >
@@ -189,11 +201,9 @@ function MealRow({
               <Text className="text-m3-on-surface text-base font-semibold" numberOfLines={1}>
                 {meal.name}
               </Text>
-              <MaterialIcons
-                name={expanded ? 'expand-less' : 'expand-more'}
-                size={18}
-                color={M3.onSurfaceVariant}
-              />
+              <Animated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+                <MaterialIcons name="expand-more" size={18} color={M3.onSurfaceVariant} />
+              </Animated.View>
             </View>
             <Text className="text-m3-on-surface-variant text-xs mt-0.5">
               {meal.components.length} {meal.components.length === 1 ? 'item' : 'items'}
@@ -205,14 +215,20 @@ function MealRow({
           <View className="items-end pt-0.5">
             <Text className="text-m3-on-surface text-base font-bold tabular-nums">
               {Math.round(totalCalories)}
+              <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
             </Text>
-            <Text className="text-m3-on-surface-variant text-[10px]">kcal</Text>
           </View>
         </Pressable>
       </SwipeRow>
 
-      {expanded && meal.components.map((comp) => (
-        <View key={comp.id} className="pl-12 bg-m3-surface-container-low/50">
+      {expanded && meal.components.map((comp, i) => (
+        <Reanimated.View
+          key={comp.id}
+          entering={reducedMotion ? undefined : FadeInDown.duration(250).delay(i * 40)}
+          exiting={reducedMotion ? undefined : FadeOut.duration(180)}
+          layout={reducedMotion ? undefined : Layout.springify()}
+        >
+          <View className="pl-12 bg-m3-surface-container-low/50">
           <View className="flex-row items-start px-4 py-2.5 border-b border-m3-outline-variant/15">
             <Text className="text-m3-on-surface text-sm flex-1 mr-3" numberOfLines={1}>
               {comp.name}
@@ -220,16 +236,17 @@ function MealRow({
             <View className="items-end">
               <Text className="text-m3-on-surface text-sm font-semibold tabular-nums">
                 {Math.round(comp.calories)}
+                <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
               </Text>
-              <Text className="text-m3-on-surface-variant text-[10px] mb-0.5">kcal</Text>
               <View className="flex-row gap-1">
                 <Text className="text-m3-on-surface-variant text-[10px] tabular-nums">
                   {Math.round(comp.grams_logged || 0)}g
                 </Text>
               </View>
             </View>
+            </View>
           </View>
-        </View>
+        </Reanimated.View>
       ))}
     </View>
   );
@@ -271,53 +288,74 @@ export default function JournalSection({
   const hasEntries = entries.length > 0;
   const [collapsed, setCollapsed] = useState(!hasEntries);
   const prevHasEntriesRef = useRef(hasEntries);
+  const rotation = useRef(new Animated.Value(hasEntries ? 1 : 0)).current;
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!prevHasEntriesRef.current && hasEntries) {
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
       setCollapsed(false);
     }
     prevHasEntriesRef.current = hasEntries;
   }, [hasEntries]);
 
+  const toggleSection = () => {
+    Animated.timing(rotation, {
+      toValue: collapsed ? 1 : 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    setCollapsed(!collapsed);
+  };
+
   return (
     <View className="mb-3">
       <Pressable
-        onPress={() => setCollapsed(!collapsed)}
-        className="flex-row items-center justify-between px-4 pt-6 pb-2 active:opacity-60 min-h-[44]"
+        onPress={toggleSection}
+        className="flex-row items-center justify-between px-4 pt-6 pb-2 active:opacity-60 min-h-[48]"
         accessibilityRole="button"
         accessibilityLabel={`${label} section, ${collapsed ? 'collapsed' : 'expanded'}`}
       >
-        <View className="flex-row items-center gap-2">
-          <Text className="text-m3-on-surface text-base font-bold">{label}</Text>
-          <MaterialIcons
-            name={collapsed ? 'expand-more' : 'expand-less'}
-            size={18}
-            color={M3.onSurfaceVariant}
-          />
+        <View className="flex-row items-center gap-2 flex-1 min-w-0 mr-3">
+          <Text className="text-m3-on-surface text-base font-bold shrink" numberOfLines={1}>{label}</Text>
+          <Animated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+            <MaterialIcons name="expand-more" size={18} color={M3.onSurfaceVariant} />
+          </Animated.View>
         </View>
-        <View className="flex-row items-baseline gap-3">
-          <Text className="text-m3-on-surface-variant text-xs font-semibold num-tabular">
-            {kcalLabel(totalCalories)}
-          </Text>
-          <View className="flex-row gap-2">
-            <Text className="text-m3-on-surface-variant text-[11px]">
-              <Text className="font-semibold" style={{ color: M3.protein }}>P </Text>
-              {Math.round(totalProtein)}g
+        {hasEntries && (
+          <View className="flex-row items-baseline gap-3 shrink-0">
+            <Text className="text-m3-on-surface-variant text-xs font-semibold num-tabular">
+              {kcalLabel(totalCalories)}
             </Text>
-            <Text className="text-m3-on-surface-variant text-[11px]">
-              <Text className="font-semibold" style={{ color: M3.carbs }}>C </Text>
-              {Math.round(totalCarbs)}g
-            </Text>
-            <Text className="text-m3-on-surface-variant text-[11px]">
-              <Text className="font-semibold" style={{ color: M3.fat }}>F </Text>
-              {Math.round(totalFat)}g
-            </Text>
+            <View className="flex-row gap-2">
+              <Text className="text-m3-on-surface-variant text-[11px] num-tabular">
+                <Text className="font-semibold" style={{ color: M3.protein }}>P </Text>
+                {Math.round(totalProtein)}g
+              </Text>
+              <Text className="text-m3-on-surface-variant text-[11px] num-tabular">
+                <Text className="font-semibold" style={{ color: M3.carbs }}>C </Text>
+                {Math.round(totalCarbs)}g
+              </Text>
+              <Text className="text-m3-on-surface-variant text-[11px] num-tabular">
+                <Text className="font-semibold" style={{ color: M3.fat }}>F </Text>
+                {Math.round(totalFat)}g
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
       </Pressable>
 
       {!collapsed && (
-        <View className="mt-1">
+        <Reanimated.View
+          entering={reducedMotion ? undefined : FadeIn.duration(250)}
+          exiting={reducedMotion ? undefined : FadeOut.duration(200)}
+          layout={reducedMotion ? undefined : Layout.springify()}
+          className="mt-1"
+        >
           {hasEntries ? (
             entries.map((entry) => {
               if (entry.type === 'food' && entry.foodLog) {
@@ -349,7 +387,7 @@ export default function JournalSection({
               </Text>
             </View>
           )}
-        </View>
+        </Reanimated.View>
       )}
     </View>
   );
