@@ -8,12 +8,10 @@ import BottomSheet, {
 import Animated, {
   FadeInUp,
   type SharedValue,
-  withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { M3 } from '../theme/tokens';
-import { SPRING } from '../theme/motion';
 
 interface SheetProps {
   visible: boolean;
@@ -46,6 +44,7 @@ export default function Sheet({
   const insets = useSafeAreaInsets();
   const lastIndexRef = useRef(0);
   const wasVisible = useRef(false);
+  const prevStateKeyRef = useRef(stateKey);
 
   useEffect(() => {
     if (sheetCloseRef) {
@@ -59,15 +58,18 @@ export default function Sheet({
   }, [sheetCloseRef]);
 
   useEffect(() => {
+    if (visible && prevStateKeyRef.current !== stateKey) {
+      prevStateKeyRef.current = stateKey;
+      sheetRef.current?.snapToIndex(0);
+    }
+  }, [stateKey, visible]);
+
+  useEffect(() => {
     if (visible && !wasVisible.current) {
       sheetRef.current?.expand();
-      if (fabScale) fabScale.value = withSpring(0, SPRING.emphasized);
     }
     wasVisible.current = visible;
-    if (!visible && fabScale) {
-      fabScale.value = withSpring(1, SPRING.emphasized);
-    }
-  }, [visible, fabScale]);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -151,7 +153,7 @@ export default function Sheet({
     >
       <Animated.View
         key={`${stateKey}-${visible}`}
-        entering={FadeInUp.duration(220)}
+        entering={enableDynamicSizing ? undefined : FadeInUp.duration(220)}
         style={styles.content}
       >
         {enableDynamicSizing ? (

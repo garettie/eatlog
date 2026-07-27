@@ -202,3 +202,38 @@ export async function describeMeal(text: string): Promise<{ mealName: string; co
 
   return null;
 }
+
+export async function clarifyMeal(opts: {
+  name: string;
+  imageBase64?: string;
+}): Promise<{ mealName: string; components: FoodResult[] } | null> {
+  if (!GEMINI_API_KEY) return null;
+
+  const { name, imageBase64 } = opts;
+  const timestamp = Date.now();
+
+  if (imageBase64) {
+    const prompt = `The user says this food or meal shown in the photo is called "${name}". Analyze the photo carefully. Break it down into individual ingredients/components based on what you actually see. For each component, estimate the total grams visible in the photo, per-100g nutritional values using standard nutrition database estimates, and a typical serving size in grams using real-world units (e.g. 1 egg ≈ 50g, 1 piece of chicken ≈ 150g, 1 slice of bread ≈ 30g, 1 cup of rice ≈ 180g). Be specific with food names.`;
+
+    for (const model of MODELS) {
+      const result = await callGemini<DescribeResponse>(model, [
+        { text: prompt },
+        { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
+      ], VISION_SCHEMA);
+      if (!result?.mealName || !result.components?.length) continue;
+      const components = await mapComponents(result.components, 'scan', timestamp);
+      return { mealName: name, components };
+    }
+  } else {
+    const prompt = `The user says this meal is called "${name}". Estimate the nutritional breakdown. Break it down into individual ingredients/components. For each component, estimate the total grams using realistic typical portion sizes. Also provide a typical serving size in grams using real-world units (e.g. 1 egg ≈ 50g, 1 sachet of noodles ≈ 80g, 1 medium fries ≈ 117g). Return precise per-100g nutritional values using standard nutrition database estimates. Be specific with food names (e.g. "white rice" not "carb", "chicken breast" not "protein").`;
+
+    for (const model of MODELS) {
+      const result = await callGemini<DescribeResponse>(model, [{ text: prompt }], DESCRIBE_SCHEMA);
+      if (!result?.mealName || !result.components?.length) continue;
+      const components = await mapComponents(result.components, 'describe', timestamp);
+      return { mealName: name, components };
+    }
+  }
+
+  return null;
+}

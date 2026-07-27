@@ -12,10 +12,6 @@ export default function MacroChipGroup({ calories, protein, carbs, fat }: MacroC
   return (
     <View className="flex-row gap-2">
       <View className="flex-1 bg-m3-surface-container-high rounded-xl p-3 items-center gap-0.5">
-        <Text className="text-[10px] text-white/70 font-semibold tracking-wider">CAL</Text>
-        <Text className="text-white font-bold text-sm num-tabular">{calories}</Text>
-      </View>
-      <View className="flex-1 bg-m3-surface-container-high rounded-xl p-3 items-center gap-0.5">
         <Text className="text-[10px] text-m3-protein font-semibold tracking-wider">PRO</Text>
         <Text className="text-m3-on-surface font-bold text-sm num-tabular">{protein}g</Text>
       </View>

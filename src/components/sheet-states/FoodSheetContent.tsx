@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
-import { scanFood, DescribeResult } from '../../services/foodScan';
+import { scanFood, clarifyMeal, DescribeResult } from '../../services/foodScan';
 import { type FoodResult, type DataType } from '../../services/foodSearch';
 import { MealType, RecentMeal, getRecentMeals, getMealComponents } from '../../db/database';
 
@@ -47,6 +47,7 @@ export default function FoodSheetContent({
   skipHistoryRef,
 }: FoodSheetContentProps) {
   const cancelScanRef = useRef(false);
+  const scanBase64Ref = useRef<string | null>(null);
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
 
   useEffect(() => {
@@ -84,7 +85,9 @@ export default function FoodSheetContent({
         transitionTo('entry', { pushHistory: false });
         return;
       }
-      const scanResult = await scanFood(result.assets[0].base64);
+      const base64 = result.assets[0].base64;
+      scanBase64Ref.current = base64;
+      const scanResult = await scanFood(base64);
       if (cancelScanRef.current) return;
       if (!scanResult) {
         transitionTo('entry', { pushHistory: false });
@@ -109,7 +112,9 @@ export default function FoodSheetContent({
         transitionTo('entry', { pushHistory: false });
         return;
       }
-      const scanResult = await scanFood(result.assets[0].base64);
+      const base64 = result.assets[0].base64;
+      scanBase64Ref.current = base64;
+      const scanResult = await scanFood(base64);
       if (cancelScanRef.current) return;
       if (!scanResult) {
         transitionTo('entry', { pushHistory: false });
@@ -127,6 +132,7 @@ export default function FoodSheetContent({
 
   const handleDescribeResult = useCallback(
     (result: DescribeResult) => {
+      scanBase64Ref.current = null;
       transitionTo('review', { describeResult: result });
     },
     [transitionTo],
@@ -201,10 +207,18 @@ export default function FoodSheetContent({
           return food;
         });
       if (!components.length) return;
+      scanBase64Ref.current = null;
       const result: DescribeResult = { mealName: meal.meal_name, components };
       transitionTo('review', { describeResult: result });
     },
     [transitionTo],
+  );
+
+  const handleClarify = useCallback(
+    async (name: string): Promise<DescribeResult | null> => {
+      return clarifyMeal({ name, imageBase64: scanBase64Ref.current ?? undefined });
+    },
+    [],
   );
 
   const handleMealLogged = useCallback(
@@ -238,6 +252,7 @@ export default function FoodSheetContent({
         <ReviewState
           result={state.describeResult}
           onLogComplete={handleMealLogged}
+          onClarify={handleClarify}
         />
       )}
       {state.stateKey === 'search' && (

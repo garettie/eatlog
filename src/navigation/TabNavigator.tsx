@@ -126,7 +126,7 @@ export default function TabNavigator() {
   }, [sheet.stateKey]);
 
   const enableDynamicSizing = useMemo(() => {
-    const states: FoodSheetStateKey[] = ['entry', 'scanning', 'permission-denied'];
+    const states: FoodSheetStateKey[] = ['entry', 'scanning', 'permission-denied', 'single-food-review'];
     return states.includes(sheet.stateKey);
   }, [sheet.stateKey]);
 
