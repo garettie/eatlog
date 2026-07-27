@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -8,7 +8,8 @@ import DashboardScreen from '../screens/DashboardScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import LogToast from '../components/LogToast';
 import Sheet from '../components/Sheet';
-import FoodSheetContent, { type FoodSheetState } from '../components/sheet-states/FoodSheetContent';
+import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey } from '../components/sheet-states/FoodSheetContent';
+import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
 import { deleteMeal, MealType } from '../db/database';
 
 function mealLabel(m: MealType): string {
@@ -19,7 +20,6 @@ const Tab = createBottomTabNavigator();
 
 const INITIAL: FoodSheetState = {
   visible: false,
-  detent: 'half',
   stateKey: 'entry',
   describeResult: null,
   selectedFood: null,
@@ -52,14 +52,16 @@ function FabIcon({ scale }: { scale: SharedValue<number> }) {
 export default function TabNavigator() {
   const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
   const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
-  const canCloseRef = useRef<() => boolean>(() => true);
   const fabScale = useSharedValue(1);
+  const discardGuard = useDiscardGuard();
 
-  const setCanClose = useCallback((cb: () => boolean) => {
-    canCloseRef.current = cb;
-  }, []);
+  const backHistoryRef = useRef<FoodSheetStateKey[]>([]);
+  const skipHistoryRef = useRef(false);
+  const sheetCloseRef = useRef<() => void>(() => {});
 
   const openEntry = useCallback(() => {
+    backHistoryRef.current = [];
+    skipHistoryRef.current = false;
     setSheet({ ...INITIAL, visible: true });
   }, []);
 
@@ -67,9 +69,66 @@ export default function TabNavigator() {
     setSheet((s) => ({ ...s, visible: false }));
   }, []);
 
+  const canClose = useCallback(() => {
+    return discardGuard.requestClose(() => {
+      sheetCloseRef.current();
+    });
+  }, [discardGuard]);
+
+  const canCloseRef = useRef(canClose);
+  canCloseRef.current = canClose;
+
   const handleCloseSheet = useCallback(() => {
     setSheet((s) => ({ ...s, visible: false }));
   }, []);
+
+  const handleSheetGoBack = useCallback(() => {
+    const prev = backHistoryRef.current.pop();
+    if (!prev) return false;
+    setSheet((s) => ({ ...s, stateKey: prev }));
+    return true;
+  }, []);
+
+  const wrappedSetSheet = useCallback(
+    (updater: React.SetStateAction<FoodSheetState>) => {
+      setSheet((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        if (prev.stateKey !== next.stateKey) {
+          if (!skipHistoryRef.current && prev.stateKey !== 'scanning') {
+            backHistoryRef.current.push(prev.stateKey);
+          }
+          skipHistoryRef.current = false;
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const snapPoints = useMemo((): (string | number)[] => {
+    switch (sheet.stateKey) {
+      case 'entry':
+      case 'scanning':
+      case 'permission-denied':
+        return ['50%'];
+      case 'describe':
+        return ['35%'];
+      case 'review':
+        return ['50%', '92%'];
+      case 'search':
+      case 'single-food-review':
+        return ['92%'];
+      case 'manual-input':
+        return ['40%', '92%'];
+      default:
+        return ['50%', '92%'];
+    }
+  }, [sheet.stateKey]);
+
+  const enableDynamicSizing = useMemo(() => {
+    const states: FoodSheetStateKey[] = ['entry', 'scanning', 'permission-denied'];
+    return states.includes(sheet.stateKey);
+  }, [sheet.stateKey]);
 
   const handleMealLogged = useCallback(
     ({ mealId, meal, name }: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
@@ -85,7 +144,7 @@ export default function TabNavigator() {
   );
 
   return (
-    <>
+    <DiscardGuardContext.Provider value={discardGuard}>
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
@@ -163,24 +222,27 @@ export default function TabNavigator() {
 
       <Sheet
         visible={sheet.visible}
-        detent={sheet.detent}
+        snapPoints={snapPoints}
+        enableDynamicSizing={enableDynamicSizing}
         stateKey={sheet.stateKey}
         canCloseRef={canCloseRef}
-        onClose={handleCloseSheet}
         fabScale={fabScale}
+        onGoBack={handleSheetGoBack}
+        onSheetClosed={handleCloseSheet}
+        sheetCloseRef={sheetCloseRef}
       >
         <FoodSheetContent
           state={sheet}
-          setState={setSheet}
+          setState={wrappedSetSheet}
           resetToEntry={resetToEntry}
-          registerCanClose={setCanClose}
           onMealLogged={handleMealLogged}
+          skipHistoryRef={skipHistoryRef}
         />
       </Sheet>
 
       {toast && (
         <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
       )}
-    </>
+    </DiscardGuardContext.Provider>
   );
 }

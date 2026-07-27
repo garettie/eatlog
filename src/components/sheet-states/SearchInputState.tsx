@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, Text, View } from 'react-native';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { searchFood, FoodResult, DataType } from '../../services/foodSearch';
@@ -122,11 +123,15 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
   }, []);
 
   return (
-    <View className="flex-1">
-      <View className="px-5 pt-2 pb-3">
+    <BottomSheetScrollView
+      className="flex-1"
+      contentContainerClassName="pb-6"
+      keyboardShouldPersistTaps="handled"
+    >
+      <View className="bg-m3-surface-container px-5 pt-2 pb-3">
         <View className="flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
           <MaterialIcons name="search" size={18} color="#c4c6d0" />
-          <TextInput
+          <BottomSheetTextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Search foods..."
@@ -148,11 +153,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
         </View>
       </View>
 
-      <ScrollView
-        className="flex-1 px-5"
-        contentContainerClassName="pb-6 gap-1.5"
-        keyboardShouldPersistTaps="handled"
-      >
+      <View className="px-5 gap-1.5">
         {isSearching && results.length === 0 && (
           <View className="py-12 items-center">
             <ActivityIndicator size="small" color="#ffffff" />
@@ -223,7 +224,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
             <Text className="text-m3-on-surface-variant text-xs font-medium">Enter manually</Text>
           </Pressable>
         )}
-      </ScrollView>
-    </View>
+      </View>
+    </BottomSheetScrollView>
   );
 }

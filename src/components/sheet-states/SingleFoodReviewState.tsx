@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MealType, insertFoodLog } from '../../db/database';
@@ -102,7 +103,7 @@ export default function SingleFoodReviewState({ food, onLogComplete }: SingleFoo
   if (!food) return null;
 
   return (
-    <ScrollView className="flex-1 px-5" contentContainerClassName="pb-8 gap-5" keyboardShouldPersistTaps="handled">
+    <BottomSheetScrollView className="flex-1 px-5" contentContainerClassName="pb-8 gap-5" keyboardShouldPersistTaps="handled">
       <View className="flex-row justify-between items-start pt-2">
         <View className="flex-1 mr-3">
           <Text className="text-m3-on-surface font-bold text-base leading-5" numberOfLines={2}>{food.name}</Text>
@@ -156,8 +157,13 @@ export default function SingleFoodReviewState({ food, onLogComplete }: SingleFoo
         ) : (
           <View className="flex-row items-center gap-3">
             <View className="flex-1">
-              <TextInput value={gramsInput} onChangeText={setGramsInput} keyboardType="numeric" returnKeyType="done"
-                className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-bold text-lg rounded-xl px-4 py-3 border border-m3-outline-variant/50 text-center" />
+              <BottomSheetTextInput
+                value={gramsInput}
+                onChangeText={setGramsInput}
+                keyboardType="numeric"
+                returnKeyType="done"
+                className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-bold text-lg rounded-xl px-4 py-3 border border-m3-outline-variant/50 text-center"
+              />
             </View>
             <Text className="text-m3-on-surface-variant text-sm font-semibold">grams</Text>
           </View>
@@ -174,6 +180,6 @@ export default function SingleFoodReviewState({ food, onLogComplete }: SingleFoo
       <MealSelector value={meal} onChange={setMeal} />
 
       <PrimaryButton title="Log Entry" icon="check" iconPosition="left" onPress={handleLog} loading={logging} disabled={!macros || gramsNum <= 0} />
-    </ScrollView>
+    </BottomSheetScrollView>
   );
 }

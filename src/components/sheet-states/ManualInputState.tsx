@@ -1,8 +1,10 @@
-import React, { useCallback, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 
 import { MealType, insertFoodLog } from '../../db/database';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
+import { useDiscardGuardContext } from './useDiscardGuard';
 import MealSelector from '../MealSelector';
 import PrimaryButton from '../PrimaryButton';
 
@@ -18,9 +20,18 @@ export default function ManualInputState({ onLogComplete }: ManualInputStateProp
   const [fat, setFat] = useState('');
   const [meal, setMeal] = useState<MealType>(() => defaultMealForNow());
   const [logging, setLogging] = useState(false);
+  const discardGuard = useDiscardGuardContext();
 
   const hasAnyMacro = [calories, protein, carbs, fat].some((v) => parseFloat(v) > 0);
   const canLog = name.trim().length > 0 && hasAnyMacro && !logging;
+
+  useEffect(() => {
+    const unregister = discardGuard.register(
+      () => name.trim().length > 0 || hasAnyMacro,
+      () => { setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat(''); },
+    );
+    return unregister;
+  }, [discardGuard, name, hasAnyMacro]);
 
   const handleLog = useCallback(async () => {
     if (!name.trim()) return;
@@ -44,36 +55,65 @@ export default function ManualInputState({ onLogComplete }: ManualInputStateProp
   }, [name, calories, protein, carbs, fat, meal, onLogComplete]);
 
   return (
-    <ScrollView className="flex-1 px-5" contentContainerClassName="pb-6 gap-4" keyboardShouldPersistTaps="handled">
+    <BottomSheetScrollView className="flex-1 px-5" contentContainerClassName="pb-6 gap-4" keyboardShouldPersistTaps="handled">
       <Text className="text-m3-on-surface font-bold text-base">Manual Entry</Text>
 
       <View className="gap-1">
         <Text className="text-[10px] text-m3-on-surface-variant font-semibold uppercase tracking-wider">Food Name</Text>
-        <TextInput value={name} onChangeText={setName} placeholder="e.g. Homemade Chicken Soup" placeholderTextColor="#c4c6d0"
-          className="bg-m3-surface-container-high text-m3-on-surface font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50" />
+        <BottomSheetTextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Homemade Chicken Soup"
+          placeholderTextColor="#c4c6d0"
+          className="bg-m3-surface-container-high text-m3-on-surface font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+        />
       </View>
 
       <View className="gap-1">
         <Text className="text-[10px] text-m3-on-surface-variant font-semibold uppercase tracking-wider">Calories (kcal)</Text>
-        <TextInput value={calories} onChangeText={setCalories} placeholder="0" placeholderTextColor="#c4c6d0" keyboardType="numeric"
-          className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50" />
+        <BottomSheetTextInput
+          value={calories}
+          onChangeText={setCalories}
+          placeholder="0"
+          placeholderTextColor="#c4c6d0"
+          keyboardType="numeric"
+          className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+        />
       </View>
 
       <View className="flex-row gap-3">
         <View className="flex-1 gap-1">
           <Text className="text-[10px] text-m3-protein font-semibold uppercase tracking-wider">Protein (g)</Text>
-          <TextInput value={protein} onChangeText={setProtein} placeholder="0" placeholderTextColor="#c4c6d0" keyboardType="numeric"
-            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50" />
+          <BottomSheetTextInput
+            value={protein}
+            onChangeText={setProtein}
+            placeholder="0"
+            placeholderTextColor="#c4c6d0"
+            keyboardType="numeric"
+            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+          />
         </View>
         <View className="flex-1 gap-1">
           <Text className="text-[10px] text-m3-carbs font-semibold uppercase tracking-wider">Carbs (g)</Text>
-          <TextInput value={carbs} onChangeText={setCarbs} placeholder="0" placeholderTextColor="#c4c6d0" keyboardType="numeric"
-            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50" />
+          <BottomSheetTextInput
+            value={carbs}
+            onChangeText={setCarbs}
+            placeholder="0"
+            placeholderTextColor="#c4c6d0"
+            keyboardType="numeric"
+            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+          />
         </View>
         <View className="flex-1 gap-1">
           <Text className="text-[10px] text-m3-fat font-semibold uppercase tracking-wider">Fat (g)</Text>
-          <TextInput value={fat} onChangeText={setFat} placeholder="0" placeholderTextColor="#c4c6d0" keyboardType="numeric"
-            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50" />
+          <BottomSheetTextInput
+            value={fat}
+            onChangeText={setFat}
+            placeholder="0"
+            placeholderTextColor="#c4c6d0"
+            keyboardType="numeric"
+            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+          />
         </View>
       </View>
 
@@ -82,6 +122,6 @@ export default function ManualInputState({ onLogComplete }: ManualInputStateProp
       <View className="mt-2">
         <PrimaryButton title="Log Entry" onPress={handleLog} loading={logging} disabled={!canLog} />
       </View>
-    </ScrollView>
+    </BottomSheetScrollView>
   );
 }

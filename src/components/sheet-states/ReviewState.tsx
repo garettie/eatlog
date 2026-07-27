@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MealType, insertFoodLog, insertMeal } from '../../db/database';
 import { FoodResult } from '../../services/foodSearch';
 import { DescribeResult } from '../../services/foodScan';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
+import { useDiscardGuardContext } from './useDiscardGuard';
 import AddComponentSection from '../AddComponentSection';
 import MealSelector from '../MealSelector';
 import MacroChipGroup from '../MacroChipGroup';
@@ -41,20 +43,12 @@ function toEditable(food: FoodResult): EditableComponent {
   };
 }
 
-export interface ReviewStateHandle {
-  isDirty: () => boolean;
-  isLogged: () => boolean;
-  markClean: () => void;
-}
-
 interface ReviewStateProps {
   result: DescribeResult | null;
   onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => void;
-  registerDirty: (isDirty: () => boolean) => void;
-  registerLogged: (isLogged: () => boolean, markClean: () => void) => void;
 }
 
-export default function ReviewState({ result, onLogComplete, registerDirty, registerLogged }: ReviewStateProps) {
+export default function ReviewState({ result, onLogComplete }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
   const [components, setComponents] = useState<EditableComponent[]>(() => (result?.components ?? []).map(toEditable));
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -65,6 +59,7 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
   const dirtyRef = useRef(false);
   const loggedRef = useRef(false);
   const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const discardGuard = useDiscardGuardContext();
 
   useEffect(() => {
     if (result) {
@@ -78,9 +73,12 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
   }, [result]);
 
   useEffect(() => {
-    registerDirty(() => dirtyRef.current);
-    registerLogged(() => loggedRef.current, () => { loggedRef.current = false; dirtyRef.current = false; });
-  }, [registerDirty, registerLogged]);
+    const unregister = discardGuard.register(
+      () => dirtyRef.current && !loggedRef.current,
+      () => { dirtyRef.current = false; loggedRef.current = false; },
+    );
+    return unregister;
+  }, [discardGuard]);
 
   const totalMacros = useMemo(() => {
     let cal = 0, pro10 = 0, carb10 = 0, fat10 = 0, totalGrams = 0;
@@ -209,14 +207,14 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
     <View className="flex-1">
       <View className="px-5 pt-2 pb-2 gap-1">
         <Text className="text-[10px] text-m3-on-surface-variant font-semibold uppercase tracking-wider">Meal Name</Text>
-        <TextInput
+        <BottomSheetTextInput
           value={mealName}
           onChangeText={(t) => { setMealName(t); dirtyRef.current = true; }}
           className="bg-m3-surface-container-high text-m3-on-surface font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
         />
       </View>
 
-      <ScrollView className="flex-1 px-5" contentContainerClassName="pb-6 gap-4" keyboardShouldPersistTaps="handled">
+      <BottomSheetScrollView className="flex-1 px-5" contentContainerClassName="pb-6 gap-4" keyboardShouldPersistTaps="handled">
         <View className="bg-m3-surface-container rounded-xl p-3 gap-2">
           <MacroChipGroup calories={totalMacros.calories} protein={totalMacros.protein} carbs={totalMacros.carbs} fat={totalMacros.fat} />
           <Text className="text-m3-on-surface-variant text-[10px] text-center">{totalMacros.totalGrams}g total</Text>
@@ -235,7 +233,7 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
             return isExpanded ? (
               <View key={`${comp.food.id}-${idx}`} className="bg-m3-surface-container-high rounded-xl px-3 py-3 gap-3">
                 <View className="flex-row justify-between items-center">
-                  <TextInput
+                  <BottomSheetTextInput
                     value={comp.food.name}
                     onChangeText={(t) => updateName(idx, t)}
                     className="flex-1 bg-m3-surface-container text-m3-on-surface font-medium text-sm rounded-lg px-3 py-2.5 border border-m3-outline-variant/50 mr-2"
@@ -251,7 +249,7 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
                       <Text className={`text-[10px] ${field === 'protein' ? 'text-m3-protein' : field === 'carbs' ? 'text-m3-carbs' : field === 'fat' ? 'text-m3-fat' : 'text-white/70'} font-semibold tracking-wider`}>
                         {field === 'calories' ? 'CAL/100g' : field === 'protein' ? 'PRO' : field === 'carbs' ? 'CARB' : 'FAT'}
                       </Text>
-                      <TextInput
+                      <BottomSheetTextInput
                         value={String(comp.per100g[field])}
                         onChangeText={(t) => {
                           if (t === '') return;
@@ -291,7 +289,7 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
                       className="w-11 h-11 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60">
                       <MaterialIcons name="remove" size={20} color="#e2e2e9" />
                     </Pressable>
-                    <TextInput
+                    <BottomSheetTextInput
                       value={comp.servings % 1 === 0 ? comp.servings.toFixed(0) : comp.servings.toFixed(1)}
                       onChangeText={(t) => updateServingsFromText(idx, t, comp)}
                       keyboardType="numeric" returnKeyType="done" onSubmitEditing={() => setExpandedIndex(null)}
@@ -307,7 +305,7 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
                   </View>
                 ) : (
                   <View className="flex-row items-center justify-center gap-3">
-                    <TextInput
+                    <BottomSheetTextInput
                       value={String(comp.grams)}
                       onChangeText={(t) => {
                         const v = parseFloat(t);
@@ -342,7 +340,7 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
                         className="w-9 h-9 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60">
                         <MaterialIcons name="remove" size={18} color="#e2e2e9" />
                       </Pressable>
-                      <TextInput
+                      <BottomSheetTextInput
                         value={comp.servings % 1 === 0 ? comp.servings.toFixed(0) : comp.servings.toFixed(1)}
                         onChangeText={(t) => updateServingsFromText(idx, t, comp)}
                         keyboardType="numeric" returnKeyType="done"
@@ -369,7 +367,7 @@ export default function ReviewState({ result, onLogComplete, registerDirty, regi
         </View>
 
         <AddComponentSection onAdd={handleAddFoods} />
-      </ScrollView>
+      </BottomSheetScrollView>
 
       <View className="px-5 pb-4 pt-2 gap-3 border-t border-m3-outline-variant/30">
         <MealSelector value={meal} onChange={setMeal} />

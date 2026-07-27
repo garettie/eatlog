@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Keyboard, Pressable, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, Text, View } from 'react-native';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { describeMeal, DescribeResult } from '../../services/foodScan';
@@ -14,7 +15,7 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<typeof BottomSheetTextInput>(null);
 
   const handleEstimate = async () => {
     const trimmed = text.trim();
@@ -38,15 +39,19 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
   };
 
   return (
-    <View className="px-5 pt-2 pb-6 gap-4">
+    <BottomSheetScrollView
+      className="flex-1"
+      keyboardShouldPersistTaps="handled"
+      contentContainerClassName="px-5 pt-2 pb-6 gap-4"
+    >
       <View className="flex-row items-center justify-between">
         <Text className="text-m3-on-surface font-bold text-base">Describe your meal</Text>
         <Pressable onPress={_onCancel} accessibilityRole="button" accessibilityLabel="Cancel" className="p-1">
           <MaterialIcons name="close" size={20} color="#c4c6d0" />
         </Pressable>
       </View>
-      <TextInput
-        ref={inputRef}
+      <BottomSheetTextInput
+        ref={inputRef as any}
         value={text}
         onChangeText={setText}
         placeholder="e.g. chicken rice bowl with broccoli, about 500g"
@@ -64,6 +69,6 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
           </Pressable>
         </View>
       )}
-    </View>
+    </BottomSheetScrollView>
   );
 }
