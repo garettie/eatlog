@@ -5,12 +5,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import DashboardScreen from '../screens/DashboardScreen';
+import DiaryScreen from '../screens/DiaryScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import LogToast from '../components/LogToast';
 import Sheet from '../components/Sheet';
 import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey } from '../components/sheet-states/FoodSheetContent';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
-import { deleteMeal, MealType } from '../db/database';
+import { deleteMeal, MealType, getMealComponents, getMealsByIds } from '../db/database';
+import { type FoodResult, type DataType } from '../services/foodSearch';
+import { type DescribeResult } from '../services/foodScan';
 
 function mealLabel(m: MealType): string {
   return m.charAt(0).toUpperCase() + m.slice(1);
@@ -23,6 +26,7 @@ const INITIAL: FoodSheetState = {
   stateKey: 'entry',
   describeResult: null,
   selectedFood: null,
+  editMealId: null,
 };
 
 function FabIcon({ scale }: { scale: SharedValue<number> }) {
@@ -52,6 +56,7 @@ function FabIcon({ scale }: { scale: SharedValue<number> }) {
 export default function TabNavigator() {
   const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
   const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
+  const [logVersion, setLogVersion] = useState(0);
   const fabScale = useSharedValue(1);
   const discardGuard = useDiscardGuard();
 
@@ -63,6 +68,74 @@ export default function TabNavigator() {
     backHistoryRef.current = [];
     skipHistoryRef.current = false;
     setSheet({ ...INITIAL, visible: true });
+  }, []);
+
+  const openDescribe = useCallback(() => {
+    backHistoryRef.current = [];
+    skipHistoryRef.current = true;
+    setSheet({ ...INITIAL, visible: true, stateKey: 'describe' });
+  }, []);
+
+  const openSearch = useCallback(() => {
+    backHistoryRef.current = [];
+    skipHistoryRef.current = true;
+    setSheet({ ...INITIAL, visible: true, stateKey: 'search' });
+  }, []);
+
+  const openCamera = useCallback(() => {
+    backHistoryRef.current = [];
+    skipHistoryRef.current = true;
+    setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'camera' });
+  }, []);
+
+  const openGallery = useCallback(() => {
+    backHistoryRef.current = [];
+    skipHistoryRef.current = true;
+    setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'gallery' });
+  }, []);
+
+  const openEditMeal = useCallback(async (mealId: number) => {
+    const [logs, meals] = await Promise.all([
+      getMealComponents(mealId),
+      getMealsByIds([mealId]),
+    ]);
+    const mealName = meals[0]?.name ?? 'Meal';
+    const components: FoodResult[] = logs
+      .filter((log) => log.calories_per_100g != null)
+      .map((log, i) => ({
+        id: `meal-edit-${mealId}-${i}`,
+        name: log.name,
+        source: log.source as FoodResult['source'],
+        sourceFoodId: log.source_food_id ?? '',
+        dataType: (log.data_type as DataType) || 'manual',
+        brand: log.brand,
+        preparation: log.preparation,
+        normalizedName: log.name.toLowerCase(),
+        caloriesPer100g: log.calories_per_100g,
+        proteinPer100g: log.protein_g_per_100g,
+        carbsPer100g: log.carbs_g_per_100g,
+        fatPer100g: log.fat_g_per_100g,
+        servingSizeGrams: log.serving_size_g,
+        servingLabel: log.serving_label,
+        estimatedGrams: log.grams_logged ?? undefined,
+        alternateSourceIds: [],
+      }));
+    if (!components.length) return;
+
+    const result: DescribeResult = {
+      mealName,
+      components,
+    };
+
+    backHistoryRef.current = [];
+    skipHistoryRef.current = true;
+    setSheet({
+      ...INITIAL,
+      visible: true,
+      stateKey: 'review',
+      describeResult: result,
+      editMealId: mealId,
+    });
   }, []);
 
   const resetToEntry = useCallback(() => {
@@ -132,10 +205,12 @@ export default function TabNavigator() {
 
   const handleMealLogged = useCallback(
     ({ mealId, meal, name }: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
+      setLogVersion((v) => v + 1);
       setToast({
         message: `Logged ${name} to ${mealLabel(meal)}`,
         undo: async () => {
           await deleteMeal(mealId);
+          setLogVersion((v) => v + 1);
           setToast(null);
         },
       });
@@ -181,7 +256,17 @@ export default function TabNavigator() {
             ),
           }}
         >
-          {() => <PlaceholderScreen title="Diary" />}
+          {() => (
+            <DiaryScreen
+              onOpenEntry={openEntry}
+              onCamera={openCamera}
+              onGallery={openGallery}
+              onDescribe={openDescribe}
+              onSearch={openSearch}
+              onEditMeal={openEditMeal}
+              logVersion={logVersion}
+            />
+          )}
         </Tab.Screen>
         <Tab.Screen
           name="AddEntry"
@@ -230,6 +315,7 @@ export default function TabNavigator() {
         onGoBack={handleSheetGoBack}
         onSheetClosed={handleCloseSheet}
         sheetCloseRef={sheetCloseRef}
+        forceClose={!!sheet.fromBar}
       >
         <FoodSheetContent
           state={sheet}
@@ -241,7 +327,9 @@ export default function TabNavigator() {
       </Sheet>
 
       {toast && (
-        <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
+        <View className="absolute bottom-6 left-4 right-4" style={{ zIndex: 100 }}>
+          <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
+        </View>
       )}
     </DiscardGuardContext.Provider>
   );

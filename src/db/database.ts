@@ -594,3 +594,78 @@ export async function getMealComponents(mealId: number): Promise<FoodLog[]> {
     [mealId]
   );
 }
+
+export async function getDailyTargetForDate(dateISO: string): Promise<DailyTarget | null> {
+  const db = await getDb();
+  return db.getFirstAsync<DailyTarget>(
+    'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC LIMIT 1',
+    [dateISO]
+  );
+}
+
+export interface DayMacros {
+  log_date: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}
+
+export async function getMacrosByDateRange(startISO: string, endISO: string): Promise<DayMacros[]> {
+  const db = await getDb();
+  return db.getAllAsync<DayMacros>(
+    `SELECT log_date,
+       COALESCE(SUM(calories), 0) AS calories,
+       COALESCE(SUM(protein_g), 0) AS protein_g,
+       COALESCE(SUM(carbs_g), 0) AS carbs_g,
+       COALESCE(SUM(fat_g), 0) AS fat_g
+     FROM food_logs
+     WHERE log_date BETWEEN ? AND ?
+     GROUP BY log_date
+     ORDER BY log_date`,
+    [startISO, endISO]
+  );
+}
+
+export interface MealRow {
+  id: number;
+  name: string;
+  log_date: string;
+  meal_type: MealType;
+}
+
+export async function getMealsByIds(ids: number[]): Promise<MealRow[]> {
+  if (ids.length === 0) return [];
+  const db = await getDb();
+  const placeholders = ids.map(() => '?').join(',');
+  return db.getAllAsync<MealRow>(
+    `SELECT id, name, log_date, meal_type FROM meals WHERE id IN (${placeholders})`,
+    ids
+  );
+}
+
+export async function updateFoodLog(id: number, params: {
+  grams_logged: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+}): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE food_logs SET
+       grams_logged = ?, calories = ?, protein_g = ?, carbs_g = ?, fat_g = ?
+     WHERE id = ?`,
+    [params.grams_logged, params.calories, params.protein_g, params.carbs_g, params.fat_g, id]
+  );
+}
+
+export async function deleteMealComponents(mealId: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM food_logs WHERE meal_id = ?', [mealId]);
+}
+
+export async function updateMealName(mealId: number, name: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE meals SET name = ? WHERE id = ?', [name, mealId]);
+}

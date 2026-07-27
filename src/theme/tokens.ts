@@ -26,10 +26,11 @@ export const M3 = {
   onErrorContainer: '#ffdad6',
   protein: '#f2b7c6',
   proteinContainer: '#4f2532',
-  carbs: '#a0cafd',
-  carbsContainer: '#1d3550',
+  carbs: '#b5e3c4',
+  carbsContainer: '#1a3827',
   fat: '#e5c36c',
   fatContainer: '#453812',
+  calories: '#a0cafd',
   expenditure: '#d0bcff',
 
   scrim: '#000000',

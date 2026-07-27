@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeOutDown, Layout, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MealType, insertFoodLog, insertMeal } from '../../db/database';
+import { MealType, insertFoodLog, insertMeal, deleteMealComponents, updateMealName } from '../../db/database';
 import { FoodResult } from '../../services/foodSearch';
 import { DescribeResult } from '../../services/foodScan';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
@@ -50,9 +50,10 @@ interface ReviewStateProps {
   result: DescribeResult | null;
   onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => void;
   onClarify: (name: string) => Promise<DescribeResult | null>;
+  editMealId?: number | null;
 }
 
-export default function ReviewState({ result, onLogComplete, onClarify }: ReviewStateProps) {
+export default function ReviewState({ result, onLogComplete, onClarify, editMealId }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
   const [components, setComponents] = useState<EditableComponent[]>(() =>
     (result?.components ?? []).map(toEditable),
@@ -245,8 +246,15 @@ export default function ReviewState({ result, onLogComplete, onClarify }: Review
     setLogging(true);
     try {
       const logDate = todayISO();
-      const mealId = await insertMeal({
-        name: mealName.trim() || 'Meal',
+      const name = mealName.trim() || 'Meal';
+
+      if (editMealId) {
+        await deleteMealComponents(editMealId);
+        await updateMealName(editMealId, name);
+      }
+
+      const mealId = editMealId ?? await insertMeal({
+        name,
         log_date: logDate,
         meal_type: meal,
       });
@@ -282,11 +290,11 @@ export default function ReviewState({ result, onLogComplete, onClarify }: Review
         logIds.push(logId);
       }
       loggedRef.current = true;
-      onLogComplete({ mealId, logIds, meal, name: mealName.trim() || 'Meal' });
+      onLogComplete({ mealId, logIds, meal, name });
     } finally {
       setLogging(false);
     }
-  }, [components, mealName, meal, onLogComplete]);
+  }, [components, mealName, meal, onLogComplete, editMealId]);
 
   const handleClarify = useCallback(async () => {
     const name = mealName.trim();
@@ -561,7 +569,7 @@ export default function ReviewState({ result, onLogComplete, onClarify }: Review
         )}
         <MealSelector value={meal} onChange={setMeal} />
         <PrimaryButton
-          title="Log Meal"
+          title={editMealId ? 'Update Meal' : 'Log Meal'}
           icon="check"
           iconPosition="left"
           onPress={handleLogMeal}

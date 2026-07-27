@@ -29,6 +29,9 @@ export interface FoodSheetState {
   stateKey: FoodSheetStateKey;
   describeResult: DescribeResult | null;
   selectedFood: FoodResult | null;
+  pendingAction?: 'camera' | 'gallery' | 'describe' | 'search' | null;
+  editMealId?: number | null;
+  fromBar?: boolean;
 }
 
 interface FoodSheetContentProps {
@@ -48,6 +51,8 @@ export default function FoodSheetContent({
 }: FoodSheetContentProps) {
   const cancelScanRef = useRef(false);
   const scanBase64Ref = useRef<string | null>(null);
+  const fromBarRef = useRef(false);
+  fromBarRef.current = !!state.fromBar;
   const [recentMeals, setRecentMeals] = useState<RecentMeal[]>([]);
 
   useEffect(() => {
@@ -69,7 +74,9 @@ export default function FoodSheetContent({
 
   const handleCamera = useCallback(async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (cancelScanRef.current) return;
     if (status !== 'granted') {
+      if (fromBarRef.current) { resetToEntry(); return; }
       transitionTo('permission-denied');
       return;
     }
@@ -81,7 +88,9 @@ export default function FoodSheetContent({
         base64: true,
         quality: 0.5,
       });
+      if (cancelScanRef.current) return;
       if (result.canceled || !result.assets?.[0]?.base64) {
+        if (fromBarRef.current) { resetToEntry(); return; }
         transitionTo('entry', { pushHistory: false });
         return;
       }
@@ -90,14 +99,16 @@ export default function FoodSheetContent({
       const scanResult = await scanFood(base64);
       if (cancelScanRef.current) return;
       if (!scanResult) {
+        if (fromBarRef.current) { resetToEntry(); return; }
         transitionTo('entry', { pushHistory: false });
         return;
       }
       transitionTo('review', { describeResult: scanResult });
     } catch {
+      if (fromBarRef.current) { resetToEntry(); return; }
       transitionTo('entry', { pushHistory: false });
     }
-  }, [transitionTo]);
+  }, [transitionTo, resetToEntry]);
 
   const handleGallery = useCallback(async () => {
     cancelScanRef.current = false;
@@ -108,7 +119,9 @@ export default function FoodSheetContent({
         base64: true,
         quality: 0.5,
       });
+      if (cancelScanRef.current) return;
       if (result.canceled || !result.assets?.[0]?.base64) {
+        if (fromBarRef.current) { resetToEntry(); return; }
         transitionTo('entry', { pushHistory: false });
         return;
       }
@@ -117,14 +130,16 @@ export default function FoodSheetContent({
       const scanResult = await scanFood(base64);
       if (cancelScanRef.current) return;
       if (!scanResult) {
+        if (fromBarRef.current) { resetToEntry(); return; }
         transitionTo('entry', { pushHistory: false });
         return;
       }
       transitionTo('review', { describeResult: scanResult });
     } catch {
+      if (fromBarRef.current) { resetToEntry(); return; }
       transitionTo('entry', { pushHistory: false });
     }
-  }, [transitionTo]);
+  }, [transitionTo, resetToEntry]);
 
   const handleDescribe = useCallback(() => {
     transitionTo('describe');
@@ -139,9 +154,13 @@ export default function FoodSheetContent({
   );
 
   const handleDescribeCancel = useCallback(() => {
+    if (fromBarRef.current) {
+      resetToEntry();
+      return;
+    }
     skipHistoryRef.current = true;
     setState((s) => ({ ...s, stateKey: 'entry', describeResult: null, selectedFood: null }));
-  }, [setState, skipHistoryRef]);
+  }, [setState, skipHistoryRef, resetToEntry]);
 
   const handleSearch = useCallback(() => {
     transitionTo('search');
@@ -177,8 +196,12 @@ export default function FoodSheetContent({
 
   const handleScanCancel = useCallback(() => {
     cancelScanRef.current = true;
+    if (fromBarRef.current) {
+      resetToEntry();
+      return;
+    }
     transitionTo('entry', { pushHistory: false });
-  }, [transitionTo]);
+  }, [transitionTo, resetToEntry]);
 
   const handleSelectRecentMeal = useCallback(
     async (meal: RecentMeal) => {
@@ -223,11 +246,32 @@ export default function FoodSheetContent({
 
   const handleMealLogged = useCallback(
     (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
-      setState((s) => ({ ...s, visible: false, describeResult: null }));
+      setState((s) => ({ ...s, visible: false, describeResult: null, editMealId: null }));
       onMealLogged(info);
     },
     [onMealLogged, setState],
   );
+
+  useEffect(() => {
+    if (!state.pendingAction) return;
+    if (state.stateKey !== 'entry' && state.stateKey !== 'scanning') return;
+    const action = state.pendingAction;
+    setState((s) => ({ ...s, pendingAction: null }));
+    switch (action) {
+      case 'camera':
+        handleCamera();
+        break;
+      case 'gallery':
+        handleGallery();
+        break;
+      case 'describe':
+        transitionTo('describe');
+        break;
+      case 'search':
+        transitionTo('search');
+        break;
+    }
+  }, [state.stateKey, state.pendingAction, handleCamera, handleGallery, transitionTo, setState]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -253,6 +297,7 @@ export default function FoodSheetContent({
           result={state.describeResult}
           onLogComplete={handleMealLogged}
           onClarify={handleClarify}
+          editMealId={state.editMealId}
         />
       )}
       {state.stateKey === 'search' && (

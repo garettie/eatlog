@@ -25,6 +25,7 @@ interface SheetProps {
   onGoBack?: () => boolean;
   onSheetClosed?: () => void;
   sheetCloseRef?: React.MutableRefObject<() => void>;
+  forceClose?: boolean;
 }
 
 export default function Sheet({
@@ -39,12 +40,15 @@ export default function Sheet({
   onGoBack,
   onSheetClosed,
   sheetCloseRef,
+  forceClose = false,
 }: SheetProps) {
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
   const lastIndexRef = useRef(0);
   const wasVisible = useRef(false);
   const prevStateKeyRef = useRef(stateKey);
+  const forceCloseRef = useRef(forceClose);
+  forceCloseRef.current = forceClose;
 
   useEffect(() => {
     if (sheetCloseRef) {
@@ -58,17 +62,21 @@ export default function Sheet({
   }, [sheetCloseRef]);
 
   useEffect(() => {
-    if (visible && prevStateKeyRef.current !== stateKey) {
+    const openedNow = visible && !wasVisible.current;
+    const stateChanged = visible && prevStateKeyRef.current !== stateKey;
+
+    if (openedNow || stateChanged) {
       prevStateKeyRef.current = stateKey;
       sheetRef.current?.snapToIndex(0);
     }
-  }, [stateKey, visible]);
+
+    wasVisible.current = visible;
+  }, [visible, stateKey]);
 
   useEffect(() => {
-    if (visible && !wasVisible.current) {
-      sheetRef.current?.expand();
+    if (!visible) {
+      sheetRef.current?.close();
     }
-    wasVisible.current = visible;
   }, [visible]);
 
   useEffect(() => {
@@ -82,6 +90,11 @@ export default function Sheet({
   }, [visible, onGoBack]);
 
   const handleClose = useCallback(() => {
+    if (forceCloseRef.current) {
+      Keyboard.dismiss();
+      sheetRef.current?.close();
+      return;
+    }
     const allowed = canCloseRef.current();
     if (allowed) {
       Keyboard.dismiss();
