@@ -76,7 +76,7 @@ export default function SingleFoodReviewState({
       setGramsInput(String(Math.round(food.servingSizeGrams)));
     } else {
       setServings(1);
-      setGramsInput('150');
+      setGramsInput(String(Math.round(food.estimatedGrams ?? 150)));
     }
     setMeal(initialMeal ?? defaultMealForNow());
   }, [food, defaultMode, initialMeal]);

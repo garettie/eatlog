@@ -1,0 +1,231 @@
+import React, { useDeferredValue, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+
+import { getLoggedFoods, getLoggedMeals, LoggedFood, LoggedMeal, setFoodPinned } from '../../db/database';
+import { FoodResult } from '../../services/foodSearch';
+import { M3 } from '../../theme/tokens';
+import { foodIcon } from '../../utils/foodIcons';
+
+interface RecentFoodsStateProps {
+  onSelectFood: (food: FoodResult) => void;
+  onSelectMeal: (meal: LoggedMeal) => void;
+}
+
+type LoggedEntry =
+  | { kind: 'food'; key: string; loggedAt: string; pinned: number; food: LoggedFood }
+  | { kind: 'meal'; key: string; loggedAt: string; pinned: number; meal: LoggedMeal };
+
+function MacroPill({ letter, grams, color }: { letter: string; grams: number; color: string }) {
+  return (
+    <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: color + '1A' }}>
+      <Text className="text-[10px] font-bold tabular-nums" style={{ color }}>{letter} {Math.round(grams)}g</Text>
+    </View>
+  );
+}
+
+function foodToResult(food: LoggedFood): FoodResult {
+  const grams = food.grams_logged && food.grams_logged > 0 ? food.grams_logged : 100;
+  const ratio = 100 / grams;
+  return {
+    id: `logged-${food.id}`,
+    name: food.name,
+    source: food.source as FoodResult['source'],
+    sourceFoodId: food.source_food_id ?? '',
+    dataType: (food.data_type as FoodResult['dataType']) || 'manual',
+    brand: food.brand,
+    preparation: food.preparation,
+    normalizedName: food.name.toLowerCase(),
+    caloriesPer100g: food.calories_per_100g ?? food.calories * ratio,
+    proteinPer100g: food.protein_g_per_100g ?? food.protein_g * ratio,
+    carbsPer100g: food.carbs_g_per_100g ?? food.carbs_g * ratio,
+    fatPer100g: food.fat_g_per_100g ?? food.fat_g * ratio,
+    servingSizeGrams: food.serving_size_g,
+    servingLabel: food.serving_label,
+    estimatedGrams: food.grams_logged,
+    alternateSourceIds: [],
+  };
+}
+
+function FoodRow({ food, pinned, onPress, onTogglePin }: { food: LoggedFood; pinned: boolean; onPress: () => void; onTogglePin: () => void }) {
+  return (
+    <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${food.name}, ${Math.round(food.calories)} calories`}
+        accessibilityHint="Opens food review"
+        className={`flex-row items-stretch active:opacity-80 ${food.photo_uri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'}`}
+      >
+        {food.photo_uri ? (
+          <Image source={{ uri: food.photo_uri }} className="w-28 self-stretch bg-m3-surface-container-highest" resizeMode="cover" />
+        ) : (
+          <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
+            <MaterialCommunityIcons name={foodIcon(food.name)} size={20} color={M3.onSurfaceVariant} />
+          </View>
+        )}
+        <View className={`flex-1 min-w-0 ${food.photo_uri ? 'px-4 py-5' : 'mr-4'}`}>
+          <Text className="text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>{food.name}</Text>
+          <Text className="text-m3-on-surface-variant text-xs mt-0.5" numberOfLines={1}>
+            {[food.brand, food.serving_label, food.grams_logged ? `${Math.round(food.grams_logged)}g` : null].filter(Boolean).join(' · ')}
+          </Text>
+          <View className="flex-row gap-1.5 flex-wrap mt-2">
+            <MacroPill letter="P" grams={food.protein_g} color={M3.protein} />
+            <MacroPill letter="C" grams={food.carbs_g} color={M3.carbs} />
+            <MacroPill letter="F" grams={food.fat_g} color={M3.fat} />
+          </View>
+        </View>
+        <View className={`w-[88px] shrink-0 items-end ${food.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
+          <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
+            {Math.round(food.calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
+          </Text>
+        </View>
+      </Pressable>
+      <Pressable
+        onPress={onTogglePin}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={pinned ? `Unpin ${food.name}` : `Pin ${food.name}`}
+        className="absolute right-3 top-3 w-10 h-10 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
+      >
+        <MaterialIcons name={pinned ? 'star' : 'star-border'} size={20} color={pinned ? M3.calories : M3.onSurfaceVariant} />
+      </Pressable>
+    </View>
+  );
+}
+
+function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pinned: boolean; onPress: () => void; onTogglePin: () => void }) {
+  return (
+    <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${meal.meal_name}, ${Math.round(meal.total_calories)} calories`}
+        accessibilityHint="Opens meal review"
+        className={`flex-row items-stretch active:opacity-80 ${meal.photo_uri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'}`}
+      >
+        {meal.photo_uri ? (
+          <Image source={{ uri: meal.photo_uri }} className="w-28 self-stretch bg-m3-surface-container-highest" resizeMode="cover" />
+        ) : (
+          <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
+            <MaterialCommunityIcons name={foodIcon(meal.meal_name)} size={20} color={M3.onSurfaceVariant} />
+          </View>
+        )}
+        <View className={`flex-1 min-w-0 ${meal.photo_uri ? 'px-4 py-5' : 'mr-4'}`}>
+          <Text className="text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>{meal.meal_name}</Text>
+          <Text className="text-m3-on-surface-variant text-xs mt-0.5">
+            {meal.component_count} {meal.component_count === 1 ? 'item' : 'items'}
+          </Text>
+          <View className="flex-row gap-1.5 flex-wrap mt-2">
+            <MacroPill letter="P" grams={meal.total_protein} color={M3.protein} />
+            <MacroPill letter="C" grams={meal.total_carbs} color={M3.carbs} />
+            <MacroPill letter="F" grams={meal.total_fat} color={M3.fat} />
+          </View>
+        </View>
+        <View className={`w-[88px] shrink-0 items-end ${meal.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
+          <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
+            {Math.round(meal.total_calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
+          </Text>
+        </View>
+      </Pressable>
+      <Pressable
+        onPress={onTogglePin}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={pinned ? `Unpin ${meal.meal_name}` : `Pin ${meal.meal_name}`}
+        className="absolute right-3 top-3 w-10 h-10 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
+      >
+        <MaterialIcons name={pinned ? 'star' : 'star-border'} size={20} color={pinned ? M3.calories : M3.onSurfaceVariant} />
+      </Pressable>
+    </View>
+  );
+}
+
+export default function RecentFoodsState({ onSelectFood, onSelectMeal }: RecentFoodsStateProps) {
+  const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
+  const [entries, setEntries] = useState<LoggedEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const loadQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(false);
+    const queued = loadQueueRef.current.catch(() => {}).then(async () => {
+      const foods = await getLoggedFoods(deferredQuery);
+      const meals = await getLoggedMeals(deferredQuery);
+      const results: LoggedEntry[] = [
+        ...foods.map((food) => ({ kind: 'food' as const, key: food.food_key, loggedAt: food.logged_at, pinned: food.is_pinned, food })),
+        ...meals.map((meal) => ({ kind: 'meal' as const, key: meal.food_key, loggedAt: meal.last_logged_at, pinned: meal.is_pinned, meal })),
+      ];
+      results.sort((a, b) => b.pinned - a.pinned || b.loggedAt.localeCompare(a.loggedAt));
+      if (active) setEntries(results);
+    });
+    loadQueueRef.current = queued;
+    queued
+      .catch((e) => {
+        console.error('[RecentFoods] getLoggedFoods failed', e);
+        if (active) setError(true);
+      })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [deferredQuery]);
+
+  const handleTogglePin = async (entry: LoggedEntry) => {
+    const isPinned = entry.pinned === 1;
+    const update = (current: LoggedEntry[], pinned: number) => current
+      .map((item) => item.key === entry.key ? { ...item, pinned } : item)
+      .sort((a, b) => b.pinned - a.pinned || b.loggedAt.localeCompare(a.loggedAt));
+    setEntries((current) => update(current, isPinned ? 0 : 1));
+    try {
+      await setFoodPinned(entry.key, !isPinned);
+    } catch (e) {
+      console.error('[RecentFoods] setFoodPinned failed', e);
+      setEntries((current) => update(current, isPinned ? 1 : 0));
+    }
+  };
+
+  return (
+    <BottomSheetScrollView className="flex-1" contentContainerClassName="pb-6" keyboardShouldPersistTaps="handled">
+      <View className="bg-m3-surface-container px-5 pt-2 pb-3">
+        <View className="flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
+          <MaterialIcons name="search" size={18} color={M3.onSurfaceVariant} />
+          <BottomSheetTextInput
+            value={query}
+            onChangeText={setQuery}
+            accessibilityLabel="Search logged foods"
+            placeholder="Search logged foods"
+            placeholderTextColor={M3.placeholder}
+            className="flex-1 text-m3-on-surface text-sm ml-2 font-medium"
+            autoFocus
+            autoCorrect={false}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-10 h-10 items-center justify-center -mr-2 -my-2">
+              <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <View className="px-5 gap-2">
+        {loading && <View className="py-12 items-center"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View>}
+        {!loading && error && <View className="py-12 items-center"><Text className="text-m3-on-surface-variant text-sm">Couldn't load your foods.</Text></View>}
+        {!loading && !error && entries.length === 0 && (
+          <View className="py-12 items-center gap-2">
+            <MaterialIcons name="restaurant" size={36} color={M3.onSurfaceVariant} />
+            <Text className="text-m3-on-surface-variant text-sm font-medium">{query ? 'No foods found' : 'No foods logged yet'}</Text>
+          </View>
+        )}
+        {!loading && entries.map((entry) => entry.kind === 'food' ? (
+          <FoodRow key={entry.key} food={entry.food} pinned={entry.pinned === 1} onPress={() => onSelectFood(foodToResult(entry.food))} onTogglePin={() => handleTogglePin(entry)} />
+        ) : (
+          <MealRow key={entry.key} meal={entry.meal} pinned={entry.pinned === 1} onPress={() => onSelectMeal(entry.meal)} onTogglePin={() => handleTogglePin(entry)} />
+        ))}
+      </View>
+    </BottomSheetScrollView>
+  );
+}

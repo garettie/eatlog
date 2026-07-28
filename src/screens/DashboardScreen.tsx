@@ -14,23 +14,25 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
-import { LineChart } from 'react-native-gifted-charts';
 
 import Card from '../components/Card';
+import WeightChart from '../components/WeightChart';
 import {
   getProfile,
   getLatestDailyTarget,
   getMostRecentEntry,
   getTodayMacros,
-  getRecentWeightLogs,
+  getWeightLogsByDateRange,
   getDistinctLoggedDayCount,
   Profile,
   DailyTarget,
   LastEntry,
   WeightLog,
 } from '../db/database';
-import { todayISO } from '../utils/calculations';
+import { addCalendarDays, calendarDaysBetween, parseLocalISO, todayISO } from '../utils/calendar';
 import { foodIcon } from '../utils/foodIcons';
+import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
+import { formatWeight } from '../utils/weightUnits';
 import { M3 } from '../theme/tokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -99,15 +101,21 @@ interface MacroTileProps {
 function MacroTile({ label, consumed, target, textColorClass, progressColorClass }: MacroTileProps) {
   const reduced = useReducedMotion();
   const pct = target > 0 ? Math.min(1, Math.max(0, consumed / target)) : 0;
+  const overflowPct = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
   const barPctSV = useSharedValue(0);
+  const overflowPctSV = useSharedValue(0);
   const trackWidthSV = useSharedValue(0);
 
   useEffect(() => {
     barPctSV.value = withTiming(pct, { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-  }, [pct, reduced]);
+    overflowPctSV.value = withTiming(overflowPct, { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) });
+  }, [pct, overflowPct, reduced]);
 
   const barStyle = useAnimatedStyle(() => ({
     width: barPctSV.value * trackWidthSV.value,
+  }));
+  const overflowStyle = useAnimatedStyle(() => ({
+    width: overflowPctSV.value * trackWidthSV.value,
   }));
 
   return (
@@ -126,6 +134,7 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
           className={`h-full ${progressColorClass} rounded-full`}
           style={barStyle}
         />
+        <Animated.View className="absolute right-0 h-full bg-black/25" style={overflowStyle} />
       </View>
     </View>
   );
@@ -159,16 +168,26 @@ function getRelativeTime(loggedAtStr: string): string {
   }
 }
 
+function formatWeightDate(dateISO: string, today: string): string {
+  if (dateISO === today) return 'Today';
+  return parseLocalISO(dateISO).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 // ── DashboardScreen Component ─────────────────────────────────────────────
 
 interface DashboardScreenProps {
   onOpenCamera: () => void;
   onOpenGallery: () => void;
   onOpenDescribe: () => void;
-  logVersion: number;
+  dataVersion: number;
 }
 
-export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDescribe, logVersion }: DashboardScreenProps) {
+export default function DashboardScreen({
+  onOpenCamera,
+  onOpenGallery,
+  onOpenDescribe,
+  dataVersion,
+}: DashboardScreenProps) {
   const navigation = useNavigation<any>();
   const reduced = useReducedMotion();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -186,6 +205,7 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
   const [showRemaining, setShowRemaining] = useState(false);
   const [error, setError] = useState(false);
   const initialLoadDone = useRef(false);
+  const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   // ── Toggle animation ──
   const toggleValSV = useSharedValue(0);
@@ -216,32 +236,34 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
 
   // ── Data loading ──
 
-  const loadData = useCallback(async (showLoading: boolean) => {
+  const loadData = useCallback((showLoading: boolean) => {
     if (showLoading) setLoading(true);
-    try {
-      const today = todayISO();
-      // Keep SQLite reads serialized; concurrent prepared statements can race
-      // through the Android bridge on some devices.
-      const prof = await getProfile();
-      const targ = await getLatestDailyTarget();
-      const rFood = await getMostRecentEntry();
-      const tMacros = await getTodayMacros(today);
-      const wLogs = await getRecentWeightLogs(30);
-      const ddCount = await getDistinctLoggedDayCount();
+    const queued = loadQueueRef.current.catch(() => {}).then(async () => {
+      try {
+        const today = todayISO();
+        const prof = await getProfile();
+        const targ = await getLatestDailyTarget();
+        const rFood = await getMostRecentEntry();
+        const tMacros = await getTodayMacros(today);
+        const wLogs = await getWeightLogsByDateRange(addCalendarDays(today, -29), today);
+        const ddCount = await getDistinctLoggedDayCount();
 
-      setProfile(prof);
-      setTarget(targ);
-      setRecentFood(rFood);
-      setTodayMacros(tMacros);
-      setWeightLogs([...wLogs].reverse());
-      setDistinctLoggedDays(ddCount);
-      setError(false);
-    } catch (e) {
-      console.error('[Dashboard] loadData failed', e);
-      setError(true);
-    } finally {
-      if (showLoading) setLoading(false);
-    }
+        setProfile(prof);
+        setTarget(targ);
+        setRecentFood(rFood);
+        setTodayMacros(tMacros);
+        setWeightLogs(wLogs);
+        setDistinctLoggedDays(ddCount);
+        setError(false);
+      } catch (e) {
+        console.error('[Dashboard] loadData failed', e);
+        setError(true);
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    });
+    loadQueueRef.current = queued;
+    return queued;
   }, []);
 
   useFocusEffect(
@@ -252,12 +274,11 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
     }, [loadData])
   );
 
-  // Reload when a meal is logged (logVersion bump from TabNavigator) — the
-  // bottom sheet is an overlay so useFocusEffect never refires.
+  // The bottom sheet is an overlay, so focus does not change after a save.
   useEffect(() => {
     if (!initialLoadDone.current) return; // skip mount, useFocusEffect handles it
     loadData(false);
-  }, [logVersion]);
+  }, [dataVersion, loadData]);
 
   // ── Loading / Empty / Error states ──
 
@@ -354,21 +375,40 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
     day: 'numeric',
   });
 
-  const chartData = weightLogs.map((log) => ({
-    value: log.trend_weight_kg,
-  }));
-  const rawDotsData = weightLogs.map((log) => ({
-    value: log.scale_weight_kg,
-  }));
-
+  const weightRangeEnd = todayISO();
+  const weightRangeStart = addCalendarDays(weightRangeEnd, -29);
   const latestWeightLog = weightLogs[weightLogs.length - 1];
-  const hasWeightData = weightLogs.length >= 2;
-  const trendWeightDisplay = latestWeightLog
-    ? latestWeightLog.trend_weight_kg.toFixed(1)
-    : '--';
-  const scaleWeightDisplay = latestWeightLog
-    ? latestWeightLog.scale_weight_kg.toFixed(1)
-    : '--';
+  let weeklyReference: WeightLog | null = null;
+  if (latestWeightLog) {
+    for (const log of weightLogs.slice(0, -1)) {
+      const daysBeforeLatest = calendarDaysBetween(log.log_date, latestWeightLog.log_date);
+      if (daysBeforeLatest < 4 || daysBeforeLatest > 10) continue;
+      if (!weeklyReference) {
+        weeklyReference = log;
+        continue;
+      }
+      const referenceDays = calendarDaysBetween(weeklyReference.log_date, latestWeightLog.log_date);
+      const candidateDistance = Math.abs(daysBeforeLatest - 7);
+      const referenceDistance = Math.abs(referenceDays - 7);
+      if (
+        candidateDistance < referenceDistance
+        || (candidateDistance === referenceDistance && log.log_date < weeklyReference.log_date)
+      ) {
+        weeklyReference = log;
+      }
+    }
+  }
+  const weeklyRate = latestWeightLog && weeklyReference
+    ? computeNormalizedWeeklyRate(
+      { logDate: weeklyReference.log_date, trendWeightKg: weeklyReference.trend_weight_kg },
+      { logDate: latestWeightLog.log_date, trendWeightKg: latestWeightLog.trend_weight_kg },
+    )
+    : null;
+  const weightUnit = profile.weight_unit;
+  const unitLabel = weightUnit;
+  const latestDateLabel = latestWeightLog
+    ? formatWeightDate(latestWeightLog.log_date, weightRangeEnd)
+    : null;
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
@@ -599,70 +639,96 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
           )}
 
           {/* ── Weight Trend Card ── */}
-          {/* TODO: navigate to analytics/history screen when built */}
-          <Card className="p-5 gap-4">
-            <View className="flex-row justify-between items-baseline">
-              <View>
-                <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
-                <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">Last 30 days</Text>
+          <Card className="overflow-hidden">
+            <Pressable
+              onPress={() => navigation.navigate('Analytics')}
+              className="p-5 gap-4 active:opacity-80"
+              accessibilityRole="button"
+              accessibilityLabel="Open weight analytics"
+            >
+              <View className="flex-row justify-between items-baseline gap-3">
+                <View>
+                  <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
+                  <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">Last 30 days</Text>
+                </View>
+                {profile.target_weight_kg != null && (
+                  <Text className="text-m3-on-surface-variant text-xs font-bold tabular-nums">
+                    Goal {formatWeight(profile.target_weight_kg, weightUnit)} {unitLabel}
+                  </Text>
+                )}
               </View>
-              <Text className="text-m3-expenditure text-xs font-bold tabular-nums">
-                {profile.goal_rate_kg_per_week >= 0 ? '+' : ''}
-                {profile.goal_rate_kg_per_week.toFixed(2)} kg/wk
-              </Text>
-            </View>
 
-            {!hasWeightData ? (
-              <View className="h-32 justify-center items-center">
-                <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
-                  Log a few more check-ins to see your trend
-                </Text>
-              </View>
-            ) : (
-              <>
-                <View className="h-32 justify-end py-2">
-                  <LineChart
-                    data={chartData}
-                    data2={rawDotsData}
-                    height={90}
-                    thickness={2}
-                    color={M3.expenditure}
-                    hideRules
-                    hideYAxisText
-                    hideAxesAndRules
-                    xAxisThickness={0}
-                    yAxisThickness={0}
-                    curved
-                    initialSpacing={15}
-                    endSpacing={15}
-                    hideDataPoints={false}
-                    dataPointsColor="rgba(196,198,208,0.8)"
-                    dataPointsRadius={3}
-                    hideDataPoints1
-                    thickness2={0}
-                    color2="transparent"
-                    hideDataPoints2={false}
-                    dataPointsColor2="rgba(196,198,208,0.8)"
-                    dataPointsRadius2={3.5}
+              {weightLogs.length === 0 ? (
+                <View className="h-24 justify-center items-center gap-1">
+                  <Text className="text-m3-on-surface font-bold text-sm text-center">
+                    No weight check-ins yet
+                  </Text>
+                  <Text className="text-m3-on-surface-variant text-xs text-center">
+                    Log weight to start your trend.
+                  </Text>
+                </View>
+              ) : weightLogs.length === 1 ? (
+                <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+                  <Text className="text-m3-on-surface-variant text-xs font-semibold">Starting weight</Text>
+                  <Text className="text-m3-on-surface font-bold text-xl tabular-nums">
+                    {formatWeight(latestWeightLog.scale_weight_kg, weightUnit)} {unitLabel}
+                  </Text>
+                  <Text className="text-m3-on-surface-variant text-[10px] font-medium">{latestDateLabel}</Text>
+                </View>
+              ) : (
+                <>
+                  <WeightChart
+                    logs={weightLogs}
+                    startDate={weightRangeStart}
+                    endDate={weightRangeEnd}
+                    height={132}
+                    showXAxisLabels
+                    targetWeightKg={profile.target_weight_kg}
+                    unit={weightUnit}
                   />
-                </View>
-
-                <View className="flex-row gap-3">
-                  <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                    <Text className="text-m3-on-surface-variant text-xs font-semibold">Trend Weight</Text>
-                    <Text className="text-m3-expenditure font-bold text-xl tabular-nums">
-                      {trendWeightDisplay} kg
-                    </Text>
+                  <View className="flex-row flex-wrap gap-x-4 gap-y-2">
+                    <View className="flex-row items-center gap-1.5">
+                      <View className="w-2 h-2 rounded-full bg-m3-on-surface-variant" />
+                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">Scale</Text>
+                    </View>
+                    <View className="flex-row items-center gap-1.5">
+                      <View className="w-2 h-2 rounded-full bg-m3-expenditure" />
+                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">EWMA trend</Text>
+                    </View>
+                    {profile.target_weight_kg != null && (
+                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">Dashed: goal</Text>
+                    )}
                   </View>
-                  <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                    <Text className="text-m3-on-surface-variant text-xs font-semibold">Scale Weight</Text>
-                    <Text className="text-m3-on-surface font-bold text-xl tabular-nums">
-                      {scaleWeightDisplay} kg
-                    </Text>
+                  <View className="flex-row gap-3">
+                    <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+                      <Text className="text-m3-on-surface-variant text-xs font-semibold">Trend weight</Text>
+                      <Text className="text-m3-expenditure font-bold text-xl tabular-nums">
+                        {formatWeight(latestWeightLog.trend_weight_kg, weightUnit)} {unitLabel}
+                      </Text>
+                    </View>
+                    <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+                      <Text className="text-m3-on-surface-variant text-xs font-semibold">
+                        {latestWeightLog.log_date === weightRangeEnd ? "Today's weight" : 'Latest scale'}
+                      </Text>
+                      <Text className="text-m3-on-surface font-bold text-xl tabular-nums">
+                        {formatWeight(latestWeightLog.scale_weight_kg, weightUnit)} {unitLabel}
+                      </Text>
+                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">{latestDateLabel}</Text>
+                    </View>
                   </View>
-                </View>
-              </>
-            )}
+                  <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+                    <Text className="text-m3-on-surface-variant text-xs font-semibold">7-day rate</Text>
+                    {weeklyRate == null ? (
+                      <Text className="text-m3-on-surface font-bold text-sm">More check-ins needed</Text>
+                    ) : (
+                      <Text className="text-m3-on-surface font-bold text-lg tabular-nums">
+                        {weeklyRate >= 0 ? '+' : '-'}{formatWeight(Math.abs(weeklyRate), weightUnit)} {unitLabel}/wk
+                      </Text>
+                    )}
+                  </View>
+                </>
+              )}
+            </Pressable>
           </Card>
         </Animated.View>
       </ScrollView>

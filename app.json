@@ -48,7 +48,8 @@
           "photosPermission": "Used to scan food labels for nutritional information",
           "cameraPermission": "Used to scan food labels with the camera"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

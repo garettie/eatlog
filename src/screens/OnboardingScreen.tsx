@@ -37,7 +37,7 @@ import type {
 import {
   insertDailyTarget,
   insertProfile,
-  insertWeightLog,
+  saveWeightLog,
 } from '../db/database';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { M3 } from '../theme/tokens';
@@ -483,12 +483,13 @@ export default function OnboardingScreen({ navigation }: Props) {
         goal_type: goalType,
         goal_rate_kg_per_week: goalRate,
         protein_preference: proteinPreference,
+        weight_unit: units === 'metric' ? 'kg' : 'lb',
+        target_weight_kg: goalType === 'maintain' ? w : targetWeightKg,
       });
 
-      await insertWeightLog({
-        log_date: today,
-        scale_weight_kg: w,
-        trend_weight_kg: w,
+      await saveWeightLog({
+        logDate: today,
+        scaleWeightKg: w,
       });
 
       await insertDailyTarget({
@@ -1062,7 +1063,6 @@ export default function OnboardingScreen({ navigation }: Props) {
         value={birthDate}
         minimumDate={EARLIEST_BIRTH_DATE}
         maximumDate={LATEST_BIRTH_DATE}
-        title="Birth date"
         onCancel={() => setShowDatePicker(false)}
         onConfirm={(date) => {
           setBirthDate(date);

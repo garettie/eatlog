@@ -25,7 +25,7 @@ import { todayISO, isoFromDate, getMonthStart, getMonthDates, isToday, isFuture,
 import { M3 } from '../theme/tokens';
 import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
-import JournalSection, { JournalEntryKind } from '../components/JournalSection';
+import JournalSection, { JournalEntryKind, MealGroup } from '../components/JournalSection';
 import EntryBar from '../components/EntryBar';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
@@ -54,12 +54,12 @@ interface DiaryScreenProps {
   onGallery: () => void;
   onDescribe: () => void;
   onSearch: () => void;
-  onEditMeal: (mealId: number) => void;
-  logVersion: number;
+  onEditMeal: (meal: MealGroup) => void;
+  dataVersion: number;
   showToast: (message: string, undo?: () => void) => void;
 }
 
-export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescribe, onSearch, onEditMeal, logVersion, showToast }: DiaryScreenProps) {
+export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescribe, onSearch, onEditMeal, dataVersion, showToast }: DiaryScreenProps) {
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
   const [loading, setLoading] = useState(true);
@@ -72,11 +72,13 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
   const loadRequestRef = useRef(0);
+  const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  const loadData = useCallback(async (date: string, anchor: Date, showLoading = false) => {
+  const loadData = useCallback((date: string, anchor: Date, showLoading = false) => {
     const requestId = ++loadRequestRef.current;
     if (showLoading) setLoading(true);
-    try {
+    const queued = loadQueueRef.current.catch(() => {}).then(async () => {
+      try {
       const monthDates = getMonthDates(anchor);
       const startISO = isoFromDate(monthDates[0]);
       const endISO = isoFromDate(monthDates[monthDates.length - 1]);
@@ -107,12 +109,15 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
       setDayTargetMap(targetMap);
       setMealRows(mealMap);
       setLoadError(false);
-    } catch (e) {
-      console.error('[Diary] loadData failed', e);
-      if (requestId === loadRequestRef.current) setLoadError(true);
-    } finally {
-      if (requestId === loadRequestRef.current) setLoading(false);
-    }
+      } catch (e) {
+        console.error('[Diary] loadData failed', e);
+        if (requestId === loadRequestRef.current) setLoadError(true);
+      } finally {
+        if (requestId === loadRequestRef.current) setLoading(false);
+      }
+    });
+    loadQueueRef.current = queued;
+    return queued;
   }, []);
 
   useFocusEffect(
@@ -124,10 +129,10 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   );
 
   useEffect(() => {
-    if (logVersion > 0) {
+    if (dataVersion > 0) {
       loadData(selectedDate, monthAnchor, false);
     }
-  }, [logVersion]);
+  }, [dataVersion]);
 
   const monthDates = getMonthDates(monthAnchor);
 
@@ -187,17 +192,12 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
 
   const journalSections = MEAL_ORDER.map(({ meal, label }) => {
     const sectionLogs = foodLogs.filter((l) => l.meal === meal);
-    const standalone = sectionLogs.filter((l) => l.meal_id == null);
-
     const entries: JournalEntryKind[] = [];
-
-    standalone.forEach((f) => {
-      entries.push({ type: 'food', foodLog: f });
-    });
-
     const seenMealIds = new Set<number>();
     for (const log of sectionLogs) {
-      if (log.meal_id && !seenMealIds.has(log.meal_id)) {
+      if (log.meal_id == null) {
+        entries.push({ type: 'food', foodLog: log });
+      } else if (!seenMealIds.has(log.meal_id)) {
         seenMealIds.add(log.meal_id);
         const components = sectionLogs.filter((l) => l.meal_id === log.meal_id);
         const mealRow = mealRows.get(log.meal_id);
@@ -238,8 +238,8 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
     });
   }, []);
 
-  const handleEditMeal = useCallback((mealId: number) => {
-    onEditMeal(mealId);
+  const handleEditMeal = useCallback((meal: MealGroup) => {
+    onEditMeal(meal);
   }, [onEditMeal]);
 
   const handleDeleteFood = useCallback(async (food: FoodLog) => {

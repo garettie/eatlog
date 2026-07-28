@@ -1,10 +1,10 @@
 # Marco — Current MVP Specification
 
-> **Status:** implementation-accurate as of 2026-07-28. This document separates shipped behavior from planned adaptive features. It supersedes the original greenfield MVP brief.
+> **Status:** implementation-accurate as of 2026-07-28. Weight analytics and adaptive reviews are implemented; physical Android verification remains required before release sign-off.
 
 ## 1. Product Contract
 
-Marco is an Android-only, local-first calorie and macro tracker for a single person per install. It starts with a Mifflin-St Jeor target, then provides a premium scanner-first food log and daily diary. The intended long-term differentiator is adaptive expenditure derived from actual intake and trend weight; the adaptive recalculation/check-in loop is not implemented yet.
+Marco is an Android-only, local-first calorie and macro tracker for a single person per install. It starts with a Mifflin-St Jeor target, then provides a premium scanner-first food log, daily diary, weight analytics, and explicit weekly adaptive target reviews.
 
 ### User and operating model
 
@@ -19,7 +19,7 @@ Marco is an Android-only, local-first calorie and macro tracker for a single per
 2. **Local ownership:** no login or cloud dependency; scan photos stay in app-private storage.
 3. **Exact enough, always editable:** rulers provide coarse adjustments while direct numeric fields provide precise values.
 4. **Premium means calm:** coherent Android behavior, Material 3 surfaces, real typography, purposeful motion, no gamification noise.
-5. **Honest status:** the onboarding formula is a starting estimate. Do not imply adaptive recalculation is already active.
+5. **Explicit adaptation:** the onboarding formula is a starting estimate; adaptive targets activate only after an eligible review is accepted.
 
 ## 2. Fixed Stack and Runtime Constraints
 
@@ -167,9 +167,9 @@ Height, starting weight, and target weight are always directly editable. The rul
 
 - Date/goal header and optional adaptive-progress chip.
 - Calorie ring with a measured consumed/remaining toggle; the thumb waits for actual layout measurement before rendering.
-- Protein/carbs/fat rails with named colors.
+- Protein/carbs/fat rails with named colors and darker excess overlays.
 - Last logged item shortcut or scanner-first empty state.
-- Weight trend surface using the most recent 30 logs. It is display-only until daily weigh-in entry is built.
+- Weight surface using the last 30 calendar days, calendar-accurate scale/trend paths, today's/latest reading, target goal, and weight-entry shortcut.
 
 ### 4.3 Diary — shipped
 
@@ -194,16 +194,18 @@ Height, starting weight, and target weight are always directly editable. The rul
 | `describe` | Natural-language meal input |
 | `review` | Multi-component meal/scan review, portions, macros, logging |
 | `search` | Local cache + USDA + Open Food Facts search |
+| `recent-foods` | Searchable pinned history with grouped meals and standalone foods |
 | `single-food-review` | Serving/grams review for one search result |
 | `manual-input` | Direct totals fallback |
+| `weight-input` | Today/backdated scale-weight insert or update with preferred unit |
 
 The Android Back button walks the sheet-state history before closing. A discard guard protects edits. Entry Bar routes that begin outside `entry` use force-close behavior so cancel returns cleanly to the app.
 
-### 4.5 Placeholder routes — intentionally unfinished
+### 4.5 Analytics and placeholder routes
 
-- **Analytics:** tab exists, content is placeholder.
+- **Analytics:** 4W/3M/6M weight, energy, progress, and weekly recommendation cards.
 - **Sync:** tab exists, content is placeholder; no cloud synchronization exists.
-- **Settings and weekly check-in:** no finished user route.
+- **Settings:** no finished user route; weight unit changes inside weight entry.
 
 ## 5. Food Data and Math
 
@@ -243,9 +245,9 @@ target_calories = TDEE + weekly_adjustment / 7
 
 Protein is goal-dependent: cut 2.1g/kg, maintain 1.8g/kg, bulk 1.7g/kg; preference adjusts by -0.2/0/+0.2/+0.4g/kg with a 1.2g/kg floor. Fat is 25% of target calories; carbs fill the remainder. If remaining carbs would fall below 50g, carbs clamp to 50g and calorie total is recomputed from the macro sum.
 
-### 5.3 Trend and adaptive calculation — planned, not shipped
+### 5.3 Trend and adaptive calculation — shipped
 
-The intended algorithm remains:
+The implemented algorithm uses deterministic three-decimal EWMA recomputation after every same-date or backdated save:
 
 ```text
 trend_weight[today] = 0.15 * scale_weight[today]
@@ -253,14 +255,14 @@ trend_weight[today] = 0.15 * scale_weight[today]
 
 weight_change_kg = trend_weight[window_end] - trend_weight[window_start]
 energy_change_kcal = weight_change_kg * 7700
-avg_daily_imbalance = energy_change_kcal / 14
+avg_daily_imbalance = energy_change_kcal / elapsed_calendar_days
 raw_tdee = avg_daily_intake - avg_daily_imbalance
 new_tdee = 0.7 * raw_tdee + 0.3 * previous_tdee
 ```
 
-Required guardrails before implementation:
+Implemented guardrails:
 
-- 14-day window, at least four trailing-week weight logs, and at least four food-logged days.
+- Inclusive 14-day window, at least ten food-logged dates, four weights, early/late endpoint coverage, and at least seven endpoint days.
 - Average intake only across days with food logs; never treat missing logs as zero.
 - Clamp week-over-week TDEE change to ±10%.
 - Floor expenditure and targets at `1.2 * BMR` from current trend weight.
@@ -303,12 +305,11 @@ eas build -p android
 
 ### Before durable dogfooding
 
-1. Replace destructive database initialization with migrations.
-2. Add daily weight-entry flow and EWMA write path.
-3. Implement adaptive recalculation and accept/keep check-in.
-4. Exercise scan, gallery, describe, search, manual, edit, delete/undo, Back, keyboard, and reduced-motion paths on physical Android hardware.
-5. Build and install a fresh APK after any native dependency/config change.
+1. Run schema-version 1 migration and adaptive resolution matrices on physical Android hardware.
+2. Exercise weight insert/update/backdate, jump warning, unit conversion, Back, keyboard, date selector, and reduced motion.
+3. Exercise scan, gallery, describe, search, manual, recents, edit, delete/undo, and grouped-meal expansion on physical Android hardware.
+4. Build and install a fresh APK after any native dependency/config change.
 
 ### Explicitly deferred
 
-Barcode scanning, iOS, Health Connect/wearables, authentication, backend/cloud sync, push notifications, social features, export/backup, analytics content, and settings content remain out of scope for this MVP increment.
+Barcode scanning, iOS, Health Connect/wearables, authentication, backend/cloud sync, push notifications, social features, export/backup, and settings content remain out of scope for this MVP increment.

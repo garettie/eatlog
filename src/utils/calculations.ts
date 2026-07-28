@@ -21,6 +21,13 @@ const PROTEIN_PREFERENCE_OFFSET: Record<ProteinPreference, number> = {
   extra_high: 0.4,
 };
 
+export interface MacroTargets {
+  targetCalories: number;
+  targetProteinG: number;
+  targetFatG: number;
+  targetCarbsG: number;
+}
+
 export function ageFromBirthDate(birthDate: string): number {
   const today = new Date();
   const dob = new Date(birthDate);
@@ -47,29 +54,18 @@ export function calcTDEE(bmr: number, activityLevel: ActivityLevel): number {
   return bmr * ACTIVITY_MULTIPLIERS[activityLevel];
 }
 
-export function calculateTargets(input: {
-  tdeeKcal: number;
+export function calculateMacrosForCalories(input: {
+  targetCalories: number;
   goalType: GoalType;
   proteinPreference: ProteinPreference;
   weightKg: number;
-  goalRateKgPerWeek: number;
-}): {
-  targetCalories: number;
-  targetProteinG: number;
-  targetFatG: number;
-  targetCarbsG: number;
-} {
-  const weeklyAdjustment = input.goalRateKgPerWeek * 7700;
-  const goalAdjustment = weeklyAdjustment / 7;
-  let targetCalories = input.tdeeKcal + goalAdjustment;
-
+}): MacroTargets {
+  let targetCalories = input.targetCalories;
   const baseGPerKg = PROTEIN_BASE_G_PER_KG[input.goalType];
   const offset = PROTEIN_PREFERENCE_OFFSET[input.proteinPreference];
   const adjustedGPerKg = Math.max(baseGPerKg + offset, 1.2);
   const targetProteinG = Math.round(input.weightKg * adjustedGPerKg * 10) / 10;
-
   const targetFatG = Math.round((targetCalories * 0.25) / 9 * 10) / 10;
-
   const remainingKcal = targetCalories - targetProteinG * 4 - targetFatG * 9;
 
   let targetCarbsG: number;
@@ -86,6 +82,23 @@ export function calculateTargets(input: {
     targetFatG,
     targetCarbsG,
   };
+}
+
+export function calculateTargets(input: {
+  tdeeKcal: number;
+  goalType: GoalType;
+  proteinPreference: ProteinPreference;
+  weightKg: number;
+  goalRateKgPerWeek: number;
+}): MacroTargets {
+  const weeklyAdjustment = input.goalRateKgPerWeek * 7700;
+  const goalAdjustment = weeklyAdjustment / 7;
+  return calculateMacrosForCalories({
+    targetCalories: input.tdeeKcal + goalAdjustment,
+    goalType: input.goalType,
+    proteinPreference: input.proteinPreference,
+    weightKg: input.weightKg,
+  });
 }
 
 export function todayISO(): string {

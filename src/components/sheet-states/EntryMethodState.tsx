@@ -1,8 +1,7 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-
-import { RecentMeal } from '../../db/database';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
 interface ActionRowProps {
   icon: React.ComponentProps<typeof MaterialIcons>['name'];
@@ -31,8 +30,8 @@ interface EntryMethodStateProps {
   onGallery: () => void;
   onDescribe: () => void;
   onSearch: () => void;
-  recentMeals?: RecentMeal[];
-  onSelectRecentMeal?: (meal: RecentMeal) => void;
+  onRecentFoods: () => void;
+  onWeight: () => void;
 }
 
 export default function EntryMethodState({
@@ -40,42 +39,13 @@ export default function EntryMethodState({
   onGallery,
   onDescribe,
   onSearch,
-  recentMeals,
-  onSelectRecentMeal,
+  onRecentFoods,
+  onWeight,
 }: EntryMethodStateProps) {
-  const hasRecents = !!(recentMeals && recentMeals.length > 0 && onSelectRecentMeal);
-
   return (
-    <View className="px-2 pt-1 pb-6">
-      {hasRecents && (
-        <View className="px-2 pb-3 gap-1.5">
-          <Text className="text-[10px] text-m3-on-surface-variant font-semibold uppercase tracking-wider px-2">
-            Recent
-          </Text>
-          {recentMeals!.slice(0, 3).map((meal) => (
-            <Pressable
-              key={meal.meal_id}
-              onPress={() => onSelectRecentMeal!(meal)}
-              accessibilityRole="button"
-              accessibilityLabel={`Repeat ${meal.meal_name}`}
-              className="flex-row items-center px-4 py-2.5 bg-m3-surface-container rounded-xl border border-m3-outline-variant/30 active:opacity-70"
-            >
-              <View className="flex-1 mr-3">
-                <Text className="text-m3-on-surface text-sm font-medium" numberOfLines={1}>{meal.meal_name}</Text>
-                <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">
-                  {meal.component_count} {meal.component_count === 1 ? 'item' : 'items'}
-                </Text>
-              </View>
-              <Text className="tabular-nums text-xs font-semibold text-m3-on-surface-variant mr-2">
-                {Math.round(meal.total_calories)} kcal
-              </Text>
-              <MaterialIcons name="replay" size={16} color="#c4c6d0" />
-            </Pressable>
-          ))}
-          <View className="h-px bg-m3-outline-variant/30 mx-2 mt-1" />
-        </View>
-      )}
-
+    <BottomSheetScrollView contentContainerClassName="px-2 pt-1 pb-6" showsVerticalScrollIndicator={false}>
+      <ActionRow icon="history" label="Recent foods" subtitle="Search foods from your log" onPress={onRecentFoods} />
+      <View className="h-px bg-m3-outline-variant/30 mx-4" />
       <ActionRow icon="photo-camera" label="Camera" subtitle="Take a photo of food or a nutrition label" onPress={onCamera} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
       <ActionRow icon="edit-note" label="Describe" subtitle="Type your meal for instant estimates" onPress={onDescribe} />
@@ -83,6 +53,8 @@ export default function EntryMethodState({
       <ActionRow icon="photo-library" label="Gallery" subtitle="Use an existing photo" onPress={onGallery} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
       <ActionRow icon="search" label="Search" subtitle="Look up food in database" onPress={onSearch} />
-    </View>
+      <View className="h-px bg-m3-outline-variant/30 mx-4" />
+      <ActionRow icon="monitor-weight" label="Weight" subtitle="Log today or add a past check-in" onPress={onWeight} />
+    </BottomSheetScrollView>
   );
 }

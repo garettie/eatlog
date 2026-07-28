@@ -73,11 +73,14 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   const loggedRef = useRef(false);
   const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const originalMealNameRef = useRef(result?.mealName ?? '');
+  const previousResultRef = useRef(result);
   const discardGuard = useDiscardGuardContext();
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
+    if (previousResultRef.current === result) return;
+    previousResultRef.current = result;
     if (result) {
       originalMealNameRef.current = result.mealName;
       setMealName(result.mealName);

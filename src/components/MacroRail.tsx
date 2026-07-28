@@ -19,6 +19,7 @@ interface MacroRailProps {
 
 function MacroCellView({ icon, letter, consumed, target, barColor, unit }: MacroCell) {
   const fraction = target > 0 ? Math.min(1, consumed / target) : 0;
+  const overflow = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
 
   return (
     <View className="flex-1 min-w-0 gap-1">
@@ -44,7 +45,11 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
         <View
           className="h-full rounded-full"
           style={{ width: `${fraction * 100}%`, backgroundColor: barColor }}
-        />
+        >
+          {overflow > 0 && (
+            <View className="absolute right-0 h-full bg-black/25" style={{ width: `${overflow * 100}%` }} />
+          )}
+        </View>
       </View>
     </View>
   );

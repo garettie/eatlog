@@ -23,8 +23,7 @@ interface SegmentedControlProps<T extends string> {
 }
 
 /**
- * M3 segmented control with animated sliding thumb.
- * Thumb slides via translateX on the UI thread; reduced motion snaps instantly.
+ * Shared white-pill segmented control used across dashboard, sheets, and forms.
  */
 export default function SegmentedControl<T extends string>({
   options,
@@ -41,13 +40,13 @@ export default function SegmentedControl<T extends string>({
   const index = useSharedValue(selectedIndex);
   useEffect(() => {
     index.value = withTiming(selectedIndex, {
-      duration: reduced ? 0 : DURATION.short,
-      easing: EASING.standard,
+      duration: reduced ? 0 : DURATION.medium,
+      easing: EASING.emphasized,
     });
   }, [selectedIndex, reduced]);
 
   const thumbStyle = useAnimatedStyle(() => {
-    const segW = trackWidth / options.length;
+    const segW = Math.max(0, (trackWidth - 4) / options.length);
     return {
       width: segW,
       transform: [{ translateX: index.value * segW }],
@@ -55,7 +54,7 @@ export default function SegmentedControl<T extends string>({
   }, [trackWidth, options.length]);
 
   return (
-    <View className="bg-m3-surface-container p-1 rounded-2xl border border-m3-outline-variant/30">
+    <View className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden">
       <View
         className="flex-row relative"
         onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
@@ -65,15 +64,15 @@ export default function SegmentedControl<T extends string>({
             style={[
               {
                 position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
+                top: 2,
+                bottom: 2,
+                left: 2,
               },
               thumbStyle,
             ]}
             pointerEvents="none"
           >
-            <View className="flex-1 rounded-xl bg-m3-surface-container-highest border border-m3-outline/60" />
+            <View className="flex-1 rounded-full bg-white" />
           </Reanimated.View>
         )}
         {options.map((opt) => {
@@ -84,20 +83,20 @@ export default function SegmentedControl<T extends string>({
               onPress={() => onChange(opt.value)}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              className="flex-1 min-h-[52px] px-2 rounded-xl flex-row items-center justify-center gap-2 active:opacity-70"
+              className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
             >
               {opt.icon && (
                 <MaterialIcons
                   name={opt.icon}
                   size={20}
-                  color={selected ? '#ffffff' : '#c4c6d0'}
+                  color={selected ? '#0f1117' : '#c4c6d0'}
                 />
               )}
               <Text
                 numberOfLines={1}
                 className={`text-sm ${
                   selected
-                    ? 'font-semibold text-white'
+                    ? 'font-semibold text-m3-on-primary'
                     : 'font-medium text-m3-on-surface-variant'
                 }`}
               >

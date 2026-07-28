@@ -12,7 +12,7 @@ The app owner and a small group of friends who sideload the APK. Personal use: o
 
 ## Product Purpose
 
-Marco is a local-first calorie and macro tracker built around adaptive truth: targets should eventually come from a user's logged intake and trend weight, not remain a static calculator result. The current product delivers the starting plan, scanner-first meal logging, diary review, and a daily macro dashboard. Adaptive weekly recalculation remains the next algorithmic milestone; it is not currently active in the shipped UI.
+Marco is a local-first calorie and macro tracker built around adaptive truth: targets can move from the starting calculator estimate to explicit, evidence-based weekly recommendations from logged intake and trend weight. The current product delivers the starting plan, scanner-first meal logging, diary review, daily weight check-ins, Analytics, and Accept/Keep adaptive reviews.
 
 ## Positioning
 
@@ -20,23 +20,24 @@ MacroFactor-class premium UX at sideloaded-MVP scale. The differentiator is a fa
 
 ## Operating Context
 
-Daily: open Today to glance at consumed versus remaining calories and macros, then log a meal from the camera, gallery, description, search, or manual entry. Review the Diary by day, adjust portions, delete with undo, or repeat a recent meal. The dashboard has a weight-trend surface, but daily weigh-in entry and adaptive check-ins are not yet exposed as finished flows.
+Daily: open Today to glance at consumed versus remaining calories and macros, log food or weight from the central sheet, then review weight, energy, progress, and weekly recommendations in Analytics. Review the Diary by day, adjust portions, delete with undo, or repeat a pinned/recent food or meal.
 
 ## Capabilities and Constraints
 
 **Working:**
 - Six-step onboarding with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware calculation/completion flow.
-- Today dashboard: calorie ring, consumed/remaining toggle, macro rails, latest-food shortcut, scanner-first empty state, adaptive-progress messaging, and weight-trend display.
-- Food entry bottom sheet: camera scan, gallery scan, natural-language description, local/USDA/Open Food Facts search, manual entry, recent-meal repeat, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
+- Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, scanner-first empty state, and calendar-accurate scale/trend/goal weight display.
+- Central entry bottom sheet: camera scan, gallery scan, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
 - Gemini vision/text meal estimation returning a named meal and per-100g component nutrition; clarification can re-estimate an edited scan/description.
-- On-device SQLite profile, food log, meal, target, food-cache, and weight-log records; local food-cache ranking; grouped meals and persisted scan-photo file URIs.
-- Diary: calendar strip, daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, edit/delete actions, and undo.
+- On-device SQLite profile, food log, meal, target, food-cache, weight-log, pin, and adaptive-review records with sequential non-destructive migrations.
+- Diary: calendar strip, overflow-aware daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, aligned edit/delete swipe actions, and undo.
+- Analytics: 4W/3M/6M weight ranges, scale and EWMA trend charting, intake coverage, expenditure/target context, goal-rate progress, and persisted weekly Accept/Keep recommendations.
 - Material 3 Expressive dark system in NativeWind; real bundled Inter 400/500/600/700 files; tabular figures; shared Card, PrimaryButton, segmented controls, bottom sheets, macro pills, and ruler slider.
 - Purposeful Reanimated motion with reduced-motion handling; precise accessible ruler controls; Android bottom navigation with one central entry FAB.
 
-**Known implementation caveat:** `initDatabase()` currently recreates the SQLite schema at app initialization. This is development behavior and prevents durable dogfooding data. Replacing it with non-destructive schema creation and migrations is required before treating local data persistence as production-ready.
+**Verification caveat:** automated pure tests, TypeScript, Expo config, and Android export cover the implementation; migration and interaction flows still require the physical-device matrix before release sign-off.
 
-**Not implemented yet:** weekly adaptive TDEE recalculation and accept/keep check-in flow; daily weight-entry flow; settings; Analytics and Sync tabs (currently placeholders); cloud/export backup; barcode camera scanning; Health Connect/wearable integration; iOS build; auth/accounts; notifications; social features.
+**Not implemented yet:** settings; Sync tab content; cloud/export backup; barcode camera scanning; Health Connect/wearable integration; iOS build; auth/accounts; notifications; social features.
 
 **Hard constraints:** Android-only Expo managed workflow and EAS APK distribution; local-first/no backend; all app data remains on-device; Inter must remain bundled; scanner is the primary path; no silent system-font fallback; no per-screen visual restyling outside the shared component vocabulary.
 
@@ -69,7 +70,7 @@ Daily: open Today to glance at consumed versus remaining calories and macros, th
 
 1. **Form and function together.** Every surface and transition must make logging, reviewing, or understanding data easier.
 2. **Scanner-first, fallback-complete.** Camera/gallery scan and description lead; search and manual entry are credible recovery paths.
-3. **Adaptive truth, honestly staged.** The initial formula is useful; the future adaptive algorithm must be shown as a future calibration, never implied to be already operating.
+3. **Adaptive truth, explicitly controlled.** The initial formula remains useful; weekly evidence can propose new targets, but only Accept changes target history.
 4. **Local ownership.** The device owns the data. No login, account, backend, or forced network dependency outside food search/AI estimation.
 5. **One component vocabulary.** A selected state, card, button, numeric figure, macro color, and sheet should mean the same thing everywhere.
 6. **No jank.** Animate state, never decoration; preserve scroll gestures, Android Back behavior, and reduced-motion alternatives.

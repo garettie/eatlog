@@ -1,16 +1,88 @@
+const LOCAL_ISO_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function parseLocalISO(dateISO: string): Date {
+  const match = LOCAL_ISO_PATTERN.exec(dateISO);
+  if (!match) {
+    throw new RangeError(`Invalid local ISO date: ${dateISO}`);
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(0);
+  date.setHours(0, 0, 0, 0);
+  date.setFullYear(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== month - 1
+    || date.getDate() !== day
+  ) {
+    throw new RangeError(`Invalid local ISO date: ${dateISO}`);
+  }
+
+  return date;
+}
+
+export function formatLocalISO(date: Date): string {
+  const time = date.getTime();
+  const year = date.getFullYear();
+  if (!Number.isFinite(time) || year < 0 || year > 9999) {
+    throw new RangeError('Invalid local date');
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${String(year).padStart(4, '0')}-${month}-${day}`;
+}
+
+export function addCalendarDays(dateISO: string, days: number): string {
+  if (!Number.isInteger(days)) {
+    throw new RangeError('Calendar day offset must be an integer');
+  }
+
+  const date = parseLocalISO(dateISO);
+  date.setDate(date.getDate() + days);
+  return formatLocalISO(date);
+}
+
+export function addCalendarMonths(dateISO: string, months: number): string {
+  if (!Number.isInteger(months)) {
+    throw new RangeError('Calendar month offset must be an integer');
+  }
+
+  const date = parseLocalISO(dateISO);
+  const originalDay = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + months);
+  const lastDayDate = new Date(0);
+  lastDayDate.setHours(0, 0, 0, 0);
+  lastDayDate.setFullYear(date.getFullYear(), date.getMonth() + 1, 0);
+  const lastDay = lastDayDate.getDate();
+  date.setDate(Math.min(originalDay, lastDay));
+  return formatLocalISO(date);
+}
+
+export function calendarDaysBetween(startISO: string, endISO: string): number {
+  const start = parseLocalISO(startISO);
+  const end = parseLocalISO(endISO);
+  const utcDay = (date: Date): number => {
+    const utc = new Date(0);
+    utc.setUTCHours(0, 0, 0, 0);
+    utc.setUTCFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+    return utc.getTime() / MS_PER_DAY;
+  };
+
+  return utcDay(end) - utcDay(start);
+}
+
 export function todayISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return formatLocalISO(new Date());
 }
 
 export function isoFromDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return formatLocalISO(d);
 }
 
 export function getWeekMonday(date: Date): Date {

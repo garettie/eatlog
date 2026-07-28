@@ -3,7 +3,6 @@ import { Image, Pressable, Text, View } from 'react-native';
 import Reanimated, {
   FadeIn,
   FadeOut,
-  FadeInDown,
   LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
@@ -82,7 +81,15 @@ function SwipeRow({
   const ref = React.useRef<Swipeable>(null);
 
   const renderRightActions = () => (
-    <View style={{ flexDirection: 'row' }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        marginRight: 16,
+        marginBottom: 8,
+        borderRadius: 16,
+        overflow: 'hidden',
+      }}
+    >
       <RectButton
         onPress={() => {
           onEdit();
@@ -191,7 +198,7 @@ function FoodRow({
 
 // ── Meal Row ─────────────────────────────────────────────────────────────
 
-interface MealGroup {
+export interface MealGroup {
   id: number;
   name: string;
   photoUri?: string | null;
@@ -204,36 +211,29 @@ function MealRow({
   onDeleteMeal,
 }: {
   meal: MealGroup;
-  onEditMeal: (mealId: number) => void;
+  onEditMeal: (meal: MealGroup) => void;
   onDeleteMeal: (mealId: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const reducedMotion = useReducedMotion();
   const totalCalories = meal.components.reduce((s, c) => s + c.calories, 0);
   const totalP = meal.components.reduce((s, c) => s + c.protein_g, 0);
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
   return (
-    <SwipeRow onEdit={() => onEditMeal(meal.id)} onDelete={() => onDeleteMeal(meal.id)}>
-      <Reanimated.View
-        layout={reducedMotion ? undefined : LinearTransition.duration(220)}
-        className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30"
-      >
+    <SwipeRow onEdit={() => onEditMeal(meal)} onDelete={() => onDeleteMeal(meal.id)}>
+      <View className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
         <Pressable
-          onPress={() => setExpanded((v) => !v)}
+          onPress={() => onEditMeal(meal)}
           className={`flex-row items-stretch active:opacity-80 ${
             meal.photoUri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'
-          } ${expanded ? 'border-b border-m3-outline-variant/20' : ''}`}
+          }`}
           accessibilityRole="button"
           accessibilityLabel={`${meal.name}, ${Math.round(totalCalories)} calories`}
-          accessibilityHint="Expands meal components. Swipe for more actions."
-          accessibilityState={{ expanded }}
-          accessibilityActions={[{ name: 'activate', label: expanded ? 'Collapse' : 'Expand' }, { name: 'edit', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
+          accessibilityHint="Opens meal editor. Swipe for more actions."
+          accessibilityActions={[{ name: 'activate', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
           onAccessibilityAction={(event) => {
-            if (event.nativeEvent.actionName === 'edit') onEditMeal(meal.id);
-            else if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
-            else setExpanded((v) => !v);
+            if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
+            else onEditMeal(meal);
           }}
         >
           {meal.photoUri ? (
@@ -248,14 +248,9 @@ function MealRow({
             </View>
           )}
           <View className={`flex-1 min-w-0 ${meal.photoUri ? 'px-4 py-5' : 'mr-4'}`}>
-            <View className="flex-row items-start gap-1.5">
-              <Text className="flex-1 shrink text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>
-                {meal.name}
-              </Text>
-              <View className="shrink-0 mt-0.5">
-                <Chevron open={expanded} />
-              </View>
-            </View>
+            <Text className="text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>
+              {meal.name}
+            </Text>
             <Text className="text-m3-on-surface-variant text-xs mt-0.5">
               {meal.components.length} {meal.components.length === 1 ? 'item' : 'items'}
             </Text>
@@ -270,41 +265,7 @@ function MealRow({
             </Text>
           </View>
         </Pressable>
-
-      {expanded && meal.components.map((comp, i) => (
-        <Reanimated.View
-          key={comp.id}
-          entering={reducedMotion ? undefined : FadeInDown.duration(250).delay(i * 40)}
-          exiting={reducedMotion ? undefined : FadeOut.duration(180)}
-          layout={reducedMotion ? undefined : LinearTransition.duration(220)}
-        >
-          <View className="pl-14 bg-m3-surface-container-low/50">
-          <View className="flex-row items-start px-4 py-3.5 border-b border-m3-outline-variant/15">
-            <MaterialCommunityIcons
-              name={foodIcon(comp.name)}
-              size={16}
-              color={M3.onSurfaceVariant}
-              style={{ marginTop: 2, marginRight: 10 }}
-            />
-            <Text className="text-m3-on-surface text-sm font-medium flex-1 mr-3" numberOfLines={2}>
-              {comp.name}
-            </Text>
-            <View className="w-[88px] shrink-0 items-end">
-              <Text className="text-m3-on-surface text-base font-semibold tabular-nums">
-                {Math.round(comp.calories)}
-                <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
-              </Text>
-              {comp.grams_logged != null && <View className="flex-row gap-1">
-                <Text className="text-m3-on-surface-variant text-[10px] tabular-nums">
-                  {Math.round(comp.grams_logged)}g
-                </Text>
-              </View>}
-            </View>
-            </View>
-          </View>
-        </Reanimated.View>
-      ))}
-      </Reanimated.View>
+      </View>
     </SwipeRow>
   );
 }
@@ -325,7 +286,7 @@ interface JournalSectionProps {
   totalCarbs: number;
   totalFat: number;
   onEditFood: (food: FoodLog) => void;
-  onEditMeal: (mealId: number) => void;
+  onEditMeal: (meal: MealGroup) => void;
   onDeleteFood: (food: FoodLog) => void;
   onDeleteMeal: (mealId: number) => void;
 }

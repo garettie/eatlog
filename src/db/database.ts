@@ -1,5 +1,8 @@
 import * as SQLite from 'expo-sqlite';
 
+import { parseLocalISO } from '../utils/calendar';
+import { computeWeightTrend } from '../utils/weightTrend';
+
 export type Sex = 'male' | 'female';
 export type ActivityLevel =
   | 'sedentary'
@@ -11,6 +14,8 @@ export type GoalType = 'cut' | 'maintain' | 'bulk';
 export type CalculationMethod = 'initial_estimate' | 'adaptive';
 export type ProteinPreference = 'low' | 'moderate' | 'high' | 'extra_high';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type WeightUnit = 'kg' | 'lb';
+export type AdaptiveReviewStatus = 'pending' | 'accepted' | 'kept' | 'superseded';
 
 export interface Profile {
   id: number;
@@ -22,6 +27,8 @@ export interface Profile {
   goal_type: GoalType;
   goal_rate_kg_per_week: number;
   protein_preference: ProteinPreference;
+  weight_unit: WeightUnit;
+  target_weight_kg: number | null;
   created_at: string;
 }
 
@@ -45,9 +52,38 @@ export interface DailyTarget {
   created_at: string;
 }
 
+export interface AdaptiveReview {
+  id: number;
+  review_date: string;
+  window_start: string;
+  window_end: string;
+  intake_day_count: number;
+  weight_log_count: number;
+  average_intake_kcal: number;
+  start_trend_weight_kg: number;
+  end_trend_weight_kg: number;
+  elapsed_days: number;
+  raw_tdee: number;
+  previous_tdee: number;
+  proposed_tdee: number;
+  previous_target_calories: number;
+  previous_target_protein_g: number;
+  previous_target_fat_g: number;
+  previous_target_carbs_g: number;
+  proposed_target_calories: number;
+  proposed_target_protein_g: number;
+  proposed_target_fat_g: number;
+  proposed_target_carbs_g: number;
+  evidence_hash: string;
+  status: AdaptiveReviewStatus;
+  resulting_target_id: number | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 3;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
@@ -65,17 +101,15 @@ export async function initDatabase(): Promise<void> {
   const versionRow = await db.getFirstAsync<{ user_version: number }>(
     'PRAGMA user_version'
   );
-  const currentVersion = versionRow?.user_version ?? 0;
+  let currentVersion = versionRow?.user_version ?? 0;
 
   if (currentVersion > DATABASE_VERSION) {
     throw new Error(
       `Database version ${currentVersion} is newer than supported version ${DATABASE_VERSION}.`
     );
   }
-  if (currentVersion === DATABASE_VERSION) return;
-
-  await db.withExclusiveTransactionAsync(async (txn) => {
-    if (currentVersion === 0) {
+  if (currentVersion === 0) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
       await txn.execAsync(`
     CREATE TABLE IF NOT EXISTS profile (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -151,6 +185,11 @@ export async function initDatabase(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_food_cache_normalized ON food_cache(normalizedName);
 
+    CREATE TABLE IF NOT EXISTS pinned_foods (
+      food_key TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS daily_targets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       effective_date TEXT NOT NULL,
@@ -164,10 +203,87 @@ export async function initDatabase(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
       `);
-    }
+      await txn.execAsync('PRAGMA user_version = 1');
+    });
+    currentVersion = 1;
+  }
 
-    await txn.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
-  });
+  if (currentVersion === 1) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync(`
+        ALTER TABLE profile ADD COLUMN weight_unit TEXT NOT NULL DEFAULT 'kg'
+          CHECK (weight_unit IN ('kg', 'lb'));
+        ALTER TABLE profile ADD COLUMN target_weight_kg REAL;
+        CREATE TABLE IF NOT EXISTS pinned_foods (
+          food_key TEXT PRIMARY KEY,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        PRAGMA user_version = 2;
+      `);
+    });
+    currentVersion = 2;
+  }
+
+  if (currentVersion === 2) {
+    const profileColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(profile)');
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      // Development builds briefly used schema version 2 for pinned foods.
+      if (!profileColumns.some((column) => column.name === 'weight_unit')) {
+        await txn.execAsync(`ALTER TABLE profile ADD COLUMN weight_unit TEXT NOT NULL DEFAULT 'kg'
+          CHECK (weight_unit IN ('kg', 'lb'));`);
+      }
+      if (!profileColumns.some((column) => column.name === 'target_weight_kg')) {
+        await txn.execAsync('ALTER TABLE profile ADD COLUMN target_weight_kg REAL;');
+      }
+      await txn.execAsync(`
+        CREATE TABLE IF NOT EXISTS pinned_foods (
+          food_key TEXT PRIMARY KEY,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE adaptive_reviews (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          review_date TEXT NOT NULL UNIQUE,
+          window_start TEXT NOT NULL,
+          window_end TEXT NOT NULL,
+          intake_day_count INTEGER NOT NULL,
+          weight_log_count INTEGER NOT NULL,
+          average_intake_kcal REAL NOT NULL,
+          start_trend_weight_kg REAL NOT NULL,
+          end_trend_weight_kg REAL NOT NULL,
+          elapsed_days INTEGER NOT NULL,
+          raw_tdee REAL NOT NULL,
+          previous_tdee REAL NOT NULL,
+          proposed_tdee REAL NOT NULL,
+          previous_target_calories REAL NOT NULL,
+          previous_target_protein_g REAL NOT NULL,
+          previous_target_fat_g REAL NOT NULL,
+          previous_target_carbs_g REAL NOT NULL,
+          proposed_target_calories REAL NOT NULL,
+          proposed_target_protein_g REAL NOT NULL,
+          proposed_target_fat_g REAL NOT NULL,
+          proposed_target_carbs_g REAL NOT NULL,
+          evidence_hash TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'kept', 'superseded')),
+          resulting_target_id INTEGER REFERENCES daily_targets(id),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          resolved_at TEXT
+        );
+        CREATE INDEX idx_weight_logs_date ON weight_logs(log_date);
+        CREATE INDEX idx_food_logs_date ON food_logs(log_date);
+        CREATE INDEX idx_daily_targets_effective_date ON daily_targets(effective_date);
+        CREATE INDEX idx_adaptive_reviews_status_date ON adaptive_reviews(status, review_date);
+        PRAGMA user_version = 3;
+      `);
+    });
+    currentVersion = 3;
+  }
+
+  if (currentVersion === 3) {
+    const profileColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(profile)');
+    if (!profileColumns.some((column) => column.name === 'target_weight_kg')) {
+      await db.withExclusiveTransactionAsync((txn) => txn.execAsync('ALTER TABLE profile ADD COLUMN target_weight_kg REAL;'));
+    }
+  }
 }
 
 export async function getProfile(): Promise<Profile | null> {
@@ -184,12 +300,14 @@ export async function insertProfile(params: {
   goal_type: GoalType;
   goal_rate_kg_per_week: number;
   protein_preference: ProteinPreference;
+  weight_unit: WeightUnit;
+  target_weight_kg?: number | null;
 }): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO profile
-      (id, display_name, sex, height_cm, birth_date, activity_level, goal_type, goal_rate_kg_per_week, protein_preference)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, display_name, sex, height_cm, birth_date, activity_level, goal_type, goal_rate_kg_per_week, protein_preference, weight_unit, target_weight_kg)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       params.display_name,
       params.sex,
@@ -199,21 +317,77 @@ export async function insertProfile(params: {
       params.goal_type,
       params.goal_rate_kg_per_week,
       params.protein_preference,
+      params.weight_unit,
+      params.target_weight_kg ?? null,
     ]
   );
 }
 
-export async function insertWeightLog(params: {
-  log_date: string;
-  scale_weight_kg: number;
-  trend_weight_kg: number;
-}): Promise<void> {
+export async function updateProfileWeightUnit(unit: WeightUnit): Promise<void> {
   const db = await getDb();
-  await db.runAsync(
-    `INSERT INTO weight_logs (log_date, scale_weight_kg, trend_weight_kg)
-     VALUES (?, ?, ?)`,
-    [params.log_date, params.scale_weight_kg, params.trend_weight_kg]
-  );
+  await db.runAsync('UPDATE profile SET weight_unit = ? WHERE id = 1', [unit]);
+}
+
+export interface SaveWeightResult {
+  log: WeightLog;
+  wasUpdate: boolean;
+  previousScaleWeightKg: number | null;
+}
+
+export async function saveWeightLog(params: {
+  logDate: string;
+  scaleWeightKg: number;
+  weightUnit?: WeightUnit;
+}): Promise<SaveWeightResult> {
+  parseLocalISO(params.logDate);
+  if (!Number.isFinite(params.scaleWeightKg) || params.scaleWeightKg < 20 || params.scaleWeightKg > 500) {
+    throw new RangeError('Weight must be between 20 and 500 kilograms');
+  }
+  const roundedWeight = Math.round(params.scaleWeightKg * 1000) / 1000;
+  const db = await getDb();
+  let result: SaveWeightResult | null = null;
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const existing = await txn.getFirstAsync<WeightLog>(
+      'SELECT * FROM weight_logs WHERE log_date = ?',
+      [params.logDate],
+    );
+    await txn.runAsync(
+      `INSERT INTO weight_logs (log_date, scale_weight_kg, trend_weight_kg)
+       VALUES (?, ?, ?)
+       ON CONFLICT(log_date) DO UPDATE SET scale_weight_kg = excluded.scale_weight_kg`,
+      [params.logDate, roundedWeight, roundedWeight],
+    );
+    const rows = await txn.getAllAsync<WeightLog>('SELECT * FROM weight_logs ORDER BY log_date ASC');
+    const trend = computeWeightTrend(rows.map((row) => ({
+      logDate: row.log_date,
+      scaleWeightKg: row.scale_weight_kg,
+    })));
+    for (const reading of trend) {
+      if (reading.logDate >= params.logDate) {
+        await txn.runAsync(
+          'UPDATE weight_logs SET trend_weight_kg = ? WHERE log_date = ?',
+          [reading.trendWeightKg, reading.logDate],
+        );
+      }
+    }
+    const saved = await txn.getFirstAsync<WeightLog>(
+      'SELECT * FROM weight_logs WHERE log_date = ?',
+      [params.logDate],
+    );
+    if (!saved) throw new Error('Saved weight row missing');
+    if (params.weightUnit) {
+      await txn.runAsync('UPDATE profile SET weight_unit = ? WHERE id = 1', [params.weightUnit]);
+    }
+    result = {
+      log: saved,
+      wasUpdate: existing != null,
+      previousScaleWeightKg: existing?.scale_weight_kg ?? null,
+    };
+  });
+
+  if (!result) throw new Error('Weight save transaction failed');
+  return result;
 }
 
 export async function insertDailyTarget(params: {
@@ -391,6 +565,90 @@ export async function getRecentFoodLogs(limit: number): Promise<RecentFood[]> {
   );
 }
 
+export interface LoggedFood extends FoodLog {
+  photo_uri: string | null;
+  food_key: string;
+  is_pinned: number;
+}
+
+export async function getLoggedFoods(query: string): Promise<LoggedFood[]> {
+  const db = await getDb();
+  const normalizedQuery = `%${query.trim().toLowerCase()}%`;
+  return db.getAllAsync<LoggedFood>(
+    `WITH ranked_foods AS (
+       SELECT
+         f.*,
+         m.photo_uri,
+         f.source || ':' || COALESCE(NULLIF(f.source_food_id, ''), lower(f.name) || ':' || COALESCE(lower(f.brand), '')) AS food_key,
+         ROW_NUMBER() OVER (
+           PARTITION BY f.source, COALESCE(NULLIF(f.source_food_id, ''), lower(f.name) || ':' || COALESCE(lower(f.brand), ''))
+           ORDER BY f.logged_at DESC, f.id DESC
+         ) AS recency_rank
+       FROM food_logs f
+       LEFT JOIN meals m ON m.id = f.meal_id
+       WHERE f.meal_id IS NULL
+     )
+     SELECT ranked_foods.*, CASE WHEN pinned_foods.food_key IS NULL THEN 0 ELSE 1 END AS is_pinned
+     FROM ranked_foods
+     LEFT JOIN pinned_foods ON pinned_foods.food_key = ranked_foods.food_key
+     WHERE recency_rank = 1
+       AND (lower(name) LIKE ? OR lower(COALESCE(brand, '')) LIKE ?)
+     ORDER BY is_pinned DESC, logged_at DESC, id DESC`,
+    [normalizedQuery, normalizedQuery],
+  );
+}
+
+export interface LoggedMeal {
+  meal_id: number;
+  meal_name: string;
+  meal_type: MealType;
+  photo_uri: string | null;
+  component_count: number;
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fat: number;
+  last_logged_at: string;
+  food_key: string;
+  is_pinned: number;
+}
+
+export async function getLoggedMeals(query: string): Promise<LoggedMeal[]> {
+  const db = await getDb();
+  const normalizedQuery = `%${query.trim().toLowerCase()}%`;
+  return db.getAllAsync<LoggedMeal>(
+    `WITH meal_totals AS (
+       SELECT m.id AS meal_id, m.name AS meal_name, m.meal_type, m.photo_uri,
+              COUNT(f.id) AS component_count,
+              SUM(f.calories) AS total_calories,
+              SUM(f.protein_g) AS total_protein,
+              SUM(f.carbs_g) AS total_carbs,
+              SUM(f.fat_g) AS total_fat,
+              MAX(f.logged_at) AS last_logged_at,
+              'meal:' || lower(m.name) AS food_key,
+              ROW_NUMBER() OVER (PARTITION BY lower(m.name) ORDER BY MAX(f.logged_at) DESC, m.id DESC) AS recency_rank
+       FROM meals m
+       JOIN food_logs f ON f.meal_id = m.id
+       GROUP BY m.id
+     )
+     SELECT meal_totals.*, CASE WHEN pinned_foods.food_key IS NULL THEN 0 ELSE 1 END AS is_pinned
+     FROM meal_totals
+     LEFT JOIN pinned_foods ON pinned_foods.food_key = meal_totals.food_key
+     WHERE recency_rank = 1 AND lower(meal_name) LIKE ?
+     ORDER BY is_pinned DESC, last_logged_at DESC, meal_id DESC`,
+    [normalizedQuery],
+  );
+}
+
+export async function setFoodPinned(foodKey: string, isPinned: boolean): Promise<void> {
+  const db = await getDb();
+  if (isPinned) {
+    await db.runAsync('INSERT OR IGNORE INTO pinned_foods (food_key) VALUES (?)', [foodKey]);
+    return;
+  }
+  await db.runAsync('DELETE FROM pinned_foods WHERE food_key = ?', [foodKey]);
+}
+
 export async function getTodayMacros(dateISO: string): Promise<{
   calories: number;
   protein_g: number;
@@ -430,6 +688,56 @@ export async function getRecentWeightLogs(limit: number): Promise<WeightLog[]> {
     'SELECT * FROM weight_logs ORDER BY log_date DESC LIMIT ?',
     [limit]
   );
+}
+
+export async function getWeightLogByDate(dateISO: string): Promise<WeightLog | null> {
+  parseLocalISO(dateISO);
+  const db = await getDb();
+  return db.getFirstAsync<WeightLog>('SELECT * FROM weight_logs WHERE log_date = ?', [dateISO]);
+}
+
+export async function getLatestWeightLogOnOrBefore(dateISO: string): Promise<WeightLog | null> {
+  parseLocalISO(dateISO);
+  const db = await getDb();
+  return db.getFirstAsync<WeightLog>(
+    'SELECT * FROM weight_logs WHERE log_date <= ? ORDER BY log_date DESC LIMIT 1',
+    [dateISO],
+  );
+}
+
+export async function getEarliestWeightLogAfter(dateISO: string): Promise<WeightLog | null> {
+  parseLocalISO(dateISO);
+  const db = await getDb();
+  return db.getFirstAsync<WeightLog>(
+    'SELECT * FROM weight_logs WHERE log_date > ? ORDER BY log_date ASC LIMIT 1',
+    [dateISO],
+  );
+}
+
+export async function getWeightLogsByDateRange(startISO: string, endISO: string): Promise<WeightLog[]> {
+  parseLocalISO(startISO);
+  parseLocalISO(endISO);
+  const db = await getDb();
+  return db.getAllAsync<WeightLog>(
+    'SELECT * FROM weight_logs WHERE log_date BETWEEN ? AND ? ORDER BY log_date ASC',
+    [startISO, endISO],
+  );
+}
+
+export async function getNearestWeightNeighbors(
+  dateISO: string,
+): Promise<{ before: WeightLog | null; after: WeightLog | null }> {
+  parseLocalISO(dateISO);
+  const db = await getDb();
+  const before = await db.getFirstAsync<WeightLog>(
+    'SELECT * FROM weight_logs WHERE log_date < ? ORDER BY log_date DESC LIMIT 1',
+    [dateISO],
+  );
+  const after = await db.getFirstAsync<WeightLog>(
+    'SELECT * FROM weight_logs WHERE log_date > ? ORDER BY log_date ASC LIMIT 1',
+    [dateISO],
+  );
+  return { before, after };
 }
 
 export async function insertMeal(params: {
@@ -707,6 +1015,51 @@ export async function getMacrosByDateRange(startISO: string, endISO: string): Pr
      GROUP BY log_date
      ORDER BY log_date`,
     [startISO, endISO]
+  );
+}
+
+export async function getDailyCaloriesByDateRange(
+  startISO: string,
+  endISO: string,
+): Promise<Array<{ log_date: string; calories: number }>> {
+  parseLocalISO(startISO);
+  parseLocalISO(endISO);
+  const db = await getDb();
+  return db.getAllAsync<{ log_date: string; calories: number }>(
+    `SELECT log_date, SUM(calories) AS calories
+     FROM food_logs
+     WHERE log_date BETWEEN ? AND ?
+     GROUP BY log_date
+     HAVING SUM(calories) > 0
+     ORDER BY log_date ASC`,
+    [startISO, endISO],
+  );
+}
+
+export async function getDailyTargetsByDateRange(
+  startISO: string,
+  endISO: string,
+): Promise<DailyTarget[]> {
+  parseLocalISO(startISO);
+  parseLocalISO(endISO);
+  const db = await getDb();
+  return db.getAllAsync<DailyTarget>(
+    'SELECT * FROM daily_targets WHERE effective_date BETWEEN ? AND ? ORDER BY effective_date ASC, id ASC',
+    [startISO, endISO],
+  );
+}
+
+export async function getLatestAdaptiveReview(): Promise<AdaptiveReview | null> {
+  const db = await getDb();
+  return db.getFirstAsync<AdaptiveReview>(
+    'SELECT * FROM adaptive_reviews ORDER BY review_date DESC, id DESC LIMIT 1',
+  );
+}
+
+export async function getPendingAdaptiveReview(): Promise<AdaptiveReview | null> {
+  const db = await getDb();
+  return db.getFirstAsync<AdaptiveReview>(
+    "SELECT * FROM adaptive_reviews WHERE status = 'pending' ORDER BY review_date DESC, id DESC LIMIT 1",
   );
 }
 
