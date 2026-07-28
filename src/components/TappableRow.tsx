@@ -1,20 +1,22 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 interface TappableRowProps {
-  icon?: keyof typeof MaterialIcons.glyphMap;
+  icon?: keyof typeof MaterialIcons.glyphMap | keyof typeof MaterialCommunityIcons.glyphMap;
+  /** Render icon from MaterialCommunityIcons instead of MaterialIcons. */
+  community?: boolean;
   title: string;
   subtitle: string;
   selected: boolean;
   onPress: () => void;
 }
 
-export default function TappableRow({ icon, title, subtitle, selected, onPress }: TappableRowProps) {
+export default function TappableRow({ icon, community, title, subtitle, selected, onPress }: TappableRowProps) {
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center p-7 rounded-2xl gap-4 ${
+      className={`flex-row items-center p-7 rounded-2xl gap-4 active:scale-[0.98] ${
         selected
           ? 'bg-m3-surface-container-high border-2 border-white'
           : 'bg-m3-surface-container border border-m3-outline-variant/30'
@@ -22,11 +24,19 @@ export default function TappableRow({ icon, title, subtitle, selected, onPress }
     >
       {icon && (
         <View className="shrink-0">
-          <MaterialIcons
-            name={icon}
-            size={22}
-            color={selected ? '#ffffff' : '#c4c6d0'}
-          />
+          {community ? (
+            <MaterialCommunityIcons
+              name={icon as keyof typeof MaterialCommunityIcons.glyphMap}
+              size={22}
+              color={selected ? '#ffffff' : '#c4c6d0'}
+            />
+          ) : (
+            <MaterialIcons
+              name={icon as keyof typeof MaterialIcons.glyphMap}
+              size={22}
+              color={selected ? '#ffffff' : '#c4c6d0'}
+            />
+          )}
         </View>
       )}
       <View className="flex-1">

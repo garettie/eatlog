@@ -8,12 +8,14 @@ interface RulerSliderProps {
   max: number;
   step?: number;
   unit: string;
+  /** Custom formatter for the big value and bound labels (e.g. inches → 5'11"). */
+  formatValue?: (v: number) => string;
 }
 
 const TICK_STEP = 1;
 const PX_PER_UNIT = 8;
 
-export default function RulerSlider({ value, onValueChange, min, max, step = 1, unit }: RulerSliderProps) {
+export default function RulerSlider({ value, onValueChange, min, max, step = 1, unit, formatValue }: RulerSliderProps) {
   const [width, setWidth] = useState(0);
   const startXRef = useRef(0);
   const startValRef = useRef(0);
@@ -65,6 +67,7 @@ export default function RulerSlider({ value, onValueChange, min, max, step = 1, 
   }
 
   function formatVal(v: number) {
+    if (formatValue) return formatValue(v);
     return Number.isInteger(v) ? v.toString() : v.toFixed(1);
   }
 
