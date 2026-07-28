@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -8,6 +8,7 @@ import { M3 } from '../theme/tokens';
 const RING_R = 15;
 const RING_STROKE = 2;
 const CIRCUMFERENCE = 2 * Math.PI * RING_R;
+const ESTIMATED_CELL_WIDTH = 52;
 
 interface DayCell {
   date: Date;
@@ -30,6 +31,16 @@ interface DayStripProps {
 }
 
 export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth }: DayStripProps) {
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const idx = days.findIndex((d) => d.isoDate === selectedDate);
+    if (idx !== -1 && scrollRef.current) {
+      const x = Math.max(0, idx * ESTIMATED_CELL_WIDTH - 20);
+      scrollRef.current.scrollTo({ x, animated: false });
+    }
+  }, [days, selectedDate]);
+
   return (
     <View>
       <View className="flex-row items-center justify-between px-2 py-2">
@@ -57,6 +68,7 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
       </View>
 
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerClassName="px-2 pb-2 gap-1"
@@ -85,13 +97,11 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
               accessibilityLabel={`${day.dayLetter} ${day.date.getDate()}${day.isToday ? ', today' : ''}`}
             >
               <Text className={`text-[10px] font-semibold mb-0.5 ${
-                isSelected
-                  ? 'text-m3-on-primary'
-                  : day.isToday
-                    ? 'text-m3-primary'
-                    : day.isFuture
-                      ? 'text-m3-on-surface-variant/30'
-                      : 'text-m3-on-surface-variant'
+                day.isToday
+                  ? 'text-m3-primary'
+                  : day.isFuture
+                    ? 'text-m3-on-surface-variant/30'
+                    : 'text-m3-on-surface-variant'
               }`}>
                 {day.dayLetter}
               </Text>
