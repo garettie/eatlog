@@ -51,15 +51,16 @@ interface ReviewStateProps {
   onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => void;
   onClarify: (name: string) => Promise<DescribeResult | null>;
   editMealId?: number | null;
+  initialMeal?: MealType | null;
 }
 
-export default function ReviewState({ result, onLogComplete, onClarify, editMealId }: ReviewStateProps) {
+export default function ReviewState({ result, onLogComplete, onClarify, editMealId, initialMeal }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
   const [components, setComponents] = useState<EditableComponent[]>(() =>
     (result?.components ?? []).map(toEditable),
   );
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-  const [meal, setMeal] = useState<MealType>(() => defaultMealForNow());
+  const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
   const [removed, setRemoved] = useState<{ comp: EditableComponent; idx: number } | null>(null);
   const [clarifying, setClarifying] = useState(false);

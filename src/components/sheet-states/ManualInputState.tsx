@@ -10,15 +10,16 @@ import PrimaryButton from '../PrimaryButton';
 
 interface ManualInputStateProps {
   onLogComplete: (info: { logId: number; meal: MealType }) => void;
+  initialMeal?: MealType | null;
 }
 
-export default function ManualInputState({ onLogComplete }: ManualInputStateProps) {
+export default function ManualInputState({ onLogComplete, initialMeal }: ManualInputStateProps) {
   const [name, setName] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
-  const [meal, setMeal] = useState<MealType>(() => defaultMealForNow());
+  const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
   const discardGuard = useDiscardGuardContext();
 

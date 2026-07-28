@@ -46,11 +46,14 @@ export interface DailyTarget {
 }
 
 let _db: SQLite.SQLiteDatabase | null = null;
+let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!_db) {
-    _db = await SQLite.openDatabaseAsync('marco.db');
+  if (_db) return _db;
+  if (!_dbPromise) {
+    _dbPromise = SQLite.openDatabaseAsync('marco.db');
   }
+  _db = await _dbPromise;
   return _db;
 }
 

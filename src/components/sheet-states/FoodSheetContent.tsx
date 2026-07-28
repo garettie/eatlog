@@ -32,6 +32,7 @@ export interface FoodSheetState {
   pendingAction?: 'camera' | 'gallery' | 'describe' | 'search' | null;
   editMealId?: number | null;
   fromBar?: boolean;
+  pendingMeal?: MealType | null;
 }
 
 interface FoodSheetContentProps {
@@ -302,16 +303,17 @@ export default function FoodSheetContent({
           onLogComplete={handleMealLogged}
           onClarify={handleClarify}
           editMealId={state.editMealId}
+          initialMeal={state.pendingMeal}
         />
       )}
       {state.stateKey === 'search' && (
         <SearchInputState onSelectFood={handleSelectFood} onManualEntry={handleManualEntry} />
       )}
       {state.stateKey === 'single-food-review' && (
-        <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} />
+        <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} />
       )}
       {state.stateKey === 'manual-input' && (
-        <ManualInputState onLogComplete={handleManualLogComplete} />
+        <ManualInputState onLogComplete={handleManualLogComplete} initialMeal={state.pendingMeal} />
       )}
     </View>
   );

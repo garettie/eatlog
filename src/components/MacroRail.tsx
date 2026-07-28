@@ -22,15 +22,15 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
 
   return (
     <View className="flex-1 gap-0.5">
-      <View className="flex-row items-baseline justify-center gap-1">
+      <View className="flex-row items-center justify-center gap-1">
         {icon ? (
-          <MaterialIcons name={icon as any} size={13} color={M3.onSurface} />
+          <MaterialIcons name={icon as any} size={11} color={M3.onSurface} />
         ) : (
-          <Text className="text-[12px] font-bold" style={{ color: M3.onSurface }}>
+          <Text className="text-[11px] font-bold leading-none" style={{ color: M3.onSurface }}>
             {letter}
           </Text>
         )}
-        <Text className="text-m3-on-surface-variant text-[10px] font-semibold num-tabular">
+        <Text className="text-m3-on-surface-variant text-[11px] font-semibold num-tabular leading-none">
           {unit === 'kcal' ? Math.round(consumed).toLocaleString() : Math.round(consumed)}
           <Text className="text-m3-on-surface-variant/60"> / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}</Text>
         </Text>

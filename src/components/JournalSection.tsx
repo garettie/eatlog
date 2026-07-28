@@ -4,7 +4,7 @@ import Reanimated, { FadeIn, FadeOut, FadeInDown, Layout, useReducedMotion } fro
 import { MaterialIcons } from '@expo/vector-icons';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 
-import { FoodLog } from '../db/database';
+import { FoodLog, MealType } from '../db/database';
 import { M3 } from '../theme/tokens';
 
 function sourceIcon(source: string): React.ComponentProps<typeof MaterialIcons>['name'] {
@@ -262,6 +262,7 @@ export interface JournalEntryKind {
 
 interface JournalSectionProps {
   label: string;
+  mealType: MealType;
   entries: JournalEntryKind[];
   totalCalories: number;
   totalProtein: number;
@@ -271,10 +272,12 @@ interface JournalSectionProps {
   onEditMeal: (mealId: number) => void;
   onDeleteFood: (food: FoodLog) => void;
   onDeleteMeal: (mealId: number) => void;
+  onAddToMeal?: (meal: MealType) => void;
 }
 
 export default function JournalSection({
   label,
+  mealType,
   entries,
   totalCalories,
   totalProtein,
@@ -284,6 +287,7 @@ export default function JournalSection({
   onEditMeal,
   onDeleteFood,
   onDeleteMeal,
+  onAddToMeal,
 }: JournalSectionProps) {
   const hasEntries = entries.length > 0;
   const [collapsed, setCollapsed] = useState(!hasEntries);
@@ -322,9 +326,21 @@ export default function JournalSection({
       >
         <View className="flex-row items-center gap-2 flex-1 min-w-0 mr-3">
           <Text className="text-m3-on-surface text-base font-bold shrink" numberOfLines={1}>{label}</Text>
-          <Animated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-            <MaterialIcons name="expand-more" size={18} color={M3.onSurfaceVariant} />
-          </Animated.View>
+          {hasEntries ? (
+            <Animated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+              <MaterialIcons name="expand-more" size={18} color={M3.onSurfaceVariant} />
+            </Animated.View>
+          ) : onAddToMeal ? (
+            <Pressable
+              onPress={() => onAddToMeal(mealType)}
+              className="w-6 h-6 rounded-full bg-m3-surface-container-high items-center justify-center active:opacity-70"
+              accessibilityRole="button"
+              accessibilityLabel={`Add to ${label.toLowerCase()}`}
+              hitSlop={8}
+            >
+              <MaterialIcons name="add" size={16} color={M3.onSurface} />
+            </Pressable>
+          ) : null}
         </View>
         {hasEntries && (
           <View className="flex-row items-baseline gap-3 shrink-0">

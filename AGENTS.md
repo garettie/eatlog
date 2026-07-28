@@ -212,6 +212,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Expo config plugins in `app.json` must match installed packages — removing a package without removing its plugin crashes `expo export`
 - Sheet openers that bypass the `entry` state (EntryBar buttons) must set `fromBar: true` in the sheet state — `forceClose` and every cancel gate in FoodSheetContent read it; the FAB's `openEntry` intentionally omits it (entry IS its start state)
 - Undo for destructive deletes: capture the row(s) before `deleteFoodLog`/`deleteMeal`, then re-insert via `insertFoodLog`/`insertMeal` in the toast undo closure (no soft-delete needed; IDs may change, that's fine)
+- Smooth transitions on toggles/rings/progress bars: use reanimated `useSharedValue` + `withTiming` on the UI thread (SVG ring via `Animated.createAnimatedComponent(Circle)` + `useAnimatedProps` on `strokeDashoffset`; bars via `useAnimatedStyle` width measured with `onLayout`; toggle pill slides via `translateX` = `val * (halfWidth - padding)`). NEVER use `key`-based remounts to trigger `FadeIn` re-entry — they flicker. Gate all `withTiming` with `reduced ? 0 : 250` (call `useReducedMotion()` in each animated component). `getDb()` must be promise-guarded (`_dbPromise`) to avoid the "Integer/NativeDatabase released" SQLite crash on concurrent first calls.
 
 ---
 

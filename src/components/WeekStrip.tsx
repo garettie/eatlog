@@ -53,7 +53,7 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
           <MaterialIcons name="chevron-left" size={24} color={M3.onSurfaceVariant} />
         </Pressable>
 
-        <Text className="text-m3-on-surface-variant text-[11px] font-semibold">
+        <Text className="text-m3-on-surface text-sm font-bold">
           {monthLabel}
         </Text>
 

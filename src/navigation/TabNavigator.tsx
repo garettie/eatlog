@@ -70,6 +70,12 @@ export default function TabNavigator() {
     setSheet({ ...INITIAL, visible: true });
   }, []);
 
+  const openEntryForMeal = useCallback((meal: MealType) => {
+    backHistoryRef.current = [];
+    skipHistoryRef.current = false;
+    setSheet({ ...INITIAL, visible: true, pendingMeal: meal });
+  }, []);
+
   const openDescribe = useCallback(() => {
     backHistoryRef.current = [];
     skipHistoryRef.current = true;
@@ -271,6 +277,7 @@ export default function TabNavigator() {
           {() => (
             <DiaryScreen
               onOpenEntry={openEntry}
+              onOpenEntryForMeal={openEntryForMeal}
               onCamera={openCamera}
               onGallery={openGallery}
               onDescribe={openDescribe}

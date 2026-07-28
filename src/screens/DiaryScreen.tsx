@@ -44,6 +44,7 @@ interface EditState {
 
 interface DiaryScreenProps {
   onOpenEntry: () => void;
+  onOpenEntryForMeal?: (meal: MealType) => void;
   onCamera: () => void;
   onGallery: () => void;
   onDescribe: () => void;
@@ -53,7 +54,7 @@ interface DiaryScreenProps {
   showToast: (message: string, undo?: () => void) => void;
 }
 
-export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescribe, onSearch, onEditMeal, logVersion, showToast }: DiaryScreenProps) {
+export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera, onGallery, onDescribe, onSearch, onEditMeal, logVersion, showToast }: DiaryScreenProps) {
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
   const [loading, setLoading] = useState(true);
@@ -390,6 +391,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
             <JournalSection
               key={section.meal}
               label={section.label}
+              mealType={section.meal}
               entries={section.entries}
               totalCalories={section.totalCalories}
               totalProtein={section.totalProtein}
@@ -399,6 +401,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
               onEditMeal={handleEditMeal}
               onDeleteFood={handleDeleteFood}
               onDeleteMeal={handleDeleteMeal}
+              onAddToMeal={onOpenEntryForMeal}
             />
           ))}
         </ScrollView>

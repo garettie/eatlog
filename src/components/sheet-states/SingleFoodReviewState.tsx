@@ -34,6 +34,7 @@ function dataTypeLabel(dt: DataType): string {
 interface SingleFoodReviewStateProps {
   food: FoodResult | null;
   onLogComplete: (info: { logId: number; meal: MealType }) => void;
+  initialMeal?: MealType | null;
 }
 
 type UnitMode = 'servings' | 'grams' | 'ml';
@@ -41,6 +42,7 @@ type UnitMode = 'servings' | 'grams' | 'ml';
 export default function SingleFoodReviewState({
   food,
   onLogComplete,
+  initialMeal,
 }: SingleFoodReviewStateProps) {
   const hasServing = useMemo(
     () => !!(food?.servingSizeGrams && food.servingSizeGrams > 0),
@@ -60,7 +62,7 @@ export default function SingleFoodReviewState({
   const [mode, setMode] = useState<UnitMode>(defaultMode);
   const [servings, setServings] = useState(1);
   const [gramsInput, setGramsInput] = useState('');
-  const [meal, setMeal] = useState<MealType>(() => defaultMealForNow());
+  const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
 
   const reducedMotion = useReducedMotion();
@@ -75,8 +77,8 @@ export default function SingleFoodReviewState({
       setServings(1);
       setGramsInput('150');
     }
-    setMeal(defaultMealForNow());
-  }, [food, defaultMode]);
+    setMeal(initialMeal ?? defaultMealForNow());
+  }, [food, defaultMode, initialMeal]);
 
   const gramsNum = useMemo(() => {
     if (mode === 'servings' && food?.servingSizeGrams)
