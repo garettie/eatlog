@@ -66,7 +66,7 @@ export default function EntryMethodState({
                   {meal.component_count} {meal.component_count === 1 ? 'item' : 'items'}
                 </Text>
               </View>
-              <Text className="num-tabular text-xs font-semibold text-m3-on-surface-variant mr-2">
+              <Text className="tabular-nums text-xs font-semibold text-m3-on-surface-variant mr-2">
                 {Math.round(meal.total_calories)} kcal
               </Text>
               <MaterialIcons name="replay" size={16} color="#c4c6d0" />

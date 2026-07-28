@@ -122,6 +122,7 @@ export async function initDatabase(): Promise<void> {
       name TEXT NOT NULL,
       log_date TEXT NOT NULL,
       meal_type TEXT NOT NULL DEFAULT 'snack' CHECK (meal_type IN ('breakfast','lunch','dinner','snack')),
+      photo_uri TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -414,13 +415,22 @@ export async function insertMeal(params: {
   name: string;
   log_date: string;
   meal_type: MealType;
+  photo_uri?: string | null;
 }): Promise<number> {
   const db = await getDb();
   const result = await db.runAsync(
-    `INSERT INTO meals (name, log_date, meal_type) VALUES (?, ?, ?)`,
-    [params.name, params.log_date, params.meal_type]
+    `INSERT INTO meals (name, log_date, meal_type, photo_uri) VALUES (?, ?, ?, ?)`,
+    [params.name, params.log_date, params.meal_type, params.photo_uri ?? null]
   );
   return result.lastInsertRowId;
+}
+
+export async function getActiveMealPhotoUris(): Promise<string[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ photo_uri: string }>(
+    'SELECT photo_uri FROM meals WHERE photo_uri IS NOT NULL'
+  );
+  return rows.map((r) => r.photo_uri);
 }
 
 export async function cacheFoodItem(params: {
@@ -643,6 +653,7 @@ export interface MealRow {
   name: string;
   log_date: string;
   meal_type: MealType;
+  photo_uri: string | null;
 }
 
 export async function getMealsByIds(ids: number[]): Promise<MealRow[]> {
@@ -650,7 +661,7 @@ export async function getMealsByIds(ids: number[]): Promise<MealRow[]> {
   const db = await getDb();
   const placeholders = ids.map(() => '?').join(',');
   return db.getAllAsync<MealRow>(
-    `SELECT id, name, log_date, meal_type FROM meals WHERE id IN (${placeholders})`,
+    `SELECT id, name, log_date, meal_type, photo_uri FROM meals WHERE id IN (${placeholders})`,
     ids
   );
 }

@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { searchFood, FoodResult, DataType } from '../../services/foodSearch';
 import { getRecentFoodLogs, RecentFood } from '../../db/database';
+import { M3 } from '../../theme/tokens';
 
 function dataTypeBadge(dt: DataType): string {
   switch (dt) {
@@ -44,7 +45,7 @@ function ResultRow({ item, onPress }: ResultRowProps) {
             </Text>
           )}
         </View>
-        <Text className="num-tabular font-semibold text-xs text-m3-primary">
+        <Text className="tabular-nums font-semibold text-xs text-m3-primary">
           {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal/100g` : '---'}
         </Text>
       </View>
@@ -134,8 +135,8 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
           <BottomSheetTextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search foods..."
-            placeholderTextColor="#c4c6d0"
+            placeholder="Search foods…"
+            placeholderTextColor={M3.placeholder}
             className="flex-1 text-m3-on-surface text-sm ml-2 font-medium"
             autoFocus
             autoCorrect={false}
@@ -154,7 +155,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
         {isSearching && results.length === 0 && (
           <View className="py-12 items-center">
             <ActivityIndicator size="small" color="#ffffff" />
-            <Text className="text-m3-on-surface-variant text-xs mt-3">Searching...</Text>
+            <Text className="text-m3-on-surface-variant text-xs mt-3">Searching…</Text>
           </View>
         )}
 

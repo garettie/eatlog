@@ -8,7 +8,8 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
-import { initDatabase } from './src/db/database';
+import { initDatabase, getActiveMealPhotoUris } from './src/db/database';
+import { cleanupOrphanMealPhotos } from './src/utils/mealPhotos';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
 
@@ -31,6 +32,10 @@ export default function App() {
     async function prepare() {
       try {
         await initDatabase();
+        // Sweep meal photos orphaned by deleted meals (never eager deletes,
+        // so undo-restore within a session stays safe).
+        const uris = await getActiveMealPhotoUris();
+        await cleanupOrphanMealPhotos(uris);
       } catch (e) {
         console.error('DB init error:', e);
         setDbError(String(e));

@@ -33,6 +33,9 @@ export const M3 = {
   calories: '#a0cafd',
   expenditure: '#d0bcff',
 
+  // Placeholder text — ≥4.5:1 on surface-container-high inputs
+  placeholder: '#9aa0aa',
+
   scrim: '#000000',
   scrimOpacityDefault: 0.55,
 } as const;

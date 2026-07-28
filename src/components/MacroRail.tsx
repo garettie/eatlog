@@ -30,7 +30,7 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
             {letter}
           </Text>
         )}
-        <Text className="text-m3-on-surface-variant text-[11px] font-semibold num-tabular leading-none">
+        <Text className="text-m3-on-surface-variant text-[11px] font-semibold tabular-nums leading-none">
           {unit === 'kcal' ? Math.round(consumed).toLocaleString() : Math.round(consumed)}
           <Text className="text-m3-on-surface-variant/60"> / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}</Text>
         </Text>

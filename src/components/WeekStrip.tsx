@@ -91,7 +91,8 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
           return (
             <Pressable
               key={day.isoDate}
-              onPress={() => !day.isFuture && onSelectDate(day.isoDate)}
+              onPress={() => onSelectDate(day.isoDate)}
+              disabled={day.isFuture}
               className="items-center py-1 px-1.5 active:opacity-70"
               accessibilityRole="button"
               accessibilityLabel={`${day.dayLetter} ${day.date.getDate()}${day.isToday ? ', today' : ''}`}

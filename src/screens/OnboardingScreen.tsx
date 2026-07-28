@@ -40,6 +40,7 @@ import {
   insertWeightLog,
 } from '../db/database';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { M3 } from '../theme/tokens';
 import {
   ageFromBirthDate,
   calcBMR,
@@ -77,7 +78,7 @@ function StyledInput({
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
-      placeholderTextColor="#44474f"
+      placeholderTextColor={M3.placeholder}
       keyboardType={keyboardType}
       maxLength={maxLength}
       autoFocus={autoFocus}
@@ -94,17 +95,6 @@ function BackButton({ onPress }: { onPress: () => void }) {
     >
       <MaterialIcons name="arrow-back" size={18} color="#e2e2e9" />
       <Text className="text-m3-on-surface font-semibold text-base">Back</Text>
-    </Pressable>
-  );
-}
-
-function ExactToggle({ active, onPress }: { active: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} className="flex-row items-center gap-1.5 active:opacity-70 py-1">
-      <MaterialIcons name={active ? 'straighten' : 'dialpad'} size={14} color="#c4c6d0" />
-      <Text className="text-sm text-m3-on-surface-variant font-medium">
-        {active ? 'Use ruler' : 'Enter exact'}
-      </Text>
     </Pressable>
   );
 }
@@ -148,15 +138,13 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   // Height is canonical in cm; imperial surfaces derive inches from it.
   const [heightCm, setHeightCm] = useState(178);
-  const [heightExact, setHeightExact] = useState(false);
-  const [heightCmText, setHeightCmText] = useState('');
-  const [heightFtText, setHeightFtText] = useState('');
-  const [heightInText, setHeightInText] = useState('');
+  const [heightCmText, setHeightCmText] = useState('178');
+  const [heightFtText, setHeightFtText] = useState('5');
+  const [heightInText, setHeightInText] = useState('10');
 
   const [weightKg, setWeightKg] = useState(80);
   const [weightLbs, setWeightLbs] = useState(176);
-  const [weightExact, setWeightExact] = useState(false);
-  const [weightText, setWeightText] = useState('');
+  const [weightText, setWeightText] = useState('80.0');
 
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
 
@@ -164,6 +152,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   const [goalRate, setGoalRate] = useState(0);
   const [targetWeightKg, setTargetWeightKg] = useState(80);
   const [targetWeightLbs, setTargetWeightLbs] = useState(176);
+  const [targetWeightText, setTargetWeightText] = useState('80.0');
 
   const [proteinPreference, setProteinPreference] = useState<ProteinPreference>('moderate');
 
@@ -278,35 +267,25 @@ export default function OnboardingScreen({ navigation }: Props) {
   function switchUnits(newSystem: UnitSystem) {
     if (newSystem === units) return;
     if (newSystem === 'imperial') {
-      setWeightLbs(Math.round(kgToLbs(weightKg)));
-      setTargetWeightLbs(Math.round(kgToLbs(targetWeightKg)));
+      const { feet, inches } = cmToFtIn(heightCm);
+      const nextWeightLbs = Math.round(kgToLbs(weightKg) * 10) / 10;
+      const nextTargetLbs = Math.round(kgToLbs(targetWeightKg) * 10) / 10;
+      setHeightFtText(String(feet));
+      setHeightInText(String(inches));
+      setWeightLbs(nextWeightLbs);
+      setTargetWeightLbs(nextTargetLbs);
+      setWeightText(String(nextWeightLbs));
+      setTargetWeightText(String(nextTargetLbs));
     } else {
-      setWeightKg(Math.round(lbsToKg(weightLbs)));
-      setTargetWeightKg(Math.round(lbsToKg(targetWeightLbs)));
+      const nextWeightKg = Math.round(lbsToKg(weightLbs) * 10) / 10;
+      const nextTargetKg = Math.round(lbsToKg(targetWeightLbs) * 10) / 10;
+      setHeightCmText(String(Math.round(heightCm * 10) / 10));
+      setWeightKg(nextWeightKg);
+      setTargetWeightKg(nextTargetKg);
+      setWeightText(nextWeightKg.toFixed(1));
+      setTargetWeightText(nextTargetKg.toFixed(1));
     }
     setUnits(newSystem);
-  }
-
-  // ── Exact-entry toggles ─────────────────────────────────────────────────
-
-  function toggleHeightExact() {
-    if (!heightExact) {
-      if (units === 'metric') {
-        setHeightCmText(String(heightCm));
-      } else {
-        const { feet, inches } = cmToFtIn(heightCm);
-        setHeightFtText(String(feet));
-        setHeightInText(String(inches));
-      }
-    }
-    setHeightExact((v) => !v);
-  }
-
-  function toggleWeightExact() {
-    if (!weightExact) {
-      setWeightText(units === 'metric' ? weightKg.toFixed(1) : String(Math.round(weightLbs)));
-    }
-    setWeightExact((v) => !v);
   }
 
   function applyHeightCmText(t: string) {
@@ -336,6 +315,21 @@ export default function OnboardingScreen({ navigation }: Props) {
     } else {
       setWeightLbs(v);
       setWeightKg(Math.round(lbsToKg(v) * 10) / 10);
+    }
+  }
+
+  function applyTargetWeightText(t: string) {
+    setTargetWeightText(t);
+    const v = parseFloat(t);
+    if (isNaN(v)) return;
+    const kg = units === 'metric' ? v : lbsToKg(v);
+    if (kg < 20 || kg > 500) return;
+    if (units === 'metric') {
+      setTargetWeightKg(v);
+      setTargetWeightLbs(Math.round(kgToLbs(v) * 10) / 10);
+    } else {
+      setTargetWeightLbs(v);
+      setTargetWeightKg(Math.round(lbsToKg(v) * 10) / 10);
     }
   }
 
@@ -379,10 +373,16 @@ export default function OnboardingScreen({ navigation }: Props) {
       setGoalRate(0);
     } else if (gt === 'cut') {
       setGoalRate(RATE_RANGE.cut.defaultRate);
-      setTargetWeightKg(Math.max(20, resolveWeightKg() - 5));
+      const nextTargetKg = Math.max(20, resolveWeightKg() - 5);
+      setTargetWeightKg(nextTargetKg);
+      setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
+      setTargetWeightText(units === 'metric' ? nextTargetKg.toFixed(1) : String(Math.round(kgToLbs(nextTargetKg) * 10) / 10));
     } else {
       setGoalRate(RATE_RANGE.bulk.defaultRate);
-      setTargetWeightKg(Math.min(500, resolveWeightKg() + 3));
+      const nextTargetKg = Math.min(500, resolveWeightKg() + 3);
+      setTargetWeightKg(nextTargetKg);
+      setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
+      setTargetWeightText(units === 'metric' ? nextTargetKg.toFixed(1) : String(Math.round(kgToLbs(nextTargetKg) * 10) / 10));
     }
   }
 
@@ -638,112 +638,114 @@ export default function OnboardingScreen({ navigation }: Props) {
                   />
 
                   <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">
-                    <View className="flex-row justify-between items-center">
-                      <SectionLabel>Height</SectionLabel>
-                      <ExactToggle active={heightExact} onPress={toggleHeightExact} />
-                    </View>
-                    {heightExact ? (
-                      <Reanimated.View entering={reduced ? undefined : FadeIn.duration(200)}>
-                        {units === 'metric' ? (
-                          <View className="flex-row items-center gap-4">
-                            <TextInput
-                              value={heightCmText}
-                              onChangeText={applyHeightCmText}
-                              placeholder="180"
-                              placeholderTextColor="#44474f"
-                              keyboardType="decimal-pad"
-                              autoFocus
-                              className="flex-1 min-w-0 bg-m3-surface-container-high text-m3-on-surface text-lg font-bold tabular-nums rounded-xl px-4 py-3 outline-none border border-m3-outline-variant/40"
-                            />
-                            <Text className="text-sm font-semibold text-m3-on-surface-variant bg-m3-surface-container-high px-4 py-3 rounded-xl shrink-0">
-                              cm
-                            </Text>
-                          </View>
-                        ) : (
-                          <View className="flex-row items-center gap-3">
-                            <TextInput
-                              value={heightFtText}
-                              onChangeText={(t) => applyHeightImperial(t, heightInText)}
-                              placeholder="5"
-                              placeholderTextColor="#44474f"
-                              keyboardType="numeric"
-                              maxLength={1}
-                              autoFocus
-                              className="flex-1 min-w-0 bg-m3-surface-container-high text-m3-on-surface text-lg font-bold tabular-nums rounded-xl px-4 py-3 outline-none border border-m3-outline-variant/40"
-                            />
-                            <Text className="text-sm font-semibold text-m3-on-surface-variant shrink-0">ft</Text>
-                            <TextInput
-                              value={heightInText}
-                              onChangeText={(t) => applyHeightImperial(heightFtText, t)}
-                              placeholder="10"
-                              placeholderTextColor="#44474f"
-                              keyboardType="numeric"
-                              maxLength={2}
-                              className="flex-1 min-w-0 bg-m3-surface-container-high text-m3-on-surface text-lg font-bold tabular-nums rounded-xl px-4 py-3 outline-none border border-m3-outline-variant/40"
-                            />
-                            <Text className="text-sm font-semibold text-m3-on-surface-variant shrink-0">in</Text>
-                          </View>
-                        )}
-                      </Reanimated.View>
+                    <SectionLabel>Height</SectionLabel>
+                    {units === 'metric' ? (
+                      <View className="flex-row items-baseline justify-center gap-1">
+                        <TextInput
+                          value={heightCmText}
+                          onChangeText={applyHeightCmText}
+                          placeholder="180"
+                          placeholderTextColor={M3.placeholder}
+                          keyboardType="decimal-pad"
+                          selectTextOnFocus
+                          textAlign="center"
+                          underlineColorAndroid="transparent"
+                          className="w-28 text-m3-on-surface text-4xl font-bold tabular-nums text-center py-1"
+                        />
+                        <Text className="text-sm font-medium text-m3-on-surface-variant shrink-0">
+                          cm
+                        </Text>
+                      </View>
                     ) : (
-                      <RulerSlider
-                        value={units === 'metric' ? heightCm : heightInches}
-                        onValueChange={(v) => {
-                          if (units === 'metric') {
-                            setHeightCm(v);
-                          } else {
-                            setHeightCm(Math.round(v * 2.54 * 10) / 10);
-                          }
-                        }}
-                        min={units === 'metric' ? 120 : 47}
-                        max={units === 'metric' ? 220 : 87}
-                        step={1}
-                        unit={units === 'metric' ? 'cm' : ''}
-                        formatValue={units === 'imperial' ? formatFtIn : undefined}
-                      />
+                      <View className="flex-row items-baseline justify-center gap-1">
+                        <TextInput
+                          value={heightFtText}
+                          onChangeText={(t) => applyHeightImperial(t, heightInText)}
+                          placeholder="5"
+                          placeholderTextColor={M3.placeholder}
+                          keyboardType="numeric"
+                          maxLength={1}
+                          selectTextOnFocus
+                          textAlign="center"
+                          underlineColorAndroid="transparent"
+                          className="w-14 text-m3-on-surface text-4xl font-bold tabular-nums text-center py-1"
+                        />
+                        <Text className="text-sm font-medium text-m3-on-surface-variant shrink-0 mr-2">ft</Text>
+                        <TextInput
+                          value={heightInText}
+                          onChangeText={(t) => applyHeightImperial(heightFtText, t)}
+                          placeholder="10"
+                          placeholderTextColor={M3.placeholder}
+                          keyboardType="numeric"
+                          maxLength={2}
+                          selectTextOnFocus
+                          textAlign="center"
+                          underlineColorAndroid="transparent"
+                          className="w-16 text-m3-on-surface text-4xl font-bold tabular-nums text-center py-1"
+                        />
+                        <Text className="text-sm font-medium text-m3-on-surface-variant shrink-0">in</Text>
+                      </View>
                     )}
+                    <RulerSlider
+                      value={units === 'metric' ? heightCm : heightInches}
+                      onValueChange={(v) => {
+                        if (units === 'metric') {
+                          setHeightCm(v);
+                          setHeightCmText(String(v));
+                        } else {
+                          const cm = Math.round(v * 2.54 * 10) / 10;
+                          const { feet, inches } = cmToFtIn(cm);
+                          setHeightCm(cm);
+                          setHeightFtText(String(feet));
+                          setHeightInText(String(inches));
+                        }
+                      }}
+                      min={units === 'metric' ? 120 : 47}
+                      max={units === 'metric' ? 220 : 87}
+                      step={1}
+                      unit={units === 'metric' ? 'cm' : ''}
+                      formatValue={units === 'imperial' ? formatFtIn : undefined}
+                      showValue={false}
+                    />
                   </View>
 
                   <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">
-                    <View className="flex-row justify-between items-center">
-                      <SectionLabel>Starting Scale Weight</SectionLabel>
-                      <ExactToggle active={weightExact} onPress={toggleWeightExact} />
-                    </View>
-                    {weightExact ? (
-                      <Reanimated.View entering={reduced ? undefined : FadeIn.duration(200)}>
-                        <View className="flex-row items-center gap-4">
-                          <TextInput
-                            value={weightText}
-                            onChangeText={applyWeightText}
-                            placeholder={units === 'metric' ? '80.0' : '176'}
-                            placeholderTextColor="#44474f"
-                            keyboardType="decimal-pad"
-                            autoFocus
-                            className="flex-1 min-w-0 bg-m3-surface-container-high text-m3-on-surface text-lg font-bold tabular-nums rounded-xl px-4 py-3 outline-none border border-m3-outline-variant/40"
-                          />
-                          <Text className="text-sm font-semibold text-m3-on-surface-variant bg-m3-surface-container-high px-4 py-3 rounded-xl shrink-0">
-                            {weightUnit}
-                          </Text>
-                        </View>
-                      </Reanimated.View>
-                    ) : (
-                      <RulerSlider
-                        value={units === 'metric' ? weightKg : weightLbs}
-                        onValueChange={(v) => {
-                          if (units === 'metric') {
-                            setWeightKg(v);
-                            setWeightLbs(Math.round(kgToLbs(v)));
-                          } else {
-                            setWeightLbs(v);
-                            setWeightKg(Math.round(lbsToKg(v) * 10) / 10);
-                          }
-                        }}
-                        min={weightMin}
-                        max={weightMax}
-                        step={0.1}
-                        unit={weightUnit}
+                    <SectionLabel>Starting Scale Weight</SectionLabel>
+                    <View className="flex-row items-baseline justify-center gap-1">
+                      <TextInput
+                        value={weightText}
+                        onChangeText={applyWeightText}
+                        placeholder={units === 'metric' ? '80.0' : '176'}
+                        placeholderTextColor={M3.placeholder}
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                        textAlign="center"
+                        underlineColorAndroid="transparent"
+                        className="w-40 text-m3-on-surface text-4xl font-bold tabular-nums text-center py-1"
                       />
-                    )}
+                      <Text className="text-sm font-medium text-m3-on-surface-variant shrink-0">
+                        {weightUnit}
+                      </Text>
+                    </View>
+                    <RulerSlider
+                      value={units === 'metric' ? weightKg : weightLbs}
+                      onValueChange={(v) => {
+                        if (units === 'metric') {
+                          setWeightKg(v);
+                          setWeightLbs(Math.round(kgToLbs(v) * 10) / 10);
+                          setWeightText(v.toFixed(1));
+                        } else {
+                          setWeightLbs(v);
+                          setWeightKg(Math.round(lbsToKg(v) * 10) / 10);
+                          setWeightText(String(v));
+                        }
+                      }}
+                      min={weightMin}
+                      max={weightMax}
+                      step={0.1}
+                      unit={weightUnit}
+                      showValue={false}
+                    />
                   </View>
                 </>
               )}
@@ -849,21 +851,40 @@ export default function OnboardingScreen({ navigation }: Props) {
                           <SectionLabel>Target Weight</SectionLabel>
                           <Text className="text-sm text-m3-primary font-medium">Goal Weight</Text>
                         </View>
+                        <View className="flex-row items-baseline justify-center gap-1">
+                          <TextInput
+                            value={targetWeightText}
+                            onChangeText={applyTargetWeightText}
+                            placeholder={units === 'metric' ? '75.0' : '165'}
+                            placeholderTextColor={M3.placeholder}
+                            keyboardType="decimal-pad"
+                            selectTextOnFocus
+                            textAlign="center"
+                            underlineColorAndroid="transparent"
+                            className="w-40 text-m3-on-surface text-4xl font-bold tabular-nums text-center py-1"
+                          />
+                          <Text className="text-sm font-medium text-m3-on-surface-variant shrink-0">
+                            {weightUnit}
+                          </Text>
+                        </View>
                         <RulerSlider
                           value={units === 'metric' ? targetWeightKg : targetWeightLbs}
                           onValueChange={(v) => {
                             if (units === 'metric') {
                               setTargetWeightKg(v);
-                              setTargetWeightLbs(Math.round(kgToLbs(v)));
+                              setTargetWeightLbs(Math.round(kgToLbs(v) * 10) / 10);
+                              setTargetWeightText(v.toFixed(1));
                             } else {
                               setTargetWeightLbs(v);
                               setTargetWeightKg(Math.round(lbsToKg(v) * 10) / 10);
+                              setTargetWeightText(String(v));
                             }
                           }}
                           min={weightMin}
                           max={weightMax}
                           step={0.1}
                           unit={weightUnit}
+                          showValue={false}
                         />
                       </View>
 

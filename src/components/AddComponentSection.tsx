@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { searchFood, FoodResult, DataType } from '../services/foodSearch';
 import { describeMeal } from '../services/foodScan';
+import { M3 } from '../theme/tokens';
 import PrimaryButton from './PrimaryButton';
 
 type AddMode = 'search' | 'describe' | 'manual' | null;
@@ -142,11 +143,11 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   return (
     <View className="bg-m3-surface-container-high rounded-xl px-4 py-4 gap-4">
       {/* ── Mode Chips ── */}
-        <View className="flex-row gap-2">
-          <Pressable
-            onPress={() => setMode('search')}
-            accessibilityRole="button"
-            className={`flex-1 py-3.5 rounded-full items-center active:opacity-60 ${mode === 'search' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+      <View className="flex-row gap-2 items-center">
+        <Pressable
+          onPress={() => setMode('search')}
+          accessibilityRole="button"
+          className={`flex-1 py-3 rounded-full items-center active:opacity-70 ${mode === 'search' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <View className="flex-row items-center gap-1">
             <MaterialIcons name="search" size={14} color={mode === 'search' ? '#e2e2e9' : '#c4c6d0'} />
@@ -158,7 +159,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <Pressable
           onPress={() => setMode('describe')}
           accessibilityRole="button"
-          className={`flex-1 py-3.5 rounded-full items-center active:opacity-60 ${mode === 'describe' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+          className={`flex-1 py-3 rounded-full items-center active:opacity-70 ${mode === 'describe' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <View className="flex-row items-center gap-1">
             <MaterialIcons name="auto-awesome" size={14} color={mode === 'describe' ? '#e2e2e9' : '#c4c6d0'} />
@@ -171,7 +172,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           onPress={() => setMode('manual')}
           accessibilityRole="button"
           accessibilityLabel="Manual entry"
-          className={`py-3.5 px-4 rounded-full items-center active:opacity-60 ${mode === 'manual' ? 'bg-m3-surface-container' : 'bg-m3-surface-container-highest'}`}
+          className={`py-3 px-4 rounded-full items-center active:opacity-70 ${mode === 'manual' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <MaterialIcons name="edit" size={14} color={mode === 'manual' ? '#e2e2e9' : '#c4c6d0'} />
         </Pressable>
@@ -188,8 +189,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search foods..."
-              placeholderTextColor="#c4c6d0"
+              placeholder="Search foods…"
+              placeholderTextColor={M3.placeholder}
               className="flex-1 text-m3-on-surface text-sm ml-2"
               autoFocus
               autoCorrect={false}
@@ -217,7 +218,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                   {item.servingLabel ? ` · ${item.servingLabel}` : ''}
                 </Text>
               </View>
-              <Text className="text-xs text-m3-primary font-semibold num-tabular">
+              <Text className="text-xs text-m3-primary font-semibold tabular-nums">
                 {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal` : '---'}
               </Text>
             </Pressable>
@@ -235,7 +236,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             value={describeText}
             onChangeText={setDescribeText}
             placeholder="e.g. 2 eggs with toast"
-            placeholderTextColor="#c4c6d0"
+            placeholderTextColor={M3.placeholder}
             multiline
             numberOfLines={2}
             className="bg-m3-surface-container text-m3-on-surface text-sm rounded-xl px-4 py-3 border border-m3-outline-variant/50"
@@ -262,7 +263,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             value={manualName}
             onChangeText={setManualName}
             placeholder="e.g. Olive Oil"
-            placeholderTextColor="#c4c6d0"
+            placeholderTextColor={M3.placeholder}
             className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-4 py-3 border border-m3-outline-variant/50"
             autoFocus
           />
@@ -273,7 +274,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 value={manualCal}
                 onChangeText={setManualCal}
                 placeholder="0"
-                placeholderTextColor="#c4c6d0"
+                placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
                 className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-3 py-2.5 border border-m3-outline-variant/50 text-center"
               />
@@ -284,7 +285,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 value={manualPro}
                 onChangeText={setManualPro}
                 placeholder="0"
-                placeholderTextColor="#c4c6d0"
+                placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
                 className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-3 py-2.5 border border-m3-outline-variant/50 text-center"
               />
@@ -295,7 +296,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 value={manualCarb}
                 onChangeText={setManualCarb}
                 placeholder="0"
-                placeholderTextColor="#c4c6d0"
+                placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
                 className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-3 py-2.5 border border-m3-outline-variant/50 text-center"
               />
@@ -306,7 +307,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 value={manualFat}
                 onChangeText={setManualFat}
                 placeholder="0"
-                placeholderTextColor="#c4c6d0"
+                placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
                 className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-3 py-2.5 border border-m3-outline-variant/50 text-center"
               />
@@ -317,7 +318,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               value={manualGrams}
               onChangeText={setManualGrams}
               placeholder="150"
-              placeholderTextColor="#c4c6d0"
+              placeholderTextColor={M3.placeholder}
               keyboardType="numeric"
               className="w-24 text-center bg-m3-surface-container rounded-xl py-3 px-2 text-m3-on-surface text-sm font-semibold border border-m3-outline-variant/50"
             />

@@ -4,6 +4,7 @@ import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-shee
 
 import { MealType, insertFoodLog } from '../../db/database';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
+import { M3 } from '../../theme/tokens';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import MealSelector from '../MealSelector';
 import PrimaryButton from '../PrimaryButton';
@@ -65,7 +66,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
           value={name}
           onChangeText={setName}
           placeholder="e.g. Homemade Chicken Soup"
-          placeholderTextColor="#c4c6d0"
+          placeholderTextColor={M3.placeholder}
           className="bg-m3-surface-container-high text-m3-on-surface font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
         />
       </View>
@@ -76,9 +77,9 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
           value={calories}
           onChangeText={setCalories}
           placeholder="0"
-          placeholderTextColor="#c4c6d0"
+          placeholderTextColor={M3.placeholder}
           keyboardType="numeric"
-          className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+          className="bg-m3-surface-container-high text-m3-on-surface tabular-nums font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
         />
       </View>
 
@@ -89,9 +90,9 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
             value={protein}
             onChangeText={setProtein}
             placeholder="0"
-            placeholderTextColor="#c4c6d0"
+            placeholderTextColor={M3.placeholder}
             keyboardType="numeric"
-            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+            className="bg-m3-surface-container-high text-m3-on-surface tabular-nums font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
           />
         </View>
         <View className="flex-1 gap-1">
@@ -100,9 +101,9 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
             value={carbs}
             onChangeText={setCarbs}
             placeholder="0"
-            placeholderTextColor="#c4c6d0"
+            placeholderTextColor={M3.placeholder}
             keyboardType="numeric"
-            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+            className="bg-m3-surface-container-high text-m3-on-surface tabular-nums font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
           />
         </View>
         <View className="flex-1 gap-1">
@@ -111,9 +112,9 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
             value={fat}
             onChangeText={setFat}
             placeholder="0"
-            placeholderTextColor="#c4c6d0"
+            placeholderTextColor={M3.placeholder}
             keyboardType="numeric"
-            className="bg-m3-surface-container-high text-m3-on-surface num-tabular font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
+            className="bg-m3-surface-container-high text-m3-on-surface tabular-nums font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
           />
         </View>
       </View>

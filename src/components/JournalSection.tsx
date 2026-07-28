@@ -1,22 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, Text, View } from 'react-native';
-import Reanimated, { FadeIn, FadeOut, FadeInDown, Layout, useReducedMotion } from 'react-native-reanimated';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Image, Pressable, Text, View } from 'react-native';
+import Reanimated, {
+  FadeIn,
+  FadeOut,
+  FadeInDown,
+  LinearTransition,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 
-import { FoodLog, MealType } from '../db/database';
+import { FoodLog } from '../db/database';
 import { M3 } from '../theme/tokens';
-
-function sourceIcon(source: string): React.ComponentProps<typeof MaterialIcons>['name'] {
-  switch (source) {
-    case 'scan': return 'photo-camera';
-    case 'describe': return 'edit-note';
-    case 'manual': return 'edit';
-    case 'usda':
-    case 'off': return 'search';
-    default: return 'restaurant';
-  }
-}
+import { foodIcon } from '../utils/foodIcons';
 
 function kcalLabel(calories: number): string {
   return `${Math.round(calories)} kcal`;
@@ -45,6 +44,27 @@ function MacroPills({ protein, carbs, fat }: { protein: number; carbs: number; f
       <MacroPill letter="C" grams={carbs} color={M3.carbs} />
       <MacroPill letter="F" grams={fat} color={M3.fat} />
     </View>
+  );
+}
+
+// ── Rotating chevron (UI thread) ─────────────────────────────────────────
+
+function Chevron({ open }: { open: boolean }) {
+  const reduced = useReducedMotion();
+  const rot = useSharedValue(open ? 1 : 0);
+
+  useEffect(() => {
+    rot.value = withTiming(open ? 1 : 0, { duration: reduced ? 0 : 200 });
+  }, [open, reduced]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rot.value * 180}deg` }],
+  }));
+
+  return (
+    <Reanimated.View style={style}>
+      <MaterialIcons name="expand-more" size={18} color={M3.onSurfaceVariant} />
+    </Reanimated.View>
   );
 }
 
@@ -124,27 +144,29 @@ function FoodRow({
 }) {
   return (
     <SwipeRow onEdit={() => onEdit(food)} onDelete={() => onDelete(food)}>
-      <View className="flex-row items-start px-4 py-4 bg-m3-surface-container border-b border-m3-outline-variant/20 active:opacity-80">
-        <View className="w-10 h-10 rounded-full bg-m3-surface-container-highest items-center justify-center mr-3 mt-0.5">
-          <MaterialIcons name={sourceIcon(food.source)} size={18} color={M3.onSurfaceVariant} />
-        </View>
-        <View className="flex-1 mr-3">
-          <Text className="text-m3-on-surface text-base font-medium" numberOfLines={1}>
-            {food.name}
-          </Text>
-          <Text className="text-m3-on-surface-variant text-xs mt-0.5 num-tabular">
-            {food.serving_label ? `${food.serving_label}` : ''}
-            {food.grams_logged ? `${food.serving_label ? ' · ' : ''}${Math.round(food.grams_logged)}g` : ''}
-          </Text>
-          <View className="mt-2">
-            <MacroPills protein={food.protein_g} carbs={food.carbs_g} fat={food.fat_g} />
+      <View className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
+        <View className="flex-row items-start px-5 py-5 min-h-[96] active:opacity-80">
+          <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
+            <MaterialCommunityIcons name={foodIcon(food.name)} size={20} color={M3.onSurfaceVariant} />
           </View>
-        </View>
-        <View className="items-end pt-0.5">
-          <Text className="text-m3-on-surface text-base font-bold tabular-nums">
-            {Math.round(food.calories)}
-            <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
-          </Text>
+          <View className="flex-1 min-w-0 mr-3">
+            <Text className="text-m3-on-surface text-base font-semibold" numberOfLines={2}>
+              {food.name}
+            </Text>
+            <Text className="text-m3-on-surface-variant text-xs mt-0.5 tabular-nums">
+              {food.serving_label ? `${food.serving_label}` : ''}
+              {food.grams_logged ? `${food.serving_label ? ' · ' : ''}${Math.round(food.grams_logged)}g` : ''}
+            </Text>
+            <View className="mt-2">
+              <MacroPills protein={food.protein_g} carbs={food.carbs_g} fat={food.fat_g} />
+            </View>
+          </View>
+          <View className="w-[88px] shrink-0 items-end pt-0.5">
+            <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
+              {Math.round(food.calories)}
+              <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
+            </Text>
+          </View>
         </View>
       </View>
     </SwipeRow>
@@ -156,6 +178,7 @@ function FoodRow({
 interface MealGroup {
   id: number;
   name: string;
+  photoUri?: string | null;
   components: FoodLog[];
 }
 
@@ -169,41 +192,41 @@ function MealRow({
   onDeleteMeal: (mealId: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const rotation = useRef(new Animated.Value(0)).current;
   const reducedMotion = useReducedMotion();
   const totalCalories = meal.components.reduce((s, c) => s + c.calories, 0);
   const totalP = meal.components.reduce((s, c) => s + c.protein_g, 0);
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
-  const toggleExpand = () => {
-    Animated.timing(rotation, {
-      toValue: expanded ? 0 : 1,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-    setExpanded(!expanded);
-  };
-
   return (
-    <View>
+    <View className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
       <SwipeRow onEdit={() => onEditMeal(meal.id)} onDelete={() => onDeleteMeal(meal.id)}>
         <Pressable
-          onPress={toggleExpand}
-          className="flex-row items-start px-4 py-4 bg-m3-surface-container border-b border-m3-outline-variant/20 active:opacity-80"
+          onPress={() => setExpanded((v) => !v)}
+          className={`flex-row items-stretch active:opacity-80 ${
+            meal.photoUri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'
+          } ${expanded ? 'border-b border-m3-outline-variant/20' : ''}`}
           accessibilityRole="button"
         >
-          <View className="w-10 h-10 rounded-full bg-m3-surface-container-highest items-center justify-center mr-3 mt-0.5">
-            <MaterialIcons name="receipt-long" size={18} color={M3.onSurfaceVariant} />
-          </View>
-          <View className="flex-1 mr-3">
-            <View className="flex-row items-center gap-1.5">
-              <Text className="text-m3-on-surface text-base font-semibold" numberOfLines={1}>
+          {meal.photoUri ? (
+            <Image
+              source={{ uri: meal.photoUri }}
+              className="w-28 self-stretch bg-m3-surface-container-highest"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
+              <MaterialCommunityIcons name={foodIcon(meal.name)} size={20} color={M3.onSurfaceVariant} />
+            </View>
+          )}
+          <View className={`flex-1 min-w-0 ${meal.photoUri ? 'px-4 py-5' : 'mr-4'}`}>
+            <View className="flex-row items-start gap-1.5">
+              <Text className="flex-1 shrink text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>
                 {meal.name}
               </Text>
-              <Animated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-                <MaterialIcons name="expand-more" size={18} color={M3.onSurfaceVariant} />
-              </Animated.View>
+              <View className="shrink-0 mt-0.5">
+                <Chevron open={expanded} />
+              </View>
             </View>
             <Text className="text-m3-on-surface-variant text-xs mt-0.5">
               {meal.components.length} {meal.components.length === 1 ? 'item' : 'items'}
@@ -212,8 +235,8 @@ function MealRow({
               <MacroPills protein={totalP} carbs={totalC} fat={totalF} />
             </View>
           </View>
-          <View className="items-end pt-0.5">
-            <Text className="text-m3-on-surface text-base font-bold tabular-nums">
+          <View className={`w-[88px] shrink-0 items-end ${meal.photoUri ? 'pt-5 pr-4' : 'pt-0.5'}`}>
+            <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
               {Math.round(totalCalories)}
               <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
             </Text>
@@ -226,15 +249,21 @@ function MealRow({
           key={comp.id}
           entering={reducedMotion ? undefined : FadeInDown.duration(250).delay(i * 40)}
           exiting={reducedMotion ? undefined : FadeOut.duration(180)}
-          layout={reducedMotion ? undefined : Layout.springify()}
+          layout={reducedMotion ? undefined : LinearTransition.springify()}
         >
-          <View className="pl-12 bg-m3-surface-container-low/50">
-          <View className="flex-row items-start px-4 py-2.5 border-b border-m3-outline-variant/15">
-            <Text className="text-m3-on-surface text-sm flex-1 mr-3" numberOfLines={1}>
+          <View className="pl-14 bg-m3-surface-container-low/50">
+          <View className="flex-row items-start px-4 py-3.5 border-b border-m3-outline-variant/15">
+            <MaterialCommunityIcons
+              name={foodIcon(comp.name)}
+              size={16}
+              color={M3.onSurfaceVariant}
+              style={{ marginTop: 2, marginRight: 10 }}
+            />
+            <Text className="text-m3-on-surface text-sm font-medium flex-1 mr-3" numberOfLines={1}>
               {comp.name}
             </Text>
             <View className="items-end">
-              <Text className="text-m3-on-surface text-sm font-semibold tabular-nums">
+              <Text className="text-m3-on-surface text-base font-semibold tabular-nums">
                 {Math.round(comp.calories)}
                 <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
               </Text>
@@ -262,7 +291,6 @@ export interface JournalEntryKind {
 
 interface JournalSectionProps {
   label: string;
-  mealType: MealType;
   entries: JournalEntryKind[];
   totalCalories: number;
   totalProtein: number;
@@ -272,12 +300,10 @@ interface JournalSectionProps {
   onEditMeal: (mealId: number) => void;
   onDeleteFood: (food: FoodLog) => void;
   onDeleteMeal: (mealId: number) => void;
-  onAddToMeal?: (meal: MealType) => void;
 }
 
 export default function JournalSection({
   label,
-  mealType,
   entries,
   totalCalories,
   totalProtein,
@@ -287,93 +313,61 @@ export default function JournalSection({
   onEditMeal,
   onDeleteFood,
   onDeleteMeal,
-  onAddToMeal,
 }: JournalSectionProps) {
   const hasEntries = entries.length > 0;
   const [collapsed, setCollapsed] = useState(!hasEntries);
   const prevHasEntriesRef = useRef(hasEntries);
-  const rotation = useRef(new Animated.Value(hasEntries ? 1 : 0)).current;
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!prevHasEntriesRef.current && hasEntries) {
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
       setCollapsed(false);
     }
     prevHasEntriesRef.current = hasEntries;
   }, [hasEntries]);
 
-  const toggleSection = () => {
-    Animated.timing(rotation, {
-      toValue: collapsed ? 1 : 0,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-    setCollapsed(!collapsed);
-  };
-
   return (
     <View className="mb-3">
       <Pressable
-        onPress={toggleSection}
-        className="flex-row items-center justify-between px-4 pt-6 pb-2 active:opacity-60 min-h-[48]"
+        onPress={() => setCollapsed((v) => !v)}
+        disabled={!hasEntries}
+        className="flex-row items-center justify-between mx-4 py-4 active:opacity-60 min-h-[72]"
         accessibilityRole="button"
-        accessibilityLabel={`${label} section, ${collapsed ? 'collapsed' : 'expanded'}`}
+        accessibilityState={{ disabled: !hasEntries, expanded: hasEntries ? !collapsed : undefined }}
+        accessibilityLabel={hasEntries
+          ? `${label} section, ${collapsed ? 'collapsed' : 'expanded'}`
+          : `${label} section, empty`}
       >
         <View className="flex-row items-center gap-2 flex-1 min-w-0 mr-3">
           <Text className="text-m3-on-surface text-base font-bold shrink" numberOfLines={1}>{label}</Text>
-          {hasEntries ? (
-            <Animated.View style={{ transform: [{ rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
-              <MaterialIcons name="expand-more" size={18} color={M3.onSurfaceVariant} />
-            </Animated.View>
-          ) : onAddToMeal ? (
-            <Pressable
-              onPress={() => onAddToMeal(mealType)}
-              className="w-6 h-6 rounded-full bg-m3-surface-container-high items-center justify-center active:opacity-70"
-              accessibilityRole="button"
-              accessibilityLabel={`Add to ${label.toLowerCase()}`}
-              hitSlop={8}
-            >
-              <MaterialIcons name="add" size={16} color={M3.onSurface} />
-            </Pressable>
-          ) : null}
+          <View className={hasEntries ? '' : 'opacity-30'}>
+            <Chevron open={!collapsed} />
+          </View>
         </View>
-        {hasEntries && (
-          <View className="flex-row items-baseline gap-3 shrink-0">
-            <Text className="text-m3-on-surface-variant text-xs font-semibold num-tabular">
+        <View className="min-w-[150px] min-h-[38px] items-end justify-center shrink-0">
+          {hasEntries && (
+            <>
+            <Text className="text-m3-on-surface-variant text-xs font-semibold tabular-nums">
               {kcalLabel(totalCalories)}
             </Text>
-            <View className="flex-row gap-2">
-              <Text className="text-m3-on-surface-variant text-[11px] num-tabular">
-                <Text className="font-semibold" style={{ color: M3.protein }}>P </Text>
-                {Math.round(totalProtein)}g
-              </Text>
-              <Text className="text-m3-on-surface-variant text-[11px] num-tabular">
-                <Text className="font-semibold" style={{ color: M3.carbs }}>C </Text>
-                {Math.round(totalCarbs)}g
-              </Text>
-              <Text className="text-m3-on-surface-variant text-[11px] num-tabular">
-                <Text className="font-semibold" style={{ color: M3.fat }}>F </Text>
-                {Math.round(totalFat)}g
-              </Text>
+            <View className="mt-1">
+              <MacroPills protein={totalProtein} carbs={totalCarbs} fat={totalFat} />
             </View>
-          </View>
-        )}
+            </>
+          )}
+        </View>
       </Pressable>
 
-      {!collapsed && (
+      <View className="mx-4 h-px bg-m3-outline-variant/40" />
+
+      {hasEntries && !collapsed && (
         <Reanimated.View
           entering={reducedMotion ? undefined : FadeIn.duration(250)}
           exiting={reducedMotion ? undefined : FadeOut.duration(200)}
-          layout={reducedMotion ? undefined : Layout.springify()}
-          className="mt-1"
+          layout={reducedMotion ? undefined : LinearTransition.springify()}
+          className="mt-2"
         >
-          {hasEntries ? (
-            entries.map((entry) => {
+          {entries.map((entry) => {
               if (entry.type === 'food' && entry.foodLog) {
                 return (
                   <FoodRow
@@ -395,14 +389,7 @@ export default function JournalSection({
                 );
               }
               return null;
-            })
-          ) : (
-            <View className="px-4 py-6 items-center">
-              <Text className="text-m3-on-surface-variant text-xs font-medium">
-                No {label.toLowerCase()} logged yet
-              </Text>
-            </View>
-          )}
+            })}
         </Reanimated.View>
       )}
     </View>

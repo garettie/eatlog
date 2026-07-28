@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { scanFood, clarifyMeal, DescribeResult } from '../../services/foodScan';
 import { type FoodResult, type DataType } from '../../services/foodSearch';
 import { MealType, RecentMeal, getRecentMeals, getMealComponents } from '../../db/database';
+import { saveMealPhoto } from '../../utils/mealPhotos';
 
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
@@ -29,6 +30,7 @@ export interface FoodSheetState {
   stateKey: FoodSheetStateKey;
   describeResult: DescribeResult | null;
   selectedFood: FoodResult | null;
+  photoUri?: string | null;
   pendingAction?: 'camera' | 'gallery' | 'describe' | 'search' | null;
   editMealId?: number | null;
   fromBar?: boolean;
@@ -106,6 +108,8 @@ export default function FoodSheetContent({
         transitionTo('entry', { pushHistory: false });
         return;
       }
+      const photoUri = await saveMealPhoto(base64);
+      setState((s) => ({ ...s, photoUri }));
       transitionTo('review', { describeResult: scanResult });
     } catch (e) {
       console.error('[FoodSheet] camera flow failed', e);
@@ -138,6 +142,8 @@ export default function FoodSheetContent({
         transitionTo('entry', { pushHistory: false });
         return;
       }
+      const photoUri = await saveMealPhoto(base64);
+      setState((s) => ({ ...s, photoUri }));
       transitionTo('review', { describeResult: scanResult });
     } catch (e) {
       console.error('[FoodSheet] gallery flow failed', e);
@@ -153,9 +159,10 @@ export default function FoodSheetContent({
   const handleDescribeResult = useCallback(
     (result: DescribeResult) => {
       scanBase64Ref.current = null;
+      setState((s) => ({ ...s, photoUri: null }));
       transitionTo('review', { describeResult: result });
     },
-    [transitionTo],
+    [transitionTo, setState],
   );
 
   const handleDescribeCancel = useCallback(() => {
@@ -236,10 +243,11 @@ export default function FoodSheetContent({
         });
       if (!components.length) return;
       scanBase64Ref.current = null;
+      setState((s) => ({ ...s, photoUri: null }));
       const result: DescribeResult = { mealName: meal.meal_name, components };
       transitionTo('review', { describeResult: result });
     },
-    [transitionTo],
+    [transitionTo, setState],
   );
 
   const handleClarify = useCallback(
@@ -300,6 +308,7 @@ export default function FoodSheetContent({
       {state.stateKey === 'review' && (
         <ReviewState
           result={state.describeResult}
+          photoUri={state.photoUri ?? null}
           onLogComplete={handleMealLogged}
           onClarify={handleClarify}
           editMealId={state.editMealId}

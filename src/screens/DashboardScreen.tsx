@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   Easing,
   FadeIn,
@@ -30,6 +30,7 @@ import {
   WeightLog,
 } from '../db/database';
 import { todayISO } from '../utils/calculations';
+import { foodIcon } from '../utils/foodIcons';
 import { M3 } from '../theme/tokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -186,7 +187,8 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
 
   // ── Toggle animation ──
   const toggleValSV = useSharedValue(0);
-  const toggleContainerWidthSV = useSharedValue(202);
+  const [toggleTrackWidth, setToggleTrackWidth] = useState(0);
+  const toggleSegmentWidth = Math.max(0, (toggleTrackWidth - 4) / 2);
 
   // ── Scan button press animation ──
   const scanPressScale = useSharedValue(1);
@@ -205,24 +207,22 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
   }, [showRemaining, reduced]);
 
   const togglePillStyle = useAnimatedStyle(() => {
-    const halfW = toggleContainerWidthSV.value / 2;
-    const pillW = halfW - 2;
     return {
-      transform: [{ translateX: toggleValSV.value * pillW }],
-      width: pillW,
-      top: 2,
-      bottom: 2,
-      left: 0,
+      transform: [{ translateX: toggleValSV.value * toggleSegmentWidth }],
     };
-  });
+  }, [toggleSegmentWidth]);
 
   const consumedTextStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(toggleValSV.value, [0, 1], [M3.onPrimary, M3.onSurfaceVariant]),
-  }));
+    color: toggleTrackWidth > 0
+      ? interpolateColor(toggleValSV.value, [0, 1], [M3.onPrimary, M3.onSurfaceVariant])
+      : M3.onSurfaceVariant,
+  }), [toggleTrackWidth]);
 
   const remainingTextStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(toggleValSV.value, [0, 1], [M3.onSurfaceVariant, M3.onPrimary]),
-  }));
+    color: toggleTrackWidth > 0
+      ? interpolateColor(toggleValSV.value, [0, 1], [M3.onSurfaceVariant, M3.onPrimary])
+      : M3.onSurfaceVariant,
+  }), [toggleTrackWidth]);
 
   // ── Data loading ──
 
@@ -281,7 +281,7 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
     return (
       <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
         <View className="flex-1 items-center justify-center px-8 gap-4">
-          <MaterialIcons name="cloud-off" size={48} color={M3.onSurfaceVariant} />
+          <MaterialIcons name="error-outline" size={48} color={M3.onSurfaceVariant} />
           <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
             Couldn't load your dashboard. Check your data and try again.
           </Text>
@@ -323,7 +323,7 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
 
   const initials = profile.display_name
     ? profile.display_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-    : 'JD';
+    : null;
 
   const goalLabels = {
     cut: 'Weight Loss',
@@ -397,7 +397,11 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
           <View className="flex-row justify-between items-center">
             <View className="flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-full bg-white items-center justify-center">
-                <Text className="text-m3-on-primary font-bold text-sm">{initials}</Text>
+                {initials ? (
+                  <Text className="text-m3-on-primary font-bold text-sm">{initials}</Text>
+                ) : (
+                  <MaterialIcons name="person" size={20} color={M3.onPrimary} />
+                )}
               </View>
               <View>
                 <Text className="text-m3-on-surface font-bold text-base">{formattedDate}</Text>
@@ -467,12 +471,19 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
             {/* Toggle pill */}
             <View
               className="flex-row w-full bg-m3-surface-container-high rounded-full p-0.5 border border-m3-outline-variant/30 relative overflow-hidden"
-              onLayout={(e) => { toggleContainerWidthSV.value = e.nativeEvent.layout.width; }}
+              onLayout={(e) => setToggleTrackWidth(e.nativeEvent.layout.width)}
             >
-              <Animated.View
-                style={togglePillStyle}
-                className="absolute bg-white rounded-full"
-              />
+              {toggleTrackWidth > 0 && (
+                <Animated.View
+                  style={[togglePillStyle, {
+                    width: toggleSegmentWidth,
+                    top: 2,
+                    bottom: 2,
+                    left: 2,
+                  }]}
+                  className="absolute bg-white rounded-full"
+                />
+              )}
               <Pressable
                 onPress={() => setShowRemaining(false)}
                 className="flex-1 py-3.5 items-center z-10 active:opacity-60"
@@ -527,7 +538,7 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
               <Card className="p-4 flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3 flex-1">
                   <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
-                    <MaterialIcons name="restaurant" size={18} color={M3.onSurfaceVariant} />
+                    <MaterialCommunityIcons name={foodIcon(recentFood.name)} size={18} color={M3.onSurfaceVariant} />
                   </View>
                   <View className="flex-1">
                     <Text className="text-m3-on-surface font-bold text-sm" numberOfLines={1}>

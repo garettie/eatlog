@@ -4,6 +4,7 @@ import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-shee
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { describeMeal, DescribeResult } from '../../services/foodScan';
+import { M3 } from '../../theme/tokens';
 import PrimaryButton from '../PrimaryButton';
 
 interface DescribeInputStateProps {
@@ -55,7 +56,7 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
         value={text}
         onChangeText={setText}
         placeholder="e.g. chicken rice bowl with broccoli, about 500g"
-        placeholderTextColor="#c4c6d0"
+        placeholderTextColor={M3.placeholder}
         multiline
         textAlignVertical="top"
         className="bg-m3-surface-container-high text-m3-on-surface text-sm rounded-xl px-4 py-3 border border-m3-outline-variant/50 min-h-[80px]"

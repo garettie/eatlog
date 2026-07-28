@@ -44,7 +44,6 @@ interface EditState {
 
 interface DiaryScreenProps {
   onOpenEntry: () => void;
-  onOpenEntryForMeal?: (meal: MealType) => void;
   onCamera: () => void;
   onGallery: () => void;
   onDescribe: () => void;
@@ -54,7 +53,7 @@ interface DiaryScreenProps {
   showToast: (message: string, undo?: () => void) => void;
 }
 
-export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera, onGallery, onDescribe, onSearch, onEditMeal, logVersion, showToast }: DiaryScreenProps) {
+export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescribe, onSearch, onEditMeal, logVersion, showToast }: DiaryScreenProps) {
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
   const [loading, setLoading] = useState(true);
@@ -73,11 +72,14 @@ export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera,
       const startISO = isoFromDate(monthDates[0]);
       const endISO = isoFromDate(monthDates[monthDates.length - 1]);
 
-      const [logs, macros, monthTargets] = await Promise.all([
-        getFoodLogsByDate(date),
-        getMacrosByDateRange(startISO, endISO),
-        Promise.all(monthDates.map((d) => getDailyTargetForDate(isoFromDate(d)))),
-      ]);
+      // Keep SQLite reads serialized on Android. A burst of concurrent
+      // prepareAsync calls can race NativeStatement handles on the bridge.
+      const logs = await getFoodLogsByDate(date);
+      const macros = await getMacrosByDateRange(startISO, endISO);
+      const monthTargets: (DailyTarget | null)[] = [];
+      for (const d of monthDates) {
+        monthTargets.push(await getDailyTargetForDate(isoFromDate(d)));
+      }
 
       const targetMap = new Map<string, DailyTarget>();
       monthDates.forEach((d, i) => {
@@ -190,6 +192,7 @@ export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera,
           mealGroup: {
             id: log.meal_id,
             name: mealRow?.name ?? 'Meal',
+            photoUri: mealRow?.photo_uri ?? null,
             components,
           },
         });
@@ -350,7 +353,8 @@ export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera,
 
   const insets = useSafeAreaInsets();
 
-  return (    <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
+  return (
+    <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
       {/* Day strip */}
       <WeekStrip
         days={dayCells}
@@ -391,7 +395,6 @@ export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera,
             <JournalSection
               key={section.meal}
               label={section.label}
-              mealType={section.meal}
               entries={section.entries}
               totalCalories={section.totalCalories}
               totalProtein={section.totalProtein}
@@ -401,7 +404,6 @@ export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera,
               onEditMeal={handleEditMeal}
               onDeleteFood={handleDeleteFood}
               onDeleteMeal={handleDeleteMeal}
-              onAddToMeal={onOpenEntryForMeal}
             />
           ))}
         </ScrollView>
@@ -475,15 +477,15 @@ export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera,
             </View>
 
             <View className="flex-row gap-3">
-              <View className="flex-1 bg-m3-surface-container-high rounded-xl py-2 px-3 items-center">
+              <View className="flex-1 bg-m3-surface-container-high rounded-2xl py-2 px-3 items-center">
                 <Text className="text-m3-protein text-xs font-semibold">Protein</Text>
                 <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{previewP}g</Text>
               </View>
-              <View className="flex-1 bg-m3-surface-container-high rounded-xl py-2 px-3 items-center">
+              <View className="flex-1 bg-m3-surface-container-high rounded-2xl py-2 px-3 items-center">
                 <Text className="text-m3-carbs text-xs font-semibold">Carbs</Text>
                 <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{previewC}g</Text>
               </View>
-              <View className="flex-1 bg-m3-surface-container-high rounded-xl py-2 px-3 items-center">
+              <View className="flex-1 bg-m3-surface-container-high rounded-2xl py-2 px-3 items-center">
                 <Text className="text-m3-fat text-xs font-semibold">Fat</Text>
                 <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{previewF}g</Text>
               </View>
@@ -502,7 +504,7 @@ export default function DiaryScreen({ onOpenEntry, onOpenEntryForMeal, onCamera,
                 className={`flex-1 py-3 rounded-full items-center ${edit.saving || edit.grams <= 0 ? 'bg-m3-surface-container-high opacity-50' : 'bg-white active:opacity-80'}`}
               >
                 <Text className={`font-semibold text-sm ${edit.saving || edit.grams <= 0 ? 'text-m3-on-surface-variant' : 'text-m3-on-primary'}`}>
-                  {edit.saving ? 'Saving...' : 'Save'}
+                  {edit.saving ? 'Saving…' : 'Save'}
                 </Text>
               </Pressable>
             </View>

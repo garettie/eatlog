@@ -83,7 +83,7 @@ export default function SegmentedControl<T extends string>({
             <Pressable
               key={opt.value}
               onPress={() => onChange(opt.value)}
-              className="flex-1 py-4 rounded-xl flex-row items-center justify-center gap-2"
+              className="flex-1 py-4 rounded-xl flex-row items-center justify-center gap-2 active:opacity-70"
             >
               {opt.icon && (
                 <MaterialIcons

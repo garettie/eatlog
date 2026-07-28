@@ -59,7 +59,11 @@ module.exports = {
   plugins: [
     plugin(({ addUtilities }) => {
       addUtilities({
-        '.num-tabular': { fontVariant: ['tabular-nums'] },
+        // Route weight classes to the bundled Inter files — otherwise Android
+        // synthesizes faux bold from Inter-Regular.
+        '.font-medium': { fontFamily: 'Inter-Medium' },
+        '.font-semibold': { fontFamily: 'Inter-SemiBold' },
+        '.font-bold': { fontFamily: 'Inter-Bold' },
       });
     }),
   ],

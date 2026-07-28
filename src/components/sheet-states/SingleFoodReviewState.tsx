@@ -199,7 +199,7 @@ export default function SingleFoodReviewState({
               </Text>
             </View>
             <View className="bg-m3-surface-container-high px-3 py-1 rounded-full">
-              <Text className="text-m3-on-surface num-tabular text-xs font-semibold">
+              <Text className="text-m3-on-surface tabular-nums text-xs font-semibold">
                 {food.caloriesPer100g != null
                   ? `${Math.round(food.caloriesPer100g)} kcal / 100g`
                   : '---'}
@@ -223,7 +223,7 @@ export default function SingleFoodReviewState({
 
           {macros && (
             <>
-              <Text className="text-m3-on-surface text-4xl font-bold num-tabular text-center">
+              <Text className="text-m3-on-surface text-4xl font-bold tabular-nums text-center">
                 {macros.calories}
                 <Text className="text-m3-on-surface-variant text-sm font-medium">
                   {' '}
@@ -232,7 +232,6 @@ export default function SingleFoodReviewState({
               </Text>
               <View className="w-full">
                 <MacroChipGroup
-                  calories={macros.calories}
                   protein={macros.protein}
                   carbs={macros.carbs}
                   fat={macros.fat}

@@ -48,13 +48,15 @@ function toEditable(food: FoodResult): EditableComponent {
 
 interface ReviewStateProps {
   result: DescribeResult | null;
+  /** Saved scan photo to persist on the new meal (null for describe/search flows). */
+  photoUri?: string | null;
   onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => void;
   onClarify: (name: string) => Promise<DescribeResult | null>;
   editMealId?: number | null;
   initialMeal?: MealType | null;
 }
 
-export default function ReviewState({ result, onLogComplete, onClarify, editMealId, initialMeal }: ReviewStateProps) {
+export default function ReviewState({ result, photoUri, onLogComplete, onClarify, editMealId, initialMeal }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
   const [components, setComponents] = useState<EditableComponent[]>(() =>
     (result?.components ?? []).map(toEditable),
@@ -258,6 +260,7 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
         name,
         log_date: logDate,
         meal_type: meal,
+        photo_uri: photoUri ?? null,
       });
       const logIds: number[] = [];
       for (const comp of components) {
@@ -356,7 +359,7 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
 
       <View className="px-5 pt-4 pb-6 items-center gap-2">
         <View className="items-center">
-          <Text className="text-m3-on-surface text-4xl font-bold num-tabular">
+          <Text className="text-m3-on-surface text-4xl font-bold tabular-nums">
             {totalMacros.calories}
             <Text className="text-m3-on-surface-variant text-sm font-medium"> kcal</Text>
           </Text>
@@ -364,7 +367,6 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
         </View>
         <View className="w-full">
           <MacroChipGroup
-            calories={totalMacros.calories}
             protein={totalMacros.protein}
             carbs={totalMacros.carbs}
             fat={totalMacros.fat}
@@ -511,7 +513,7 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
                         ) : null}
                       </View>
                     </View>
-                    <Text className="text-m3-on-surface font-semibold text-sm num-tabular mr-1">
+                    <Text className="text-m3-on-surface font-semibold text-sm tabular-nums mr-1">
                       {cal} kcal
                     </Text>
                   </Pressable>
