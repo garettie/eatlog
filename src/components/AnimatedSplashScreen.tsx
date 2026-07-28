@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { Animated, Easing } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import * as SplashScreen from 'expo-splash-screen';
+import { useReducedMotion } from 'react-native-reanimated';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => {
+  const reduced = useReducedMotion();
   const drawAnim = useRef(new Animated.Value(300)).current; // strokeDashoffset 300 -> 0
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -18,19 +20,29 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
       // Hide native static splash screen once component mounts
       await SplashScreen.hideAsync();
 
+      if (reduced) {
+        drawAnim.setValue(0);
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }).start(onAnimationFinish);
+        return;
+      }
+
       // Run stroke path drawing animation
       Animated.sequence([
         Animated.timing(drawAnim, {
           toValue: 0,
-          duration: 1600,
+          duration: 800,
           easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
-        Animated.delay(300),
+        Animated.delay(120),
         // Fade out overlay screen
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 400,
+          duration: 250,
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -39,12 +51,22 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
     }
 
     prepare();
-  }, []);
+  }, [reduced]);
 
   const continuousArrowPath = "M14 74 L38 50 L54 62 L82 26 L68 26 L82 26 L82 40";
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+    <Animated.View
+      style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundColor: '#111318',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 999,
+        opacity: fadeAnim,
+      }}
+    >
       <Svg width={140} height={140} viewBox="0 0 100 100" fill="none">
         {/* Scale Base */}
         <Path
@@ -83,13 +105,3 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
     </Animated.View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#111318',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-  },
-});

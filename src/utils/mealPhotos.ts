@@ -31,7 +31,10 @@ export async function saveMealPhoto(base64: string): Promise<string | null> {
  * Delete photo files no longer referenced by any meal row.
  * Runs at app init — deletes are never eager, so undo-restore stays safe.
  */
-export async function cleanupOrphanMealPhotos(activeUris: string[]): Promise<void> {
+export async function cleanupOrphanMealPhotos(
+  activeUris: string[],
+  createdBefore = Number.POSITIVE_INFINITY,
+): Promise<void> {
   try {
     const info = await FileSystem.getInfoAsync(PHOTO_DIR);
     if (!info.exists) return;
@@ -39,7 +42,11 @@ export async function cleanupOrphanMealPhotos(activeUris: string[]): Promise<voi
     const files = await FileSystem.readDirectoryAsync(PHOTO_DIR);
     await Promise.all(
       files
-        .filter((f) => !active.has(PHOTO_DIR + f))
+        .filter((f) => {
+          const createdAt = Number(f.split('-', 1)[0]);
+          return !active.has(PHOTO_DIR + f)
+            && (!Number.isFinite(createdAt) || createdAt < createdBefore);
+        })
         .map((f) =>
           FileSystem.deleteAsync(PHOTO_DIR + f, { idempotent: true }).catch(() => {})
         )

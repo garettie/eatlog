@@ -755,7 +755,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                 <>
                   <StepHeader
                     title="Activity Level"
-                    subtitle="A starting estimate — the adaptive engine corrects it from your real data."
+                    subtitle="A starting estimate based on how much you move each day."
                   />
 
                   <View className="gap-4">

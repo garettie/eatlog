@@ -33,7 +33,7 @@ function dataTypeLabel(dt: DataType): string {
 
 interface SingleFoodReviewStateProps {
   food: FoodResult | null;
-  onLogComplete: (info: { logId: number; meal: MealType }) => void;
+  onLogComplete: (info: { logId: number; meal: MealType; name: string }) => void;
   initialMeal?: MealType | null;
 }
 
@@ -64,6 +64,7 @@ export default function SingleFoodReviewState({
   const [gramsInput, setGramsInput] = useState('');
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
 
   const reducedMotion = useReducedMotion();
 
@@ -142,6 +143,7 @@ export default function SingleFoodReviewState({
 
   const handleLog = useCallback(async () => {
     if (!food || !macros || gramsNum <= 0) return;
+    setLogError(null);
     setLogging(true);
     try {
       const logId = await insertFoodLog({
@@ -165,7 +167,10 @@ export default function SingleFoodReviewState({
         carbs_g: macros.carbs,
         fat_g: macros.fat,
       });
-      onLogComplete({ logId, meal });
+      onLogComplete({ logId, meal, name: food.name });
+    } catch (e) {
+      console.error('[FoodReview] save failed', e);
+      setLogError("Couldn't save this entry. Try again.");
     } finally {
       setLogging(false);
     }
@@ -254,6 +259,11 @@ export default function SingleFoodReviewState({
           loading={logging}
           disabled={!macros || gramsNum <= 0 || !food}
         />
+        {logError && (
+          <Text className="text-m3-error text-xs font-medium" accessibilityLiveRegion="assertive">
+            {logError}
+          </Text>
+        )}
       </View>
     </View>
   );

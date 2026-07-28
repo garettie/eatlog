@@ -74,7 +74,7 @@ export default function PortionStepper({
               onPress={() => onModeChange('servings')}
               accessibilityRole="button"
               accessibilityState={{ selected: unitMode === 'servings' }}
-              className={`flex-1 py-2.5 rounded-full items-center active:opacity-70 ${unitMode === 'servings' ? 'bg-m3-surface-container-highest' : ''}`}
+              className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${unitMode === 'servings' ? 'bg-m3-surface-container-highest' : ''}`}
             >
               <Text
                 className={`text-xs font-semibold ${unitMode === 'servings' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
@@ -87,7 +87,7 @@ export default function PortionStepper({
             onPress={() => onModeChange('grams')}
             accessibilityRole="button"
             accessibilityState={{ selected: unitMode === 'grams' }}
-            className={`flex-1 py-2.5 rounded-full items-center active:opacity-70 ${unitMode === 'grams' ? 'bg-m3-surface-container-highest' : ''}`}
+            className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${unitMode === 'grams' ? 'bg-m3-surface-container-highest' : ''}`}
           >
             <Text
               className={`text-xs font-semibold ${unitMode === 'grams' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
@@ -100,7 +100,7 @@ export default function PortionStepper({
               onPress={() => onModeChange('ml')}
               accessibilityRole="button"
               accessibilityState={{ selected: unitMode === 'ml' }}
-              className={`flex-1 py-2.5 rounded-full items-center active:opacity-70 ${unitMode === 'ml' ? 'bg-m3-surface-container-highest' : ''}`}
+              className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${unitMode === 'ml' ? 'bg-m3-surface-container-highest' : ''}`}
             >
               <Text
                 className={`text-xs font-semibold ${unitMode === 'ml' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
@@ -120,13 +120,14 @@ export default function PortionStepper({
                 onPress={() => onServingsDelta(-0.5)}
                 accessibilityRole="button"
                 accessibilityLabel="Decrease servings"
-                className="w-11 h-11 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
+                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
               >
                 <MaterialIcons name="remove" size={20} color="#e2e2e9" />
               </Pressable>
               <BottomSheetTextInput
                 value={servingsText}
                 onChangeText={handleServingsChange}
+                accessibilityLabel="Servings"
                 keyboardType="numeric"
                 returnKeyType="done"
                 className="w-16 text-center bg-transparent text-m3-on-surface text-2xl font-bold tabular-nums py-1"
@@ -135,7 +136,7 @@ export default function PortionStepper({
                 onPress={() => onServingsDelta(0.5)}
                 accessibilityRole="button"
                 accessibilityLabel="Increase servings"
-                className="w-11 h-11 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
+                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
               >
                 <MaterialIcons name="add" size={20} color="#e2e2e9" />
               </Pressable>
@@ -151,6 +152,7 @@ export default function PortionStepper({
             <BottomSheetTextInput
               value={gramsText}
               onChangeText={handleGramsChange}
+              accessibilityLabel={unitMode === 'ml' ? 'Amount in milliliters' : 'Amount in grams'}
               keyboardType="numeric"
               returnKeyType="done"
               className="w-28 text-center bg-m3-surface-container-high rounded-xl py-3 px-3 text-m3-on-surface text-lg font-bold tabular-nums border border-m3-outline-variant/50"

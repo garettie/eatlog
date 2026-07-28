@@ -42,6 +42,12 @@ interface EditState {
   saving: boolean;
 }
 
+function portionRatio(food: FoodLog, grams: number): number {
+  if (food.grams_logged && food.grams_logged > 0) return grams / food.grams_logged;
+  if (food.calories_per_100g != null) return grams / 100;
+  return 1;
+}
+
 interface DiaryScreenProps {
   onOpenEntry: () => void;
   onCamera: () => void;
@@ -57,6 +63,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
   const [dayTargetMap, setDayTargetMap] = useState<Map<string, DailyTarget>>(new Map());
   const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
@@ -64,8 +71,10 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const [edit, setEdit] = useState<EditState>({ visible: false, food: null, grams: 0, saving: false });
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
+  const loadRequestRef = useRef(0);
 
   const loadData = useCallback(async (date: string, anchor: Date, showLoading = false) => {
+    const requestId = ++loadRequestRef.current;
     if (showLoading) setLoading(true);
     try {
       const monthDates = getMonthDates(anchor);
@@ -92,14 +101,17 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
       const mealMap = new Map<number, MealRow>();
       meals.forEach((m) => mealMap.set(m.id, m));
 
+      if (requestId !== loadRequestRef.current) return;
       setFoodLogs(logs);
       setMonthMacros(macros);
       setDayTargetMap(targetMap);
       setMealRows(mealMap);
+      setLoadError(false);
     } catch (e) {
       console.error('[Diary] loadData failed', e);
+      if (requestId === loadRequestRef.current) setLoadError(true);
     } finally {
-      if (showLoading) setLoading(false);
+      if (requestId === loadRequestRef.current) setLoading(false);
     }
   }, []);
 
@@ -145,6 +157,8 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
 
   const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
   const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
+  const currentMonth = getMonthStart(new Date());
+  const canGoNext = monthAnchor.getTime() < currentMonth.getTime();
 
   const selectDate = useCallback((iso: string) => {
     setSelectedDate(iso);
@@ -316,11 +330,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
 
     setEdit((e) => ({ ...e, saving: true }));
     try {
-      const ratio = edit.food.grams_logged && edit.food.grams_logged > 0
-        ? edit.grams / edit.food.grams_logged
-        : edit.food.calories_per_100g
-          ? edit.grams / 100
-          : 1;
+      const ratio = portionRatio(edit.food, edit.grams);
 
       const newCalories = Math.round(edit.food.calories * ratio);
       const newProtein = Math.round(edit.food.protein_g * ratio * 10) / 10;
@@ -335,17 +345,15 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
         fat_g: newFat,
       });
       setRefreshCount((r) => r + 1);
+      setEdit({ visible: false, food: null, grams: 0, saving: false });
     } catch (e) {
       console.error('[Diary] updateFoodLog failed', e);
       Alert.alert('Save failed', 'Your changes could not be saved. Please try again.');
-    } finally {
-      setEdit({ visible: false, food: null, grams: 0, saving: false });
+      setEdit((current) => ({ ...current, saving: false }));
     }
   }, [edit]);
 
-  const gramsRatio = edit.food && edit.food.grams_logged && edit.food.grams_logged > 0
-    ? edit.grams / edit.food.grams_logged
-    : 1;
+  const gramsRatio = edit.food ? portionRatio(edit.food, edit.grams) : 1;
   const previewCals = edit.food ? Math.round(edit.food.calories * gramsRatio) : 0;
   const previewP = edit.food ? Math.round(edit.food.protein_g * gramsRatio * 10) / 10 : 0;
   const previewC = edit.food ? Math.round(edit.food.carbs_g * gramsRatio * 10) / 10 : 0;
@@ -362,6 +370,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
         onSelectDate={selectDate}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
+        canGoNext={canGoNext}
         monthLabel={formatMonthLabel(monthAnchor)}
       />
 
@@ -371,6 +380,20 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={M3.onSurfaceVariant} />
+        </View>
+      ) : loadError ? (
+        <View className="flex-1 items-center justify-center px-8 gap-4">
+          <MaterialIcons name="error-outline" size={40} color={M3.onSurfaceVariant} />
+          <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
+            Couldn't load this day. Your diary data is still safe.
+          </Text>
+          <Pressable
+            onPress={() => loadData(selectedDate, monthAnchor, true)}
+            accessibilityRole="button"
+            className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
+          >
+            <Text className="text-m3-on-primary text-sm font-semibold">Try again</Text>
+          </Pressable>
         </View>
       ) : (
         <ScrollView
@@ -389,6 +412,25 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
               {formatDayHeader(selectedDate)}
             </Text>
           </View>
+
+          {foodLogs.length === 0 && (
+            <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">
+              <View className="w-11 h-11 rounded-full bg-m3-surface-container-high items-center justify-center">
+                <MaterialIcons name="restaurant" size={20} color={M3.onSurfaceVariant} />
+              </View>
+              <View className="items-center gap-1 px-6">
+                <Text className="text-m3-on-surface text-sm font-semibold">Nothing logged yet</Text>
+                <Text className="text-m3-on-surface-variant text-xs text-center">Add a meal when you're ready.</Text>
+              </View>
+              <Pressable
+                onPress={onOpenEntry}
+                accessibilityRole="button"
+                className="min-h-[48px] px-5 rounded-full bg-white items-center justify-center active:opacity-80"
+              >
+                <Text className="text-m3-on-primary text-sm font-semibold">Add entry</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Journal sections */}
           {journalSections.map((section) => (
@@ -450,7 +492,9 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
 
             <View className="flex-row items-center justify-center gap-4 bg-m3-surface-container-high rounded-2xl py-4">
               <Pressable
-                onPress={() => setEdit((e) => ({ ...e, grams: Math.max(1, e.grams - 10) }))}
+              onPress={() => setEdit((e) => ({ ...e, grams: Math.max(1, e.grams - 10) }))}
+              accessibilityRole="button"
+              accessibilityLabel="Decrease portion by 10 grams"
                 className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
               >
                 <MaterialIcons name="remove" size={22} color="#e2e2e9" />
@@ -464,12 +508,15 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
                     else if (t === '') setEdit((e) => ({ ...e, grams: 0 }));
                   }}
                   keyboardType="numeric"
+                  accessibilityLabel="Portion in grams"
                   className="text-white text-3xl font-bold text-center w-24 h-12"
                 />
                 <Text className="text-m3-on-surface-variant text-xs">grams</Text>
               </View>
               <Pressable
                 onPress={() => setEdit((e) => ({ ...e, grams: e.grams + 10 }))}
+                accessibilityRole="button"
+                accessibilityLabel="Increase portion by 10 grams"
                 className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
               >
                 <MaterialIcons name="add" size={22} color="#e2e2e9" />
@@ -494,6 +541,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
             <View className="flex-row gap-3">
               <Pressable
                 onPress={() => setEdit({ visible: false, food: null, grams: 0, saving: false })}
+                accessibilityRole="button"
                 className="flex-1 py-3 rounded-full items-center border border-m3-outline-variant/50 active:opacity-70"
               >
                 <Text className="text-m3-on-surface-variant font-semibold text-sm">Cancel</Text>
@@ -501,6 +549,8 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
               <Pressable
                 onPress={handleSaveEdit}
                 disabled={edit.saving || edit.grams <= 0}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: edit.saving || edit.grams <= 0, busy: edit.saving }}
                 className={`flex-1 py-3 rounded-full items-center ${edit.saving || edit.grams <= 0 ? 'bg-m3-surface-container-high opacity-50' : 'bg-white active:opacity-80'}`}
               >
                 <Text className={`font-semibold text-sm ${edit.saving || edit.grams <= 0 ? 'text-m3-on-surface-variant' : 'text-m3-on-primary'}`}>

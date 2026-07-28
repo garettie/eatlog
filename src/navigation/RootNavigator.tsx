@@ -5,7 +5,7 @@ import { View } from 'react-native';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import SetupCompleteScreen from '../screens/SetupCompleteScreen';
 import TabNavigator from './TabNavigator';
-import { getProfile, getLatestDailyTarget } from '../db/database';
+import { getProfile } from '../db/database';
 
 // ─── Route param types ────────────────────────────────────────────────────
 
@@ -33,13 +33,17 @@ export default function RootNavigator() {
 
   useEffect(() => {
     async function checkOnboarding() {
-      const profile = await getProfile();
-      if (!profile) {
+      try {
+        const profile = await getProfile();
+        if (!profile) {
+          setInitialRoute('Onboarding');
+          return;
+        }
+        setInitialRoute('Tabs');
+      } catch (e) {
+        console.error('[Navigation] onboarding check failed', e);
         setInitialRoute('Onboarding');
-        return;
       }
-      // Profile exists — go straight to the tab dashboard
-      setInitialRoute('Tabs');
     }
     checkOnboarding();
   }, []);

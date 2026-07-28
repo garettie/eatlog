@@ -10,7 +10,7 @@ import MealSelector from '../MealSelector';
 import PrimaryButton from '../PrimaryButton';
 
 interface ManualInputStateProps {
-  onLogComplete: (info: { logId: number; meal: MealType }) => void;
+  onLogComplete: (info: { logId: number; meal: MealType; name: string }) => void;
   initialMeal?: MealType | null;
 }
 
@@ -22,10 +22,13 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
   const [fat, setFat] = useState('');
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
   const discardGuard = useDiscardGuardContext();
 
-  const hasAnyMacro = [calories, protein, carbs, fat].some((v) => parseFloat(v) > 0);
-  const canLog = name.trim().length > 0 && hasAnyMacro && !logging;
+  const values = [calories, protein, carbs, fat];
+  const hasAnyMacro = values.some((v) => parseFloat(v) > 0);
+  const hasInvalidValue = values.some((v) => v.trim() !== '' && (!Number.isFinite(Number(v)) || Number(v) < 0));
+  const canLog = name.trim().length > 0 && hasAnyMacro && !hasInvalidValue && !logging;
 
   useEffect(() => {
     const unregister = discardGuard.register(
@@ -41,8 +44,9 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
     const pro = parseFloat(protein) || 0;
     const ca = parseFloat(carbs) || 0;
     const fa = parseFloat(fat) || 0;
-    if (!cal && !pro && !ca && !fa) return;
+    if (!cal && !pro && !ca && !fa || hasInvalidValue) return;
 
+    setLogError(null);
     setLogging(true);
     try {
       const logId = await insertFoodLog({
@@ -51,10 +55,14 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
         calories_per_100g: null, protein_g_per_100g: null, carbs_g_per_100g: null, fat_g_per_100g: null,
         calories: cal, protein_g: pro, carbs_g: ca, fat_g: fa,
       });
+      const loggedName = name.trim();
       setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat('');
-      onLogComplete({ logId, meal });
+      onLogComplete({ logId, meal, name: loggedName });
+    } catch (e) {
+      console.error('[ManualEntry] save failed', e);
+      setLogError("Couldn't save this entry. Try again.");
     } finally { setLogging(false); }
-  }, [name, calories, protein, carbs, fat, meal, onLogComplete]);
+  }, [name, calories, protein, carbs, fat, meal, onLogComplete, hasInvalidValue]);
 
   return (
     <BottomSheetScrollView className="flex-1 px-5" contentContainerClassName="pb-6 gap-4" keyboardShouldPersistTaps="handled">
@@ -65,6 +73,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
         <BottomSheetTextInput
           value={name}
           onChangeText={setName}
+          accessibilityLabel="Food name"
           placeholder="e.g. Homemade Chicken Soup"
           placeholderTextColor={M3.placeholder}
           className="bg-m3-surface-container-high text-m3-on-surface font-medium text-sm rounded-xl px-4 py-2.5 border border-m3-outline-variant/50"
@@ -76,6 +85,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
         <BottomSheetTextInput
           value={calories}
           onChangeText={setCalories}
+          accessibilityLabel="Calories"
           placeholder="0"
           placeholderTextColor={M3.placeholder}
           keyboardType="numeric"
@@ -89,6 +99,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
           <BottomSheetTextInput
             value={protein}
             onChangeText={setProtein}
+            accessibilityLabel="Protein grams"
             placeholder="0"
             placeholderTextColor={M3.placeholder}
             keyboardType="numeric"
@@ -100,6 +111,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
           <BottomSheetTextInput
             value={carbs}
             onChangeText={setCarbs}
+            accessibilityLabel="Carbohydrate grams"
             placeholder="0"
             placeholderTextColor={M3.placeholder}
             keyboardType="numeric"
@@ -111,6 +123,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
           <BottomSheetTextInput
             value={fat}
             onChangeText={setFat}
+            accessibilityLabel="Fat grams"
             placeholder="0"
             placeholderTextColor={M3.placeholder}
             keyboardType="numeric"
@@ -124,6 +137,11 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
       <View className="mt-2">
         <PrimaryButton title="Log Entry" onPress={handleLog} loading={logging} disabled={!canLog} />
       </View>
+      {(hasInvalidValue || logError) && (
+        <Text className="text-m3-error text-xs font-medium" accessibilityLiveRegion="assertive">
+          {logError ?? 'Nutrition values cannot be negative.'}
+        </Text>
+      )}
     </BottomSheetScrollView>
   );
 }

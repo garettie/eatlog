@@ -1,7 +1,7 @@
 import './global.css';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { InteractionManager, View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -32,15 +32,18 @@ export default function App() {
     async function prepare() {
       try {
         await initDatabase();
-        // Sweep meal photos orphaned by deleted meals (never eager deletes,
-        // so undo-restore within a session stays safe).
-        const uris = await getActiveMealPhotoUris();
-        await cleanupOrphanMealPhotos(uris);
+        setAppReady(true);
+        const cleanupStartedAt = Date.now();
+        InteractionManager.runAfterInteractions(() => {
+          void getActiveMealPhotoUris()
+            .then((uris) => cleanupOrphanMealPhotos(uris, cleanupStartedAt))
+            .catch((e) => console.error('Meal photo cleanup error:', e));
+        });
       } catch (e) {
         console.error('DB init error:', e);
         setDbError(String(e));
-      } finally {
         setAppReady(true);
+        await SplashScreen.hideAsync();
       }
     }
     prepare();
@@ -54,7 +57,7 @@ export default function App() {
     return (
       <View style={{ flex: 1, backgroundColor: '#111318', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text style={{ color: '#ffb4ab', fontSize: 14, textAlign: 'center' }}>
-          Database error: {dbError}
+          Marco couldn't open its local data. Restart the app and try again.
         </Text>
       </View>
     );

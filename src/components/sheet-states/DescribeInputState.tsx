@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, Text, View } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,15 +17,20 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<typeof BottomSheetTextInput>(null);
+  const requestRef = useRef(0);
+
+  useEffect(() => () => { requestRef.current++; }, []);
 
   const handleEstimate = async () => {
     const trimmed = text.trim();
     if (!trimmed) return;
     Keyboard.dismiss();
+    const requestId = ++requestRef.current;
     setError(null);
     setLoading(true);
     try {
       const result = await describeMeal(trimmed);
+      if (requestId !== requestRef.current) return;
       if (result) {
         setText('');
         onResult(result);
@@ -33,9 +38,10 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
         setError("Couldn't estimate this meal. Try a more specific description or enter manually.");
       }
     } catch {
+      if (requestId !== requestRef.current) return;
       setError('Something went wrong. Check your connection and try again.');
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
   };
 
@@ -47,7 +53,12 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
     >
       <View className="flex-row items-center justify-between">
         <Text className="text-m3-on-surface font-bold text-base">Describe your meal</Text>
-        <Pressable onPress={_onCancel} accessibilityRole="button" accessibilityLabel="Cancel" className="p-1">
+        <Pressable
+          onPress={() => { requestRef.current++; _onCancel(); }}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
+          className="w-12 h-12 items-center justify-center -mr-3 -my-3"
+        >
           <MaterialIcons name="close" size={20} color="#c4c6d0" />
         </Pressable>
       </View>
@@ -55,6 +66,7 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
         ref={inputRef as any}
         value={text}
         onChangeText={setText}
+        accessibilityLabel="Meal description"
         placeholder="e.g. chicken rice bowl with broccoli, about 500g"
         placeholderTextColor={M3.placeholder}
         multiline
@@ -63,9 +75,9 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel }: De
       />
       <PrimaryButton title="Estimate" onPress={handleEstimate} loading={loading} disabled={!text.trim()} />
       {error && (
-        <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-2">
-          <Text className="text-m3-on-surface text-xs font-medium">{error}</Text>
-          <Pressable onPress={handleEstimate} className="bg-m3-surface-container-high rounded-full px-4 py-2 self-start">
+        <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-2" accessibilityLiveRegion="assertive">
+          <Text className="text-m3-on-error-container text-xs font-medium">{error}</Text>
+          <Pressable onPress={handleEstimate} accessibilityRole="button" className="min-h-[48px] bg-m3-surface-container-high rounded-full px-4 self-start justify-center">
             <Text className="text-m3-on-surface text-xs font-semibold">Try again</Text>
           </Pressable>
         </View>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { searchFood, FoodResult, DataType } from '../services/foodSearch';
@@ -32,6 +33,13 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [manualCarb, setManualCarb] = useState('');
   const [manualFat, setManualFat] = useState('');
   const [manualGrams, setManualGrams] = useState('150');
+  const manualNutrients = [manualCal, manualPro, manualCarb, manualFat].map(Number);
+  const manualGramsValue = Number(manualGrams);
+  const manualCanAdd = manualName.trim().length > 0
+    && Number.isFinite(manualGramsValue)
+    && manualGramsValue > 0
+    && manualNutrients.every((value) => Number.isFinite(value) && value >= 0)
+    && manualNutrients.some((value) => value > 0);
 
   const reset = useCallback(() => {
     setMode(null);
@@ -43,9 +51,9 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    const seq = ++searchSeq.current;
 
     if (!searchQuery.trim()) {
-      searchSeq.current++;
       setSearchResults([]);
       setIsSearching(false);
       return;
@@ -53,11 +61,16 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
 
     setIsSearching(true);
     debounceRef.current = setTimeout(async () => {
-      const seq = ++searchSeq.current;
-      const res = await searchFood(searchQuery);
-      if (seq !== searchSeq.current) return;
-      setSearchResults(res);
-      setIsSearching(false);
+      try {
+        const res = await searchFood(searchQuery);
+        if (seq !== searchSeq.current) return;
+        setSearchResults(res);
+      } catch (e) {
+        console.error('[AddComponent] search failed', e);
+        if (seq === searchSeq.current) setSearchResults([]);
+      } finally {
+        if (seq === searchSeq.current) setIsSearching(false);
+      }
     }, 300);
 
     return () => {
@@ -91,13 +104,9 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   }, [describeText, onAdd, reset]);
 
   const handleManualAdd = useCallback(() => {
-    if (!manualName.trim()) return;
-    const cal = parseFloat(manualCal) || 0;
-    const pro = parseFloat(manualPro) || 0;
-    const carb = parseFloat(manualCarb) || 0;
-    const fat = parseFloat(manualFat) || 0;
-    const grams = parseFloat(manualGrams) || 150;
-    if (!cal && !pro && !carb && !fat) return;
+    if (!manualCanAdd) return;
+    const [cal, pro, carb, fat] = manualNutrients;
+    const grams = manualGramsValue;
 
     const name = manualName.trim();
     const food: FoodResult = {
@@ -126,7 +135,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     setManualFat('');
     setManualGrams('150');
     reset();
-  }, [manualName, manualCal, manualPro, manualCarb, manualFat, manualGrams, onAdd, reset]);
+  }, [manualName, manualCanAdd, manualNutrients, manualGramsValue, onAdd, reset]);
 
   if (mode === null) {
     return (
@@ -147,7 +156,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <Pressable
           onPress={() => setMode('search')}
           accessibilityRole="button"
-          className={`flex-1 py-3 rounded-full items-center active:opacity-70 ${mode === 'search' ? 'bg-m3-surface-container-highest' : ''}`}
+          accessibilityState={{ selected: mode === 'search' }}
+          className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'search' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <View className="flex-row items-center gap-1">
             <MaterialIcons name="search" size={14} color={mode === 'search' ? '#e2e2e9' : '#c4c6d0'} />
@@ -159,7 +169,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <Pressable
           onPress={() => setMode('describe')}
           accessibilityRole="button"
-          className={`flex-1 py-3 rounded-full items-center active:opacity-70 ${mode === 'describe' ? 'bg-m3-surface-container-highest' : ''}`}
+          accessibilityState={{ selected: mode === 'describe' }}
+          className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'describe' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <View className="flex-row items-center gap-1">
             <MaterialIcons name="auto-awesome" size={14} color={mode === 'describe' ? '#e2e2e9' : '#c4c6d0'} />
@@ -172,11 +183,12 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           onPress={() => setMode('manual')}
           accessibilityRole="button"
           accessibilityLabel="Manual entry"
-          className={`py-3 px-4 rounded-full items-center active:opacity-70 ${mode === 'manual' ? 'bg-m3-surface-container-highest' : ''}`}
+          accessibilityState={{ selected: mode === 'manual' }}
+          className={`min-w-[48px] min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'manual' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <MaterialIcons name="edit" size={14} color={mode === 'manual' ? '#e2e2e9' : '#c4c6d0'} />
         </Pressable>
-        <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel" className="p-2 active:opacity-60">
+        <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel" className="w-12 h-12 items-center justify-center active:opacity-60">
           <MaterialIcons name="close" size={18} color="#c4c6d0" />
         </Pressable>
       </View>
@@ -186,9 +198,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <View className="gap-3">
           <View className="flex-row items-center bg-m3-surface-container rounded-xl px-4 py-3 border border-m3-outline-variant/50">
             <MaterialIcons name="search" size={16} color="#c4c6d0" />
-            <TextInput
+            <BottomSheetTextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
+              accessibilityLabel="Search foods"
               placeholder="Search foods…"
               placeholderTextColor={M3.placeholder}
               className="flex-1 text-m3-on-surface text-sm ml-2"
@@ -232,9 +245,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       {/* ── Describe Mode ── */}
       {mode === 'describe' && (
         <View className="gap-3">
-          <TextInput
+          <BottomSheetTextInput
             value={describeText}
             onChangeText={setDescribeText}
+            accessibilityLabel="Describe a component"
             placeholder="e.g. 2 eggs with toast"
             placeholderTextColor={M3.placeholder}
             multiline
@@ -259,20 +273,23 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       {/* ── Manual Mode ── */}
       {mode === 'manual' && (
         <View className="gap-4">
-          <TextInput
+          <BottomSheetTextInput
             value={manualName}
             onChangeText={setManualName}
+            accessibilityLabel="Food name"
             placeholder="e.g. Olive Oil"
             placeholderTextColor={M3.placeholder}
             className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-4 py-3 border border-m3-outline-variant/50"
             autoFocus
           />
+          <Text className="text-m3-on-surface-variant text-xs font-medium">Nutrition per 100g</Text>
           <View className="flex-row gap-2">
             <View className="flex-1 gap-1">
               <Text className="text-xs text-white/60 font-semibold tracking-wider text-center">CAL</Text>
-              <TextInput
+              <BottomSheetTextInput
                 value={manualCal}
                 onChangeText={setManualCal}
+                accessibilityLabel="Calories per 100 grams"
                 placeholder="0"
                 placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
@@ -281,9 +298,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             </View>
             <View className="flex-1 gap-1">
               <Text className="text-xs text-m3-protein font-semibold tracking-wider text-center">PRO</Text>
-              <TextInput
+              <BottomSheetTextInput
                 value={manualPro}
                 onChangeText={setManualPro}
+                accessibilityLabel="Protein per 100 grams"
                 placeholder="0"
                 placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
@@ -292,9 +310,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             </View>
             <View className="flex-1 gap-1">
               <Text className="text-xs text-m3-carbs font-semibold tracking-wider text-center">CARB</Text>
-              <TextInput
+              <BottomSheetTextInput
                 value={manualCarb}
                 onChangeText={setManualCarb}
+                accessibilityLabel="Carbohydrates per 100 grams"
                 placeholder="0"
                 placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
@@ -303,9 +322,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             </View>
             <View className="flex-1 gap-1">
               <Text className="text-xs text-m3-fat font-semibold tracking-wider text-center">FAT</Text>
-              <TextInput
+              <BottomSheetTextInput
                 value={manualFat}
                 onChangeText={setManualFat}
+                accessibilityLabel="Fat per 100 grams"
                 placeholder="0"
                 placeholderTextColor={M3.placeholder}
                 keyboardType="numeric"
@@ -314,9 +334,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             </View>
           </View>
           <View className="flex-row items-center gap-2">
-            <TextInput
+            <BottomSheetTextInput
               value={manualGrams}
               onChangeText={setManualGrams}
+              accessibilityLabel="Portion weight in grams"
               placeholder="150"
               placeholderTextColor={M3.placeholder}
               keyboardType="numeric"
@@ -327,7 +348,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           <PrimaryButton
             title="Add"
             onPress={handleManualAdd}
-            disabled={!manualName.trim()}
+            disabled={!manualCanAdd}
           />
         </View>
       )}

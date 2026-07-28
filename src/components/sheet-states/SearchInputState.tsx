@@ -34,7 +34,8 @@ function ResultRow({ item, onPress }: ResultRowProps) {
   return (
     <Pressable
       onPress={onPress}
-      className="px-4 py-3 bg-m3-surface-container rounded-2xl border border-m3-outline-variant/30 active:opacity-70"
+      accessibilityRole="button"
+      className="min-h-[52px] px-4 py-3 bg-m3-surface-container rounded-2xl border border-m3-outline-variant/30 active:opacity-70"
     >
       <View className="flex-row justify-between items-start">
         <View className="flex-1 mr-3">
@@ -74,9 +75,9 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    const seq = ++searchSeq.current;
 
     if (!query.trim()) {
-      searchSeq.current++;
       setResults([]);
       setHasSearched(false);
       setIsSearching(false);
@@ -85,12 +86,20 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
 
     setIsSearching(true);
     debounceRef.current = setTimeout(async () => {
-      const seq = ++searchSeq.current;
-      const res = await searchFood(query);
-      if (seq !== searchSeq.current) return;
-      setResults(res);
-      setHasSearched(true);
-      setIsSearching(false);
+      try {
+        const res = await searchFood(query);
+        if (seq !== searchSeq.current) return;
+        setResults(res);
+        setHasSearched(true);
+      } catch (e) {
+        console.error('[FoodSearch] search failed', e);
+        if (seq === searchSeq.current) {
+          setResults([]);
+          setHasSearched(true);
+        }
+      } finally {
+        if (seq === searchSeq.current) setIsSearching(false);
+      }
     }, 400);
 
     return () => {
@@ -135,6 +144,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
           <BottomSheetTextInput
             value={query}
             onChangeText={setQuery}
+            accessibilityLabel="Search foods"
             placeholder="Search foods…"
             placeholderTextColor={M3.placeholder}
             className="flex-1 text-m3-on-surface text-sm ml-2 font-medium"
@@ -144,7 +154,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
             onSubmitEditing={Keyboard.dismiss}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="p-1">
+            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-10 h-10 items-center justify-center -mr-2 -my-2">
               <MaterialIcons name="close" size={18} color="#c4c6d0" />
             </Pressable>
           )}
@@ -153,7 +163,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
 
       <View className="px-5 gap-1.5">
         {isSearching && results.length === 0 && (
-          <View className="py-12 items-center">
+          <View className="py-12 items-center" accessibilityLiveRegion="polite">
             <ActivityIndicator size="small" color="#ffffff" />
             <Text className="text-m3-on-surface-variant text-xs mt-3">Searching…</Text>
           </View>
@@ -205,7 +215,8 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
             </View>
             <Pressable
               onPress={onManualEntry}
-              className="flex-row items-center gap-2 bg-m3-surface-container-high px-5 py-3 rounded-full"
+              accessibilityRole="button"
+              className="min-h-[48px] flex-row items-center gap-2 bg-m3-surface-container-high px-5 rounded-full"
             >
               <MaterialIcons name="edit-note" size={18} color="#e2e2e9" />
               <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
@@ -216,7 +227,8 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
         {hasSearched && results.length > 0 && (
           <Pressable
             onPress={onManualEntry}
-            className="flex-row items-center justify-center gap-2 py-4 mt-1"
+            accessibilityRole="button"
+            className="min-h-[48px] flex-row items-center justify-center gap-2 mt-1"
           >
             <MaterialIcons name="add-circle-outline" size={18} color="#c4c6d0" />
             <Text className="text-m3-on-surface-variant text-xs font-medium">Enter manually</Text>

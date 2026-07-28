@@ -17,7 +17,10 @@ export default function PrimaryButton({ title, onPress, disabled, loading, icon,
       onPress={onPress}
       disabled={disabled || loading}
       style={disabled || loading ? { opacity: 0.4 } : undefined}
-      className="w-full bg-white rounded-full py-4 flex-row items-center justify-center gap-2 active:scale-95"
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
+      className="w-full min-h-[52px] bg-white rounded-full px-5 py-3.5 flex-row items-center justify-center gap-2 active:opacity-90"
     >
       {loading ? (
         <ActivityIndicator color="#000000" />

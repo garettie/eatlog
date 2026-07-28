@@ -8,6 +8,8 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { DURATION, EASING } from '../theme/motion';
+
 interface SegmentedOption<T extends string> {
   value: T;
   label: string;
@@ -38,20 +40,17 @@ export default function SegmentedControl<T extends string>({
   );
   const index = useSharedValue(selectedIndex);
   useEffect(() => {
-    index.value = selectedIndex;
-  }, [selectedIndex]);
+    index.value = withTiming(selectedIndex, {
+      duration: reduced ? 0 : DURATION.short,
+      easing: EASING.standard,
+    });
+  }, [selectedIndex, reduced]);
 
   const thumbStyle = useAnimatedStyle(() => {
     const segW = trackWidth / options.length;
     return {
       width: segW,
-      transform: [
-        {
-          translateX: withTiming(index.value * segW, {
-            duration: reduced ? 0 : 220,
-          }),
-        },
-      ],
+      transform: [{ translateX: index.value * segW }],
     };
   }, [trackWidth, options.length]);
 
@@ -83,7 +82,9 @@ export default function SegmentedControl<T extends string>({
             <Pressable
               key={opt.value}
               onPress={() => onChange(opt.value)}
-              className="flex-1 py-4 rounded-xl flex-row items-center justify-center gap-2 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              className="flex-1 min-h-[52px] px-2 rounded-xl flex-row items-center justify-center gap-2 active:opacity-70"
             >
               {opt.icon && (
                 <MaterialIcons
@@ -93,7 +94,8 @@ export default function SegmentedControl<T extends string>({
                 />
               )}
               <Text
-                className={`text-base ${
+                numberOfLines={1}
+                className={`text-sm ${
                   selected
                     ? 'font-semibold text-white'
                     : 'font-medium text-m3-on-surface-variant'

@@ -16,7 +16,7 @@ import { M3 } from '../theme/tokens';
 
 interface LogToastProps {
   message: string;
-  onUndo?: () => void;
+  onUndo?: () => void | Promise<void>;
   onHide: () => void;
   durationMs?: number;
 }
@@ -25,26 +25,47 @@ export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }:
   const reduced = useReducedMotion();
   const opacity = useSharedValue(1);
   const translateX = useSharedValue(0);
+  const dismissed = useSharedValue(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dismissedRef = useRef(false);
+  const onHideRef = useRef(onHide);
+  onHideRef.current = onHide;
+  const hide = useCallback(() => onHideRef.current(), []);
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   const dismiss = useCallback(() => {
-    if (dismissedRef.current) return;
-    dismissedRef.current = true;
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (dismissed.value) return;
+    dismissed.value = true;
+    clearTimer();
     opacity.value = withTiming(
       0,
       { duration: reduced ? 0 : 250, easing: Easing.bezier(0.33, 1, 0.68, 1) },
-      () => runOnJS(onHide)()
+      () => runOnJS(hide)()
     );
-  }, [onHide, reduced]);
+  }, [clearTimer, hide, reduced]);
 
   useEffect(() => {
+    dismissed.value = false;
+    opacity.value = 1;
+    translateX.value = 0;
     timerRef.current = setTimeout(dismiss, durationMs);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, []);
+  }, [message, durationMs, dismiss]);
+
+  const handleUndo = useCallback(async () => {
+    if (dismissed.value || !onUndo) return;
+    dismissed.value = true;
+    clearTimer();
+    try {
+      await onUndo();
+      onHide();
+    } catch {
+      dismissed.value = false;
+    }
+  }, [clearTimer, onHide, onUndo]);
 
   const pan = Gesture.Pan()
     .activeOffsetX([-10, 10])
@@ -55,12 +76,12 @@ export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }:
       opacity.value = Math.max(0, 1 - absX / 120);
     })
     .onEnd((e) => {
-      if (Math.abs(e.translationX) > 80 && !dismissedRef.current) {
-        dismissedRef.current = true;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        translateX.value = withTiming(e.translationX > 0 ? 500 : -500, { duration: 200 });
-        opacity.value = withTiming(0, { duration: 200 }, () => runOnJS(onHide)());
-      } else if (!dismissedRef.current) {
+      if (Math.abs(e.translationX) > 80 && !dismissed.value) {
+        dismissed.value = true;
+        runOnJS(clearTimer)();
+        translateX.value = withTiming(e.translationX > 0 ? 500 : -500, { duration: reduced ? 0 : 200 });
+        opacity.value = withTiming(0, { duration: reduced ? 0 : 200 }, () => runOnJS(hide)());
+      } else if (!dismissed.value) {
         translateX.value = withTiming(
           0,
           { duration: reduced ? 0 : 200, easing: Easing.bezier(0.33, 1, 0.68, 1) }
@@ -79,15 +100,16 @@ export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }:
       <Animated.View
         style={animatedStyle}
         entering={reduced ? undefined : FadeIn.duration(200)}
+        accessibilityLiveRegion="polite"
         className="bg-m3-surface-container-highest rounded-2xl px-4 py-3.5 flex-row items-center border border-m3-outline-variant/30"
       >
         <Text className="flex-1 text-m3-on-surface text-sm font-medium mr-2">{message}</Text>
         {onUndo && (
           <Pressable
-            onPress={onUndo}
+            onPress={handleUndo}
             accessibilityRole="button"
             accessibilityLabel="Undo"
-            className="px-3 py-2 -my-1 mr-1"
+            className="min-h-[48px] px-3 items-center justify-center -my-1 mr-1"
           >
             <Text className="text-white font-bold text-sm">Undo</Text>
           </Pressable>
@@ -96,8 +118,8 @@ export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }:
           onPress={dismiss}
           accessibilityRole="button"
           accessibilityLabel="Dismiss"
-          className="w-8 h-8 items-center justify-center rounded-full -mr-1"
-          hitSlop={8}
+          className="w-10 h-10 items-center justify-center rounded-full -mr-1"
+          hitSlop={4}
         >
           <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
         </Pressable>

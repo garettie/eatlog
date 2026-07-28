@@ -37,11 +37,15 @@ export interface FoodSheetState {
   pendingMeal?: MealType | null;
 }
 
+export type LoggedEntryInfo =
+  | { kind: 'meal'; mealId: number; logIds: number[]; meal: MealType; name: string }
+  | { kind: 'food'; logId: number; meal: MealType; name: string };
+
 interface FoodSheetContentProps {
   state: FoodSheetState;
   setState: React.Dispatch<React.SetStateAction<FoodSheetState>>;
   resetToEntry: () => void;
-  onMealLogged: (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => void;
+  onMealLogged: (info: LoggedEntryInfo) => void;
   skipHistoryRef: React.MutableRefObject<boolean>;
 }
 
@@ -78,6 +82,7 @@ export default function FoodSheetContent({
   );
 
   const handleCamera = useCallback(async () => {
+    cancelScanRef.current = false;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (cancelScanRef.current) return;
     if (status !== 'granted') {
@@ -85,7 +90,6 @@ export default function FoodSheetContent({
       transitionTo('permission-denied');
       return;
     }
-    cancelScanRef.current = false;
     transitionTo('scanning');
     try {
       const result = await ImagePicker.launchCameraAsync({
@@ -108,7 +112,10 @@ export default function FoodSheetContent({
         transitionTo('entry', { pushHistory: false });
         return;
       }
-      const photoUri = await saveMealPhoto(base64);
+      const photoUri = await saveMealPhoto(base64).catch((e) => {
+        console.error('[FoodSheet] camera photo save failed', e);
+        return null;
+      });
       setState((s) => ({ ...s, photoUri }));
       transitionTo('review', { describeResult: scanResult });
     } catch (e) {
@@ -142,7 +149,10 @@ export default function FoodSheetContent({
         transitionTo('entry', { pushHistory: false });
         return;
       }
-      const photoUri = await saveMealPhoto(base64);
+      const photoUri = await saveMealPhoto(base64).catch((e) => {
+        console.error('[FoodSheet] gallery photo save failed', e);
+        return null;
+      });
       setState((s) => ({ ...s, photoUri }));
       transitionTo('review', { describeResult: scanResult });
     } catch (e) {
@@ -191,17 +201,17 @@ export default function FoodSheetContent({
   }, [transitionTo]);
 
   const handleSingleLogComplete = useCallback(
-    ({ logId, meal }: { logId: number; meal: MealType }) => {
+    ({ logId, meal, name }: { logId: number; meal: MealType; name: string }) => {
       setState((s) => ({ ...s, visible: false, selectedFood: null }));
-      onMealLogged({ mealId: logId, logIds: [logId], meal, name: '' });
+      onMealLogged({ kind: 'food', logId, meal, name });
     },
     [onMealLogged, setState],
   );
 
   const handleManualLogComplete = useCallback(
-    ({ logId, meal }: { logId: number; meal: MealType }) => {
+    ({ logId, meal, name }: { logId: number; meal: MealType; name: string }) => {
       setState((s) => ({ ...s, visible: false }));
-      onMealLogged({ mealId: logId, logIds: [logId], meal, name: '' });
+      onMealLogged({ kind: 'food', logId, meal, name });
     },
     [onMealLogged, setState],
   );
@@ -260,7 +270,7 @@ export default function FoodSheetContent({
   const handleMealLogged = useCallback(
     (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
       setState((s) => ({ ...s, visible: false, describeResult: null, editMealId: null }));
-      onMealLogged(info);
+      onMealLogged({ kind: 'meal', ...info });
     },
     [onMealLogged, setState],
   );

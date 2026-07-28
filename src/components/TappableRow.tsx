@@ -16,10 +16,12 @@ export default function TappableRow({ icon, community, title, subtitle, selected
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center p-7 rounded-2xl gap-4 active:scale-[0.98] ${
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      className={`flex-row items-center p-7 rounded-2xl gap-4 border-2 active:opacity-80 ${
         selected
-          ? 'bg-m3-surface-container-high border-2 border-white'
-          : 'bg-m3-surface-container border border-m3-outline-variant/30'
+          ? 'bg-m3-surface-container-high border-white'
+          : 'bg-m3-surface-container border-m3-outline-variant/30'
       }`}
     >
       {icon && (

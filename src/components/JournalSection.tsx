@@ -92,9 +92,11 @@ function SwipeRow({
           backgroundColor: M3.surfaceContainerHighest,
           alignItems: 'center',
           justifyContent: 'center',
-          width: 68,
+          width: 72,
         }}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Edit entry"
       >
         <MaterialIcons name="edit" size={18} color={M3.onSurfaceVariant} />
         <Text className="text-m3-on-surface-variant text-[10px] font-semibold mt-1">Edit</Text>
@@ -108,9 +110,11 @@ function SwipeRow({
           backgroundColor: M3.errorContainer,
           alignItems: 'center',
           justifyContent: 'center',
-          width: 78,
+          width: 72,
         }}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Delete entry"
       >
         <MaterialIcons name="delete-outline" size={18} color={M3.error} />
         <Text className="text-m3-error text-[10px] font-semibold mt-1">Delete</Text>
@@ -122,7 +126,8 @@ function SwipeRow({
     <Swipeable
       ref={ref}
       renderRightActions={renderRightActions}
-      rightThreshold={50}
+      friction={2}
+      rightThreshold={72}
       overshootRight={false}
       containerStyle={{ overflow: 'visible' }}
     >
@@ -145,7 +150,18 @@ function FoodRow({
   return (
     <SwipeRow onEdit={() => onEdit(food)} onDelete={() => onDelete(food)}>
       <View className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
-        <View className="flex-row items-start px-5 py-5 min-h-[96] active:opacity-80">
+        <Pressable
+          onPress={() => onEdit(food)}
+          className="flex-row items-start px-5 py-5 min-h-[96] active:opacity-80"
+          accessibilityRole="button"
+          accessibilityLabel={`${food.name}, ${Math.round(food.calories)} calories`}
+          accessibilityHint="Opens portion editor. Swipe for more actions."
+          accessibilityActions={[{ name: 'activate', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'delete') onDelete(food);
+            else onEdit(food);
+          }}
+        >
           <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
             <MaterialCommunityIcons name={foodIcon(food.name)} size={20} color={M3.onSurfaceVariant} />
           </View>
@@ -167,7 +183,7 @@ function FoodRow({
               <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
             </Text>
           </View>
-        </View>
+        </Pressable>
       </View>
     </SwipeRow>
   );
@@ -199,14 +215,26 @@ function MealRow({
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
   return (
-    <View className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
-      <SwipeRow onEdit={() => onEditMeal(meal.id)} onDelete={() => onDeleteMeal(meal.id)}>
+    <SwipeRow onEdit={() => onEditMeal(meal.id)} onDelete={() => onDeleteMeal(meal.id)}>
+      <Reanimated.View
+        layout={reducedMotion ? undefined : LinearTransition.duration(220)}
+        className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30"
+      >
         <Pressable
           onPress={() => setExpanded((v) => !v)}
           className={`flex-row items-stretch active:opacity-80 ${
             meal.photoUri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'
           } ${expanded ? 'border-b border-m3-outline-variant/20' : ''}`}
           accessibilityRole="button"
+          accessibilityLabel={`${meal.name}, ${Math.round(totalCalories)} calories`}
+          accessibilityHint="Expands meal components. Swipe for more actions."
+          accessibilityState={{ expanded }}
+          accessibilityActions={[{ name: 'activate', label: expanded ? 'Collapse' : 'Expand' }, { name: 'edit', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'edit') onEditMeal(meal.id);
+            else if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
+            else setExpanded((v) => !v);
+          }}
         >
           {meal.photoUri ? (
             <Image
@@ -242,14 +270,13 @@ function MealRow({
             </Text>
           </View>
         </Pressable>
-      </SwipeRow>
 
       {expanded && meal.components.map((comp, i) => (
         <Reanimated.View
           key={comp.id}
           entering={reducedMotion ? undefined : FadeInDown.duration(250).delay(i * 40)}
           exiting={reducedMotion ? undefined : FadeOut.duration(180)}
-          layout={reducedMotion ? undefined : LinearTransition.springify()}
+          layout={reducedMotion ? undefined : LinearTransition.duration(220)}
         >
           <View className="pl-14 bg-m3-surface-container-low/50">
           <View className="flex-row items-start px-4 py-3.5 border-b border-m3-outline-variant/15">
@@ -259,25 +286,26 @@ function MealRow({
               color={M3.onSurfaceVariant}
               style={{ marginTop: 2, marginRight: 10 }}
             />
-            <Text className="text-m3-on-surface text-sm font-medium flex-1 mr-3" numberOfLines={1}>
+            <Text className="text-m3-on-surface text-sm font-medium flex-1 mr-3" numberOfLines={2}>
               {comp.name}
             </Text>
-            <View className="items-end">
+            <View className="w-[88px] shrink-0 items-end">
               <Text className="text-m3-on-surface text-base font-semibold tabular-nums">
                 {Math.round(comp.calories)}
                 <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
               </Text>
-              <View className="flex-row gap-1">
+              {comp.grams_logged != null && <View className="flex-row gap-1">
                 <Text className="text-m3-on-surface-variant text-[10px] tabular-nums">
-                  {Math.round(comp.grams_logged || 0)}g
+                  {Math.round(comp.grams_logged)}g
                 </Text>
-              </View>
+              </View>}
             </View>
             </View>
           </View>
         </Reanimated.View>
       ))}
-    </View>
+      </Reanimated.View>
+    </SwipeRow>
   );
 }
 

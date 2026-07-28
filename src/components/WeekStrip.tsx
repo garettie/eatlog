@@ -28,9 +28,10 @@ interface DayStripProps {
   onSelectDate: (isoDate: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
+  canGoNext?: boolean;
 }
 
-export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth }: DayStripProps) {
+export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth, canGoNext = true }: DayStripProps) {
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
       const x = Math.max(0, idx * ESTIMATED_CELL_WIDTH - 20);
       scrollRef.current.scrollTo({ x, animated: false });
     }
-  }, [days, selectedDate]);
+  }, [selectedDate, monthLabel]);
 
   return (
     <View>
@@ -59,11 +60,13 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
 
         <Pressable
           onPress={onNextMonth}
+          disabled={!canGoNext}
           className="w-12 h-12 items-center justify-center active:opacity-50"
           accessibilityRole="button"
           accessibilityLabel="Next month"
+          accessibilityState={{ disabled: !canGoNext }}
         >
-          <MaterialIcons name="chevron-right" size={24} color={M3.onSurfaceVariant} />
+          <MaterialIcons name="chevron-right" size={24} color={canGoNext ? M3.onSurfaceVariant : M3.outlineVariant} />
         </Pressable>
       </View>
 
@@ -95,7 +98,13 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
               disabled={day.isFuture}
               className="items-center py-1 px-1.5 active:opacity-70"
               accessibilityRole="button"
-              accessibilityLabel={`${day.dayLetter} ${day.date.getDate()}${day.isToday ? ', today' : ''}`}
+              accessibilityLabel={day.date.toLocaleDateString(undefined, {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              }) + (day.isToday ? ', today' : '')}
+              accessibilityState={{ selected: isSelected, disabled: day.isFuture }}
+              accessibilityHint={day.isFuture ? undefined : `${Math.round(day.calories)} of ${Math.round(day.targetCalories)} calories logged`}
             >
               <Text className={`text-[10px] font-semibold mb-0.5 ${
                 day.isToday

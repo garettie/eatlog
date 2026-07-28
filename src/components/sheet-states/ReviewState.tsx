@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeOutDown, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MealType, insertFoodLog, insertMeal, deleteMealComponents, updateMealName } from '../../db/database';
+import { MealType, saveMealWithComponents } from '../../db/database';
 import { FoodResult } from '../../services/foodSearch';
 import { DescribeResult } from '../../services/foodScan';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
@@ -64,6 +64,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ comp: EditableComponent; idx: number } | null>(null);
   const [clarifying, setClarifying] = useState(false);
   const [clarifyError, setClarifyError] = useState<string | null>(null);
@@ -246,36 +247,30 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
 
   const handleLogMeal = useCallback(async () => {
     if (components.length === 0) return;
+    setLogError(null);
     setLogging(true);
     try {
       const logDate = todayISO();
       const name = mealName.trim() || 'Meal';
 
-      if (editMealId) {
-        await deleteMealComponents(editMealId);
-        await updateMealName(editMealId, name);
-      }
-
-      const mealId = editMealId ?? await insertMeal({
+      const saved = await saveMealWithComponents({
+        editMealId,
         name,
         log_date: logDate,
         meal_type: meal,
         photo_uri: photoUri ?? null,
-      });
-      const logIds: number[] = [];
-      for (const comp of components) {
+        components: components.map((comp) => {
         const ratio = comp.grams / 100;
         const cal = Math.round(comp.per100g.calories * ratio);
         const pro = Math.round(comp.per100g.protein * ratio * 10) / 10;
         const carb = Math.round(comp.per100g.carbs * ratio * 10) / 10;
         const fat = Math.round(comp.per100g.fat * ratio * 10) / 10;
-        const logId = await insertFoodLog({
+        return {
           log_date: logDate,
           name: comp.food.name,
           source: (comp.food.source as 'describe' | 'manual') || 'manual',
           source_food_id: comp.food.sourceFoodId || undefined,
           meal,
-          meal_id: mealId,
           brand: comp.food.brand,
           data_type: comp.food.dataType,
           preparation: comp.food.preparation,
@@ -290,11 +285,16 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
           protein_g: pro,
           carbs_g: carb,
           fat_g: fat,
-        });
-        logIds.push(logId);
-      }
+        };
+        }),
+      });
       loggedRef.current = true;
-      onLogComplete({ mealId, logIds, meal, name });
+      onLogComplete({ mealId: saved.mealId, logIds: saved.logIds, meal, name });
+    } catch (e) {
+      console.error('[MealReview] save failed', e);
+      setLogError(editMealId
+        ? "Couldn't update this meal. Your changes are still here."
+        : "Couldn't save this meal. Try again.");
     } finally {
       setLogging(false);
     }
@@ -575,6 +575,11 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
           loading={logging}
           disabled={components.length === 0}
         />
+        {logError && (
+          <Text className="text-m3-error text-xs font-medium" accessibilityLiveRegion="assertive">
+            {logError}
+          </Text>
+        )}
       </View>
     </View>
   );

@@ -1,5 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { PanResponder, Text, View } from 'react-native';
+
+import { M3 } from '../theme/tokens';
 
 interface RulerSliderProps {
   value: number;
@@ -55,6 +57,11 @@ export default function RulerSlider({
 
   const onValueChangeRef = useRef(onValueChange);
   onValueChangeRef.current = onValueChange;
+
+  useEffect(() => {
+    dragValRef.current = value;
+    lastEmittedRef.current = value;
+  }, [value]);
 
   function emit(next: number) {
     if (Object.is(next, lastEmittedRef.current)) return;
@@ -150,7 +157,7 @@ export default function RulerSlider({
               top: t.isMajor ? 6 : 15,
               width: t.isMajor ? 2 : 1,
               height: t.isMajor ? 36 : 18,
-              backgroundColor: t.isMajor ? '#6b6f78' : '#44474f',
+              backgroundColor: t.isMajor ? M3.outline : M3.outlineVariant,
               borderRadius: 1,
             }}
           />
@@ -166,7 +173,7 @@ export default function RulerSlider({
           }}
           pointerEvents="none"
         >
-          <View className="w-1 h-12 bg-white rounded-full" style={{ shadowOpacity: 0.3, shadowRadius: 2, shadowOffset: { width: 0, height: 0 } }} />
+          <View className="w-1 h-12 bg-white rounded-full" />
         </View>
       </View>
       <View className="flex-row justify-between px-0.5 mt-1">

@@ -8,62 +8,77 @@ android
 
 ## Users
 
-The app owner and a small group of friends who sideload the APK. Personal use, one phone = one person's data. Context: checking daily macros, logging food via the camera, tracking weight trends. No shared accounts or social features.
+The app owner and a small group of friends who sideload the APK. Personal use: one phone equals one person's data. The daily job is to check calorie/macro progress, log food with the least friction possible, and eventually calibrate targets against real weight trends. There are no shared accounts, social features, or cloud identities.
 
 ## Product Purpose
 
-A local-first, premium calorie/macro tracker that estimates a user's true daily energy expenditure (TDEE) from their own logged food intake and weight-trend data, then adjusts calorie and macro targets weekly so they stay accurate as the user's body and habits change. The primary food-entry path is AI meal scanning (camera or text description via Gemini); direct USDA/Open Food Facts search is deferred to a later build as a harder, separate task. No backend, no auth — fully on-device via SQLite.
+Marco is a local-first calorie and macro tracker built around adaptive truth: targets should eventually come from a user's logged intake and trend weight, not remain a static calculator result. The current product delivers the starting plan, scanner-first meal logging, diary review, and a daily macro dashboard. Adaptive weekly recalculation remains the next algorithmic milestone; it is not currently active in the shipped UI.
 
 ## Positioning
 
-MacroFactor-class premium UX at sideloaded-MVP scale. The differentiator is adaptive truth: targets derived from your own intake and weight trend, not a static formula — paired with the lowest-friction logging surface in the category (point the camera at a meal, confirm, done). Premium feel, cohesive motion, and zero AI slop distinguish it from gamified fitness apps and from generic trackers that bolt a scanner onto a search-first flow.
+MacroFactor-class premium UX at sideloaded-MVP scale. The differentiator is a fast scanner-first log flow: point the camera at a meal, review the components and portion, and log it. Real scan photos in the diary make that history feel personal; deterministic food icons make every non-photo entry immediately recognizable. Premium feel comes from cohesive Android-native behavior, honest calculations, and deliberate motion, not gamification.
 
 ## Operating Context
 
-Daily use: open the app to glance at calories/macros remaining, log a meal by scanning it (camera) or describing it (text), optionally weigh in. Weekly: a check-in surfaces when enough adaptive data exists, proposing updated targets the user accepts or keeps. All flows fully offline except the scan step itself. Phone is the only device; data lives on it and nowhere else.
+Daily: open Today to glance at consumed versus remaining calories and macros, then log a meal from the camera, gallery, description, search, or manual entry. Review the Diary by day, adjust portions, delete with undo, or repeat a recent meal. The dashboard has a weight-trend surface, but daily weigh-in entry and adaptive check-ins are not yet exposed as finished flows.
 
 ## Capabilities and Constraints
 
-**Working:** AI food scanning (Gemini vision, `scanFood`) and meal description (Gemini text, `describeMeal`) producing per-100g nutrition and component breakdown; manual food entry; on-device SQLite profile, weight logs, food logs, and daily-target history; EWMA trend-weight smoothing (alpha = 0.15); Mifflin-St Jeor initial BMR/TDEE; weekly adaptive recalculation (14-day window, smoothing, ±10% clamp, 1.2*BMR floor); weekly check-in accept/keep flow; Material 3 Expressive dark design system in NativeWind tokens; bottom-tab navigation.
+**Working:**
+- Six-step onboarding with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware calculation/completion flow.
+- Today dashboard: calorie ring, consumed/remaining toggle, macro rails, latest-food shortcut, scanner-first empty state, adaptive-progress messaging, and weight-trend display.
+- Food entry bottom sheet: camera scan, gallery scan, natural-language description, local/USDA/Open Food Facts search, manual entry, recent-meal repeat, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
+- Gemini vision/text meal estimation returning a named meal and per-100g component nutrition; clarification can re-estimate an edited scan/description.
+- On-device SQLite profile, food log, meal, target, food-cache, and weight-log records; local food-cache ranking; grouped meals and persisted scan-photo file URIs.
+- Diary: calendar strip, daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, edit/delete actions, and undo.
+- Material 3 Expressive dark system in NativeWind; real bundled Inter 400/500/600/700 files; tabular figures; shared Card, PrimaryButton, segmented controls, bottom sheets, macro pills, and ruler slider.
+- Purposeful Reanimated motion with reduced-motion handling; precise accessible ruler controls; Android bottom navigation with one central entry FAB.
 
-**Explicitly deferred:** USDA/Open Food Facts search (`searchFood` code exists but the database path is not the primary MVP surface and is deferred as a harder separate task), barcode camera scanning, iOS build, Health Connect/wearable sync, any login/account/server, push notifications, social/sharing/favorites/recents persistence as a feature surface, cloud backup.
+**Known implementation caveat:** `initDatabase()` currently recreates the SQLite schema at app initialization. This is development behavior and prevents durable dogfooding data. Replacing it with non-destructive schema creation and migrations is required before treating local data persistence as production-ready.
 
-**Hard constraints:** Android-only via Expo managed workflow + EAS Build (sideloaded APK); USDA API key embedded client-side is acceptable at this scale; Inter 400/500/600/700 bundled via `expo-font` (no silent system fallback); Material 3 Expressive dark theme tokens lifted verbatim from the reference mockup into `tailwind.config.js`; component patterns (Card, Progress bar, Primary button, tabular-numeric figures) built once and reused across every screen — no per-screen restyling.
+**Not implemented yet:** weekly adaptive TDEE recalculation and accept/keep check-in flow; daily weight-entry flow; settings; Analytics and Sync tabs (currently placeholders); cloud/export backup; barcode camera scanning; Health Connect/wearable integration; iOS build; auth/accounts; notifications; social features.
+
+**Hard constraints:** Android-only Expo managed workflow and EAS APK distribution; local-first/no backend; all app data remains on-device; Inter must remain bundled; scanner is the primary path; no silent system-font fallback; no per-screen visual restyling outside the shared component vocabulary.
 
 ## Brand Commitments
 
-**Name:** Internal codename "Marco"; no committed user-facing product name yet.
-**Voice:** Precise, premium, confident — no mascots, no casual filler, no gamification badges or streaks. The product speaks like a serious training partner, not a coach-bot.
-**Visual commitment:** Material 3 Expressive dark theme, Inter typography, tonal macro color system (protein/carbs/fat/expenditure), hairline-bordered surface-container cards with no drop shadows, `rounded-3xl` shapes, `rounded-full` buttons, tabular-numeric figures so digits don't jiggle. Cohesive design language and transitions everywhere — same component vocabulary on every screen.
+**Name:** Internal codename "Marco"; no committed user-facing product name.
+
+**Voice:** Precise, premium, confident. The product speaks like a serious training instrument, not a coach-bot. Copy is concise, direct, and transparent about estimates and adaptation.
+
+**Visual commitment:** Material 3 Expressive dark surfaces, Inter, meaningful nutrient color, hairline outlines, tonal elevation without card shadows, `rounded-3xl` screen surfaces, `rounded-2xl` diary entry cards, and `rounded-full` actions. Real scan media is flush inside its meal card; semantic icons are the fallback. Motion is responsive and reduced-motion safe.
+
 **Anti-references:**
-- Over-decorated fitness apps with gamification noise (confetti, streaks, badges everywhere)
-- Generic SaaS dashboards with cream/sand backgrounds and warm-tinted neutrals
-- Apps that hide complexity behind friendly mascots or casual copy
-- Barcode-camera-first trackers that make UPC scanning the primary interaction
-- AI slop — generic AI-generated UI that looks undifferentiated, cheap, or pasted-together; motion and layout must read as deliberately crafted, not defaulted
+- Over-decorated fitness apps with gamification noise: confetti, streaks, badges, mascots, and fake celebration.
+- Generic SaaS dashboards with cream/sand backgrounds, warm-tinted neutrals, gradient text, hero metrics, or floating glass cards.
+- Apps that hide complexity behind friendly mascots or casual filler.
+- Barcode-camera-first trackers that make UPC capture the primary interaction.
+- AI slop: generic, cheap, pasted-together UI; all motion and layout must have an interaction purpose.
 
 ## Evidence on Hand
 
-- `macro-tracker-mvp-spec.md` — authoritative product spec (algorithm, schema, screens, design tokens, build notes)
-- `dynamic_macro_tracker_material_3_expressive_ui_1_.html` — visual source of truth (Material 3 Expressive dark mockup, 7 screens); outer demo chrome is presentation scaffolding, not app UI
-- `tailwind.config.js` — M3 tokens lifted from the mockup, in use
-- `src/services/foodScan.ts` — working Gemini-based scanner
-- `src/services/foodSearch.ts` — USDA/OFF search code present (deferred surface, not primary MVP path)
-- `src/db/database.ts`, `src/utils/calculations.ts` — algorithm and schema implemented per spec
-- Real user: the app owner (dogfooding); a small friend group is the eventual sideload audience
-- **Do not fabricate:** testimonials, customer counts, benchmarks, press, or any external traction — none exists for this sideloaded personal MVP
+- `macro-tracker-mvp-spec.md` — current implementation/spec contract.
+- `DESIGN.md` and `.impeccable/design.json` — current visual system and machine-readable design tokens.
+- `dynamic_macro_tracker_material_3_expressive_ui_1_.html` — original Material 3 reference; source values only, not a literal current-screen contract.
+- `tailwind.config.js`, `src/theme/tokens.ts`, and `src/theme/motion.ts` — normative runtime design tokens.
+- `src/services/foodScan.ts` and `src/services/foodSearch.ts` — live scan, description, cache, USDA, and Open Food Facts logic.
+- `src/db/database.ts`, `src/utils/calculations.ts`, `src/utils/foodIcons.ts`, and `src/utils/mealPhotos.ts` — current local persistence, target math, media, and diary semantics.
+- No testimonials, customer counts, benchmarks, press, or external traction exist. Do not fabricate them.
 
 ## Product Principles
 
-1. **Form and function, together.** The app is a delight to use, but every motion and surface serves the function — logging food, tracking macros, tracking weight. No noise that gets in the way of the function.
-2. **Premium UX, competitive with MacroFactor.** Slick animations, a unified and cohesive design language, smooth transitions, deliberate craft. No AI slop, no generic templates, no "good enough for an MVP" visual compromises.
-3. **Scanner-first logging.** The camera (and text description) is the primary entry path — the lowest-friction way to log a meal. Database search is a later addition, not the center of the product.
-4. **Adaptive truth from your own data.** Targets adjust weekly from your actual intake and weight trend, not a static formula. Trust through transparency: show how the calculation works, don't hide the algorithm.
-5. **Consistent component vocabulary.** Same patterns reused across every screen. The system reads as one designed product, not seven separately-styled screens.
+1. **Form and function together.** Every surface and transition must make logging, reviewing, or understanding data easier.
+2. **Scanner-first, fallback-complete.** Camera/gallery scan and description lead; search and manual entry are credible recovery paths.
+3. **Adaptive truth, honestly staged.** The initial formula is useful; the future adaptive algorithm must be shown as a future calibration, never implied to be already operating.
+4. **Local ownership.** The device owns the data. No login, account, backend, or forced network dependency outside food search/AI estimation.
+5. **One component vocabulary.** A selected state, card, button, numeric figure, macro color, and sheet should mean the same thing everywhere.
+6. **No jank.** Animate state, never decoration; preserve scroll gestures, Android Back behavior, and reduced-motion alternatives.
 
 ## Accessibility & Inclusion
 
-- WCAG AA contrast ratios on all text
-- Inter font at readable sizes — titles `text-xl`, inputs `text-sm` to `text-lg`, labels `text-sm`, minimum `text-[10px]` (ruler bounds only)
-- Touch targets minimum 44x44px
-- Reduced motion support via React Native Reanimated (planned, not yet wired)
+- WCAG AA-oriented contrast: high-contrast primary text and a dedicated readable placeholder color.
+- Real Inter family files at readable product sizes; `text-[10px]` is reserved for compact nutrition/ruler metadata.
+- Touch targets are at least 44dp, generally 48dp for Android controls.
+- Reduced motion is wired through animated components; it removes timing rather than hiding content.
+- Ruler controls expose adjustable accessibility actions and direct editable values.
+- Meal and food names wrap rather than collide with fixed tabular calorie columns.

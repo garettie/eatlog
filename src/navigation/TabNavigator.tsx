@@ -3,15 +3,16 @@ import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import DiaryScreen from '../screens/DiaryScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import LogToast from '../components/LogToast';
 import Sheet from '../components/Sheet';
-import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey } from '../components/sheet-states/FoodSheetContent';
+import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo } from '../components/sheet-states/FoodSheetContent';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
-import { deleteMeal, MealType, getMealComponents, getMealsByIds } from '../db/database';
+import { deleteFoodLog, deleteMeal, MealType, getMealComponents, getMealsByIds } from '../db/database';
 import { type FoodResult, type DataType } from '../services/foodSearch';
 import { type DescribeResult } from '../services/foodScan';
 
@@ -55,10 +56,13 @@ function FabIcon({ scale }: { scale: SharedValue<number> }) {
 
 export default function TabNavigator() {
   const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
-  const [toast, setToast] = useState<{ message: string; undo?: () => void } | null>(null);
+  const [toast, setToast] = useState<{ message: string; undo?: () => void | Promise<void> } | null>(null);
   const [logVersion, setLogVersion] = useState(0);
   const fabScale = useSharedValue(1);
+  const insets = useSafeAreaInsets();
   const discardGuard = useDiscardGuard();
+  const tabBarBottomPadding = Math.max(insets.bottom, 12);
+  const tabBarHeight = 56 + tabBarBottomPadding;
 
   const backHistoryRef = useRef<FoodSheetStateKey[]>([]);
   const skipHistoryRef = useRef(false);
@@ -156,11 +160,15 @@ export default function TabNavigator() {
   }, []);
 
   const handleSheetGoBack = useCallback(() => {
-    const prev = backHistoryRef.current.pop();
+    const prev = backHistoryRef.current[backHistoryRef.current.length - 1];
     if (!prev) return false;
-    setSheet((s) => ({ ...s, stateKey: prev }));
+    const goBack = () => {
+      backHistoryRef.current.pop();
+      setSheet((s) => ({ ...s, stateKey: prev }));
+    };
+    if (discardGuard.requestClose(goBack)) goBack();
     return true;
-  }, []);
+  }, [discardGuard]);
 
   const wrappedSetSheet = useCallback(
     (updater: React.SetStateAction<FoodSheetState>) => {
@@ -204,14 +212,20 @@ export default function TabNavigator() {
   }, [sheet.stateKey]);
 
   const handleMealLogged = useCallback(
-    ({ mealId, meal, name }: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
+    (info: LoggedEntryInfo) => {
       setLogVersion((v) => v + 1);
       setToast({
-        message: `Logged ${name} to ${mealLabel(meal)}`,
+        message: `Logged ${info.name} to ${mealLabel(info.meal)}`,
         undo: async () => {
-          await deleteMeal(mealId);
-          setLogVersion((v) => v + 1);
-          setToast(null);
+          try {
+            if (info.kind === 'meal') await deleteMeal(info.mealId);
+            else await deleteFoodLog(info.logId);
+            setLogVersion((v) => v + 1);
+            setToast(null);
+          } catch (e) {
+            setToast({ message: "Couldn't undo. Your entry is still logged." });
+            throw e;
+          }
         },
       });
     },
@@ -239,9 +253,9 @@ export default function TabNavigator() {
             backgroundColor: '#1d2024',
             borderTopColor: '#2b2d35',
             borderTopWidth: 1,
-            height: 80,
+            height: tabBarHeight,
             paddingTop: 8,
-            paddingBottom: 24,
+            paddingBottom: tabBarBottomPadding,
           },
           tabBarActiveTintColor: '#ffffff',
           tabBarInactiveTintColor: '#c4c6d0',
@@ -299,6 +313,7 @@ export default function TabNavigator() {
           }}
           options={{
             tabBarLabel: () => null,
+            tabBarAccessibilityLabel: 'Add entry',
             tabBarIcon: () => <FabIcon scale={fabScale} />,
           }}
         >
@@ -348,7 +363,7 @@ export default function TabNavigator() {
       </Sheet>
 
       {toast && (
-        <View className="absolute bottom-6 left-4 right-4" style={{ zIndex: 100 }}>
+        <View className="absolute left-4 right-4" style={{ zIndex: 100, bottom: tabBarHeight + 12 }}>
           <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
         </View>
       )}

@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { BackHandler, Keyboard, StyleSheet } from 'react-native';
+import { BackHandler, Keyboard } from 'react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
-import Animated, {
-  FadeInUp,
-  type SharedValue,
-} from 'react-native-reanimated';
+import Animated, { type SharedValue, useReducedMotion, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { M3 } from '../theme/tokens';
@@ -44,6 +41,7 @@ export default function Sheet({
 }: SheetProps) {
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
+  const reduced = useReducedMotion();
   const lastIndexRef = useRef(0);
   const wasVisible = useRef(false);
   const prevStateKeyRef = useRef(stateKey);
@@ -77,6 +75,9 @@ export default function Sheet({
     if (!visible) {
       sheetRef.current?.close();
     }
+    if (fabScale) {
+      fabScale.value = withTiming(visible ? 0.86 : 1, { duration: reduced ? 0 : 200 });
+    }
   }, [visible]);
 
   useEffect(() => {
@@ -108,6 +109,10 @@ export default function Sheet({
     (index: number) => {
       if (index >= 0) lastIndexRef.current = index;
       if (index === -1) {
+        if (forceCloseRef.current) {
+          onSheetClosed?.();
+          return;
+        }
         const allowed = canCloseRef.current();
         if (allowed) {
           onSheetClosed?.();
@@ -140,6 +145,10 @@ export default function Sheet({
     }),
     [],
   );
+  const animationConfigs = useMemo(
+    () => ({ duration: reduced ? 0 : 300 }),
+    [reduced],
+  );
 
   return (
     <BottomSheet
@@ -150,7 +159,6 @@ export default function Sheet({
       enableDynamicSizing={enableDynamicSizing}
       enablePanDownToClose={enablePanDownToClose}
       onChange={handleChange}
-      onClose={handleClose}
       backdropComponent={backdrop}
       handleIndicatorStyle={styles.handle}
       backgroundStyle={styles.background}
@@ -160,15 +168,9 @@ export default function Sheet({
       topInset={insets.top}
       bottomInset={Math.max(insets.bottom, 8)}
       containerStyle={containerStyle}
-      animationConfigs={{
-        duration: 300,
-      }}
+      animationConfigs={animationConfigs}
     >
-      <Animated.View
-        key={`${stateKey}-${visible}`}
-        entering={enableDynamicSizing ? undefined : FadeInUp.duration(220)}
-        style={styles.content}
-      >
+      <Animated.View style={styles.content}>
         {enableDynamicSizing ? (
           <BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
         ) : (
@@ -179,9 +181,9 @@ export default function Sheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = {
   content: {
-    flex: 1,
+    flex: 1 as const,
   },
   handle: {
     backgroundColor: M3.outlineVariant,
@@ -200,4 +202,4 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: M3.outlineVariant,
   },
-});
+};

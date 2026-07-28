@@ -44,7 +44,6 @@ export function useDiscardGuard(): DiscardGuard {
     (allowClose: () => void): boolean => {
       if (!isAnyDirty()) {
         for (const g of guardsRef.current) g.markClean();
-        allowClose();
         return true;
       }
       Alert.alert('Discard changes?', 'Your edits will be lost.', [

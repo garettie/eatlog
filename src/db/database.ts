@@ -269,7 +269,7 @@ export async function getMostRecentFoodLog(): Promise<FoodLog | null> {
   );
 }
 
-export async function insertFoodLog(params: {
+export interface FoodLogInput {
   log_date: string;
   name: string;
   source: 'usda' | 'off' | 'manual' | 'scan' | 'describe';
@@ -290,8 +290,12 @@ export async function insertFoodLog(params: {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-}): Promise<number> {
-  const db = await getDb();
+}
+
+async function insertFoodLogWithDb(
+  db: SQLite.SQLiteDatabase,
+  params: FoodLogInput,
+): Promise<number> {
   const result = await db.runAsync(
     `INSERT INTO food_logs
       (log_date, name, source, source_food_id, meal, meal_id, brand, data_type, preparation, grams_logged, serving_size_g, serving_label, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
@@ -320,6 +324,11 @@ export async function insertFoodLog(params: {
     ]
   );
   return result.lastInsertRowId;
+}
+
+export async function insertFoodLog(params: FoodLogInput): Promise<number> {
+  const db = await getDb();
+  return insertFoodLogWithDb(db, params);
 }
 
 export async function getFoodLogsByDate(logDate: string): Promise<FoodLog[]> {
@@ -423,6 +432,47 @@ export async function insertMeal(params: {
     [params.name, params.log_date, params.meal_type, params.photo_uri ?? null]
   );
   return result.lastInsertRowId;
+}
+
+export async function saveMealWithComponents(params: {
+  editMealId?: number | null;
+  name: string;
+  log_date: string;
+  meal_type: MealType;
+  photo_uri?: string | null;
+  components: FoodLogInput[];
+}): Promise<{ mealId: number; logIds: number[] }> {
+  const db = await getDb();
+  let mealId = params.editMealId ?? 0;
+  const logIds: number[] = [];
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    if (params.editMealId) {
+      await txn.runAsync('DELETE FROM food_logs WHERE meal_id = ?', [params.editMealId]);
+      await txn.runAsync(
+        'UPDATE meals SET name = ?, meal_type = ? WHERE id = ?',
+        [params.name, params.meal_type, params.editMealId],
+      );
+    } else {
+      const result = await txn.runAsync(
+        'INSERT INTO meals (name, log_date, meal_type, photo_uri) VALUES (?, ?, ?, ?)',
+        [params.name, params.log_date, params.meal_type, params.photo_uri ?? null],
+      );
+      mealId = result.lastInsertRowId;
+    }
+
+    for (const component of params.components) {
+      const logId = await insertFoodLogWithDb(txn, {
+        ...component,
+        log_date: params.log_date,
+        meal: params.meal_type,
+        meal_id: mealId,
+      });
+      logIds.push(logId);
+    }
+  });
+
+  return { mealId, logIds };
 }
 
 export async function getActiveMealPhotoUris(): Promise<string[]> {
@@ -680,14 +730,4 @@ export async function updateFoodLog(id: number, params: {
      WHERE id = ?`,
     [params.grams_logged, params.calories, params.protein_g, params.carbs_g, params.fat_g, id]
   );
-}
-
-export async function deleteMealComponents(mealId: number): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM food_logs WHERE meal_id = ?', [mealId]);
-}
-
-export async function updateMealName(mealId: number, name: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('UPDATE meals SET name = ? WHERE id = ?', [name, mealId]);
 }

@@ -136,8 +136,10 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
 function getRelativeTime(loggedAtStr: string): string {
   try {
     const loggedAt = new Date(loggedAtStr);
+    if (Number.isNaN(loggedAt.getTime())) return '';
     const now = new Date();
     const diffMs = now.getTime() - loggedAt.getTime();
+    if (diffMs < 0) return 'Just now';
     const diffSec = Math.floor(diffMs / 1000);
     const diffMin = Math.floor(diffSec / 60);
     const diffHr = Math.floor(diffMin / 60);
@@ -190,18 +192,6 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
   const [toggleTrackWidth, setToggleTrackWidth] = useState(0);
   const toggleSegmentWidth = Math.max(0, (toggleTrackWidth - 4) / 2);
 
-  // ── Scan button press animation ──
-  const scanPressScale = useSharedValue(1);
-  const scanPressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scanPressScale.value }],
-  }));
-  const onScanPressIn = useCallback(() => {
-    scanPressScale.value = withTiming(0.97, { duration: reduced ? 0 : 100, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-  }, [reduced]);
-  const onScanPressOut = useCallback(() => {
-    scanPressScale.value = withTiming(1, { duration: reduced ? 0 : 200, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-  }, [reduced]);
-
   useEffect(() => {
     toggleValSV.value = withTiming(showRemaining ? 1 : 0, { duration: reduced ? 0 : 300, easing: Easing.bezier(0.33, 1, 0.68, 1) });
   }, [showRemaining, reduced]);
@@ -230,6 +220,8 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
     if (showLoading) setLoading(true);
     try {
       const today = todayISO();
+      // Keep SQLite reads serialized; concurrent prepared statements can race
+      // through the Android bridge on some devices.
       const prof = await getProfile();
       const targ = await getLatestDailyTarget();
       const rFood = await getMostRecentEntry();
@@ -335,32 +327,28 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
     ? `Goal: ${goalLabel}`
     : `Goal: ${goalLabel} (${profile.goal_rate_kg_per_week >= 0 ? '+' : ''}${profile.goal_rate_kg_per_week.toFixed(2)} kg/wk)`;
 
-  // Adaptive-engine unlock chip — drives real progress toward the 14-day threshold
-  // rather than a meaningless day-of-week cycle.
-  const daysToUnlock = Math.max(0, 14 - distinctLoggedDays);
   const hasRecentFood = !!recentFood;
   let headerChip: { label: string; locked: boolean } | null;
   if (!hasRecentFood) {
     headerChip = null; // empty-state hero carries the activation focus, no clutter
-  } else if (daysToUnlock > 0) {
-    headerChip = { label: `Adaptive · ${daysToUnlock} day${daysToUnlock === 1 ? '' : 's'}`, locked: true };
   } else {
-    headerChip = { label: 'Check-in ready', locked: false };
+    headerChip = { label: `${Math.min(distinctLoggedDays, 14)}/14 days logged`, locked: true };
   }
 
   const consumedCals = Math.round(todayMacros.calories);
   const targetCals = Math.round(target.target_calories);
-  const calsRemaining = targetCals - consumedCals;
+  const calsRemaining = Math.max(0, targetCals - consumedCals);
+  const calsOver = Math.max(0, consumedCals - targetCals);
 
-  const proteinRemaining = target.target_protein_g - todayMacros.protein_g;
-  const carbsRemaining = target.target_carbs_g - todayMacros.carbs_g;
-  const fatRemaining = target.target_fat_g - todayMacros.fat_g;
+  const proteinRemaining = Math.max(0, target.target_protein_g - todayMacros.protein_g);
+  const carbsRemaining = Math.max(0, target.target_carbs_g - todayMacros.carbs_g);
+  const fatRemaining = Math.max(0, target.target_fat_g - todayMacros.fat_g);
 
   const ringValue = showRemaining ? calsRemaining : consumedCals;
   const ringProgress = targetCals > 0 ? Math.min(1, Math.max(0, ringValue / targetCals)) : 0;
   const flankingLeft = showRemaining ? consumedCals : calsRemaining;
 
-  const formattedDate = new Date().toLocaleDateString('en-US', {
+  const formattedDate = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
@@ -394,8 +382,8 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
           className="gap-4"
         >
           {/* ── Header ── */}
-          <View className="flex-row justify-between items-center">
-            <View className="flex-row items-center gap-3">
+          <View className="flex-row justify-between items-center gap-3">
+            <View className="flex-row items-center gap-3 flex-1 min-w-0">
               <View className="w-10 h-10 rounded-full bg-white items-center justify-center">
                 {initials ? (
                   <Text className="text-m3-on-primary font-bold text-sm">{initials}</Text>
@@ -403,9 +391,9 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
                   <MaterialIcons name="person" size={20} color={M3.onPrimary} />
                 )}
               </View>
-              <View>
-                <Text className="text-m3-on-surface font-bold text-base">{formattedDate}</Text>
-                <Text className="text-m3-on-surface-variant text-xs">{goalSubtitle}</Text>
+              <View className="flex-1 min-w-0">
+                <Text className="text-m3-on-surface font-bold text-base" numberOfLines={1}>{formattedDate}</Text>
+                <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>{goalSubtitle}</Text>
               </View>
             </View>
             {headerChip && (
@@ -425,6 +413,7 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
                   className={`text-[11px] font-semibold ${
                     headerChip.locked ? 'text-m3-on-surface-variant' : 'text-m3-expenditure'
                   }`}
+                  numberOfLines={1}
                 >
                   {headerChip.label}
                 </Text>
@@ -489,6 +478,7 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
                 className="flex-1 py-3.5 items-center z-10 active:opacity-60"
                 accessibilityRole="button"
                 accessibilityLabel="Show calories consumed"
+                accessibilityState={{ selected: !showRemaining }}
               >
                 <AnimatedText style={consumedTextStyle} className="text-sm font-bold">
                   Consumed
@@ -499,12 +489,19 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
                 className="flex-1 py-3.5 items-center z-10 active:opacity-60"
                 accessibilityRole="button"
                 accessibilityLabel="Show calories remaining"
+                accessibilityState={{ selected: showRemaining }}
               >
                 <AnimatedText style={remainingTextStyle} className="text-sm font-bold">
                   Remaining
                 </AnimatedText>
               </Pressable>
             </View>
+
+            {showRemaining && calsOver > 0 && (
+              <Text className="text-m3-error text-xs font-semibold tabular-nums">
+                {calsOver.toLocaleString()} kcal over target
+              </Text>
+            )}
 
             {/* Macro tiles */}
             <View className="flex-row gap-2 w-full">
@@ -534,7 +531,12 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
 
           {/* ── Last Logged Card OR First-Use Hero ── */}
           {recentFood ? (
-            <Pressable onPress={() => navigation.navigate('Diary')} className="active:opacity-80">
+            <Pressable
+              onPress={() => navigation.navigate('Diary')}
+              className="active:opacity-80"
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${recentFood.name} in diary`}
+            >
               <Card className="p-4 flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3 flex-1">
                   <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
@@ -563,16 +565,15 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
                 </Text>
               </View>
               <Pressable
-                onPressIn={onScanPressIn}
-                onPressOut={onScanPressOut}
                 onPress={onOpenCamera}
                 accessibilityRole="button"
                 accessibilityLabel="Scan a meal with camera"
+                className="active:opacity-90"
               >
-                <Animated.View style={scanPressStyle} className="bg-white rounded-full py-4 flex-row items-center justify-center gap-2">
+                <View className="bg-white rounded-full py-4 flex-row items-center justify-center gap-2">
                   <MaterialIcons name="photo-camera" size={18} color={M3.onPrimary} />
                   <Text className="text-m3-on-primary font-bold text-base">Scan a meal</Text>
-                </Animated.View>
+                </View>
               </Pressable>
               <View className="flex-row items-center justify-between">
                 <Pressable
@@ -601,7 +602,10 @@ export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDes
           {/* TODO: navigate to analytics/history screen when built */}
           <Card className="p-5 gap-4">
             <View className="flex-row justify-between items-baseline">
-              <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
+              <View>
+                <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
+                <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">Last 30 days</Text>
+              </View>
               <Text className="text-m3-expenditure text-xs font-bold tabular-nums">
                 {profile.goal_rate_kg_per_week >= 0 ? '+' : ''}
                 {profile.goal_rate_kg_per_week.toFixed(2)} kg/wk

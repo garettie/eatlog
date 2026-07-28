@@ -6,7 +6,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Reanimated, {
   Easing,
-  FadeIn,
   FadeInDown,
   ZoomIn,
   runOnJS,
@@ -72,7 +71,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
           {/* ── Success header ── */}
           <View className="items-center gap-4 mb-2">
             <Reanimated.View
-              entering={reduced ? FadeIn.duration(200) : ZoomIn.duration(400).springify()}
+              entering={reduced ? undefined : ZoomIn.duration(400).springify()}
               className="w-16 h-16 rounded-full bg-m3-primary-container items-center justify-center"
             >
               <MaterialIcons name="check" size={32} color="#ffffff" />
@@ -138,12 +137,11 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
                 <MaterialIcons name="auto-graph" size={20} color="#c4c6d0" style={{ marginTop: 1 }} />
                 <View className="flex-1">
                   <Text className="text-m3-on-surface text-sm font-semibold mb-1">
-                    Adaptive Recalibration Engine
+                    Built for better calibration
                   </Text>
                   <Text className="text-m3-on-surface-variant text-xs leading-5">
-                    These starting targets use the Mifflin-St Jeor formula. Log your food and
-                    weight daily — after 14 logged days, your actual TDEE is calculated from
-                    real weight changes and weekly targets are proposed from your own data.
+                    These starting targets use the Mifflin-St Jeor formula. Consistent food and
+                    weight logs build the history needed for more personalized adjustments.
                   </Text>
                 </View>
               </View>
@@ -161,7 +159,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
                   </Text>
                   <Text className="text-m3-on-surface-variant text-xs leading-5">
                     Point the camera at any meal — Marco estimates the macros for you.
-                    Logging daily is what makes your targets adapt.
+                    You can review every estimate before it reaches your diary.
                   </Text>
                 </View>
               </View>
