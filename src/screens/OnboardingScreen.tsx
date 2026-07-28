@@ -11,7 +11,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Reanimated, {
@@ -24,6 +23,7 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import DateSelector from '../components/DateSelector';
 import PrimaryButton from '../components/PrimaryButton';
 import RulerSlider from '../components/RulerSlider';
 import SegmentedControl from '../components/SegmentedControl';
@@ -57,6 +57,20 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 type UnitSystem = 'metric' | 'imperial';
 
 const TOTAL_STEPS = 6;
+
+function yearsAgo(date: Date, years: number): Date {
+  const year = date.getFullYear() - years;
+  const day = Math.min(
+    date.getDate(),
+    new Date(year, date.getMonth() + 1, 0).getDate()
+  );
+  return new Date(year, date.getMonth(), day);
+}
+
+const TODAY = new Date();
+const LATEST_BIRTH_DATE = yearsAgo(TODAY, 5);
+const EARLIEST_BIRTH_DATE = new Date(yearsAgo(TODAY, 126));
+EARLIEST_BIRTH_DATE.setDate(EARLIEST_BIRTH_DATE.getDate() + 1);
 
 function StyledInput({
   value,
@@ -592,6 +606,9 @@ export default function OnboardingScreen({ navigation }: Props) {
                     <SectionLabel>Birth Date</SectionLabel>
                     <Pressable
                       onPress={() => setShowDatePicker(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Select birth date"
+                      accessibilityHint="Opens the date selector"
                       className="w-full bg-m3-surface-container-high rounded-xl px-4 py-3.5 border border-m3-outline-variant/40 flex-row items-center justify-between active:opacity-70"
                     >
                       <Text className="text-m3-on-surface text-sm font-semibold">
@@ -604,19 +621,6 @@ export default function OnboardingScreen({ navigation }: Props) {
                       <MaterialIcons name="calendar-today" size={16} color="#c4c6d0" />
                     </Pressable>
                   </View>
-
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={birthDate}
-                      mode="date"
-                      display="default"
-                      maximumDate={new Date()}
-                      onChange={(event: any, date?: Date) => {
-                        setShowDatePicker(false);
-                        if (event.type === 'set' && date) setBirthDate(date);
-                      }}
-                    />
-                  )}
                 </>
               )}
 
@@ -1053,6 +1057,19 @@ export default function OnboardingScreen({ navigation }: Props) {
           )}
         </View>
       </KeyboardAvoidingView>
+      <DateSelector
+        visible={showDatePicker}
+        value={birthDate}
+        minimumDate={EARLIEST_BIRTH_DATE}
+        maximumDate={LATEST_BIRTH_DATE}
+        title="Birth date"
+        onCancel={() => setShowDatePicker(false)}
+        onConfirm={(date) => {
+          setBirthDate(date);
+          setStepError(null);
+          setShowDatePicker(false);
+        }}
+      />
     </SafeAreaView>
   );
 }

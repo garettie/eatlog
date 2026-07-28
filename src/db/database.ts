@@ -47,6 +47,7 @@ export interface DailyTarget {
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+const DATABASE_VERSION = 1;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
@@ -59,17 +60,24 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
 
 export async function initDatabase(): Promise<void> {
   const db = await getDb();
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
+  await db.execAsync('PRAGMA journal_mode = WAL;');
 
-    DROP TABLE IF EXISTS profile;
-    DROP TABLE IF EXISTS weight_logs;
-    DROP TABLE IF EXISTS food_logs;
-    DROP TABLE IF EXISTS food_cache;
-    DROP TABLE IF EXISTS meals;
-    DROP TABLE IF EXISTS daily_targets;
+  const versionRow = await db.getFirstAsync<{ user_version: number }>(
+    'PRAGMA user_version'
+  );
+  const currentVersion = versionRow?.user_version ?? 0;
 
-    CREATE TABLE profile (
+  if (currentVersion > DATABASE_VERSION) {
+    throw new Error(
+      `Database version ${currentVersion} is newer than supported version ${DATABASE_VERSION}.`
+    );
+  }
+  if (currentVersion === DATABASE_VERSION) return;
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    if (currentVersion === 0) {
+      await txn.execAsync(`
+    CREATE TABLE IF NOT EXISTS profile (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       display_name TEXT NOT NULL,
       sex TEXT NOT NULL CHECK (sex IN ('male','female')),
@@ -84,7 +92,7 @@ export async function initDatabase(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE weight_logs (
+    CREATE TABLE IF NOT EXISTS weight_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       log_date TEXT NOT NULL UNIQUE,
       scale_weight_kg REAL NOT NULL,
@@ -92,7 +100,16 @@ export async function initDatabase(): Promise<void> {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE food_logs (
+    CREATE TABLE IF NOT EXISTS meals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      log_date TEXT NOT NULL,
+      meal_type TEXT NOT NULL DEFAULT 'snack' CHECK (meal_type IN ('breakfast','lunch','dinner','snack')),
+      photo_uri TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS food_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       log_date TEXT NOT NULL,
       name TEXT NOT NULL,
@@ -117,16 +134,7 @@ export async function initDatabase(): Promise<void> {
       logged_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE meals (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      log_date TEXT NOT NULL,
-      meal_type TEXT NOT NULL DEFAULT 'snack' CHECK (meal_type IN ('breakfast','lunch','dinner','snack')),
-      photo_uri TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE food_cache (
+    CREATE TABLE IF NOT EXISTS food_cache (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       normalizedName TEXT NOT NULL,
@@ -141,9 +149,9 @@ export async function initDatabase(): Promise<void> {
       source TEXT NOT NULL CHECK (source IN ('scan','describe')),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-    CREATE INDEX idx_food_cache_normalized ON food_cache(normalizedName);
+    CREATE INDEX IF NOT EXISTS idx_food_cache_normalized ON food_cache(normalizedName);
 
-    CREATE TABLE daily_targets (
+    CREATE TABLE IF NOT EXISTS daily_targets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       effective_date TEXT NOT NULL,
       tdee_estimate REAL NOT NULL,
@@ -155,7 +163,11 @@ export async function initDatabase(): Promise<void> {
         ('initial_estimate','adaptive')),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
-  `);
+      `);
+    }
+
+    await txn.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+  });
 }
 
 export async function getProfile(): Promise<Profile | null> {

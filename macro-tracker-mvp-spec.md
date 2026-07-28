@@ -42,9 +42,9 @@ Do not add auth, backend, network state unrelated to food search/AI, iOS-specifi
 
 ## 3. Persistence Model
 
-### Important current caveat
+### Schema initialization
 
-`initDatabase()` currently drops and recreates the schema at app initialization. This is active development behavior, not a production persistence model. It resets profile, logs, targets, meals, and cached data after a cold launch. Before durable dogfooding, replace this with `CREATE TABLE IF NOT EXISTS` plus versioned migrations.
+`initDatabase()` preserves existing data and applies schema changes through versioned, atomic migrations. A cold launch does not reset profile, logs, targets, meals, or cached data.
 
 Meal photos are stored as app-private files. Startup cleanup deletes photo files not referenced by a `meals.photo_uri` row; deletes are intentionally not eager so toast undo can restore a meal without losing its image in the current session.
 
@@ -154,7 +154,7 @@ CREATE TABLE daily_targets (
 
 Six steps establish the initial profile:
 
-1. Biological sex, optional display name, birth date.
+1. Biological sex, optional display name, and birth date through an app-owned month/day/year selector.
 2. Metric/imperial unit choice, editable height and starting weight with ruler assistance.
 3. Activity level.
 4. Cut, maintain, or bulk; target weight and target-rate controls for cut/bulk.
