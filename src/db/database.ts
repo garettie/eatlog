@@ -394,6 +394,14 @@ export async function getTodayMacros(dateISO: string): Promise<{
   return row!;
 }
 
+export async function getDistinctLoggedDayCount(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(DISTINCT log_date) AS count FROM food_logs`
+  );
+  return row?.count ?? 0;
+}
+
 export async function getRecentWeightLogs(limit: number): Promise<WeightLog[]> {
   const db = await getDb();
   return db.getAllAsync<WeightLog>(

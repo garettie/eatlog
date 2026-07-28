@@ -23,6 +23,7 @@ import {
   getMostRecentEntry,
   getTodayMacros,
   getRecentWeightLogs,
+  getDistinctLoggedDayCount,
   Profile,
   DailyTarget,
   LastEntry,
@@ -112,7 +113,7 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
     <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-3">
       <View className="flex-row justify-between items-baseline mb-2">
         <Text className={`${textColorClass} text-xs font-semibold`}>{label}</Text>
-        <Text className="text-m3-on-surface-variant text-[10px] tabular-nums font-medium">
+        <Text className="text-m3-on-surface-variant text-xs tabular-nums font-medium">
           {Math.round(consumed)}g
         </Text>
       </View>
@@ -157,7 +158,14 @@ function getRelativeTime(loggedAtStr: string): string {
 
 // ── DashboardScreen Component ─────────────────────────────────────────────
 
-export default function DashboardScreen() {
+interface DashboardScreenProps {
+  onOpenCamera: () => void;
+  onOpenGallery: () => void;
+  onOpenDescribe: () => void;
+  logVersion: number;
+}
+
+export default function DashboardScreen({ onOpenCamera, onOpenGallery, onOpenDescribe, logVersion }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
   const reduced = useReducedMotion();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -170,6 +178,7 @@ export default function DashboardScreen() {
     fat_g: number;
   }>({ calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [distinctLoggedDays, setDistinctLoggedDays] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showRemaining, setShowRemaining] = useState(false);
   const [error, setError] = useState(false);
@@ -178,6 +187,18 @@ export default function DashboardScreen() {
   // ── Toggle animation ──
   const toggleValSV = useSharedValue(0);
   const toggleContainerWidthSV = useSharedValue(202);
+
+  // ── Scan button press animation ──
+  const scanPressScale = useSharedValue(1);
+  const scanPressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scanPressScale.value }],
+  }));
+  const onScanPressIn = useCallback(() => {
+    scanPressScale.value = withTiming(0.97, { duration: reduced ? 0 : 100, easing: Easing.bezier(0.33, 1, 0.68, 1) });
+  }, [reduced]);
+  const onScanPressOut = useCallback(() => {
+    scanPressScale.value = withTiming(1, { duration: reduced ? 0 : 200, easing: Easing.bezier(0.33, 1, 0.68, 1) });
+  }, [reduced]);
 
   useEffect(() => {
     toggleValSV.value = withTiming(showRemaining ? 1 : 0, { duration: reduced ? 0 : 300, easing: Easing.bezier(0.33, 1, 0.68, 1) });
@@ -214,12 +235,14 @@ export default function DashboardScreen() {
       const rFood = await getMostRecentEntry();
       const tMacros = await getTodayMacros(today);
       const wLogs = await getRecentWeightLogs(30);
+      const ddCount = await getDistinctLoggedDayCount();
 
       setProfile(prof);
       setTarget(targ);
       setRecentFood(rFood);
       setTodayMacros(tMacros);
       setWeightLogs([...wLogs].reverse());
+      setDistinctLoggedDays(ddCount);
       setError(false);
     } catch (e) {
       console.error('[Dashboard] loadData failed', e);
@@ -236,6 +259,13 @@ export default function DashboardScreen() {
       loadData(isInitial);
     }, [loadData])
   );
+
+  // Reload when a meal is logged (logVersion bump from TabNavigator) — the
+  // bottom sheet is an overlay so useFocusEffect never refires.
+  useEffect(() => {
+    if (!initialLoadDone.current) return; // skip mount, useFocusEffect handles it
+    loadData(false);
+  }, [logVersion]);
 
   // ── Loading / Empty / Error states ──
 
@@ -305,18 +335,17 @@ export default function DashboardScreen() {
     ? `Goal: ${goalLabel}`
     : `Goal: ${goalLabel} (${profile.goal_rate_kg_per_week >= 0 ? '+' : ''}${profile.goal_rate_kg_per_week.toFixed(2)} kg/wk)`;
 
-  let checkInText = 'Due today';
-  if (profile.created_at) {
-    const created = new Date(profile.created_at);
-    const today = new Date();
-    const diffTime = Math.abs(today.getTime() - created.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const rem = 7 - (diffDays % 7);
-    if (rem > 0 && rem < 7) {
-      checkInText = `Check-in in ${rem} days`;
-    } else {
-      checkInText = 'Due today';
-    }
+  // Adaptive-engine unlock chip — drives real progress toward the 14-day threshold
+  // rather than a meaningless day-of-week cycle.
+  const daysToUnlock = Math.max(0, 14 - distinctLoggedDays);
+  const hasRecentFood = !!recentFood;
+  let headerChip: { label: string; locked: boolean } | null;
+  if (!hasRecentFood) {
+    headerChip = null; // empty-state hero carries the activation focus, no clutter
+  } else if (daysToUnlock > 0) {
+    headerChip = { label: `Adaptive · ${daysToUnlock} day${daysToUnlock === 1 ? '' : 's'}`, locked: true };
+  } else {
+    headerChip = { label: 'Check-in ready', locked: false };
   }
 
   const consumedCals = Math.round(todayMacros.calories);
@@ -375,9 +404,28 @@ export default function DashboardScreen() {
                 <Text className="text-m3-on-surface-variant text-xs">{goalSubtitle}</Text>
               </View>
             </View>
-            <View className="bg-m3-surface-container rounded-full px-3 py-1.5 border border-m3-outline-variant/30">
-              <Text className="text-m3-on-surface-variant text-[11px] font-semibold">{checkInText}</Text>
-            </View>
+            {headerChip && (
+              <View
+                className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border ${
+                  headerChip.locked
+                    ? 'bg-m3-surface-container border-m3-outline-variant/30'
+                    : 'bg-m3-expenditure/15 border-m3-expenditure/40'
+                }`}
+              >
+                <MaterialIcons
+                  name={headerChip.locked ? 'lock' : 'auto-awesome'}
+                  size={11}
+                  color={headerChip.locked ? M3.onSurfaceVariant : M3.expenditure}
+                />
+                <Text
+                  className={`text-[11px] font-semibold ${
+                    headerChip.locked ? 'text-m3-on-surface-variant' : 'text-m3-expenditure'
+                  }`}
+                >
+                  {headerChip.label}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* ── Calorie Ring Card ── */}
@@ -389,7 +437,7 @@ export default function DashboardScreen() {
                 <Text className="text-m3-on-surface-variant text-sm font-bold tabular-nums">
                   {flankingLeft.toLocaleString()}
                 </Text>
-                <Text className="text-m3-on-surface-variant text-[10px] font-medium">
+                <Text className="text-m3-on-surface-variant text-xs font-medium">
                   {showRemaining ? 'Consumed' : 'Remaining'}
                 </Text>
               </View>
@@ -401,7 +449,7 @@ export default function DashboardScreen() {
                   <Text className="text-m3-on-surface font-bold text-3xl tabular-nums">
                     {ringValue.toLocaleString()}
                   </Text>
-                  <Text className="text-m3-on-surface-variant text-[11px] font-medium mt-0.5">
+                  <Text className="text-m3-on-surface-variant text-xs font-medium mt-0.5">
                     {showRemaining ? 'Remaining' : 'Consumed'}
                   </Text>
                 </View>
@@ -412,7 +460,7 @@ export default function DashboardScreen() {
                 <Text className="text-m3-on-surface-variant text-sm font-bold tabular-nums">
                   {targetCals.toLocaleString()}
                 </Text>
-                <Text className="text-m3-on-surface-variant text-[10px] font-medium">Target</Text>
+                <Text className="text-m3-on-surface-variant text-xs font-medium">Target</Text>
               </View>
             </View>
 
@@ -431,7 +479,7 @@ export default function DashboardScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Show calories consumed"
               >
-                <AnimatedText style={consumedTextStyle} className="text-xs font-bold">
+                <AnimatedText style={consumedTextStyle} className="text-sm font-bold">
                   Consumed
                 </AnimatedText>
               </Pressable>
@@ -441,7 +489,7 @@ export default function DashboardScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Show calories remaining"
               >
-                <AnimatedText style={remainingTextStyle} className="text-xs font-bold">
+                <AnimatedText style={remainingTextStyle} className="text-sm font-bold">
                   Remaining
                 </AnimatedText>
               </Pressable>
@@ -473,14 +521,14 @@ export default function DashboardScreen() {
             </View>
           </Card>
 
-          {/* ── Last Logged Card ── */}
-          <Pressable onPress={() => navigation.navigate('Diary')} className="active:opacity-80">
-            <Card className="p-4 flex-row items-center justify-between">
-              <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
-                  <MaterialIcons name="restaurant" size={18} color={M3.onSurfaceVariant} />
-                </View>
-                {recentFood ? (
+          {/* ── Last Logged Card OR First-Use Hero ── */}
+          {recentFood ? (
+            <Pressable onPress={() => navigation.navigate('Diary')} className="active:opacity-80">
+              <Card className="p-4 flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3 flex-1">
+                  <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
+                    <MaterialIcons name="restaurant" size={18} color={M3.onSurfaceVariant} />
+                  </View>
                   <View className="flex-1">
                     <Text className="text-m3-on-surface font-bold text-sm" numberOfLines={1}>
                       {recentFood.name}
@@ -489,17 +537,54 @@ export default function DashboardScreen() {
                       {Math.round(recentFood.calories)} kcal · {getRelativeTime(recentFood.logged_at)}
                     </Text>
                   </View>
-                ) : (
-                  <View className="flex-1">
-                    <Text className="text-m3-on-surface-variant text-sm font-medium">
-                      Log your first entry to see it here
-                    </Text>
-                  </View>
-                )}
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+              </Card>
+            </Pressable>
+          ) : (
+            <Card className="p-5 gap-3">
+              <View className="flex-row items-center gap-3">
+                <View className="w-8 h-8 rounded-full bg-m3-surface-container-high items-center justify-center">
+                  <MaterialIcons name="restaurant" size={16} color={M3.onSurfaceVariant} />
+                </View>
+                <Text className="text-m3-on-surface font-bold text-base">
+                  Log your first meal
+                </Text>
               </View>
-              <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+              <Pressable
+                onPressIn={onScanPressIn}
+                onPressOut={onScanPressOut}
+                onPress={onOpenCamera}
+                accessibilityRole="button"
+                accessibilityLabel="Scan a meal with camera"
+              >
+                <Animated.View style={scanPressStyle} className="bg-white rounded-full py-4 flex-row items-center justify-center gap-2">
+                  <MaterialIcons name="photo-camera" size={18} color={M3.onPrimary} />
+                  <Text className="text-m3-on-primary font-bold text-base">Scan a meal</Text>
+                </Animated.View>
+              </Pressable>
+              <View className="flex-row items-center justify-between">
+                <Pressable
+                  onPress={onOpenGallery}
+                  className="flex-row items-center gap-1.5 py-2 active:opacity-60"
+                  accessibilityRole="button"
+                  accessibilityLabel="Upload a photo from gallery"
+                >
+                  <MaterialIcons name="photo-library" size={16} color={M3.onSurfaceVariant} />
+                  <Text className="text-m3-on-surface-variant font-medium text-sm">Upload photo</Text>
+                </Pressable>
+                <Pressable
+                  onPress={onOpenDescribe}
+                  className="flex-row items-center gap-1.5 py-2 active:opacity-60"
+                  accessibilityRole="button"
+                  accessibilityLabel="Describe a meal in words"
+                >
+                  <Text className="text-m3-on-surface-variant font-medium text-sm">Describe</Text>
+                  <MaterialIcons name="arrow-forward" size={14} color={M3.onSurfaceVariant} />
+                </Pressable>
+              </View>
             </Card>
-          </Pressable>
+          )}
 
           {/* ── Weight Trend Card ── */}
           {/* TODO: navigate to analytics/history screen when built */}

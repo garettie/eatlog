@@ -112,8 +112,8 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
             </Text>
             <Text className="text-m3-on-surface-variant text-xs leading-5">
               These starting targets use the Mifflin-St Jeor formula. Log your food and weight
-              daily — after at least 7 days with consistent data the app will calculate your
-              actual TDEE from real weight changes and offer updated weekly targets.
+              daily — after 14 logged days, your actual TDEE is calculated from real weight
+              changes and weekly targets are proposed from your own data.
             </Text>
           </View>
         </View>

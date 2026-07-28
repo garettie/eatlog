@@ -21,7 +21,7 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
   const fraction = target > 0 ? Math.min(1, consumed / target) : 0;
 
   return (
-    <View className="flex-1 gap-0.5">
+    <View className="flex-1 gap-1">
       <View className="flex-row items-center justify-center gap-1">
         {icon ? (
           <MaterialIcons name={icon as any} size={11} color={M3.onSurface} />

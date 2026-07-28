@@ -259,13 +259,21 @@ export default function TabNavigator() {
       >
         <Tab.Screen
           name="Today"
-          component={DashboardScreen}
           options={{
             tabBarIcon: ({ color, size }) => (
               <MaterialIcons name="grid-view" size={size} color={color} />
             ),
           }}
-        />
+        >
+          {() => (
+            <DashboardScreen
+              onOpenCamera={openCamera}
+              onOpenGallery={openGallery}
+              onOpenDescribe={openDescribe}
+              logVersion={logVersion}
+            />
+          )}
+        </Tab.Screen>
         <Tab.Screen
           name="Diary"
           options={{
@@ -307,7 +315,7 @@ export default function TabNavigator() {
           name="Analytics"
           options={{
             tabBarIcon: ({ color, size }) => (
-              <MaterialIcons name="monitor" size={size} color={color} />
+              <MaterialIcons name="show-chart" size={size} color={color} />
             ),
           }}
         >
