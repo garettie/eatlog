@@ -385,7 +385,7 @@ export default function ReviewState({ result, onLogComplete, onClarify, editMeal
           const showMl = !!(comp.servingLabel && /ml\b/i.test(comp.servingLabel));
 
           return (
-            <View className="border-b border-m3-outline-variant/20">
+            <View key={`${comp.food.id}-${idx}`} className="border-b border-m3-outline-variant/20">
               {isExpanded ? (
                 <Animated.View
                   key={`exp-${comp.food.id}`}
