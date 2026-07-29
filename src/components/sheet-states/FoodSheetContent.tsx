@@ -83,8 +83,6 @@ export default function FoodSheetContent({
   const mealRequestRef = useRef(0);
   const fromBarRef = useRef(false);
   fromBarRef.current = !!state.fromBar;
-  const logDateRef = useRef(state.logDate);
-  logDateRef.current = state.logDate;
   useEffect(() => {
     if (state.stateKey !== 'review-loading') mealRequestRef.current += 1;
   }, [state.stateKey]);
@@ -274,17 +272,17 @@ export default function FoodSheetContent({
   }, [transitionTo]);
 
   const handleSingleLogComplete = useCallback(
-    ({ logId, meal, name }: { logId: number; meal: MealType; name: string }) => {
+    ({ logId, meal, name, logDate }: { logId: number; meal: MealType; name: string; logDate: string }) => {
       setState((s) => ({ ...s, visible: false, selectedFood: null }));
-      onMealLogged({ kind: 'food', logId, meal, name, logDate: logDateRef.current });
+      onMealLogged({ kind: 'food', logId, meal, name, logDate });
     },
     [onMealLogged, setState],
   );
 
   const handleManualLogComplete = useCallback(
-    ({ logId, meal, name }: { logId: number; meal: MealType; name: string }) => {
+    ({ logId, meal, name, logDate }: { logId: number; meal: MealType; name: string; logDate: string }) => {
       setState((s) => ({ ...s, visible: false }));
-      onMealLogged({ kind: 'food', logId, meal, name, logDate: logDateRef.current });
+      onMealLogged({ kind: 'food', logId, meal, name, logDate });
     },
     [onMealLogged, setState],
   );
@@ -317,9 +315,9 @@ export default function FoodSheetContent({
   );
 
   const handleMealLogged = useCallback(
-    (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
+    (info: { mealId: number; logIds: number[]; meal: MealType; name: string; logDate: string }) => {
       setState((s) => ({ ...s, visible: false, describeResult: null, editMealId: null }));
-      onMealLogged({ kind: 'meal', ...info, logDate: logDateRef.current });
+      onMealLogged({ kind: 'meal', ...info });
     },
     [onMealLogged, setState],
   );

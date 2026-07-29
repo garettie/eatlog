@@ -10,7 +10,7 @@ import MealSelector from '../MealSelector';
 import PrimaryButton from '../PrimaryButton';
 
 interface ManualInputStateProps {
-  onLogComplete: (info: { logId: number; meal: MealType; name: string }) => void;
+  onLogComplete: (info: { logId: number; meal: MealType; name: string; logDate: string }) => void;
   initialMeal?: MealType | null;
   /** Diary date to write to (backfill); null = today. */
   logDate?: string | null;
@@ -51,15 +51,16 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate }
     setLogError(null);
     setLogging(true);
     try {
+      const targetLogDate = logDate ?? todayISO();
       const logId = await insertFoodLog({
-        log_date: logDate ?? todayISO(), name: name.trim(), source: 'manual', meal,
+        log_date: targetLogDate, name: name.trim(), source: 'manual', meal,
         brand: null, data_type: 'manual', preparation: null, grams_logged: null,
         calories_per_100g: null, protein_g_per_100g: null, carbs_g_per_100g: null, fat_g_per_100g: null,
         calories: cal, protein_g: pro, carbs_g: ca, fat_g: fa,
       });
       const loggedName = name.trim();
       setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat('');
-      onLogComplete({ logId, meal, name: loggedName });
+      onLogComplete({ logId, meal, name: loggedName, logDate: targetLogDate });
     } catch (e) {
       console.error('[ManualEntry] save failed', e);
       setLogError("Couldn't save this entry. Try again.");

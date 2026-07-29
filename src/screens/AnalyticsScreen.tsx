@@ -46,11 +46,9 @@ interface AnalyticsScreenProps {
 
 interface AnalyticsData {
   profile: Profile;
-  weights: WeightLog[];
   chartWeights: WeightLog[];
   dailyCalories: Array<{ log_date: string; calories: number }>;
   target: DailyTarget;
-  startDate: string;
   endDate: string;
 }
 
@@ -179,7 +177,7 @@ function MacroRow({ protein, carbs, fat }: { protein: number; carbs: number; fat
   );
 }
 
-export default function AnalyticsScreen({
+function AnalyticsScreen({
   onOpenWeight,
   dataVersion,
   onDataChanged,
@@ -200,11 +198,10 @@ export default function AnalyticsScreen({
   const initialLoadDoneRef = useRef(false);
   const hasDataRef = useRef(false);
   const selectedRangeRef = useRef<RangeKey>('1M');
-  const loadedRangeRef = useRef<RangeKey>('1M');
+  const loadedDateRef = useRef<string | null>(null);
   const requestRef = useRef(0);
   const dataVersionRef = useRef(dataVersion);
   const operationQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const weightHistoryRef = useRef<WeightLog[] | null>(null);
 
   useEffect(() => () => {
     mountedRef.current = false;
@@ -216,10 +213,7 @@ export default function AnalyticsScreen({
     return result;
   }, []);
 
-  const loadData = useCallback(async (
-    range: RangeKey,
-    options: { initial?: boolean; rangeChange?: boolean } = {},
-  ) => {
+  const loadData = useCallback(async (options: { initial?: boolean } = {}) => {
     const requestId = ++requestRef.current;
     if (options.initial) {
       setInitialLoading(true);
@@ -229,51 +223,38 @@ export default function AnalyticsScreen({
       if (!mountedRef.current || requestId !== requestRef.current) return;
       try {
         const endDate = todayISO();
-        const dates = rangeDates(range, endDate);
 
         // Keep these reads sequential; concurrent statements can race on Android.
         const profile = await getProfile();
         if (!profile) throw new Error('Profile is required');
-        let chartWeights = weightHistoryRef.current;
-        if (!options.rangeChange || !chartWeights) {
-          const chartStartDate = rangeDates('1Y', endDate).startDate;
-          chartWeights = await getWeightLogsByDateRange(chartStartDate, endDate);
-          weightHistoryRef.current = chartWeights;
-        }
-        const weights = chartWeights.filter((log) => log.log_date >= dates.startDate);
-        const dailyCalories = await getDailyCaloriesByDateRange(dates.startDate, dates.endDate);
+        const chartStartDate = rangeDates('1Y', endDate).startDate;
+        const chartWeights = await getWeightLogsByDateRange(chartStartDate, endDate);
+        const calorieHistoryStart = rangeDates('1Y', endDate).startDate;
+        const dailyCalories = await getDailyCaloriesByDateRange(calorieHistoryStart, endDate);
         const target = await getDailyTargetForDate(endDate);
         if (!target) throw new Error('Daily target is required');
 
         let nextRecommendation: AdaptiveReviewState | null = null;
         let nextRecommendationError = false;
-        if (!options.rangeChange) {
-          try {
-            nextRecommendation = await getAdaptiveReviewState(endDate);
-          } catch (error) {
-            console.error('[Analytics] recommendation load failed', error);
-            nextRecommendationError = true;
-          }
+        try {
+          nextRecommendation = await getAdaptiveReviewState(endDate);
+        } catch (error) {
+          console.error('[Analytics] recommendation load failed', error);
+          nextRecommendationError = true;
         }
 
         if (!mountedRef.current || requestId !== requestRef.current) return;
-        setData({ profile, weights, chartWeights, dailyCalories, target, ...dates });
+        setData({ profile, chartWeights, dailyCalories, target, endDate });
         hasDataRef.current = true;
-        loadedRangeRef.current = range;
-        if (!options.rangeChange) {
-          setRecommendation(nextRecommendation);
-          setRecommendationError(nextRecommendationError);
-        }
+        loadedDateRef.current = endDate;
+        setRecommendation(nextRecommendation);
+        setRecommendationError(nextRecommendationError);
         setStaleMessage(false);
         setInitialError(false);
       } catch (error) {
         console.error('[Analytics] loadData failed', error);
         if (!mountedRef.current || requestId !== requestRef.current) return;
         if (!hasDataRef.current) setInitialError(true);
-        if (options.rangeChange) {
-          selectedRangeRef.current = loadedRangeRef.current;
-          setSelectedRange(loadedRangeRef.current);
-        }
       } finally {
         if (!mountedRef.current || requestId !== requestRef.current) return;
         setInitialLoading(false);
@@ -285,22 +266,23 @@ export default function AnalyticsScreen({
     useCallback(() => {
       const initial = !initialLoadDoneRef.current && !hasDataRef.current;
       initialLoadDoneRef.current = true;
-      void loadData(selectedRangeRef.current, { initial });
+      if (!hasDataRef.current || loadedDateRef.current !== todayISO()) {
+        void loadData({ initial });
+      }
     }, [loadData]),
   );
 
   useEffect(() => {
     if (dataVersionRef.current === dataVersion) return;
     dataVersionRef.current = dataVersion;
-    if (initialLoadDoneRef.current) void loadData(selectedRangeRef.current);
+    if (initialLoadDoneRef.current) void loadData();
   }, [dataVersion, loadData]);
 
   const handleRangeChange = useCallback((range: RangeKey) => {
     if (range === selectedRangeRef.current) return;
     selectedRangeRef.current = range;
     setSelectedRange(range);
-    void loadData(range, { rangeChange: true });
-  }, [loadData]);
+  }, []);
 
   const dismissIntro = useCallback(() => {
     setIntroDismissed(true);
@@ -353,7 +335,6 @@ export default function AnalyticsScreen({
 
       if (resolved) {
         onDataChanged(action === 'accept' ? 'New targets accepted' : 'Current targets kept');
-        await loadData(selectedRangeRef.current);
       }
     } catch (error) {
       console.error('[Analytics] recommendation resolution failed', error);
@@ -361,7 +342,7 @@ export default function AnalyticsScreen({
     } finally {
       if (mountedRef.current) setResolving(null);
     }
-  }, [enqueue, loadData, onDataChanged, recommendation, resolving]);
+  }, [enqueue, onDataChanged, recommendation, resolving]);
 
   if (initialLoading && !data) {
     return (
@@ -380,7 +361,7 @@ export default function AnalyticsScreen({
             Couldn't load analytics. Check your data and try again.
           </Text>
           <Pressable
-            onPress={() => void loadData(selectedRangeRef.current, { initial: true })}
+            onPress={() => void loadData({ initial: true })}
             className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
             accessibilityRole="button"
             accessibilityLabel="Retry loading analytics"
@@ -399,12 +380,14 @@ export default function AnalyticsScreen({
   const {
     profile,
     chartWeights,
-    dailyCalories,
+    dailyCalories: calorieHistory,
     target,
-    startDate,
     endDate,
   } = data;
   const chartDates = rangeDates(selectedRange, endDate);
+  const dailyCalories = calorieHistory.filter(
+    (day) => day.log_date >= chartDates.startDate && day.log_date <= chartDates.endDate,
+  );
   const rangeWeights = chartWeights.filter(
     (log) => log.log_date >= chartDates.startDate && log.log_date <= chartDates.endDate,
   );
@@ -422,7 +405,7 @@ export default function AnalyticsScreen({
       { logDate: latestWeight.log_date, trendWeightKg: latestWeight.trend_weight_kg },
     )
     : null;
-  const totalDays = calendarDaysBetween(startDate, endDate) + 1;
+  const totalDays = calendarDaysBetween(chartDates.startDate, chartDates.endDate) + 1;
   const averageCalories = dailyCalories.length
     ? dailyCalories.reduce((sum, day) => sum + day.calories, 0) / dailyCalories.length
     : null;
@@ -737,3 +720,5 @@ export default function AnalyticsScreen({
     </SafeAreaView>
   );
 }
+
+export default React.memo(AnalyticsScreen);

@@ -55,7 +55,7 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
   );
 }
 
-export default function MacroRail({ cells }: MacroRailProps) {
+function MacroRail({ cells }: MacroRailProps) {
   return (
     <View className="flex-row items-end gap-3 px-4 py-3">
       {cells.map((cell, i) => (
@@ -64,3 +64,5 @@ export default function MacroRail({ cells }: MacroRailProps) {
     </View>
   );
 }
+
+export default React.memo(MacroRail);

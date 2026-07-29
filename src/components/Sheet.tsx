@@ -5,7 +5,7 @@ import BottomSheet, {
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
-import Animated, { type SharedValue, useReducedMotion, withTiming } from 'react-native-reanimated';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { M3 } from '../theme/tokens';
@@ -16,7 +16,6 @@ interface SheetProps {
   stateKey: string | number;
   canCloseRef: React.MutableRefObject<() => boolean>;
   children: React.ReactNode;
-  fabScale?: SharedValue<number>;
   enableDynamicSizing?: boolean;
   enablePanDownToClose?: boolean;
   onGoBack?: () => boolean;
@@ -31,7 +30,6 @@ export default function Sheet({
   stateKey,
   canCloseRef,
   children,
-  fabScale,
   enableDynamicSizing = false,
   enablePanDownToClose = true,
   onGoBack,
@@ -74,9 +72,6 @@ export default function Sheet({
   useEffect(() => {
     if (!visible) {
       sheetRef.current?.close();
-    }
-    if (fabScale) {
-      fabScale.value = withTiming(visible ? 0.86 : 1, { duration: reduced ? 0 : 200 });
     }
   }, [visible]);
 

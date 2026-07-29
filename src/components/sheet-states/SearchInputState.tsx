@@ -153,6 +153,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
             returnKeyType="search"
             onSubmitEditing={Keyboard.dismiss}
           />
+          {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} />}
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-10 h-10 items-center justify-center -mr-2 -my-2">
               <MaterialIcons name="close" size={18} color="#c4c6d0" />
@@ -162,14 +163,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
       </View>
 
       <View className="px-5 gap-1.5">
-        {isSearching && results.length === 0 && (
-          <View className="py-12 items-center" accessibilityLiveRegion="polite">
-            <ActivityIndicator size="small" color="#ffffff" />
-            <Text className="text-m3-on-surface-variant text-xs mt-3">Searching…</Text>
-          </View>
-        )}
-
-        {!query.trim() && !isSearching && recents.length > 0 && (
+        {!hasSearched && recents.length > 0 && (
           <View className="gap-1.5">
             <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-1">
               Recents

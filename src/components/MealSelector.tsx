@@ -58,12 +58,19 @@ export default function MealSelector({ value, onChange }: MealSelectorProps) {
           style={[pillStyle, { width: segmentWidth, top: 2, bottom: 2, left: 2 }]}
         />
       )}
-      {MEALS.map((m) => {
+      {MEALS.map((m, mealIndex) => {
         const selected = value === m.value;
         return (
           <Pressable
             key={m.value}
-            onPress={() => onChange(m.value)}
+            onPress={() => {
+              if (mealIndex === selectedIndex) return;
+              selection.value = withTiming(mealIndex, {
+                duration: reduced ? 0 : DURATION.medium,
+                easing: EASING.emphasized,
+              });
+              onChange(m.value);
+            }}
             accessibilityRole="button"
             accessibilityState={{ selected }}
             className="flex-1 min-h-[48px] px-1 rounded-full items-center justify-center z-10 active:opacity-70"

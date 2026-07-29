@@ -89,6 +89,8 @@ function SwipeRow({
         alignItems: 'center',
         justifyContent: 'center',
         width: 72,
+        borderTopLeftRadius: 16,
+        borderBottomLeftRadius: 16,
       }}
       activeOpacity={0.7}
       accessibilityRole="button"
@@ -268,7 +270,7 @@ interface JournalSectionProps {
   onDeleteMeal: (mealId: number) => void;
 }
 
-export default function JournalSection({
+function JournalSection({
   label,
   entries,
   totalCalories,
@@ -358,3 +360,5 @@ export default function JournalSection({
     </View>
   );
 }
+
+export default React.memo(JournalSection);

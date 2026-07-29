@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
@@ -45,7 +45,6 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
   const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
   const reduced = useReducedMotion();
   const translateX = useSharedValue(0);
-  const opacity = useSharedValue(1);
 
   useEffect(() => {
     const idx = days.findIndex((d) => d.isoDate === selectedDate);
@@ -55,19 +54,16 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
     }
   }, [cellWidth, selectedDate, monthLabel]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (transitionDirection === 0) return;
-    translateX.value = transitionDirection * 24;
-    opacity.value = 0.72;
+    translateX.value = reduced ? 0 : transitionDirection * 64;
     translateX.value = withTiming(0, {
-      duration: reduced ? 0 : DURATION.short,
-      easing: EASING.emphasizedDecelerate,
+      duration: reduced ? 0 : DURATION.medium,
+      easing: EASING.emphasized,
     });
-    opacity.value = withTiming(1, { duration: reduced ? 0 : DURATION.short });
-  }, [monthLabel, opacity, reduced, transitionDirection, translateX]);
+  }, [monthLabel, reduced, transitionDirection, translateX]);
 
   const transitionStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
     transform: [{ translateX: translateX.value }],
   }));
 

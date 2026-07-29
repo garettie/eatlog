@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DashboardScreen from '../screens/DashboardScreen';
@@ -35,27 +34,21 @@ const INITIAL: FoodSheetState = {
     logDate: null,
 };
 
-function FabIcon({ scale }: { scale: SharedValue<number> }) {
-    const style = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
+function FabIcon() {
     return (
-        <Animated.View
-            style={[
-                {
-                    width: 56,
-                    height: 56,
-                    borderRadius: 28,
-                    backgroundColor: '#ffffff',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 16,
-                },
-                style,
-            ]}
+        <View
+            style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: '#ffffff',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+            }}
         >
             <MaterialIcons name="add" size={28} color="#111318" />
-        </Animated.View>
+        </View>
     );
 }
 
@@ -64,13 +57,14 @@ export default function TabNavigator() {
     const [adaptiveInfoVisible, setAdaptiveInfoVisible] = useState(false);
     const [toast, setToast] = useState<{ message: string; undo?: () => void | Promise<void> } | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
-    const fabScale = useSharedValue(1);
     const insets = useSafeAreaInsets();
     const discardGuard = useDiscardGuard();
     const tabBarBottomPadding = Math.max(insets.bottom, 12);
     const tabBarHeight = 56 + tabBarBottomPadding;
 
     const backHistoryRef = useRef<FoodSheetStateKey[]>([]);
+    const activeTabRef = useRef('Today');
+    const diaryDateRef = useRef(todayISO());
     const skipHistoryRef = useRef(false);
     const sheetCloseRef = useRef<() => void>(() => { });
 
@@ -108,10 +102,32 @@ export default function TabNavigator() {
         setAdaptiveInfoVisible(true);
     }, []);
 
+    const handleDiaryDateChange = useCallback((date: string) => {
+        diaryDateRef.current = date;
+    }, []);
+
+    const bumpDataVersion = useCallback(() => {
+        setDataVersion((version) => version + 1);
+    }, []);
+
     const openEditMeal = useCallback((mealGroup: MealGroup) => {
-        const components: FoodResult[] = mealGroup.components
-            .filter((log) => log.calories_per_100g != null)
-            .map((log, i) => ({
+        backHistoryRef.current = [];
+        skipHistoryRef.current = true;
+        setSheet({
+            ...INITIAL,
+            visible: true,
+            stateKey: 'review-loading',
+            photoUri: mealGroup.photoUri ?? null,
+            editMealId: mealGroup.id,
+            pendingMeal: mealGroup.components[0]?.meal ?? null,
+            logDate: mealGroup.components[0]?.log_date ?? null,
+        });
+
+        requestAnimationFrame(() => {
+            const components: FoodResult[] = mealGroup.components.map((log, i) => {
+                const grams = log.grams_logged && log.grams_logged > 0 ? log.grams_logged : 100;
+                const per100gRatio = 100 / grams;
+                return {
                 id: `meal-edit-${mealGroup.id}-${i}`,
                 name: log.name,
                 source: log.source as FoodResult['source'],
@@ -120,32 +136,29 @@ export default function TabNavigator() {
                 brand: log.brand,
                 preparation: log.preparation,
                 normalizedName: log.name.toLowerCase(),
-                caloriesPer100g: log.calories_per_100g,
-                proteinPer100g: log.protein_g_per_100g,
-                carbsPer100g: log.carbs_g_per_100g,
-                fatPer100g: log.fat_g_per_100g,
+                caloriesPer100g: log.calories_per_100g ?? log.calories * per100gRatio,
+                proteinPer100g: log.protein_g_per_100g ?? log.protein_g * per100gRatio,
+                carbsPer100g: log.carbs_g_per_100g ?? log.carbs_g * per100gRatio,
+                fatPer100g: log.fat_g_per_100g ?? log.fat_g * per100gRatio,
                 servingSizeGrams: log.serving_size_g,
                 servingLabel: log.serving_label,
                 estimatedGrams: log.grams_logged ?? undefined,
                 alternateSourceIds: [],
-            }));
-        if (!components.length) return;
+                };
+            });
+            if (!components.length) return;
 
-        const result: DescribeResult = {
-            mealName: mealGroup.name,
-            components,
-        };
+            const result: DescribeResult = {
+                mealName: mealGroup.name,
+                components,
+            };
 
-        backHistoryRef.current = [];
-        skipHistoryRef.current = true;
-        setSheet({
-            ...INITIAL,
-            visible: true,
-            stateKey: 'review',
-            describeResult: result,
-            photoUri: mealGroup.photoUri ?? null,
-            editMealId: mealGroup.id,
-            logDate: mealGroup.components[0]?.log_date ?? null,
+            setSheet((current) => {
+                if (!current.visible || current.stateKey !== 'review-loading' || current.editMealId !== mealGroup.id) {
+                    return current;
+                }
+                return { ...current, stateKey: 'review', describeResult: result };
+            });
         });
     }, []);
 
@@ -308,6 +321,7 @@ export default function TabNavigator() {
             >
                 <Tab.Screen
                     name="Today"
+                    listeners={{ focus: () => { activeTabRef.current = 'Today'; } }}
                     options={{
                         tabBarIcon: ({ color, size }) => (
                             <MaterialIcons name="grid-view" size={size} color={color} />
@@ -327,6 +341,7 @@ export default function TabNavigator() {
                 </Tab.Screen>
                 <Tab.Screen
                     name="Diary"
+                    listeners={{ focus: () => { activeTabRef.current = 'Diary'; } }}
                     options={{
                         tabBarIcon: ({ color, size }) => (
                             <MaterialIcons name="menu-book" size={size} color={color} />
@@ -337,6 +352,8 @@ export default function TabNavigator() {
                         <DiaryScreen
                             onOpenEntry={openEntry}
                             onEditMeal={openEditMeal}
+                            onSelectedDateChange={handleDiaryDateChange}
+                            onDataChanged={bumpDataVersion}
                             dataVersion={dataVersion}
                             showToast={showToast}
                         />
@@ -347,19 +364,20 @@ export default function TabNavigator() {
                     listeners={{
                         tabPress: (e) => {
                             e.preventDefault();
-                            openEntry();
+                            openEntry(activeTabRef.current === 'Diary' ? diaryDateRef.current : undefined);
                         },
                     }}
                     options={{
                         tabBarLabel: () => null,
                         tabBarAccessibilityLabel: 'Add entry',
-                        tabBarIcon: () => <FabIcon scale={fabScale} />,
+                        tabBarIcon: () => <FabIcon />,
                     }}
                 >
                     {() => <View />}
                 </Tab.Screen>
                 <Tab.Screen
                     name="Analytics"
+                    listeners={{ focus: () => { activeTabRef.current = 'Analytics'; } }}
                     options={{
                         tabBarIcon: ({ color, size }) => (
                             <MaterialIcons name="show-chart" size={size} color={color} />
@@ -376,6 +394,7 @@ export default function TabNavigator() {
                 </Tab.Screen>
                 <Tab.Screen
                     name="Sync"
+                    listeners={{ focus: () => { activeTabRef.current = 'Sync'; } }}
                     options={{
                         tabBarIcon: ({ color, size }) => (
                             <MaterialIcons name="sync" size={size} color={color} />
@@ -392,7 +411,6 @@ export default function TabNavigator() {
                 enableDynamicSizing={enableDynamicSizing}
                 stateKey={sheet.stateKey}
                 canCloseRef={canCloseRef}
-                fabScale={fabScale}
                 onGoBack={handleSheetGoBack}
                 onSheetClosed={handleCloseSheet}
                 sheetCloseRef={sheetCloseRef}

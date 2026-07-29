@@ -3,6 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
+import SegmentedControl from './SegmentedControl';
+
 interface PortionStepperProps {
   unitMode: 'servings' | 'grams' | 'ml';
   servings: number;
@@ -68,48 +70,15 @@ export default function PortionStepper({
   return (
     <View className="gap-3">
       {(hasServing || showMl) && (
-        <View className="flex-row bg-m3-surface-container-high rounded-full p-1">
-          {hasServing && (
-            <Pressable
-              onPress={() => onModeChange('servings')}
-              accessibilityRole="button"
-              accessibilityState={{ selected: unitMode === 'servings' }}
-              className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${unitMode === 'servings' ? 'bg-m3-surface-container-highest' : ''}`}
-            >
-              <Text
-                className={`text-xs font-semibold ${unitMode === 'servings' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
-              >
-                Servings
-              </Text>
-            </Pressable>
-          )}
-          <Pressable
-            onPress={() => onModeChange('grams')}
-            accessibilityRole="button"
-            accessibilityState={{ selected: unitMode === 'grams' }}
-            className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${unitMode === 'grams' ? 'bg-m3-surface-container-highest' : ''}`}
-          >
-            <Text
-              className={`text-xs font-semibold ${unitMode === 'grams' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
-            >
-              Grams
-            </Text>
-          </Pressable>
-          {showMl && (
-            <Pressable
-              onPress={() => onModeChange('ml')}
-              accessibilityRole="button"
-              accessibilityState={{ selected: unitMode === 'ml' }}
-              className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${unitMode === 'ml' ? 'bg-m3-surface-container-highest' : ''}`}
-            >
-              <Text
-                className={`text-xs font-semibold ${unitMode === 'ml' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
-              >
-                ml
-              </Text>
-            </Pressable>
-          )}
-        </View>
+        <SegmentedControl
+          options={[
+            ...(hasServing ? [{ value: 'servings' as const, label: 'Servings' }] : []),
+            { value: 'grams' as const, label: 'Grams' },
+            ...(showMl ? [{ value: 'ml' as const, label: 'ml' }] : []),
+          ]}
+          value={unitMode}
+          onChange={onModeChange}
+        />
       )}
 
       <View className="bg-m3-surface-container rounded-2xl px-4 py-4 items-center gap-1.5">

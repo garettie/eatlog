@@ -6,7 +6,6 @@ import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   Easing,
   FadeIn,
-  interpolateColor,
   useAnimatedProps,
   useAnimatedStyle,
   useReducedMotion,
@@ -18,6 +17,7 @@ import Svg, { Circle } from 'react-native-svg';
 import Card from '../components/Card';
 import WeightChart from '../components/WeightChart';
 import WeightChartLegend from '../components/WeightChartLegend';
+import SegmentedControl from '../components/SegmentedControl';
 import * as Haptics from 'expo-haptics';
 import {
   getProfile,
@@ -38,7 +38,6 @@ import { formatWeight } from '../utils/weightUnits';
 import { M3 } from '../theme/tokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedText = Animated.createAnimatedComponent(Text);
 
 // ── Ring Constants ────────────────────────────────────────────────────────
 
@@ -186,7 +185,7 @@ interface DashboardScreenProps {
   dataVersion: number;
 }
 
-export default function DashboardScreen({
+function DashboardScreen({
   onOpenCamera,
   onOpenGallery,
   onOpenDescribe,
@@ -212,33 +211,6 @@ export default function DashboardScreen({
   const [error, setError] = useState(false);
   const initialLoadDone = useRef(false);
   const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
-
-  // ── Toggle animation ──
-  const toggleValSV = useSharedValue(0);
-  const [toggleTrackWidth, setToggleTrackWidth] = useState(0);
-  const toggleSegmentWidth = Math.max(0, (toggleTrackWidth - 4) / 2);
-
-  useEffect(() => {
-    toggleValSV.value = withTiming(showRemaining ? 1 : 0, { duration: reduced ? 0 : 300, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-  }, [showRemaining, reduced]);
-
-  const togglePillStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateX: toggleValSV.value * toggleSegmentWidth }],
-    };
-  }, [toggleSegmentWidth]);
-
-  const consumedTextStyle = useAnimatedStyle(() => ({
-    color: toggleTrackWidth > 0
-      ? interpolateColor(toggleValSV.value, [0, 1], [M3.onPrimary, M3.onSurfaceVariant])
-      : M3.onSurfaceVariant,
-  }), [toggleTrackWidth]);
-
-  const remainingTextStyle = useAnimatedStyle(() => ({
-    color: toggleTrackWidth > 0
-      ? interpolateColor(toggleValSV.value, [0, 1], [M3.onSurfaceVariant, M3.onPrimary])
-      : M3.onSurfaceVariant,
-  }), [toggleTrackWidth]);
 
   // ── Data loading ──
 
@@ -509,43 +481,18 @@ export default function DashboardScreen({
             </View>
 
             {/* Toggle pill */}
-            <View
-              className="flex-row w-full bg-m3-surface-container-high rounded-full p-0.5 border border-m3-outline-variant/30 relative overflow-hidden"
-              onLayout={(e) => setToggleTrackWidth(e.nativeEvent.layout.width)}
-            >
-              {toggleTrackWidth > 0 && (
-                <Animated.View
-                  style={[togglePillStyle, {
-                    width: toggleSegmentWidth,
-                    top: 2,
-                    bottom: 2,
-                    left: 2,
-                  }]}
-                  className="absolute bg-white rounded-full"
-                />
-              )}
-              <Pressable
-                onPress={() => { void Haptics.selectionAsync(); setShowRemaining(false); }}
-                className="flex-1 py-3.5 items-center z-10 active:opacity-60"
-                accessibilityRole="button"
-                accessibilityLabel="Show calories consumed"
-                accessibilityState={{ selected: !showRemaining }}
-              >
-                <AnimatedText style={consumedTextStyle} className="text-sm font-bold">
-                  Consumed
-                </AnimatedText>
-              </Pressable>
-              <Pressable
-                onPress={() => { void Haptics.selectionAsync(); setShowRemaining(true); }}
-                className="flex-1 py-3.5 items-center z-10 active:opacity-60"
-                accessibilityRole="button"
-                accessibilityLabel="Show calories remaining"
-                accessibilityState={{ selected: showRemaining }}
-              >
-                <AnimatedText style={remainingTextStyle} className="text-sm font-bold">
-                  Remaining
-                </AnimatedText>
-              </Pressable>
+            <View className="w-full">
+              <SegmentedControl
+                options={[
+                  { value: 'consumed', label: 'Consumed' },
+                  { value: 'remaining', label: 'Remaining' },
+                ]}
+                value={showRemaining ? 'remaining' : 'consumed'}
+                onChange={(value) => {
+                  setShowRemaining(value === 'remaining');
+                  void Haptics.selectionAsync();
+                }}
+              />
             </View>
 
             {calsOver > 0 && (
@@ -744,3 +691,5 @@ export default function DashboardScreen({
     </SafeAreaView>
   );
 }
+
+export default React.memo(DashboardScreen);

@@ -15,6 +15,8 @@ import MealSelector from '../MealSelector';
 import MacroChipGroup from '../MacroChipGroup';
 import PortionStepper from '../PortionStepper';
 import PrimaryButton from '../PrimaryButton';
+import DateSelector from '../DateSelector';
+import { formatDayHeader, isoFromDate, parseLocalISO } from '../../utils/calendar';
 
 interface EditableComponent {
   food: FoodResult;
@@ -50,7 +52,7 @@ interface ReviewStateProps {
   result: DescribeResult | null;
   /** Saved scan photo to persist on the new meal (null for describe/search flows). */
   photoUri?: string | null;
-  onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => void;
+  onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string; logDate: string }) => void;
   onClarify: (name: string) => Promise<DescribeResult | null>;
   editMealId?: number | null;
   initialMeal?: MealType | null;
@@ -65,6 +67,8 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   );
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
+  const [logDate, setLogDate] = useState(() => logDateProp ?? todayISO());
+  const [dateSelectorVisible, setDateSelectorVisible] = useState(false);
   const [logging, setLogging] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ comp: EditableComponent; idx: number } | null>(null);
@@ -255,7 +259,6 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     setLogError(null);
     setLogging(true);
     try {
-      const logDate = logDateProp ?? todayISO();
       const name = mealName.trim() || 'Meal';
 
       const saved = await saveMealWithComponents({
@@ -294,7 +297,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         }),
       });
       loggedRef.current = true;
-      onLogComplete({ mealId: saved.mealId, logIds: saved.logIds, meal, name });
+      onLogComplete({ mealId: saved.mealId, logIds: saved.logIds, meal, name, logDate });
     } catch (e) {
       console.error('[MealReview] save failed', e);
       setLogError(editMealId
@@ -303,7 +306,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     } finally {
       setLogging(false);
     }
-  }, [components, mealName, meal, onLogComplete, editMealId, logDateProp]);
+  }, [components, mealName, meal, onLogComplete, editMealId, logDate]);
 
   const handleClarify = useCallback(async () => {
     const name = mealName.trim();
@@ -571,6 +574,23 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
             </Pressable>
           </Animated.View>
         )}
+        <Pressable
+          onPress={() => setDateSelectorVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Log date, ${formatDayHeader(logDate)}`}
+          className="min-h-[48px] flex-row items-center rounded-2xl bg-m3-surface-container-high px-4 border border-m3-outline-variant/30 active:opacity-70"
+        >
+          <MaterialIcons name="event" size={18} color="#c4c6d0" />
+          <View className="flex-1 ml-3">
+            <Text className="text-m3-on-surface-variant text-[10px] font-semibold uppercase tracking-wider">
+              Date
+            </Text>
+            <Text className="text-m3-on-surface text-sm font-semibold">
+              {formatDayHeader(logDate)}
+            </Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={20} color="#c4c6d0" />
+        </Pressable>
         <MealSelector value={meal} onChange={setMeal} />
         <PrimaryButton
           title={editMealId ? 'Update Meal' : 'Log Meal'}
@@ -586,6 +606,20 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
           </Text>
         )}
       </View>
+      <DateSelector
+        visible={dateSelectorVisible}
+        value={parseLocalISO(logDate)}
+        minimumDate={new Date(1900, 0, 1)}
+        maximumDate={parseLocalISO(todayISO())}
+        onCancel={() => setDateSelectorVisible(false)}
+        onConfirm={(date) => {
+          setDateSelectorVisible(false);
+          const nextDate = isoFromDate(date);
+          if (nextDate === logDate) return;
+          dirtyRef.current = true;
+          setLogDate(nextDate);
+        }}
+      />
     </View>
   );
 }

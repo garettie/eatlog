@@ -149,29 +149,39 @@ export default function RecentFoodsState({ onSelectFood, onSelectMeal }: RecentF
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const loadQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const loadRequestRef = React.useRef(0);
+  const hasLoadedRef = React.useRef(false);
 
   useEffect(() => {
-    let active = true;
-    setLoading(true);
+    const requestId = ++loadRequestRef.current;
+    if (!hasLoadedRef.current) setLoading(true);
     setError(false);
     const queued = loadQueueRef.current.catch(() => {}).then(async () => {
+      if (requestId !== loadRequestRef.current) return;
       const foods = await getLoggedFoods(deferredQuery);
+      if (requestId !== loadRequestRef.current) return;
       const meals = await getLoggedMeals(deferredQuery);
       const results: LoggedEntry[] = [
         ...foods.map((food) => ({ kind: 'food' as const, key: food.food_key, loggedAt: food.logged_at, pinned: food.is_pinned, food })),
         ...meals.map((meal) => ({ kind: 'meal' as const, key: meal.food_key, loggedAt: meal.last_logged_at, pinned: meal.is_pinned, meal })),
       ];
       results.sort((a, b) => b.pinned - a.pinned || b.loggedAt.localeCompare(a.loggedAt));
-      if (active) setEntries(results);
+      if (requestId !== loadRequestRef.current) return;
+      hasLoadedRef.current = true;
+      setEntries(results);
     });
     loadQueueRef.current = queued;
     queued
       .catch((e) => {
         console.error('[RecentFoods] getLoggedFoods failed', e);
-        if (active) setError(true);
+        if (requestId === loadRequestRef.current) setError(true);
       })
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
+      .finally(() => {
+        if (requestId === loadRequestRef.current) setLoading(false);
+      });
+    return () => {
+      if (requestId === loadRequestRef.current) loadRequestRef.current += 1;
+    };
   }, [deferredQuery]);
 
   const handleTogglePin = async (entry: LoggedEntry) => {

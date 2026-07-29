@@ -82,12 +82,19 @@ export default function SegmentedControl<T extends string>({
             pointerEvents="none"
           />
         )}
-        {options.map((opt) => {
+        {options.map((opt, optionIndex) => {
           const selected = trackWidth > 0 && opt.value === value;
           return (
             <Pressable
               key={opt.value}
-              onPress={() => onChange(opt.value)}
+              onPress={() => {
+                if (optionIndex === selectedIndex) return;
+                index.value = withTiming(optionIndex, {
+                  duration: reduced ? 0 : DURATION.medium,
+                  easing: EASING.emphasized,
+                });
+                onChange(opt.value);
+              }}
               accessibilityRole="button"
               accessibilityState={{ selected }}
               className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
