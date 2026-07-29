@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Reanimated, {
@@ -32,6 +32,7 @@ export default function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   const reduced = useReducedMotion();
   const [trackWidth, setTrackWidth] = useState(0);
+  const measuredRef = useRef(false);
 
   const selectedIndex = Math.max(
     0,
@@ -39,6 +40,7 @@ export default function SegmentedControl<T extends string>({
   );
   const index = useSharedValue(selectedIndex);
   useEffect(() => {
+    if (!measuredRef.current) return;
     index.value = withTiming(selectedIndex, {
       duration: reduced ? 0 : DURATION.medium,
       easing: EASING.emphasized,
@@ -57,7 +59,11 @@ export default function SegmentedControl<T extends string>({
     <View className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden">
       <View
         className="flex-row relative"
-        onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        onLayout={(event) => {
+          index.value = selectedIndex;
+          measuredRef.current = true;
+          setTrackWidth(event.nativeEvent.layout.width);
+        }}
       >
         {trackWidth > 0 && (
           <Reanimated.View

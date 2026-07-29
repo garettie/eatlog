@@ -45,6 +45,7 @@ interface AnalyticsScreenProps {
 interface AnalyticsData {
   profile: Profile;
   weights: WeightLog[];
+  chartWeights: WeightLog[];
   dailyCalories: Array<{ log_date: string; calories: number }>;
   target: DailyTarget;
   startDate: string;
@@ -189,7 +190,6 @@ export default function AnalyticsScreen({
   const [recommendation, setRecommendation] = useState<AdaptiveReviewState | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [initialError, setInitialError] = useState(false);
-  const [rangeLoading, setRangeLoading] = useState(false);
   const [recommendationError, setRecommendationError] = useState(false);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [resolving, setResolving] = useState<'accept' | 'keep' | null>(null);
@@ -203,6 +203,7 @@ export default function AnalyticsScreen({
   const requestRef = useRef(0);
   const dataVersionRef = useRef(dataVersion);
   const operationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const weightHistoryRef = useRef<WeightLog[] | null>(null);
 
   useEffect(() => () => {
     mountedRef.current = false;
@@ -223,9 +224,8 @@ export default function AnalyticsScreen({
       setInitialLoading(true);
       setInitialError(false);
     }
-    if (options.rangeChange) setRangeLoading(true);
-
     await enqueue(async () => {
+      if (!mountedRef.current || requestId !== requestRef.current) return;
       try {
         const endDate = todayISO();
         const dates = rangeDates(range, endDate);
@@ -233,26 +233,36 @@ export default function AnalyticsScreen({
         // Keep these reads sequential; concurrent statements can race on Android.
         const profile = await getProfile();
         if (!profile) throw new Error('Profile is required');
-        const weights = await getWeightLogsByDateRange(dates.startDate, dates.endDate);
+        let chartWeights = weightHistoryRef.current;
+        if (!options.rangeChange || !chartWeights) {
+          const chartStartDate = rangeDates('1Y', endDate).startDate;
+          chartWeights = await getWeightLogsByDateRange(chartStartDate, endDate);
+          weightHistoryRef.current = chartWeights;
+        }
+        const weights = chartWeights.filter((log) => log.log_date >= dates.startDate);
         const dailyCalories = await getDailyCaloriesByDateRange(dates.startDate, dates.endDate);
         const target = await getDailyTargetForDate(endDate);
         if (!target) throw new Error('Daily target is required');
 
         let nextRecommendation: AdaptiveReviewState | null = null;
         let nextRecommendationError = false;
-        try {
-          nextRecommendation = await getAdaptiveReviewState(endDate);
-        } catch (error) {
-          console.error('[Analytics] recommendation load failed', error);
-          nextRecommendationError = true;
+        if (!options.rangeChange) {
+          try {
+            nextRecommendation = await getAdaptiveReviewState(endDate);
+          } catch (error) {
+            console.error('[Analytics] recommendation load failed', error);
+            nextRecommendationError = true;
+          }
         }
 
         if (!mountedRef.current || requestId !== requestRef.current) return;
-        setData({ profile, weights, dailyCalories, target, ...dates });
+        setData({ profile, weights, chartWeights, dailyCalories, target, ...dates });
         hasDataRef.current = true;
         loadedRangeRef.current = range;
-        setRecommendation(nextRecommendation);
-        setRecommendationError(nextRecommendationError);
+        if (!options.rangeChange) {
+          setRecommendation(nextRecommendation);
+          setRecommendationError(nextRecommendationError);
+        }
         setStaleMessage(false);
         setInitialError(false);
       } catch (error) {
@@ -266,7 +276,6 @@ export default function AnalyticsScreen({
       } finally {
         if (!mountedRef.current || requestId !== requestRef.current) return;
         setInitialLoading(false);
-        setRangeLoading(false);
       }
     });
   }, [enqueue]);
@@ -286,11 +295,11 @@ export default function AnalyticsScreen({
   }, [dataVersion, loadData]);
 
   const handleRangeChange = useCallback((range: RangeKey) => {
-    if (rangeLoading || range === selectedRangeRef.current) return;
+    if (range === selectedRangeRef.current) return;
     selectedRangeRef.current = range;
     setSelectedRange(range);
     void loadData(range, { rangeChange: true });
-  }, [loadData, rangeLoading]);
+  }, [loadData]);
 
   const retryRecommendation = useCallback(async () => {
     if (recommendationLoading) return;
@@ -379,7 +388,16 @@ export default function AnalyticsScreen({
 
   if (!data) return null;
 
-  const { profile, weights, dailyCalories, target, startDate, endDate } = data;
+  const {
+    profile,
+    weights,
+    chartWeights,
+    dailyCalories,
+    target,
+    startDate,
+    endDate,
+  } = data;
+  const chartDates = rangeDates(selectedRange, endDate);
   const earliestWeight = weights[0];
   const latestWeight = weights[weights.length - 1];
   const endpointSpanDays = earliestWeight && latestWeight
@@ -418,11 +436,7 @@ export default function AnalyticsScreen({
             </Text>
           </View>
 
-          <View
-            pointerEvents={rangeLoading ? 'none' : 'auto'}
-            importantForAccessibility={rangeLoading ? 'no-hide-descendants' : 'auto'}
-            className={rangeLoading ? 'opacity-60' : ''}
-          >
+          <View>
             <SegmentedControl
               options={RANGE_OPTIONS}
               value={selectedRange}
@@ -435,7 +449,7 @@ export default function AnalyticsScreen({
               <View>
                 <Text className="text-m3-on-surface font-bold text-base">Weight</Text>
                 <Text className="text-m3-on-surface-variant text-xs mt-0.5">
-                  {displayDate(startDate)} – {displayDate(endDate)}
+                  {displayDate(chartDates.startDate)} – {displayDate(chartDates.endDate)}
                 </Text>
               </View>
               <Text className="text-m3-on-surface-variant text-xs font-bold">{profile.weight_unit}</Text>
@@ -478,9 +492,9 @@ export default function AnalyticsScreen({
             ) : (
               <View className="gap-4">
                 <WeightChart
-                  logs={weights}
-                  startDate={startDate}
-                  endDate={endDate}
+                  logs={chartWeights}
+                  startDate={chartDates.startDate}
+                  endDate={chartDates.endDate}
                   height={176}
                   showXAxisLabels
                   targetWeightKg={profile.target_weight_kg}

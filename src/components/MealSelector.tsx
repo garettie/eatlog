@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -25,11 +25,13 @@ interface MealSelectorProps {
 export default function MealSelector({ value, onChange }: MealSelectorProps) {
   const reduced = useReducedMotion();
   const [trackWidth, setTrackWidth] = useState(0);
+  const measuredRef = useRef(false);
   const selectedIndex = Math.max(0, MEALS.findIndex((meal) => meal.value === value));
   const selection = useSharedValue(selectedIndex);
   const segmentWidth = Math.max(0, (trackWidth - 4) / MEALS.length);
 
   useEffect(() => {
+    if (!measuredRef.current) return;
     selection.value = withTiming(selectedIndex, {
       duration: reduced ? 0 : DURATION.medium,
       easing: EASING.emphasized,
@@ -43,7 +45,11 @@ export default function MealSelector({ value, onChange }: MealSelectorProps) {
   return (
     <View
       className="flex-row bg-m3-surface-container-high rounded-full p-0.5 border border-m3-outline-variant/30 relative overflow-hidden"
-      onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+      onLayout={(event) => {
+        selection.value = selectedIndex;
+        measuredRef.current = true;
+        setTrackWidth(event.nativeEvent.layout.width);
+      }}
     >
       {trackWidth > 0 && (
         <Animated.View
