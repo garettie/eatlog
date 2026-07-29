@@ -567,6 +567,16 @@ export async function getFoodLogsByDate(logDate: string): Promise<FoodLog[]> {
   );
 }
 
+export async function getFoodLogsByDateRange(startISO: string, endISO: string): Promise<FoodLog[]> {
+  parseLocalISO(startISO);
+  parseLocalISO(endISO);
+  const db = await getDb();
+  return db.getAllAsync<FoodLog>(
+    'SELECT * FROM food_logs WHERE log_date BETWEEN ? AND ? ORDER BY log_date ASC, logged_at ASC',
+    [startISO, endISO],
+  );
+}
+
 export async function deleteFoodLog(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);

@@ -237,6 +237,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Weight tracking is not shipped, but its phased plan is already defined: preferred-unit persistence, weight upsert and trend recomputation, FAB entry, dashboard states, Analytics, then persisted weekly adaptive recommendations.
 - Date-selector wheels must use non-virtualized `ScrollView` rows with explicit `snapToOffsets` and final-offset normalization; `FlatList` plus selection-driven scroll effects causes laggy opening and inaccurate Android snapping.
 - Weight-chart range switches must morph the existing SVG coordinate domain and geometry in place; never fade, slide, or remount the chart container.
+- Diary date changes must apply cached data in the press handler and never auto-scroll an already-visible day; do not start content transforms after the new tree commits.
 
 ---
 
