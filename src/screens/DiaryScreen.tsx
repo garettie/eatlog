@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, InteractionManager, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -8,7 +8,6 @@ import {
   getFoodLogsByDate,
   getFoodLogsByDateRange,
   getDailyTargetForDate,
-  getMacrosByDateRange,
   getDailyTargetsByDateRange,
   getMealsByIds,
   updateFoodLog,
@@ -86,27 +85,19 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
-  const skipInitialMonthEffectRef = useRef(false);
   const loadingGenerationRef = useRef(0);
   const loadingRef = useRef(loading);
+  const selectedDateRef = useRef(selectedDate);
   const monthAnchorRef = useRef(monthAnchor);
   loadingRef.current = loading;
+  selectedDateRef.current = selectedDate;
   monthAnchorRef.current = monthAnchor;
   const dayRequestRef = useRef(0);
   const monthRequestRef = useRef(0);
-  const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
   const dayCacheRef = useRef(new Map<string, DaySummary>());
   const monthCacheRef = useRef(new Map<string, MonthSummary>());
   const monthLoadPromiseRef = useRef(new Map<string, Promise<MonthSummary>>());
   const cacheGenerationRef = useRef(0);
-  const enqueueLoad = useCallback(<T,>(operation: () => Promise<T>): Promise<T> => {
-    const queued = loadQueueRef.current.catch(() => {}).then(operation);
-    loadQueueRef.current = queued.then(
-      () => undefined,
-      () => undefined,
-    );
-    return queued;
-  }, []);
 
   const applyDaySummary = useCallback((date: string, summary: DaySummary) => {
     setFoodLogs(summary.foodLogs);
@@ -125,7 +116,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
       return Promise.resolve();
     }
 
-    return enqueueLoad(async () => {
+    return (async () => {
       if (requestId !== dayRequestRef.current) return;
       try {
         const logs = await getFoodLogsByDate(date);
@@ -146,8 +137,8 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
       } finally {
         if (showLoading && requestId === dayRequestRef.current) setLoading(false);
       }
-    });
-  }, [applyDaySummary, enqueueLoad]);
+    })();
+  }, [applyDaySummary]);
 
   const fetchMonth = useCallback((anchor: Date): Promise<MonthSummary> => {
     const cacheGeneration = cacheGenerationRef.current;
@@ -158,13 +149,16 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     const pending = monthLoadPromiseRef.current.get(monthKey);
     if (pending) return pending;
 
-    const request = enqueueLoad(async () => {
-        const [macros, initialTarget, targetChanges, logs] = await Promise.all([
-          getMacrosByDateRange(startISO, endISO),
+    const request = (async () => {
+        const [initialTarget, targetChanges, logs] = await Promise.all([
           getDailyTargetForDate(startISO),
           getDailyTargetsByDateRange(startISO, endISO),
           getFoodLogsByDateRange(startISO, endISO),
         ]);
+        if (getMonthRange(monthAnchorRef.current).key !== monthKey) {
+          return { macros: [], targets: new Map<string, DailyTarget>() };
+        }
+
         let activeTarget = initialTarget;
         let targetIndex = 0;
         const targetMap = new Map<string, DailyTarget>();
@@ -182,13 +176,31 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
 
         const mealIds = [...new Set(logs.flatMap((log) => log.meal_id == null ? [] : [log.meal_id]))];
         const meals = await getMealsByIds(mealIds);
+        if (getMonthRange(monthAnchorRef.current).key !== monthKey) {
+          return { macros: [], targets: new Map<string, DailyTarget>() };
+        }
+
         const allMealRows = new Map<number, MealRow>();
         meals.forEach((meal) => allMealRows.set(meal.id, meal));
         const logsByDate = new Map<string, FoodLog[]>();
+        const macrosByDate = new Map<string, DayMacros>();
         for (const log of logs) {
           const dayLogs = logsByDate.get(log.log_date) ?? [];
           dayLogs.push(log);
           logsByDate.set(log.log_date, dayLogs);
+
+          const totals = macrosByDate.get(log.log_date) ?? {
+            log_date: log.log_date,
+            calories: 0,
+            protein_g: 0,
+            carbs_g: 0,
+            fat_g: 0,
+          };
+          totals.calories += log.calories;
+          totals.protein_g += log.protein_g;
+          totals.carbs_g += log.carbs_g;
+          totals.fat_g += log.fat_g;
+          macrosByDate.set(log.log_date, totals);
         }
         if (cacheGeneration === cacheGenerationRef.current) {
           for (const day of monthDates) {
@@ -205,19 +217,19 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           }
         }
 
-        const summary = { macros, targets: targetMap };
+        const summary = { macros: [...macrosByDate.values()], targets: targetMap };
         if (cacheGeneration === cacheGenerationRef.current) {
           monthCacheRef.current.set(monthKey, summary);
         }
         return summary;
-    }).finally(() => {
+    })().finally(() => {
       if (monthLoadPromiseRef.current.get(monthKey) === request) {
         monthLoadPromiseRef.current.delete(monthKey);
       }
     });
     monthLoadPromiseRef.current.set(monthKey, request);
     return request;
-  }, [enqueueLoad]);
+  }, []);
 
   const loadMonth = useCallback((anchor: Date) => {
     const requestId = ++monthRequestRef.current;
@@ -227,20 +239,6 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
         setMonthMacros(summary.macros);
         setDayTargetMap(summary.targets);
         setMonthLoadError(false);
-
-        InteractionManager.runAfterInteractions(() => {
-          const currentMonth = getMonthStart(new Date());
-          const neighbors = [-1, 1]
-            .map((delta) => {
-              const neighbor = new Date(anchor);
-              neighbor.setMonth(neighbor.getMonth() + delta);
-              return neighbor;
-            })
-            .filter((neighbor) => neighbor.getTime() <= currentMonth.getTime());
-          neighbors.forEach((neighbor) => {
-            void fetchMonth(neighbor).catch(() => {});
-          });
-        });
       })
       .catch((error) => {
         console.error('[Diary] month load failed', error);
@@ -264,29 +262,8 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     useCallback(() => {
       const isInitial = !initialLoadDone.current;
       initialLoadDone.current = true;
-      if (isInitial) {
-        skipInitialMonthEffectRef.current = true;
-        loadDayAndMonth(selectedDate, monthAnchorRef.current, true);
-        return;
-      }
-      loadDayAndMonth(selectedDate, monthAnchorRef.current, false);
-    }, [selectedDate, refreshCount, loadDayAndMonth]),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      if (skipInitialMonthEffectRef.current) {
-        skipInitialMonthEffectRef.current = false;
-        return;
-      }
-      const generation = ++loadingGenerationRef.current;
-      setMonthLoadError(false);
-      void loadMonth(monthAnchor).finally(() => {
-        if (generation === loadingGenerationRef.current && loadingRef.current) {
-          setLoading(false);
-        }
-      });
-    }, [monthAnchor, loadMonth]),
+      loadDayAndMonth(selectedDateRef.current, monthAnchorRef.current, isInitial);
+    }, [refreshCount, loadDayAndMonth]),
   );
 
   const retryLoads = useCallback(() => {
@@ -331,14 +308,19 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     const next = new Date(monthAnchorRef.current);
     next.setMonth(next.getMonth() + delta);
     monthAnchorRef.current = next;
+    monthRequestRef.current += 1;
+    setMonthLoadError(false);
+    setMonthAnchor(next);
+
     const cached = monthCacheRef.current.get(getMonthRange(next).key);
     if (cached) {
       setMonthMacros(cached.macros);
       setDayTargetMap(cached.targets);
       setMonthLoadError(false);
+    } else {
+      void loadMonth(next);
     }
-    setMonthAnchor(next);
-  }, []);
+  }, [loadMonth]);
 
   const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
   const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
@@ -346,17 +328,30 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   const canGoNext = monthAnchor.getTime() < currentMonth.getTime();
 
   const selectDate = useCallback((iso: string) => {
-    if (iso === selectedDate) return;
-    const cached = dayCacheRef.current.get(iso);
-    if (cached) applyDaySummary(iso, cached);
+    if (iso === selectedDateRef.current) return;
+    selectedDateRef.current = iso;
+
     onSelectedDateChange(iso);
     setSelectedDate(iso);
+    void loadDay(iso);
+
     const d = new Date(iso + 'T12:00:00');
     const monthStart = getMonthStart(d);
-    setMonthAnchor((current) => {
-      return monthStart.getTime() === current.getTime() ? current : monthStart;
-    });
-  }, [applyDaySummary, onSelectedDateChange, selectedDate]);
+    if (monthStart.getTime() !== monthAnchorRef.current.getTime()) {
+      monthAnchorRef.current = monthStart;
+      monthRequestRef.current += 1;
+      setMonthLoadError(false);
+      setMonthAnchor(monthStart);
+      const cachedMonth = monthCacheRef.current.get(getMonthRange(monthStart).key);
+      if (cachedMonth) {
+        setMonthMacros(cachedMonth.macros);
+        setDayTargetMap(cachedMonth.targets);
+        setMonthLoadError(false);
+      } else {
+        void loadMonth(monthStart);
+      }
+    }
+  }, [loadDay, loadMonth, onSelectedDateChange]);
 
   const todayTarget = dayTargetMap.get(displayedDate);
   const targetCalories = todayTarget?.target_calories ?? 0;

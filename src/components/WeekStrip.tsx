@@ -1,23 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, {
-  interpolateColor,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 import { M3 } from '../theme/tokens';
-import { DURATION, EASING } from '../theme/motion';
 
 const RING_R = 15;
 const RING_STROKE = 2;
 const CIRCUMFERENCE = 2 * Math.PI * RING_R;
 const DEFAULT_CELL_WIDTH = 48;
 const CELL_GAP = 4;
+const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+});
 
 interface DayCell {
   date: Date;
@@ -53,55 +50,12 @@ const DayButton = React.memo(function DayButton({
   onSelectDate,
   onFirstLayout,
 }: DayButtonProps) {
-  const reduced = useReducedMotion();
-  const selection = useSharedValue(isSelected ? 1 : 0);
   const fraction = day.isFuture || day.targetCalories <= 0
     ? 0
     : Math.min(1, day.calories / day.targetCalories);
   const isOver = !day.isFuture && day.targetCalories > 0 && day.calories > day.targetCalories;
-  const ringStrokeColor = day.isFuture
-    ? 'transparent'
-    : isOver
-      ? M3.error
-      : M3.calories;
-  const trackStrokeColor = day.isFuture ? 'transparent' : M3.outline;
+  const ringStrokeColor = isOver ? M3.error : M3.calories;
   const offset = CIRCUMFERENCE * (1 - fraction);
-  const restingBorderColor = day.isToday ? M3.primary : 'rgba(255, 255, 255, 0)';
-
-  useEffect(() => {
-    selection.value = withTiming(isSelected ? 1 : 0, {
-      duration: reduced ? 0 : DURATION.short,
-      easing: EASING.emphasizedDecelerate,
-    });
-  }, [isSelected, reduced, selection]);
-
-  const selectionStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      selection.value,
-      [0, 1],
-      ['rgba(51, 53, 58, 0)', M3.surfaceContainerHighest],
-    ),
-    borderColor: interpolateColor(
-      selection.value,
-      [0, 1],
-      [restingBorderColor, M3.primary],
-    ),
-    transform: [{ scale: 0.96 + selection.value * 0.04 }],
-  }));
-  const textStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(
-      selection.value,
-      [0, 1],
-      [
-        day.isToday
-          ? M3.primary
-          : day.isFuture
-            ? 'rgba(196, 198, 208, 0.3)'
-            : M3.onSurface,
-        M3.onSurface,
-      ],
-    ),
-  }));
 
   return (
     <Pressable
@@ -112,11 +66,7 @@ const DayButton = React.memo(function DayButton({
       disabled={day.isFuture}
       className="items-center py-1 px-1.5 active:opacity-70"
       accessibilityRole="button"
-      accessibilityLabel={day.date.toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      }) + (day.isToday ? ', today' : '')}
+      accessibilityLabel={DAY_LABEL_FORMATTER.format(day.date) + (day.isToday ? ', today' : '')}
       accessibilityState={{ selected: isSelected, disabled: day.isFuture }}
       accessibilityHint={day.isFuture ? undefined : `${Math.round(day.calories)} of ${Math.round(day.targetCalories)} calories logged`}
     >
@@ -130,30 +80,37 @@ const DayButton = React.memo(function DayButton({
         {day.dayLetter}
       </Text>
 
-      <Animated.View
+      <View
         className="items-center justify-center rounded-full"
-        style={[
-          {
-            width: 36,
-            height: 36,
-            borderWidth: 1.5,
-          },
-          selectionStyle,
-        ]}
+        style={{
+          width: 36,
+          height: 36,
+          borderWidth: 1.5,
+          borderColor: isSelected
+            ? M3.primary
+            : day.isToday
+              ? M3.primary
+              : 'transparent',
+          backgroundColor: isSelected ? M3.surfaceContainerHighest : 'transparent',
+        }}
       >
-        <Svg width={36} height={36} viewBox="0 0 36 36" style={{ position: 'absolute' }}>
-          {!day.isFuture && (
+        {!day.isFuture && fraction === 0 && (
+          <View
+            className="absolute rounded-full"
+            style={{ width: 32, height: 32, borderWidth: RING_STROKE, borderColor: M3.outline, opacity: 0.5 }}
+          />
+        )}
+        {fraction > 0 && (
+          <Svg width={36} height={36} viewBox="0 0 36 36" style={{ position: 'absolute' }}>
             <Circle
               cx={18}
               cy={18}
               r={RING_R}
               fill="none"
-              stroke={trackStrokeColor}
+              stroke={M3.outline}
               strokeWidth={RING_STROKE}
               opacity={0.5}
             />
-          )}
-          {fraction > 0 && (
             <Circle
               cx={18}
               cy={18}
@@ -168,17 +125,36 @@ const DayButton = React.memo(function DayButton({
               originX={18}
               originY={18}
             />
-          )}
-        </Svg>
-        <Animated.Text className="text-xs font-bold tabular-nums" style={textStyle}>
+          </Svg>
+        )}
+        <Text
+          className="text-xs font-bold tabular-nums"
+          style={{
+            color: isSelected
+              ? M3.onSurface
+              : day.isToday
+                ? M3.primary
+                : day.isFuture
+                  ? 'rgba(196, 198, 208, 0.3)'
+                  : M3.onSurface,
+          }}
+        >
           {day.dayNumber}
-        </Animated.Text>
-      </Animated.View>
+        </Text>
+      </View>
     </Pressable>
   );
 });
 
-export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth, canGoNext = true }: DayStripProps) {
+export default function DayStrip({
+  days,
+  selectedDate,
+  monthLabel,
+  onSelectDate,
+  onPrevMonth,
+  onNextMonth,
+  canGoNext = true,
+}: DayStripProps) {
   const scrollRef = useRef<ScrollView>(null);
   const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
   useEffect(() => {
@@ -227,10 +203,10 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
         showsHorizontalScrollIndicator={false}
         contentContainerClassName="px-2 pb-2 gap-1"
       >
-        {days.map((day) => {
+        {days.map((day, index) => {
           return (
             <DayButton
-              key={day.isoDate}
+              key={`month-slot-${index}`}
               day={day}
               isSelected={day.isoDate === selectedDate}
               onSelectDate={onSelectDate}

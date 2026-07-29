@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Reanimated, {
   FadeIn,
-  FadeOut,
-  LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -71,12 +69,18 @@ function Chevron({ open }: { open: boolean }) {
 
 function SwipeRow({
   children,
+  identity,
   onDelete,
 }: {
   children: React.ReactNode;
+  identity: string;
   onDelete: () => void;
 }) {
   const ref = React.useRef<Swipeable>(null);
+
+  useLayoutEffect(() => {
+    ref.current?.reset();
+  }, [identity]);
 
   const renderRightActions = () => (
     <RectButton
@@ -132,7 +136,7 @@ function FoodRow({
   onDelete: (food: FoodLog) => void;
 }) {
   return (
-    <SwipeRow onDelete={() => onDelete(food)}>
+    <SwipeRow identity={`food-${food.id}`} onDelete={() => onDelete(food)}>
       <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
         <Pressable
           onPress={() => onEdit(food)}
@@ -197,7 +201,7 @@ function MealRow({
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
   return (
-    <SwipeRow onDelete={() => onDeleteMeal(meal.id)}>
+    <SwipeRow identity={`meal-${meal.id}`} onDelete={() => onDeleteMeal(meal.id)}>
       <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
         <Pressable
           onPress={() => onEditMeal(meal)}
@@ -284,17 +288,31 @@ function JournalSection({
   onDeleteMeal,
 }: JournalSectionProps) {
   const hasEntries = entries.length > 0;
-  const [collapsed, setCollapsed] = useState(!hasEntries);
+  const collapseKey = `${resetKey ?? ''}:${hasEntries ? 'filled' : 'empty'}`;
+  const collapseStateRef = React.useRef({
+    key: collapseKey,
+    collapsed: !hasEntries,
+    animateEntry: false,
+  });
+  const [, forceCollapseRender] = useState(0);
+  if (collapseStateRef.current.key !== collapseKey) {
+    collapseStateRef.current = { key: collapseKey, collapsed: !hasEntries, animateEntry: false };
+  }
+  const collapseState = collapseStateRef.current;
+  const collapsed = collapseState.collapsed;
   const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    setCollapsed(!hasEntries);
-  }, [resetKey, hasEntries]);
 
   return (
     <View className="mb-3">
       <Pressable
-        onPress={() => setCollapsed((v) => !v)}
+        onPress={() => {
+          collapseStateRef.current = {
+            key: collapseKey,
+            collapsed: !collapsed,
+            animateEntry: collapsed,
+          };
+          forceCollapseRender((version) => version + 1);
+        }}
         disabled={!hasEntries}
         className="flex-row items-center justify-between mx-4 py-4 active:opacity-60 min-h-[72]"
         accessibilityRole="button"
@@ -327,16 +345,14 @@ function JournalSection({
 
       {hasEntries && !collapsed && (
         <Reanimated.View
-          entering={reducedMotion ? undefined : FadeIn.duration(250)}
-          exiting={reducedMotion ? undefined : FadeOut.duration(200)}
-          layout={reducedMotion ? undefined : LinearTransition.springify()}
+          entering={!reducedMotion && collapseState.animateEntry ? FadeIn.duration(160) : undefined}
           className="mt-2"
         >
-          {entries.map((entry) => {
+          {entries.map((entry, index) => {
               if (entry.type === 'food' && entry.foodLog) {
                 return (
                   <FoodRow
-                    key={`food-${entry.foodLog.id}`}
+                    key={`entry-slot-${index}`}
                     food={entry.foodLog}
                     onEdit={onEditFood}
                     onDelete={onDeleteFood}
@@ -346,7 +362,7 @@ function JournalSection({
               if (entry.type === 'meal' && entry.mealGroup) {
                 return (
                   <MealRow
-                    key={`meal-${entry.mealGroup.id}`}
+                    key={`entry-slot-${index}`}
                     meal={entry.mealGroup}
                     onEditMeal={onEditMeal}
                     onDeleteMeal={onDeleteMeal}
