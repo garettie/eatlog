@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Pressable, Text } from 'react-native';
+import { AccessibilityInfo, Pressable, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   Easing,
@@ -21,7 +21,7 @@ interface LogToastProps {
   durationMs?: number;
 }
 
-export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }: LogToastProps) {
+export default function LogToast({ message, onUndo, onHide, durationMs }: LogToastProps) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -29,6 +29,7 @@ export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }:
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onHideRef = useRef(onHide);
   onHideRef.current = onHide;
+  const resolvedDurationMs = durationMs ?? (onUndo ? 6000 : 4000);
   const hide = useCallback(() => onHideRef.current(), []);
   const clearTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -46,14 +47,20 @@ export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }:
   }, [clearTimer, hide, reduced]);
 
   useEffect(() => {
+    let active = true;
     dismissed.value = false;
     opacity.value = 1;
     translateX.value = 0;
-    timerRef.current = setTimeout(dismiss, durationMs);
+    void AccessibilityInfo.getRecommendedTimeoutMillis(resolvedDurationMs)
+      .catch(() => resolvedDurationMs)
+      .then((timeout) => {
+        if (active) timerRef.current = setTimeout(dismiss, timeout);
+      });
     return () => {
+      active = false;
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [message, durationMs, dismiss]);
+  }, [message, resolvedDurationMs, dismiss]);
 
   const handleUndo = useCallback(async () => {
     if (dismissed.value || !onUndo) return;
@@ -118,8 +125,7 @@ export default function LogToast({ message, onUndo, onHide, durationMs = 4000 }:
           onPress={dismiss}
           accessibilityRole="button"
           accessibilityLabel="Dismiss"
-          className="w-10 h-10 items-center justify-center rounded-full -mr-1"
-          hitSlop={4}
+          className="w-12 h-12 items-center justify-center rounded-full -mr-1"
         >
           <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
         </Pressable>

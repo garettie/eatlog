@@ -29,6 +29,7 @@ export interface Profile {
   protein_preference: ProteinPreference;
   weight_unit: WeightUnit;
   target_weight_kg: number | null;
+  analytics_intro_dismissed: number;
   created_at: string;
 }
 
@@ -83,7 +84,7 @@ export interface AdaptiveReview {
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
@@ -284,6 +285,17 @@ export async function initDatabase(): Promise<void> {
       await db.withExclusiveTransactionAsync((txn) => txn.execAsync('ALTER TABLE profile ADD COLUMN target_weight_kg REAL;'));
     }
   }
+
+  if (currentVersion === 3) {
+    const profileColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(profile)');
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      if (!profileColumns.some((column) => column.name === 'analytics_intro_dismissed')) {
+        await txn.execAsync('ALTER TABLE profile ADD COLUMN analytics_intro_dismissed INTEGER NOT NULL DEFAULT 0;');
+      }
+      await txn.execAsync('PRAGMA user_version = 4');
+    });
+    currentVersion = 4;
+  }
 }
 
 export async function getProfile(): Promise<Profile | null> {
@@ -321,6 +333,11 @@ export async function insertProfile(params: {
       params.target_weight_kg ?? null,
     ]
   );
+}
+
+export async function setAnalyticsIntroDismissed(): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE profile SET analytics_intro_dismissed = 1 WHERE id = 1');
 }
 
 export async function updateProfileWeightUnit(unit: WeightUnit): Promise<void> {
@@ -388,6 +405,31 @@ export async function saveWeightLog(params: {
 
   if (!result) throw new Error('Weight save transaction failed');
   return result;
+}
+
+export async function deleteWeightLog(id: number): Promise<void> {
+  const db = await getDb();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const existing = await txn.getFirstAsync<WeightLog>(
+      'SELECT * FROM weight_logs WHERE id = ?',
+      [id],
+    );
+    if (!existing) return;
+    await txn.runAsync('DELETE FROM weight_logs WHERE id = ?', [id]);
+    const rows = await txn.getAllAsync<WeightLog>('SELECT * FROM weight_logs ORDER BY log_date ASC');
+    const trend = computeWeightTrend(rows.map((row) => ({
+      logDate: row.log_date,
+      scaleWeightKg: row.scale_weight_kg,
+    })));
+    for (const reading of trend) {
+      if (reading.logDate >= existing.log_date) {
+        await txn.runAsync(
+          'UPDATE weight_logs SET trend_weight_kg = ? WHERE log_date = ?',
+          [reading.trendWeightKg, reading.logDate],
+        );
+      }
+    }
+  });
 }
 
 export async function insertDailyTarget(params: {

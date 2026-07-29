@@ -11,10 +11,12 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import LogToast from '../components/LogToast';
 import Sheet from '../components/Sheet';
+import AdaptiveInfoSheet from '../components/AdaptiveInfoSheet';
 import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo, type WeightLoggedInfo } from '../components/sheet-states/FoodSheetContent';
 import { type MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
-import { deleteFoodLog, deleteMeal, MealType } from '../db/database';
+import { deleteFoodLog, deleteMeal, deleteWeightLog, saveWeightLog, MealType } from '../db/database';
+import { formatDayHeader, todayISO } from '../utils/calendar';
 import { type FoodResult, type DataType } from '../services/foodSearch';
 import { type DescribeResult } from '../services/foodScan';
 
@@ -30,6 +32,7 @@ const INITIAL: FoodSheetState = {
     describeResult: null,
     selectedFood: null,
     editMealId: null,
+    logDate: null,
 };
 
 function FabIcon({ scale }: { scale: SharedValue<number> }) {
@@ -58,6 +61,7 @@ function FabIcon({ scale }: { scale: SharedValue<number> }) {
 
 export default function TabNavigator() {
     const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
+    const [adaptiveInfoVisible, setAdaptiveInfoVisible] = useState(false);
     const [toast, setToast] = useState<{ message: string; undo?: () => void | Promise<void> } | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
     const fabScale = useSharedValue(1);
@@ -70,40 +74,44 @@ export default function TabNavigator() {
     const skipHistoryRef = useRef(false);
     const sheetCloseRef = useRef<() => void>(() => { });
 
-    const openEntry = useCallback(() => {
+    const openEntry = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = false;
-        setSheet({ ...INITIAL, visible: true });
+        setSheet({ ...INITIAL, visible: true, logDate: logDate ?? null });
     }, []);
 
-    const openDescribe = useCallback(() => {
+    const openDescribe = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'describe', fromBar: true });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'describe', fromBar: true, logDate: logDate ?? null });
     }, []);
 
-    const openSearch = useCallback(() => {
+    const openSearch = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'search', fromBar: true });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'search', fromBar: true, logDate: logDate ?? null });
     }, []);
 
-    const openCamera = useCallback(() => {
+    const openCamera = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'camera', fromBar: true });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'camera', fromBar: true, logDate: logDate ?? null });
     }, []);
 
-    const openGallery = useCallback(() => {
+    const openGallery = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'gallery', fromBar: true });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'gallery', fromBar: true, logDate: logDate ?? null });
     }, []);
 
     const openWeight = useCallback(() => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
         setSheet({ ...INITIAL, visible: true, stateKey: 'weight-input', fromBar: true });
+    }, []);
+
+    const openAdaptiveInfo = useCallback(() => {
+        setAdaptiveInfoVisible(true);
     }, []);
 
     const openEditMeal = useCallback((mealGroup: MealGroup) => {
@@ -143,6 +151,7 @@ export default function TabNavigator() {
             describeResult: result,
             photoUri: mealGroup.photoUri ?? null,
             editMealId: mealGroup.id,
+            logDate: mealGroup.components[0]?.log_date ?? null,
         });
     }, []);
 
@@ -223,8 +232,11 @@ export default function TabNavigator() {
     const handleMealLogged = useCallback(
         (info: LoggedEntryInfo) => {
             setDataVersion((v) => v + 1);
+            const dateSuffix = info.logDate && info.logDate !== todayISO()
+                ? ` · ${formatDayHeader(info.logDate)}`
+                : '';
             setToast({
-                message: `Logged ${info.name} to ${mealLabel(info.meal)}`,
+                message: `Logged ${info.name} to ${mealLabel(info.meal)}${dateSuffix}`,
                 undo: async () => {
                     try {
                         if (info.kind === 'meal') await deleteMeal(info.mealId);
@@ -243,7 +255,23 @@ export default function TabNavigator() {
 
     const handleWeightLogged = useCallback((info: WeightLoggedInfo) => {
         setDataVersion((version) => version + 1);
-        setToast({ message: info.wasUpdate ? 'Weight updated' : 'Weight logged' });
+        setToast({
+            message: info.wasUpdate ? 'Weight updated' : 'Weight logged',
+            undo: async () => {
+                try {
+                    if (info.wasUpdate && info.previousScaleWeightKg != null) {
+                        await saveWeightLog({ logDate: info.logDate, scaleWeightKg: info.previousScaleWeightKg });
+                    } else {
+                        await deleteWeightLog(info.logId);
+                    }
+                    setDataVersion((v) => v + 1);
+                    setToast(null);
+                } catch (e) {
+                    setToast({ message: "Couldn't undo. Your weight entry is unchanged." });
+                    throw e;
+                }
+            },
+        });
     }, []);
 
     const handleDataChanged = useCallback((message: string) => {
@@ -297,6 +325,8 @@ export default function TabNavigator() {
                             onOpenCamera={openCamera}
                             onOpenGallery={openGallery}
                             onOpenDescribe={openDescribe}
+                            onOpenWeight={openWeight}
+                            onOpenAdaptiveInfo={openAdaptiveInfo}
                             dataVersion={dataVersion}
                         />
                     )}
@@ -387,6 +417,11 @@ export default function TabNavigator() {
                     skipHistoryRef={skipHistoryRef}
                 />
             </Sheet>
+
+            <AdaptiveInfoSheet
+                visible={adaptiveInfoVisible}
+                onClosed={() => setAdaptiveInfoVisible(false)}
+            />
 
             {toast && (
                 <View className="absolute left-4 right-4" style={{ zIndex: 100, bottom: tabBarHeight + 12 }}>

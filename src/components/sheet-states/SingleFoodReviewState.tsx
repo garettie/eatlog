@@ -35,6 +35,8 @@ interface SingleFoodReviewStateProps {
   food: FoodResult | null;
   onLogComplete: (info: { logId: number; meal: MealType; name: string }) => void;
   initialMeal?: MealType | null;
+  /** Diary date to write to (backfill); null = today. */
+  logDate?: string | null;
 }
 
 type UnitMode = 'servings' | 'grams' | 'ml';
@@ -43,6 +45,7 @@ export default function SingleFoodReviewState({
   food,
   onLogComplete,
   initialMeal,
+  logDate,
 }: SingleFoodReviewStateProps) {
   const hasServing = useMemo(
     () => !!(food?.servingSizeGrams && food.servingSizeGrams > 0),
@@ -147,7 +150,7 @@ export default function SingleFoodReviewState({
     setLogging(true);
     try {
       const logId = await insertFoodLog({
-        log_date: todayISO(),
+        log_date: logDate ?? todayISO(),
         name: food.name,
         source: food.source,
         source_food_id: food.sourceFoodId,
@@ -174,7 +177,7 @@ export default function SingleFoodReviewState({
     } finally {
       setLogging(false);
     }
-  }, [food, macros, gramsNum, meal, onLogComplete]);
+  }, [food, macros, gramsNum, meal, onLogComplete, logDate]);
 
   if (!food) return null;
 

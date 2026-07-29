@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import {
   getFoodLogsByDate,
@@ -27,6 +26,7 @@ import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
 import JournalSection, { JournalEntryKind, MealGroup } from '../components/JournalSection';
 import EntryBar from '../components/EntryBar';
+import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
@@ -36,24 +36,16 @@ const MEAL_ORDER: { meal: MealType; label: string }[] = [
 ];
 
 interface EditState {
-  visible: boolean;
   food: FoodLog | null;
-  grams: number;
   saving: boolean;
 }
 
-function portionRatio(food: FoodLog, grams: number): number {
-  if (food.grams_logged && food.grams_logged > 0) return grams / food.grams_logged;
-  if (food.calories_per_100g != null) return grams / 100;
-  return 1;
-}
-
 interface DiaryScreenProps {
-  onOpenEntry: () => void;
-  onCamera: () => void;
-  onGallery: () => void;
-  onDescribe: () => void;
-  onSearch: () => void;
+  onOpenEntry: (logDate?: string) => void;
+  onCamera: (logDate?: string) => void;
+  onGallery: (logDate?: string) => void;
+  onDescribe: (logDate?: string) => void;
+  onSearch: (logDate?: string) => void;
   onEditMeal: (meal: MealGroup) => void;
   dataVersion: number;
   showToast: (message: string, undo?: () => void) => void;
@@ -68,7 +60,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const [dayTargetMap, setDayTargetMap] = useState<Map<string, DailyTarget>>(new Map());
   const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
-  const [edit, setEdit] = useState<EditState>({ visible: false, food: null, grams: 0, saving: false });
+  const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
   const loadRequestRef = useRef(0);
@@ -230,12 +222,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   });
 
   const handleEditFood = useCallback((food: FoodLog) => {
-    setEdit({
-      visible: true,
-      food,
-      grams: food.grams_logged ?? 150,
-      saving: false,
-    });
+    setEdit({ food, saving: false });
   }, []);
 
   const handleEditMeal = useCallback((meal: MealGroup) => {
@@ -325,41 +312,40 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
     }
   }, [showToast, mealRows, foodLogs, selectedDate]);
 
-  const handleSaveEdit = useCallback(async () => {
-    if (!edit.food || edit.grams <= 0) return;
+  const handleSaveEdit = useCallback(async (grams: number): Promise<boolean> => {
+    const food = edit.food;
+    if (!food || grams <= 0) return false;
 
     setEdit((e) => ({ ...e, saving: true }));
     try {
-      const ratio = portionRatio(edit.food, edit.grams);
+      const ratio = portionRatio(food, grams);
 
-      const newCalories = Math.round(edit.food.calories * ratio);
-      const newProtein = Math.round(edit.food.protein_g * ratio * 10) / 10;
-      const newCarbs = Math.round(edit.food.carbs_g * ratio * 10) / 10;
-      const newFat = Math.round(edit.food.fat_g * ratio * 10) / 10;
+      const newCalories = Math.round(food.calories * ratio);
+      const newProtein = Math.round(food.protein_g * ratio * 10) / 10;
+      const newCarbs = Math.round(food.carbs_g * ratio * 10) / 10;
+      const newFat = Math.round(food.fat_g * ratio * 10) / 10;
 
-      await updateFoodLog(edit.food.id, {
-        grams_logged: edit.grams,
+      await updateFoodLog(food.id, {
+        grams_logged: grams,
         calories: newCalories,
         protein_g: newProtein,
         carbs_g: newCarbs,
         fat_g: newFat,
       });
       setRefreshCount((r) => r + 1);
-      setEdit({ visible: false, food: null, grams: 0, saving: false });
+      setEdit((current) => ({ ...current, saving: false }));
+      return true;
     } catch (e) {
       console.error('[Diary] updateFoodLog failed', e);
       Alert.alert('Save failed', 'Your changes could not be saved. Please try again.');
       setEdit((current) => ({ ...current, saving: false }));
+      return false;
     }
-  }, [edit]);
+  }, [edit.food]);
 
-  const gramsRatio = edit.food ? portionRatio(edit.food, edit.grams) : 1;
-  const previewCals = edit.food ? Math.round(edit.food.calories * gramsRatio) : 0;
-  const previewP = edit.food ? Math.round(edit.food.protein_g * gramsRatio * 10) / 10 : 0;
-  const previewC = edit.food ? Math.round(edit.food.carbs_g * gramsRatio * 10) / 10 : 0;
-  const previewF = edit.food ? Math.round(edit.food.fat_g * gramsRatio * 10) / 10 : 0;
-
-  const insets = useSafeAreaInsets();
+  const handleEditClosed = useCallback(() => {
+    setEdit({ food: null, saving: false });
+  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
@@ -423,7 +409,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
                 <Text className="text-m3-on-surface-variant text-xs text-center">Add a meal when you're ready.</Text>
               </View>
               <Pressable
-                onPress={onOpenEntry}
+                onPress={() => onOpenEntry(selectedDate)}
                 accessibilityRole="button"
                 className="min-h-[48px] px-5 rounded-full bg-white items-center justify-center active:opacity-80"
               >
@@ -442,6 +428,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
               totalProtein={section.totalProtein}
               totalCarbs={section.totalCarbs}
               totalFat={section.totalFat}
+              resetKey={selectedDate}
               onEditFood={handleEditFood}
               onEditMeal={handleEditMeal}
               onDeleteFood={handleDeleteFood}
@@ -453,115 +440,20 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
 
       {/* Entry bar above tab navigator */}
       <EntryBar
-        onCamera={onCamera}
-        onGallery={onGallery}
-        onDescribe={onDescribe}
-        onSearch={onSearch}
+        onCamera={() => onCamera(selectedDate)}
+        onGallery={() => onGallery(selectedDate)}
+        onDescribe={() => onDescribe(selectedDate)}
+        onSearch={() => onSearch(selectedDate)}
       />
 
-      {/* Edit food modal */}
-      {edit.visible && edit.food && (
-        <View className="absolute inset-0 z-50">
-          <Animated.View entering={FadeIn.duration(180)} style={{ flex: 1 }}>
-            <Pressable
-              className="flex-1 bg-black/55"
-              onPress={() => setEdit({ visible: false, food: null, grams: 0, saving: false })}
-            />
-          </Animated.View>
-          <Animated.View entering={FadeInUp.duration(220)}>
-            <View
-              className="bg-m3-surface-container rounded-t-3xl border-t border-m3-outline-variant/30 px-5 pt-5 gap-4"
-              style={{ paddingBottom: Math.max(insets.bottom, 24) }}
-            >
-            <View className="flex-row justify-between items-start">
-              <View className="flex-1 mr-3">
-                <Text className="text-m3-on-surface font-bold text-base" numberOfLines={2}>
-                  {edit.food.name}
-                </Text>
-                <Text className="text-m3-on-surface-variant text-xs mt-1">
-                  {edit.food.brand ? `${edit.food.brand} · ` : ''}
-                  {edit.food.calories_per_100g
-                    ? `${Math.round(edit.food.calories_per_100g)} kcal/100g`
-                    : `${Math.round(edit.food.calories)} kcal`}
-                </Text>
-              </View>
-              <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
-                {previewCals}
-              </Text>
-            </View>
+      {/* Portion edit sheet (shared Sheet vocabulary: BackHandler, discard guard, M3 handle) */}
+      <DiaryEditSheet
+        food={edit.food}
+        saving={edit.saving}
+        onSave={handleSaveEdit}
+        onClosed={handleEditClosed}
+      />
 
-            <View className="flex-row items-center justify-center gap-4 bg-m3-surface-container-high rounded-2xl py-4">
-              <Pressable
-              onPress={() => setEdit((e) => ({ ...e, grams: Math.max(1, e.grams - 10) }))}
-              accessibilityRole="button"
-              accessibilityLabel="Decrease portion by 10 grams"
-                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
-              >
-                <MaterialIcons name="remove" size={22} color="#e2e2e9" />
-              </Pressable>
-              <View className="items-center min-w-[80px]">
-                <TextInput
-                  value={String(edit.grams)}
-                  onChangeText={(t) => {
-                    const v = parseInt(t, 10);
-                    if (!isNaN(v) && v > 0) setEdit((e) => ({ ...e, grams: v }));
-                    else if (t === '') setEdit((e) => ({ ...e, grams: 0 }));
-                  }}
-                  keyboardType="numeric"
-                  accessibilityLabel="Portion in grams"
-                  className="text-white text-3xl font-bold text-center w-24 h-12"
-                />
-                <Text className="text-m3-on-surface-variant text-xs">grams</Text>
-              </View>
-              <Pressable
-                onPress={() => setEdit((e) => ({ ...e, grams: e.grams + 10 }))}
-                accessibilityRole="button"
-                accessibilityLabel="Increase portion by 10 grams"
-                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
-              >
-                <MaterialIcons name="add" size={22} color="#e2e2e9" />
-              </Pressable>
-            </View>
-
-            <View className="flex-row gap-3">
-              <View className="flex-1 bg-m3-surface-container-high rounded-2xl py-2 px-3 items-center">
-                <Text className="text-m3-protein text-xs font-semibold">Protein</Text>
-                <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{previewP}g</Text>
-              </View>
-              <View className="flex-1 bg-m3-surface-container-high rounded-2xl py-2 px-3 items-center">
-                <Text className="text-m3-carbs text-xs font-semibold">Carbs</Text>
-                <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{previewC}g</Text>
-              </View>
-              <View className="flex-1 bg-m3-surface-container-high rounded-2xl py-2 px-3 items-center">
-                <Text className="text-m3-fat text-xs font-semibold">Fat</Text>
-                <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{previewF}g</Text>
-              </View>
-            </View>
-
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={() => setEdit({ visible: false, food: null, grams: 0, saving: false })}
-                accessibilityRole="button"
-                className="flex-1 py-3 rounded-full items-center border border-m3-outline-variant/50 active:opacity-70"
-              >
-                <Text className="text-m3-on-surface-variant font-semibold text-sm">Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleSaveEdit}
-                disabled={edit.saving || edit.grams <= 0}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: edit.saving || edit.grams <= 0, busy: edit.saving }}
-                className={`flex-1 py-3 rounded-full items-center ${edit.saving || edit.grams <= 0 ? 'bg-m3-surface-container-high opacity-50' : 'bg-white active:opacity-80'}`}
-              >
-                <Text className={`font-semibold text-sm ${edit.saving || edit.grams <= 0 ? 'text-m3-on-surface-variant' : 'text-m3-on-primary'}`}>
-                  {edit.saving ? 'Saving…' : 'Save'}
-                </Text>
-              </Pressable>
-            </View>
-            </View>
-          </Animated.View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }

@@ -12,9 +12,11 @@ import PrimaryButton from '../PrimaryButton';
 interface ManualInputStateProps {
   onLogComplete: (info: { logId: number; meal: MealType; name: string }) => void;
   initialMeal?: MealType | null;
+  /** Diary date to write to (backfill); null = today. */
+  logDate?: string | null;
 }
 
-export default function ManualInputState({ onLogComplete, initialMeal }: ManualInputStateProps) {
+export default function ManualInputState({ onLogComplete, initialMeal, logDate }: ManualInputStateProps) {
   const [name, setName] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -50,7 +52,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
     setLogging(true);
     try {
       const logId = await insertFoodLog({
-        log_date: todayISO(), name: name.trim(), source: 'manual', meal,
+        log_date: logDate ?? todayISO(), name: name.trim(), source: 'manual', meal,
         brand: null, data_type: 'manual', preparation: null, grams_logged: null,
         calories_per_100g: null, protein_g_per_100g: null, carbs_g_per_100g: null, fat_g_per_100g: null,
         calories: cal, protein_g: pro, carbs_g: ca, fat_g: fa,
@@ -62,7 +64,7 @@ export default function ManualInputState({ onLogComplete, initialMeal }: ManualI
       console.error('[ManualEntry] save failed', e);
       setLogError("Couldn't save this entry. Try again.");
     } finally { setLogging(false); }
-  }, [name, calories, protein, carbs, fat, meal, onLogComplete, hasInvalidValue]);
+  }, [name, calories, protein, carbs, fat, meal, onLogComplete, hasInvalidValue, logDate]);
 
   return (
     <BottomSheetScrollView className="flex-1 px-5" contentContainerClassName="pb-6 gap-4" keyboardShouldPersistTaps="handled">

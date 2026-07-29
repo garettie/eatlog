@@ -48,12 +48,12 @@ export default function SegmentedControl<T extends string>({
   }, [selectedIndex, reduced]);
 
   const thumbStyle = useAnimatedStyle(() => {
-    const segW = Math.max(0, (trackWidth - 4) / options.length);
     return {
-      width: segW,
-      transform: [{ translateX: index.value * segW }],
+      transform: [{ translateX: index.value * Math.max(0, (trackWidth - 4) / options.length) }],
     };
   }, [trackWidth, options.length]);
+
+  const segmentWidth = Math.max(0, (trackWidth - 4) / options.length);
 
   return (
     <View className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden">
@@ -65,7 +65,7 @@ export default function SegmentedControl<T extends string>({
           setTrackWidth(event.nativeEvent.layout.width);
         }}
       >
-        {trackWidth > 0 && (
+        {segmentWidth > 0 && (
           <Reanimated.View
             style={[
               {
@@ -73,16 +73,17 @@ export default function SegmentedControl<T extends string>({
                 top: 2,
                 bottom: 2,
                 left: 2,
+                width: segmentWidth,
+                borderRadius: 9999,
+                backgroundColor: '#ffffff',
               },
               thumbStyle,
             ]}
             pointerEvents="none"
-          >
-            <View className="flex-1 rounded-full bg-white" />
-          </Reanimated.View>
+          />
         )}
         {options.map((opt) => {
-          const selected = opt.value === value;
+          const selected = trackWidth > 0 && opt.value === value;
           return (
             <Pressable
               key={opt.value}

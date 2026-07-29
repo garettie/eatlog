@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../components/Card';
 import SegmentedControl from '../components/SegmentedControl';
 import WeightChart from '../components/WeightChart';
+import WeightChartLegend from '../components/WeightChartLegend';
 import {
   DailyTarget,
   Profile,
@@ -16,6 +17,7 @@ import {
   getDailyTargetForDate,
   getProfile,
   getWeightLogsByDateRange,
+  setAnalyticsIntroDismissed,
 } from '../db/database';
 import {
   AdaptiveReviewState,
@@ -34,7 +36,7 @@ import {
 import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
 import { formatWeight } from '../utils/weightUnits';
 
-type RangeKey = '1W' | '1M' | '3M' | '6M' | '1Y';
+type RangeKey = '1M' | '3M' | '6M' | '1Y';
 
 interface AnalyticsScreenProps {
   onOpenWeight: () => void;
@@ -61,7 +63,6 @@ type ProgressKind =
   | 'outside-maintenance';
 
 const RANGE_OPTIONS = [
-  { value: '1W' as const, label: '1W' },
   { value: '1M' as const, label: '1M' },
   { value: '3M' as const, label: '3M' },
   { value: '6M' as const, label: '6M' },
@@ -69,7 +70,6 @@ const RANGE_OPTIONS = [
 ];
 
 function rangeDates(range: RangeKey, endDate: string) {
-  if (range === '1W') return { startDate: addCalendarDays(endDate, -6), endDate };
   const months = range === '1M' ? -1 : range === '3M' ? -3 : range === '6M' ? -6 : -12;
   return { startDate: addCalendarDays(addCalendarMonths(endDate, months), 1), endDate };
 }
@@ -194,6 +194,7 @@ export default function AnalyticsScreen({
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [resolving, setResolving] = useState<'accept' | 'keep' | null>(null);
   const [staleMessage, setStaleMessage] = useState(false);
+  const [introDismissed, setIntroDismissed] = useState(false);
 
   const mountedRef = useRef(true);
   const initialLoadDoneRef = useRef(false);
@@ -301,6 +302,13 @@ export default function AnalyticsScreen({
     void loadData(range, { rangeChange: true });
   }, [loadData]);
 
+  const dismissIntro = useCallback(() => {
+    setIntroDismissed(true);
+    void setAnalyticsIntroDismissed().catch((e) =>
+      console.error('[Analytics] intro dismiss persist failed', e),
+    );
+  }, []);
+
   const retryRecommendation = useCallback(async () => {
     if (recommendationLoading) return;
     setRecommendationLoading(true);
@@ -390,7 +398,6 @@ export default function AnalyticsScreen({
 
   const {
     profile,
-    weights,
     chartWeights,
     dailyCalories,
     target,
@@ -398,15 +405,18 @@ export default function AnalyticsScreen({
     endDate,
   } = data;
   const chartDates = rangeDates(selectedRange, endDate);
-  const earliestWeight = weights[0];
-  const latestWeight = weights[weights.length - 1];
+  const rangeWeights = chartWeights.filter(
+    (log) => log.log_date >= chartDates.startDate && log.log_date <= chartDates.endDate,
+  );
+  const earliestWeight = rangeWeights[0];
+  const latestWeight = rangeWeights[rangeWeights.length - 1];
   const endpointSpanDays = earliestWeight && latestWeight
     ? calendarDaysBetween(earliestWeight.log_date, latestWeight.log_date)
     : 0;
-  const trendChange = earliestWeight && latestWeight
+  const trendChange = rangeWeights.length > 1 && earliestWeight && latestWeight
     ? latestWeight.trend_weight_kg - earliestWeight.trend_weight_kg
     : null;
-  const weeklyRate = earliestWeight && latestWeight
+  const weeklyRate = rangeWeights.length > 1 && earliestWeight && latestWeight
     ? computeNormalizedWeeklyRate(
       { logDate: earliestWeight.log_date, trendWeightKg: earliestWeight.trend_weight_kg },
       { logDate: latestWeight.log_date, trendWeightKg: latestWeight.trend_weight_kg },
@@ -417,7 +427,7 @@ export default function AnalyticsScreen({
     ? dailyCalories.reduce((sum, day) => sum + day.calories, 0) / dailyCalories.length
     : null;
   const coveragePercent = Math.round(dailyCalories.length / totalDays * 100);
-  const progressKind = classifyProgress(profile, weeklyRate, weights.length, endpointSpanDays);
+  const progressKind = classifyProgress(profile, weeklyRate, rangeWeights.length, endpointSpanDays);
   const progress = progressCopy(progressKind, profile.goal_type);
   const sufficientProgress = progressKind !== 'insufficient';
 
@@ -444,6 +454,23 @@ export default function AnalyticsScreen({
             />
           </View>
 
+          {!profile.analytics_intro_dismissed && !introDismissed && (
+            <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container-high px-4 py-3 border border-m3-outline-variant/30">
+              <MaterialIcons name="info-outline" size={16} color={M3.onSurfaceVariant} style={{ marginTop: 2 }} />
+              <Text className="flex-1 text-m3-on-surface-variant text-xs leading-5">
+                Trend weight smooths daily water swings; scale weight is the raw number. Weekly reviews compare your intake with that trend and propose targets — only Accept changes them.
+              </Text>
+              <Pressable
+                onPress={dismissIntro}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss explanation"
+                className="w-12 h-12 -m-3 items-center justify-center active:opacity-60"
+              >
+                <MaterialIcons name="close" size={16} color={M3.onSurfaceVariant} />
+              </Pressable>
+            </View>
+          )}
+
           <Card className="p-5 gap-4">
             <View className="flex-row items-baseline justify-between gap-3">
               <View>
@@ -455,10 +482,10 @@ export default function AnalyticsScreen({
               <Text className="text-m3-on-surface-variant text-xs font-bold">{profile.weight_unit}</Text>
             </View>
 
-            {weights.length === 0 ? (
+            {chartWeights.length === 0 ? (
               <View className="py-5 items-center gap-2">
                 <MaterialIcons name="monitor-weight" size={30} color={M3.onSurfaceVariant} />
-                <Text className="text-m3-on-surface font-bold text-sm">No weight check-ins in this range</Text>
+                <Text className="text-m3-on-surface font-bold text-sm">No weight check-ins in the past year</Text>
                 <Text className="text-m3-on-surface-variant text-xs text-center">
                   Log weight to start your trend.
                 </Text>
@@ -472,23 +499,6 @@ export default function AnalyticsScreen({
                   <Text className="text-m3-on-primary font-bold text-sm">Log Weight</Text>
                 </Pressable>
               </View>
-            ) : weights.length === 1 ? (
-              <View className="gap-4">
-                <Metric
-                  label="Starting weight"
-                  value={`${formatWeight(latestWeight.scale_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                  detail={displayDate(latestWeight.log_date)}
-                />
-                <Pressable
-                  onPress={onOpenWeight}
-                  className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
-                  accessibilityRole="button"
-                  accessibilityLabel="Add weight check-in"
-                  accessibilityState={{ disabled: false, busy: false }}
-                >
-                  <Text className="text-m3-on-primary font-bold text-sm">Add check-in</Text>
-                </Pressable>
-              </View>
             ) : (
               <View className="gap-4">
                 <WeightChart
@@ -500,19 +510,28 @@ export default function AnalyticsScreen({
                   targetWeightKg={profile.target_weight_kg}
                   unit={profile.weight_unit}
                 />
-                <View className="flex-row flex-wrap gap-3">
-                  <Metric
-                    label="Latest trend"
-                    value={`${formatWeight(latestWeight.trend_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                  />
-                  <Metric
-                    label="Latest scale"
-                    value={`${formatWeight(latestWeight.scale_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                    detail={displayDate(latestWeight.log_date)}
-                  />
-                  <Metric label="Trend change" value={signedWeight(trendChange!, profile.weight_unit)} />
-                  <Metric label="Weekly rate" value={weeklyRate == null ? '—' : signedRate(weeklyRate, profile.weight_unit)} />
-                </View>
+                <WeightChartLegend showGoal={profile.target_weight_kg != null} />
+                {latestWeight ? (
+                  <View className="flex-row flex-wrap gap-3">
+                    <Metric
+                      label="Latest trend"
+                      value={`${formatWeight(latestWeight.trend_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
+                    />
+                    <Metric
+                      label="Latest scale"
+                      value={`${formatWeight(latestWeight.scale_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
+                      detail={displayDate(latestWeight.log_date)}
+                    />
+                    <Metric label="Trend change" value={trendChange == null ? '—' : signedWeight(trendChange, profile.weight_unit)} />
+                    <Metric label="Weekly rate" value={weeklyRate == null ? '—' : signedRate(weeklyRate, profile.weight_unit)} />
+                  </View>
+                ) : (
+                  <View className="rounded-2xl bg-m3-surface-container-high px-4 py-3">
+                    <Text className="text-m3-on-surface-variant text-xs text-center">
+                      No check-ins in this range. Your full history is still available.
+                    </Text>
+                  </View>
+                )}
                 <Pressable
                   onPress={onOpenWeight}
                   className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
@@ -625,7 +644,7 @@ export default function AnalyticsScreen({
                 ) : null}
                 {recommendation.eligibility.endpointSpanDays < recommendation.eligibility.requiredEndpointSpanDays ? (
                   <Text className="text-m3-on-surface-variant text-xs tabular-nums">
-                    • Endpoint coverage is {recommendation.eligibility.endpointSpanDays} / {recommendation.eligibility.requiredEndpointSpanDays} days
+                    • Check-ins span {recommendation.eligibility.endpointSpanDays} of the required {recommendation.eligibility.requiredEndpointSpanDays} days
                   </Text>
                 ) : null}
               </View>

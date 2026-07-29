@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Reanimated, {
   FadeIn,
@@ -285,6 +285,8 @@ interface JournalSectionProps {
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  /** Changing this (e.g. selected diary date) resets collapse to the default for content. */
+  resetKey?: string;
   onEditFood: (food: FoodLog) => void;
   onEditMeal: (meal: MealGroup) => void;
   onDeleteFood: (food: FoodLog) => void;
@@ -298,6 +300,7 @@ export default function JournalSection({
   totalProtein,
   totalCarbs,
   totalFat,
+  resetKey,
   onEditFood,
   onEditMeal,
   onDeleteFood,
@@ -305,15 +308,11 @@ export default function JournalSection({
 }: JournalSectionProps) {
   const hasEntries = entries.length > 0;
   const [collapsed, setCollapsed] = useState(!hasEntries);
-  const prevHasEntriesRef = useRef(hasEntries);
   const reducedMotion = useReducedMotion();
 
   useEffect(() => {
-    if (!prevHasEntriesRef.current && hasEntries) {
-      setCollapsed(false);
-    }
-    prevHasEntriesRef.current = hasEntries;
-  }, [hasEntries]);
+    setCollapsed(!hasEntries);
+  }, [resetKey, hasEntries]);
 
   return (
     <View className="mb-3">

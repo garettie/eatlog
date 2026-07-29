@@ -54,9 +54,11 @@ interface ReviewStateProps {
   onClarify: (name: string) => Promise<DescribeResult | null>;
   editMealId?: number | null;
   initialMeal?: MealType | null;
+  /** Diary date to write to (backfill); null = today. Preserves the original date when editing a meal. */
+  logDate?: string | null;
 }
 
-export default function ReviewState({ result, photoUri, onLogComplete, onClarify, editMealId, initialMeal }: ReviewStateProps) {
+export default function ReviewState({ result, photoUri, onLogComplete, onClarify, editMealId, initialMeal, logDate: logDateProp }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
   const [components, setComponents] = useState<EditableComponent[]>(() =>
     (result?.components ?? []).map(toEditable),
@@ -253,7 +255,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     setLogError(null);
     setLogging(true);
     try {
-      const logDate = todayISO();
+      const logDate = logDateProp ?? todayISO();
       const name = mealName.trim() || 'Meal';
 
       const saved = await saveMealWithComponents({
@@ -301,7 +303,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     } finally {
       setLogging(false);
     }
-  }, [components, mealName, meal, onLogComplete, editMealId]);
+  }, [components, mealName, meal, onLogComplete, editMealId, logDateProp]);
 
   const handleClarify = useCallback(async () => {
     const name = mealName.trim();

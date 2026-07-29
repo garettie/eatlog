@@ -17,6 +17,8 @@ import Svg, { Circle } from 'react-native-svg';
 
 import Card from '../components/Card';
 import WeightChart from '../components/WeightChart';
+import WeightChartLegend from '../components/WeightChartLegend';
+import * as Haptics from 'expo-haptics';
 import {
   getProfile,
   getLatestDailyTarget,
@@ -179,6 +181,8 @@ interface DashboardScreenProps {
   onOpenCamera: () => void;
   onOpenGallery: () => void;
   onOpenDescribe: () => void;
+  onOpenWeight: () => void;
+  onOpenAdaptiveInfo: () => void;
   dataVersion: number;
 }
 
@@ -186,6 +190,8 @@ export default function DashboardScreen({
   onOpenCamera,
   onOpenGallery,
   onOpenDescribe,
+  onOpenWeight,
+  onOpenAdaptiveInfo,
   dataVersion,
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
@@ -352,8 +358,10 @@ export default function DashboardScreen({
   let headerChip: { label: string; locked: boolean } | null;
   if (!hasRecentFood) {
     headerChip = null; // empty-state hero carries the activation focus, no clutter
+  } else if (distinctLoggedDays < 14) {
+    headerChip = { label: `${distinctLoggedDays}/14 days logged`, locked: true };
   } else {
-    headerChip = { label: `${Math.min(distinctLoggedDays, 14)}/14 days logged`, locked: true };
+    headerChip = { label: 'Reviews unlocked', locked: false };
   }
 
   const consumedCals = Math.round(todayMacros.calories);
@@ -437,8 +445,11 @@ export default function DashboardScreen({
               </View>
             </View>
             {headerChip && (
-              <View
-                className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border ${
+              <Pressable
+                onPress={onOpenAdaptiveInfo}
+                accessibilityRole="button"
+                accessibilityLabel={`${headerChip.label}. What are adaptive targets?`}
+                className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border active:opacity-70 ${
                   headerChip.locked
                     ? 'bg-m3-surface-container border-m3-outline-variant/30'
                     : 'bg-m3-expenditure/15 border-m3-expenditure/40'
@@ -450,14 +461,14 @@ export default function DashboardScreen({
                   color={headerChip.locked ? M3.onSurfaceVariant : M3.expenditure}
                 />
                 <Text
-                  className={`text-[11px] font-semibold ${
+                  className={`text-[10px] font-semibold ${
                     headerChip.locked ? 'text-m3-on-surface-variant' : 'text-m3-expenditure'
                   }`}
                   numberOfLines={1}
                 >
                   {headerChip.label}
                 </Text>
-              </View>
+              </Pressable>
             )}
           </View>
 
@@ -514,7 +525,7 @@ export default function DashboardScreen({
                 />
               )}
               <Pressable
-                onPress={() => setShowRemaining(false)}
+                onPress={() => { void Haptics.selectionAsync(); setShowRemaining(false); }}
                 className="flex-1 py-3.5 items-center z-10 active:opacity-60"
                 accessibilityRole="button"
                 accessibilityLabel="Show calories consumed"
@@ -525,7 +536,7 @@ export default function DashboardScreen({
                 </AnimatedText>
               </Pressable>
               <Pressable
-                onPress={() => setShowRemaining(true)}
+                onPress={() => { void Haptics.selectionAsync(); setShowRemaining(true); }}
                 className="flex-1 py-3.5 items-center z-10 active:opacity-60"
                 accessibilityRole="button"
                 accessibilityLabel="Show calories remaining"
@@ -537,9 +548,9 @@ export default function DashboardScreen({
               </Pressable>
             </View>
 
-            {showRemaining && calsOver > 0 && (
+            {calsOver > 0 && (
               <Text className="text-m3-error text-xs font-semibold tabular-nums">
-                {calsOver.toLocaleString()} kcal over target
+                +{calsOver.toLocaleString()} kcal over target
               </Text>
             )}
 
@@ -643,29 +654,47 @@ export default function DashboardScreen({
             <Pressable
               onPress={() => navigation.navigate('Analytics')}
               className="p-5 gap-4 active:opacity-80"
-              accessibilityRole="button"
-              accessibilityLabel="Open weight analytics"
+              accessible={false}
             >
-              <View className="flex-row justify-between items-baseline gap-3">
+              <View className="flex-row justify-between items-center gap-3">
                 <View>
                   <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
                   <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">Last 30 days</Text>
                 </View>
-                {profile.target_weight_kg != null && (
-                  <Text className="text-m3-on-surface-variant text-xs font-bold tabular-nums">
-                    Goal {formatWeight(profile.target_weight_kg, weightUnit)} {unitLabel}
-                  </Text>
-                )}
+                <View className="flex-row items-center gap-2">
+                  {profile.target_weight_kg != null && (
+                    <Text className="text-m3-on-surface-variant text-xs font-bold tabular-nums">
+                      Goal {formatWeight(profile.target_weight_kg, weightUnit)} {unitLabel}
+                    </Text>
+                  )}
+                  <Pressable
+                    onPress={() => navigation.navigate('Analytics')}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open weight analytics"
+                    hitSlop={12}
+                    className="w-6 h-6 items-center justify-center active:opacity-60"
+                  >
+                    <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+                  </Pressable>
+                </View>
               </View>
 
               {weightLogs.length === 0 ? (
-                <View className="h-24 justify-center items-center gap-1">
+                <View className="justify-center items-center gap-2 py-2">
                   <Text className="text-m3-on-surface font-bold text-sm text-center">
                     No weight check-ins yet
                   </Text>
                   <Text className="text-m3-on-surface-variant text-xs text-center">
                     Log weight to start your trend.
                   </Text>
+                  <Pressable
+                    onPress={onOpenWeight}
+                    accessibilityRole="button"
+                    accessibilityLabel="Log weight"
+                    className="min-h-[48px] bg-white rounded-full px-6 mt-1 items-center justify-center active:opacity-80"
+                  >
+                    <Text className="text-m3-on-primary font-bold text-sm">Log weight</Text>
+                  </Pressable>
                 </View>
               ) : weightLogs.length === 1 ? (
                 <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
@@ -686,19 +715,7 @@ export default function DashboardScreen({
                     targetWeightKg={profile.target_weight_kg}
                     unit={weightUnit}
                   />
-                  <View className="flex-row flex-wrap gap-x-4 gap-y-2">
-                    <View className="flex-row items-center gap-1.5">
-                      <View className="w-2 h-2 rounded-full bg-m3-on-surface-variant" />
-                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">Scale</Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5">
-                      <View className="w-2 h-2 rounded-full bg-m3-expenditure" />
-                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">EWMA trend</Text>
-                    </View>
-                    {profile.target_weight_kg != null && (
-                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">Dashed: goal</Text>
-                    )}
-                  </View>
+                  <WeightChartLegend showGoal={profile.target_weight_kg != null} />
                   <View className="flex-row gap-3">
                     <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-4 gap-1">
                       <Text className="text-m3-on-surface-variant text-xs font-semibold">Trend weight</Text>
@@ -732,6 +749,7 @@ export default function DashboardScreen({
           </Card>
         </Animated.View>
       </ScrollView>
+
     </SafeAreaView>
   );
 }

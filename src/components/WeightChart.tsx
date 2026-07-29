@@ -85,13 +85,11 @@ function linePath(
 ): string {
   'worklet';
   let path = '';
-  let visibleIndex = 0;
-  for (const point of points) {
-    if (point.day < startDay || point.day > endDay) continue;
+  for (let index = 0; index < points.length; index += 1) {
+    const point = points[index];
     const x = chartX(point.day, startDay, endDay, left, width);
     const y = chartY(point[field], min, max, top, height);
-    path += `${visibleIndex === 0 ? 'M' : 'L'} ${x} ${y} `;
-    visibleIndex += 1;
+    path += `${index === 0 ? 'M' : 'L'} ${x} ${y} `;
   }
   return path;
 }
@@ -188,8 +186,12 @@ function nearestPointIndex2D(
   for (let index = 0; index < points.length; index += 1) {
     const point = points[index];
     const x = chartX(point.day, startDay, endDay, left, width);
-    const y = chartY(point.scale, min, max, top, height);
-    const distance = Math.hypot(x - touchX, y - touchY);
+    const scaleY = chartY(point.scale, min, max, top, height);
+    const trendY = chartY(point.trend, min, max, top, height);
+    const distance = Math.min(
+      Math.hypot(x - touchX, scaleY - touchY),
+      Math.hypot(x - touchX, trendY - touchY),
+    );
     if (distance < nearestDistance) {
       nearestDistance = distance;
       nearestIndex = index;
@@ -455,6 +457,9 @@ function WeightChart({
   const selectedY = selectedPoint == null
     ? 0
     : chartY(selectedPoint.scale, nextYMin, nextYMax, topPadding, plotHeight);
+  const selectedTrendY = selectedPoint == null
+    ? 0
+    : chartY(selectedPoint.trend, nextYMin, nextYMax, topPadding, plotHeight);
   const tooltipWidth = 156;
   const tooltipLeft = Math.max(
     leftPadding,
@@ -500,6 +505,7 @@ function WeightChart({
                   y={y + 3.5}
                   fill={M3.onSurfaceVariant}
                   fontSize={10}
+                  fontFamily="Inter-Regular"
                   textAnchor="end"
                 >
                   {fromKilograms(tick, unit).toFixed(1)}
@@ -551,20 +557,30 @@ function WeightChart({
             clipPath={`url(#${clipId})`}
           />
           {selectedPoint && (
-            <Circle
-              cx={selectedX}
-              cy={selectedY}
-              r={6}
-              fill={M3.surfaceContainer}
-              stroke={M3.onSurface}
-              strokeWidth={2}
-            />
+            <>
+              <Circle
+                cx={selectedX}
+                cy={selectedY}
+                r={6}
+                fill={M3.surfaceContainer}
+                stroke={M3.onSurface}
+                strokeWidth={2}
+              />
+              <Circle
+                cx={selectedX}
+                cy={selectedTrendY}
+                r={6}
+                fill={M3.surfaceContainer}
+                stroke={M3.expenditure}
+                strokeWidth={2}
+              />
+            </>
           )}
           {showXAxisLabels && (
             <>
-              <SvgText x={leftPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10}>{dateLabel(startDate)}</SvgText>
-              <SvgText x={leftPadding + plotWidth / 2} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} textAnchor="middle">{dateLabel(midpoint)}</SvgText>
-              <SvgText x={width - rightPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} textAnchor="end">{dateLabel(endDate)}</SvgText>
+              <SvgText x={leftPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} fontFamily="Inter-Regular">{dateLabel(startDate)}</SvgText>
+              <SvgText x={leftPadding + plotWidth / 2} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} fontFamily="Inter-Regular" textAnchor="middle">{dateLabel(midpoint)}</SvgText>
+              <SvgText x={width - rightPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} fontFamily="Inter-Regular" textAnchor="end">{dateLabel(endDate)}</SvgText>
             </>
           )}
           </Svg>

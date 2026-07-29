@@ -1,12 +1,15 @@
 import React, { startTransition, useCallback, useEffect, useRef } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeOutLeft, useReducedMotion } from 'react-native-reanimated';
 
 import { scanFood, clarifyMeal, DescribeResult } from '../../services/foodScan';
 import { type DataType, type FoodResult } from '../../services/foodSearch';
 import { LoggedMeal, MealType, SaveWeightResult, getMealComponents } from '../../db/database';
 import { saveMealPhoto } from '../../utils/mealPhotos';
+import { formatDayHeader, todayISO } from '../../utils/calendar';
+import { M3 } from '../../theme/tokens';
 
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
@@ -41,16 +44,20 @@ export interface FoodSheetState {
   editMealId?: number | null;
   fromBar?: boolean;
   pendingMeal?: MealType | null;
+  /** Target diary date for food inserts (null = today). Weight entry manages its own date. */
+  logDate?: string | null;
 }
 
 export type LoggedEntryInfo =
-  | { kind: 'meal'; mealId: number; logIds: number[]; meal: MealType; name: string }
-  | { kind: 'food'; logId: number; meal: MealType; name: string };
+  | { kind: 'meal'; mealId: number; logIds: number[]; meal: MealType; name: string; logDate?: string | null }
+  | { kind: 'food'; logId: number; meal: MealType; name: string; logDate?: string | null };
 
 export interface WeightLoggedInfo {
+  logId: number;
   logDate: string;
   scaleWeightKg: number;
   wasUpdate: boolean;
+  previousScaleWeightKg: number | null;
 }
 
 interface FoodSheetContentProps {
@@ -76,6 +83,8 @@ export default function FoodSheetContent({
   const mealRequestRef = useRef(0);
   const fromBarRef = useRef(false);
   fromBarRef.current = !!state.fromBar;
+  const logDateRef = useRef(state.logDate);
+  logDateRef.current = state.logDate;
   useEffect(() => {
     if (state.stateKey !== 'review-loading') mealRequestRef.current += 1;
   }, [state.stateKey]);
@@ -267,7 +276,7 @@ export default function FoodSheetContent({
   const handleSingleLogComplete = useCallback(
     ({ logId, meal, name }: { logId: number; meal: MealType; name: string }) => {
       setState((s) => ({ ...s, visible: false, selectedFood: null }));
-      onMealLogged({ kind: 'food', logId, meal, name });
+      onMealLogged({ kind: 'food', logId, meal, name, logDate: logDateRef.current });
     },
     [onMealLogged, setState],
   );
@@ -275,7 +284,7 @@ export default function FoodSheetContent({
   const handleManualLogComplete = useCallback(
     ({ logId, meal, name }: { logId: number; meal: MealType; name: string }) => {
       setState((s) => ({ ...s, visible: false }));
-      onMealLogged({ kind: 'food', logId, meal, name });
+      onMealLogged({ kind: 'food', logId, meal, name, logDate: logDateRef.current });
     },
     [onMealLogged, setState],
   );
@@ -283,9 +292,11 @@ export default function FoodSheetContent({
   const handleWeightLogComplete = useCallback((result: SaveWeightResult) => {
     setState((s) => ({ ...s, visible: false }));
     onWeightLogged({
+      logId: result.log.id,
       logDate: result.log.log_date,
       scaleWeightKg: result.log.scale_weight_kg,
       wasUpdate: result.wasUpdate,
+      previousScaleWeightKg: result.previousScaleWeightKg,
     });
   }, [onWeightLogged, setState]);
 
@@ -308,7 +319,7 @@ export default function FoodSheetContent({
   const handleMealLogged = useCallback(
     (info: { mealId: number; logIds: number[]; meal: MealType; name: string }) => {
       setState((s) => ({ ...s, visible: false, describeResult: null, editMealId: null }));
-      onMealLogged({ kind: 'meal', ...info });
+      onMealLogged({ kind: 'meal', ...info, logDate: logDateRef.current });
     },
     [onMealLogged, setState],
   );
@@ -337,8 +348,21 @@ export default function FoodSheetContent({
     }
   }, [state.stateKey, state.pendingAction, handleCamera, handleGallery, transitionTo, setState]);
 
+  const showLogDateChip =
+    !!state.logDate &&
+    state.logDate !== todayISO() &&
+    state.stateKey !== 'weight-input';
+
   return (
     <View style={{ flex: 1 }}>
+      {showLogDateChip && (
+        <View className="mx-5 mb-1 self-start flex-row items-center gap-1.5 rounded-full bg-m3-surface-container-high px-3 py-1.5">
+          <MaterialIcons name="event" size={12} color={M3.onSurfaceVariant} />
+          <Text className="text-m3-on-surface-variant text-xs font-semibold">
+            Logging to {formatDayHeader(state.logDate!)}
+          </Text>
+        </View>
+      )}
       <Animated.View
         key={state.stateKey}
         entering={reduced ? undefined : FadeInRight.duration(220)}
@@ -371,6 +395,7 @@ export default function FoodSheetContent({
           onClarify={handleClarify}
           editMealId={state.editMealId}
           initialMeal={state.pendingMeal}
+          logDate={state.logDate ?? null}
         />
       )}
       {state.stateKey === 'search' && (
@@ -379,10 +404,10 @@ export default function FoodSheetContent({
       {state.stateKey === 'recent-foods' && <RecentFoodsState onSelectFood={handleSelectFood} onSelectMeal={handleSelectLoggedMeal} />}
       {state.stateKey === 'weight-input' && <WeightInputState onLogComplete={handleWeightLogComplete} />}
       {state.stateKey === 'single-food-review' && (
-        <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} />
+        <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} />
       )}
       {state.stateKey === 'manual-input' && (
-        <ManualInputState onLogComplete={handleManualLogComplete} initialMeal={state.pendingMeal} />
+        <ManualInputState onLogComplete={handleManualLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} />
       )}
       </Animated.View>
     </View>

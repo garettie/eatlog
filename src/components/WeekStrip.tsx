@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -8,7 +8,8 @@ import { M3 } from '../theme/tokens';
 const RING_R = 15;
 const RING_STROKE = 2;
 const CIRCUMFERENCE = 2 * Math.PI * RING_R;
-const ESTIMATED_CELL_WIDTH = 52;
+const DEFAULT_CELL_WIDTH = 48;
+const CELL_GAP = 4;
 
 interface DayCell {
   date: Date;
@@ -33,14 +34,15 @@ interface DayStripProps {
 
 export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth, canGoNext = true }: DayStripProps) {
   const scrollRef = useRef<ScrollView>(null);
+  const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
 
   useEffect(() => {
     const idx = days.findIndex((d) => d.isoDate === selectedDate);
     if (idx !== -1 && scrollRef.current) {
-      const x = Math.max(0, idx * ESTIMATED_CELL_WIDTH - 20);
+      const x = Math.max(0, idx * (cellWidth + CELL_GAP) - 20);
       scrollRef.current.scrollTo({ x, animated: false });
     }
-  }, [selectedDate, monthLabel]);
+  }, [cellWidth, selectedDate, monthLabel]);
 
   return (
     <View>
@@ -94,6 +96,12 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
           return (
             <Pressable
               key={day.isoDate}
+              onLayout={day === days[0]
+                ? (event) => {
+                    const measured = event.nativeEvent.layout.width;
+                    if (measured > 0 && Math.abs(measured - cellWidth) > 0.5) setCellWidth(measured);
+                  }
+                : undefined}
               onPress={() => onSelectDate(day.isoDate)}
               disabled={day.isFuture}
               className="items-center py-1 px-1.5 active:opacity-70"
