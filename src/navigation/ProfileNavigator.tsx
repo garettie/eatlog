@@ -7,6 +7,8 @@ import {
   NutritionTargetsScreen,
   PersonalDetailsScreen,
   PlanPreviewScreen,
+  UnitsScreen,
+  PrivacyScreen,
   type ProfileStackParamList,
 } from '../screens/ProfilePlanScreens';
 
@@ -26,6 +28,10 @@ export default function ProfileNavigator({ dataVersion, onDataChanged }: Profile
       <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} options={{ title: 'Personal details' }} />
       <Stack.Screen name="GoalAndRate" component={GoalAndRateScreen} options={{ title: 'Goal and rate' }} />
       <Stack.Screen name="NutritionTargets" component={NutritionTargetsScreen} options={{ title: 'Nutrition targets' }} />
+      <Stack.Screen name="Units" options={{ title: 'Units' }}>
+        {(props) => <UnitsScreen {...props} onDataChanged={onDataChanged} />}
+      </Stack.Screen>
+      <Stack.Screen name="Privacy" component={PrivacyScreen} options={{ title: 'Privacy' }} />
       <Stack.Screen name="PlanPreview" options={{ title: 'Review changes' }}>
         {(props) => <PlanPreviewScreen {...props} onDataChanged={onDataChanged} />}
       </Stack.Screen>

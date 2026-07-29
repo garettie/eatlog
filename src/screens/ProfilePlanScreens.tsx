@@ -24,13 +24,16 @@ import {
 import { ageFromBirthDate, calcBMR, calcTDEE, calculateTargets, type MacroTargets } from '../utils/calculations';
 import { parseLocalISO, todayISO } from '../utils/calendar';
 import { MANUAL_TARGET_CALORIE_TOLERANCE, macroCalories, validateManualTargets } from '../utils/planValidation';
-import { fromKilograms, toKilograms } from '../utils/weightUnits';
+import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilograms } from '../utils/weightUnits';
+import { serviceConfig } from '../config/services';
 
 export type ProfileStackParamList = {
   ProfileHome: undefined;
   PersonalDetails: undefined;
   GoalAndRate: undefined;
   NutritionTargets: undefined;
+  Units: undefined;
+  Privacy: undefined;
   PlanPreview: { profile: ProfileUpdate; target: DailyTargetInput };
 };
 
@@ -106,11 +109,11 @@ export function PersonalDetailsScreen() {
   const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
   const { profile, error: loadError } = useProfile();
   const [name, setName] = useState(''); const [sex, setSex] = useState<Sex>('male'); const [birthDate, setBirthDate] = useState('');
-  const [height, setHeight] = useState(''); const [activity, setActivity] = useState<ActivityLevel>('moderate'); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
-  useEffect(() => { if (profile) { setName(profile.display_name); setSex(profile.sex); setBirthDate(profile.birth_date); setHeight(String(profile.height_cm)); setActivity(profile.activity_level); } }, [profile]);
+  const [height, setHeight] = useState(''); const [heightInches, setHeightInches] = useState(''); const [activity, setActivity] = useState<ActivityLevel>('moderate'); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+  useEffect(() => { if (profile) { setName(profile.display_name); setSex(profile.sex); setBirthDate(profile.birth_date); setHeight(profile.weight_unit === 'kg' ? String(profile.height_cm) : String(cmToFeetInches(profile.height_cm).feet)); setHeightInches(profile.weight_unit === 'kg' ? '' : String(cmToFeetInches(profile.height_cm).inches)); setActivity(profile.activity_level); } }, [profile]);
   const save = useCallback(async () => {
     if (!profile) return;
-    const heightCm = Number(height); const age = ageFromBirthDate(birthDate);
+    const heightCm = profile.weight_unit === 'kg' ? Number(height) : feetInchesToCm(Number(height), Number(heightInches)); const age = ageFromBirthDate(birthDate);
     try { parseLocalISO(birthDate); } catch { setError('Enter a valid birth date (YYYY-MM-DD).'); return; }
     if (age < 5 || age > 125) { setError('Enter a birth date for an age between 5 and 125.'); return; }
     if (!Number.isFinite(heightCm) || heightCm < 50 || heightCm > 280) { setError('Height must be between 50 and 280 cm.'); return; }
@@ -121,9 +124,28 @@ export function PersonalDetailsScreen() {
       if (formulaChanged) navigation.navigate('PlanPreview', await calculatedPlan(profile, next));
       else { await updateProfilePresentation(next); navigation.goBack(); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save personal details.'); } finally { setSaving(false); }
-  }, [activity, birthDate, height, name, navigation, profile, sex]);
+  }, [activity, birthDate, height, heightInches, name, navigation, profile, sex]);
   if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
-  return <Screen><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1"><ScrollView className="flex-1" contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">These values determine your formula estimate.</Text><Card className="p-5 gap-5"><Field label="Display name" value={name} onChangeText={setName} /><SegmentedControl options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={sex} onChange={setSex} /><Field label="Birth date" value={birthDate} onChangeText={setBirthDate} /><Field label="Height (cm)" value={height} onChangeText={setHeight} keyboardType="decimal-pad" /></Card><View className="gap-2"><Text className="text-m3-on-surface-variant text-xs font-semibold">Activity</Text>{(['sedentary', 'light', 'moderate', 'active', 'very_active'] as ActivityLevel[]).map((value) => <TappableRow key={value} title={value.replace('_', ' ')} subtitle="Used for your daily expenditure estimate" selected={activity === value} onPress={() => setActivity(value)} />)}</View>{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></KeyboardAvoidingView></Screen>;
+  const heightFields = profile.weight_unit === 'kg' ? <Field label="Height (cm)" value={height} onChangeText={setHeight} keyboardType="decimal-pad" /> : <View className="flex-row gap-3"><View className="flex-1"><Field label="Height (ft)" value={height} onChangeText={setHeight} keyboardType="numeric" /></View><View className="flex-1"><Field label="Height (in)" value={heightInches} onChangeText={setHeightInches} keyboardType="numeric" /></View></View>;
+  return <Screen><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1"><ScrollView className="flex-1" contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">These values determine your formula estimate.</Text><Card className="p-5 gap-5"><Field label="Display name" value={name} onChangeText={setName} /><SegmentedControl options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={sex} onChange={setSex} /><Field label="Birth date" value={birthDate} onChangeText={setBirthDate} />{heightFields}</Card><View className="gap-2"><Text className="text-m3-on-surface-variant text-xs font-semibold">Activity</Text>{(['sedentary', 'light', 'moderate', 'active', 'very_active'] as ActivityLevel[]).map((value) => <TappableRow key={value} title={value.replace('_', ' ')} subtitle="Used for your daily expenditure estimate" selected={activity === value} onPress={() => setActivity(value)} />)}</View>{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></KeyboardAvoidingView></Screen>;
+}
+
+export function UnitsScreen({ onDataChanged }: { onDataChanged: () => void }) {
+  const navigation = useNavigation<NavigationProp<ProfileStackParamList>>(); const { profile, error } = useProfile();
+  const [unit, setUnit] = useState<'kg' | 'lb'>('kg'); const [saving, setSaving] = useState(false);
+  useEffect(() => { if (profile) setUnit(profile.weight_unit); }, [profile]);
+  const save = useCallback(async () => { if (!profile || unit === profile.weight_unit) { navigation.goBack(); return; } setSaving(true); try { await updateProfilePresentation(toUpdate(profile, { weight_unit: unit })); onDataChanged(); navigation.goBack(); } finally { setSaving(false); } }, [navigation, onDataChanged, profile, unit]);
+  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{error}</Text></View></Screen>;
+  return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">Units change how weight, height, goals, and charts are shown. Your stored data and nutrition target stay the same.</Text><SegmentedControl options={[{ value: 'kg', label: 'Metric' }, { value: 'lb', label: 'Imperial' }]} value={unit} onChange={setUnit} /><Card className="p-5 gap-2"><Text className="text-m3-on-surface font-semibold">Current height</Text><Text className="text-m3-on-surface-variant text-sm">{formatHeight(profile.height_cm, unit)}</Text></Card><PrimaryButton title="Save units" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
+}
+
+export function PrivacyScreen() {
+  const rows = [
+    ['Your plan', 'Stored only on this device.'],
+    ['Food estimates', serviceConfig.availability.gemini ? 'Photos and descriptions are sent to Gemini when you choose Estimate.' : 'Photo and description estimates are unavailable in this build.'],
+    ['Food search', `${serviceConfig.availability.usda ? 'USDA' : 'USDA unavailable'}, Open Food Facts, and your local food cache are used when available.`],
+  ];
+  return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">Marco does not provide a place to enter or manage provider credentials.</Text><View className="gap-3">{rows.map(([title, detail]) => <Card key={title} className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">{title}</Text><Text className="text-m3-on-surface-variant text-sm">{detail}</Text></Card>)}</View></ScrollView></Screen>;
 }
 
 export function GoalAndRateScreen() {

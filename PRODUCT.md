@@ -1,5 +1,7 @@
 # Product
 
+> **Phase 3 status:** Implemented (2026-07-29).
+
 <!-- impeccable:product-schema 1 -->
 
 ## Platform

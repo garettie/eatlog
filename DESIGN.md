@@ -1,6 +1,7 @@
 ---
 name: Marco
 description: Local-first adaptive macro tracking with scanner-first food logging.
+phase_3_status: Implemented (2026-07-29)
 colors:
   surface: "#111318"
   surface-container-lowest: "#0c0e13"

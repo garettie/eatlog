@@ -596,6 +596,8 @@ Verification:
 
 ### Phase 3: Units and service behavior
 
+**Status: Implemented (2026-07-29).**
+
 Implementation:
 
 1. Add Metric/Imperial Profile UI using current `weight_unit` as the persisted system choice.

@@ -161,7 +161,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
       <ScrollView className="flex-1" contentContainerClassName="px-4 pt-6 pb-10 gap-6" showsVerticalScrollIndicator={false}>
         <View className="gap-1">
           <Text className="text-m3-on-surface text-2xl font-bold">Profile</Text>
-          <Text className="text-m3-on-surface-variant text-sm">Plan, preferences, and data</Text>
+          <Text className="text-m3-on-surface-variant text-sm">Plan and data</Text>
         </View>
 
         <Card className="p-5 gap-5">
@@ -207,11 +207,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
             <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} onPress={() => navigation.navigate('PersonalDetails')} />
             <ProfileSettingRow icon="flag" title="Goal and rate" detail={`${goalLabel(profile)} · ${weeklyRate(profile)}`} onPress={() => navigation.navigate('GoalAndRate')} />
             <ProfileSettingRow icon="restaurant-menu" title="Nutrition targets" detail={`${Math.round(target.target_calories).toLocaleString()} kcal · ${targetSource(target)}`} onPress={() => navigation.navigate('NutritionTargets')} />
-          </Section>
-
-          <Section title="Preferences">
-            <ProfileSettingRow icon="straighten" title="Units" detail={profile.weight_unit === 'kg' ? 'Metric (kg)' : 'Imperial (lb)'} />
-            <ProfileSettingRow icon="auto-awesome" title="AI and food sources" detail="Developer-provisioned sources" />
+            <ProfileSettingRow icon="straighten" title="Units" detail={profile.weight_unit === 'kg' ? 'Metric · kg and cm' : 'Imperial · lb and ft/in'} onPress={() => navigation.navigate('Units')} />
           </Section>
 
           <Section title="Data & Sync">
@@ -222,7 +218,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
           <Section title="Help & About">
             <ProfileSettingRow icon="help-outline" title="How Marco works" detail="No help article is available" />
-            <ProfileSettingRow icon="privacy-tip" title="Privacy and data sources" detail="Your plan is stored locally" />
+            <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="Your plan stays on this device" onPress={() => navigation.navigate('Privacy')} />
             <ProfileSettingRow icon="info-outline" title="About" detail="Marco for Android" />
           </Section>
         </View>

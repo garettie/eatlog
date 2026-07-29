@@ -8,11 +8,12 @@ interface ActionRowProps {
   label: string;
   subtitle: string;
   onPress: () => void;
+  disabled?: boolean;
 }
 
-function ActionRow({ icon, label, subtitle, onPress }: ActionRowProps) {
+function ActionRow({ icon, label, subtitle, onPress, disabled }: ActionRowProps) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" className="flex-row items-center gap-4 px-4 py-4 active:opacity-60">
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} className={`flex-row items-center gap-4 px-4 py-4 ${disabled ? 'opacity-50' : 'active:opacity-60'}`}>
       <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
         <MaterialIcons name={icon} size={22} color="#e2e2e9" />
       </View>
@@ -32,6 +33,7 @@ interface EntryMethodStateProps {
   onSearch: () => void;
   onRecentFoods: () => void;
   onWeight: () => void;
+  estimatesAvailable: boolean;
 }
 
 export default function EntryMethodState({
@@ -41,16 +43,17 @@ export default function EntryMethodState({
   onSearch,
   onRecentFoods,
   onWeight,
+  estimatesAvailable,
 }: EntryMethodStateProps) {
   return (
     <BottomSheetScrollView contentContainerClassName="px-2 pt-1 pb-6" showsVerticalScrollIndicator={false}>
       <ActionRow icon="history" label="Recent foods" subtitle="Search foods from your log" onPress={onRecentFoods} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="photo-camera" label="Camera" subtitle="Take a photo of food or a nutrition label" onPress={onCamera} />
+      <ActionRow icon="photo-camera" label="Camera" subtitle={estimatesAvailable ? 'Take a photo of food or a nutrition label' : 'Food estimates are unavailable in this build'} onPress={onCamera} disabled={!estimatesAvailable} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="edit-note" label="Describe" subtitle="Type your meal for instant estimates" onPress={onDescribe} />
+      <ActionRow icon="edit-note" label="Describe" subtitle={estimatesAvailable ? 'Type your meal for instant estimates' : 'Food estimates are unavailable in this build'} onPress={onDescribe} disabled={!estimatesAvailable} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="photo-library" label="Gallery" subtitle="Use an existing photo" onPress={onGallery} />
+      <ActionRow icon="photo-library" label="Gallery" subtitle={estimatesAvailable ? 'Use an existing photo' : 'Food estimates are unavailable in this build'} onPress={onGallery} disabled={!estimatesAvailable} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
       <ActionRow icon="search" label="Search" subtitle="Look up food in database" onPress={onSearch} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />

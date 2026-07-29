@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  cmToFeetInches,
+  feetInchesToCm,
   formatWeight,
   fromKilograms,
   parseWeightInput,
@@ -34,4 +36,20 @@ test('canonical storage boundary can round converted kilograms to three decimals
   const unrounded = toKilograms(179.1, 'lb');
   assert.notEqual(unrounded, 81.238);
   assert.equal(Math.round(unrounded * 1000) / 1000, 81.238);
+});
+
+test('repeated presentation switches never alter canonical weight or height', () => {
+  const weightKg = 81.23456;
+  const heightCm = 177.8;
+  let displayedWeight = weightKg;
+  let unit: 'kg' | 'lb' = 'kg';
+  for (let index = 0; index < 20; index++) {
+    const next: 'kg' | 'lb' = unit === 'kg' ? 'lb' : 'kg';
+    displayedWeight = fromKilograms(toKilograms(displayedWeight, unit), next);
+    unit = next;
+  }
+  assert.ok(Math.abs(toKilograms(displayedWeight, unit) - weightKg) < 1e-10);
+  const imperial = cmToFeetInches(heightCm);
+  assert.ok(Math.abs(feetInchesToCm(imperial.feet, imperial.inches) - heightCm) < 1.3);
+  assert.equal(heightCm, 177.8, 'canonical height is never rewritten by display conversion');
 });

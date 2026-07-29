@@ -4,7 +4,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeInRight, FadeOutLeft, useReducedMotion } from 'react-native-reanimated';
 
-import { scanFood, clarifyMeal, DescribeResult } from '../../services/foodScan';
+import { scanFood, clarifyMeal, DescribeResult, FoodEstimationFailureKind } from '../../services/foodScan';
+import { serviceConfig } from '../../config/services';
 import { type DataType, type FoodResult } from '../../services/foodSearch';
 import { LoggedMeal, MealType, SaveWeightResult, getMealComponents } from '../../db/database';
 import { saveMealPhoto } from '../../utils/mealPhotos';
@@ -26,6 +27,7 @@ export type FoodSheetStateKey =
   | 'describe'
   | 'scanning'
   | 'permission-denied'
+  | 'estimation-error'
   | 'review-loading'
   | 'review'
   | 'search'
@@ -41,6 +43,7 @@ export interface FoodSheetState {
   selectedFood: FoodResult | null;
   photoUri?: string | null;
   pendingAction?: 'camera' | 'gallery' | 'describe' | 'search' | 'weight' | null;
+  estimationFailure?: FoodEstimationFailureKind | null;
   editMealId?: number | null;
   fromBar?: boolean;
   pendingMeal?: MealType | null;
@@ -101,6 +104,7 @@ export default function FoodSheetContent({
 
   const handleCamera = useCallback(async () => {
     cancelScanRef.current = false;
+    if (!serviceConfig.availability.gemini) { transitionTo('estimation-error'); setState((s) => ({ ...s, estimationFailure: 'unavailable', pendingAction: 'camera' })); return; }
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (cancelScanRef.current) return;
     if (status !== 'granted') {
@@ -125,9 +129,9 @@ export default function FoodSheetContent({
       scanBase64Ref.current = base64;
       const scanResult = await scanFood(base64);
       if (cancelScanRef.current) return;
-      if (!scanResult) {
-        if (fromBarRef.current) { resetToEntry(); return; }
-        transitionTo('entry', { pushHistory: false });
+      if (!scanResult.ok) {
+        setState((s) => ({ ...s, estimationFailure: scanResult.kind, pendingAction: 'camera' }));
+        transitionTo('estimation-error');
         return;
       }
       const photoUri = await saveMealPhoto(base64).catch((e) => {
@@ -135,16 +139,16 @@ export default function FoodSheetContent({
         return null;
       });
       setState((s) => ({ ...s, photoUri }));
-      transitionTo('review', { describeResult: scanResult });
+      transitionTo('review', { describeResult: scanResult.result });
     } catch (e) {
-      console.error('[FoodSheet] camera flow failed', e);
-      if (fromBarRef.current) { resetToEntry(); return; }
-      transitionTo('entry', { pushHistory: false });
+      setState((s) => ({ ...s, estimationFailure: 'network', pendingAction: 'camera' }));
+      transitionTo('estimation-error');
     }
   }, [transitionTo, resetToEntry]);
 
   const handleGallery = useCallback(async () => {
     cancelScanRef.current = false;
+    if (!serviceConfig.availability.gemini) { transitionTo('estimation-error'); setState((s) => ({ ...s, estimationFailure: 'unavailable', pendingAction: 'gallery' })); return; }
     transitionTo('scanning');
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -162,9 +166,9 @@ export default function FoodSheetContent({
       scanBase64Ref.current = base64;
       const scanResult = await scanFood(base64);
       if (cancelScanRef.current) return;
-      if (!scanResult) {
-        if (fromBarRef.current) { resetToEntry(); return; }
-        transitionTo('entry', { pushHistory: false });
+      if (!scanResult.ok) {
+        setState((s) => ({ ...s, estimationFailure: scanResult.kind, pendingAction: 'gallery' }));
+        transitionTo('estimation-error');
         return;
       }
       const photoUri = await saveMealPhoto(base64).catch((e) => {
@@ -172,13 +176,12 @@ export default function FoodSheetContent({
         return null;
       });
       setState((s) => ({ ...s, photoUri }));
-      transitionTo('review', { describeResult: scanResult });
+      transitionTo('review', { describeResult: scanResult.result });
     } catch (e) {
-      console.error('[FoodSheet] gallery flow failed', e);
-      if (fromBarRef.current) { resetToEntry(); return; }
-      transitionTo('entry', { pushHistory: false });
+      setState((s) => ({ ...s, estimationFailure: 'network', pendingAction: 'gallery' }));
+      transitionTo('estimation-error');
     }
-  }, [transitionTo, resetToEntry]);
+  }, [transitionTo, setState]);
 
   const handleDescribe = useCallback(() => {
     transitionTo('describe');
@@ -375,14 +378,25 @@ export default function FoodSheetContent({
           onSearch={handleSearch}
           onRecentFoods={handleRecentFoods}
           onWeight={handleWeight}
+          estimatesAvailable={serviceConfig.availability.gemini}
         />
       )}
       {state.stateKey === 'describe' && (
-        <DescribeInputState onResult={handleDescribeResult} onCancel={handleDescribeCancel} />
+        <DescribeInputState onResult={handleDescribeResult} onCancel={handleDescribeCancel} onSearch={handleSearch} onManualEntry={handleManualEntry} />
       )}
       {state.stateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
       {state.stateKey === 'permission-denied' && (
         <PermissionDeniedState onClose={() => transitionTo('entry', { pushHistory: false })} />
+      )}
+      {state.stateKey === 'estimation-error' && (
+        <EstimationErrorState
+          kind={state.estimationFailure ?? 'provider'}
+          source={state.pendingAction === 'gallery' ? 'Gallery' : 'Camera'}
+          onRetry={() => { const action = state.pendingAction; setState((s) => ({ ...s, stateKey: 'entry', pendingAction: action })); }}
+          onSearch={handleSearch}
+          onDescribe={handleDescribe}
+          onManualEntry={handleManualEntry}
+        />
       )}
       {state.stateKey === 'review-loading' && <ReviewLoadingState />}
       {state.stateKey === 'review' && (
@@ -444,4 +458,15 @@ function PermissionDeniedState({ onClose }: { onClose: () => void }) {
       </View>
     </View>
   );
+}
+
+function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onManualEntry }: { kind: FoodEstimationFailureKind; source: string; onRetry: () => void; onSearch: () => void; onDescribe: () => void; onManualEntry: () => void }) {
+  const message: Record<FoodEstimationFailureKind, string> = {
+    unavailable: 'Food estimates are not configured in this build.',
+    network: 'Check your connection, then try again.',
+    timeout: 'The estimate took too long. Try again.',
+    provider: 'The estimation service could not complete this request.',
+    'invalid-response': 'This photo did not produce a usable food estimate.',
+  };
+  return <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center" accessibilityLiveRegion="assertive"><Text className="text-m3-on-surface font-semibold text-sm">{source} estimate unavailable</Text><Text className="text-m3-on-surface-variant text-xs text-center">{message[kind]}</Text><View className="flex-row flex-wrap justify-center gap-2"><Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable><Pressable onPress={onSearch} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Search foods</Text></Pressable><Pressable onPress={onDescribe} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text></Pressable><Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable></View></View>;
 }

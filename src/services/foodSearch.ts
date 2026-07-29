@@ -1,4 +1,4 @@
-import { USDA_API_KEY } from '../config/api';
+import { serviceConfig } from '../config/services';
 import { searchFoodCache, CachedFood } from '../db/database';
 
 export interface FoodResult {
@@ -319,11 +319,11 @@ function deduplicateAndRank(items: FoodResult[], query: string): FoodResult[] {
 const USDA_BASE = 'https://api.nal.usda.gov/fdc/v1';
 
 async function searchUSDAGeneric(query: string): Promise<FoodResult[]> {
-  if (!USDA_API_KEY) return [];
+  if (!serviceConfig.availability.usda) return [];
 
   try {
     const body = await fetchJSON(
-      `${USDA_BASE}/foods/search?api_key=${USDA_API_KEY}&query=${encodeURIComponent(query)}&pageSize=20&dataType=Foundation,SR%20Legacy`,
+      `${USDA_BASE}/foods/search?api_key=${serviceConfig.usdaApiKey}&query=${encodeURIComponent(query)}&pageSize=20&dataType=Foundation,SR%20Legacy`,
       8000
     );
     if (!body || !body.foods || !Array.isArray(body.foods)) return [];
@@ -349,11 +349,11 @@ async function searchUSDAGeneric(query: string): Promise<FoodResult[]> {
 }
 
 async function searchUSDABranded(query: string): Promise<FoodResult[]> {
-  if (!USDA_API_KEY) return [];
+  if (!serviceConfig.availability.usda) return [];
 
   try {
     const body = await fetchJSON(
-      `${USDA_BASE}/foods/search?api_key=${USDA_API_KEY}&query=${encodeURIComponent(query)}&pageSize=8&dataType=Branded`,
+      `${USDA_BASE}/foods/search?api_key=${serviceConfig.usdaApiKey}&query=${encodeURIComponent(query)}&pageSize=8&dataType=Branded`,
       8000
     );
     if (!body || !body.foods || !Array.isArray(body.foods)) return [];
@@ -446,11 +446,11 @@ function parseUSDANutrients(nutrients: any[]): {
 }
 
 async function getUSDAFoodDetail(fdcId: number): Promise<{ servingSizeGrams: number; servingLabel: string } | null> {
-  if (!USDA_API_KEY) return null;
+  if (!serviceConfig.availability.usda) return null;
 
   try {
     const res = await fetchJSON(
-      `${USDA_BASE}/food/${fdcId}?api_key=${USDA_API_KEY}`,
+      `${USDA_BASE}/food/${fdcId}?api_key=${serviceConfig.usdaApiKey}`,
       5000
     );
     if (!res || !res.foodPortions || !Array.isArray(res.foodPortions) || res.foodPortions.length === 0) {

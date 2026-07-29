@@ -90,11 +90,11 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     setIsEstimating(true);
     try {
       const result = await describeMeal(text);
-      if (result && result.components.length > 0) {
-        onAdd(result.components);
+      if (result.ok && result.result.components.length > 0) {
+        onAdd(result.result.components);
         reset();
       } else {
-        setDescribeError("Couldn't estimate this meal. Try a different description.");
+        setDescribeError(result.ok ? "Couldn't estimate this meal. Try a different description." : result.message);
       }
     } catch {
       setDescribeError('Estimate failed. Check your connection.');
