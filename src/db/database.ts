@@ -945,8 +945,8 @@ export async function saveMealWithComponents(params: {
     if (params.editMealId) {
       await txn.runAsync('DELETE FROM food_logs WHERE meal_id = ?', [params.editMealId]);
       await txn.runAsync(
-        'UPDATE meals SET name = ?, log_date = ?, meal_type = ? WHERE id = ?',
-        [params.name, params.log_date, params.meal_type, params.editMealId],
+        'UPDATE meals SET name = ?, log_date = ?, meal_type = ?, photo_uri = ? WHERE id = ?',
+        [params.name, params.log_date, params.meal_type, params.photo_uri ?? null, params.editMealId],
       );
     } else {
       const result = await txn.runAsync(

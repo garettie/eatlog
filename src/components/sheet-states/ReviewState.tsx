@@ -16,6 +16,7 @@ import MacroChipGroup from '../MacroChipGroup';
 import PortionStepper from '../PortionStepper';
 import PrimaryButton from '../PrimaryButton';
 import DateSelector from '../DateSelector';
+import MealPhotoEditor from '../MealPhotoEditor';
 import { formatDayHeader, isoFromDate, parseLocalISO } from '../../utils/calendar';
 
 interface EditableComponent {
@@ -50,7 +51,7 @@ function toEditable(food: FoodResult): EditableComponent {
 
 interface ReviewStateProps {
   result: DescribeResult | null;
-  /** Saved scan photo to persist on the new meal (null for describe/search flows). */
+  /** Existing or captured meal photo to persist with the meal. */
   photoUri?: string | null;
   onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string; logDate: string }) => void;
   onClarify: (name: string) => Promise<DescribeResult | null>;
@@ -62,6 +63,7 @@ interface ReviewStateProps {
 
 export default function ReviewState({ result, photoUri, onLogComplete, onClarify, editMealId, initialMeal, logDate: logDateProp }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
+  const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(photoUri ?? null);
   const [components, setComponents] = useState<EditableComponent[]>(() =>
     (result?.components ?? []).map(toEditable),
   );
@@ -97,6 +99,10 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
       setRemoved(null);
     }
   }, [result]);
+
+  useEffect(() => {
+    setSelectedPhotoUri(photoUri ?? null);
+  }, [editMealId, photoUri]);
 
   useEffect(() => {
     const unregister = discardGuard.register(
@@ -254,6 +260,14 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     setComponents((prev) => [...prev, ...foods.map(toEditable)]);
   }, []);
 
+  const handlePhotoChange = useCallback((nextUri: string | null) => {
+    setSelectedPhotoUri((currentUri) => {
+      if (currentUri === nextUri) return currentUri;
+      dirtyRef.current = true;
+      return nextUri;
+    });
+  }, []);
+
   const handleLogMeal = useCallback(async () => {
     if (components.length === 0) return;
     setLogError(null);
@@ -266,7 +280,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         name,
         log_date: logDate,
         meal_type: meal,
-        photo_uri: photoUri ?? null,
+        photo_uri: selectedPhotoUri,
         components: components.map((comp) => {
         const ratio = comp.grams / 100;
         const cal = Math.round(comp.per100g.calories * ratio);
@@ -306,7 +320,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     } finally {
       setLogging(false);
     }
-  }, [components, mealName, meal, onLogComplete, editMealId, logDate]);
+  }, [components, mealName, meal, onLogComplete, editMealId, logDate, selectedPhotoUri]);
 
   const handleClarify = useCallback(async () => {
     const name = mealName.trim();
@@ -364,6 +378,12 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
           <Text className="text-m3-error text-xs pl-2">{clarifyError}</Text>
         )}
       </View>
+
+      <MealPhotoEditor
+        value={selectedPhotoUri}
+        onChange={handlePhotoChange}
+        disabled={logging}
+      />
 
       <View className="px-5 pt-4 pb-6 items-center gap-2">
         <View className="items-center">

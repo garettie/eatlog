@@ -10,7 +10,7 @@ async function ensureDir(): Promise<void> {
 }
 
 /**
- * Persist a scanned meal photo to app-private storage.
+ * Persist a meal photo to app-private storage.
  * Returns the file URI, or null on failure (photo is non-critical).
  */
 export async function saveMealPhoto(base64: string): Promise<string | null> {

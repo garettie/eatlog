@@ -56,6 +56,11 @@ const DayButton = React.memo(function DayButton({
   const isOver = !day.isFuture && day.targetCalories > 0 && day.calories > day.targetCalories;
   const ringStrokeColor = isOver ? M3.error : M3.calories;
   const offset = CIRCUMFERENCE * (1 - fraction);
+  const calorieHint = day.targetCalories > 0
+    ? `${Math.round(day.calories)} of ${Math.round(day.targetCalories)} calories logged`
+    : day.calories > 0
+      ? `${Math.round(day.calories)} calories logged`
+      : 'No calories logged';
 
   return (
     <Pressable
@@ -68,7 +73,7 @@ const DayButton = React.memo(function DayButton({
       accessibilityRole="button"
       accessibilityLabel={DAY_LABEL_FORMATTER.format(day.date) + (day.isToday ? ', today' : '')}
       accessibilityState={{ selected: isSelected, disabled: day.isFuture }}
-      accessibilityHint={day.isFuture ? undefined : `${Math.round(day.calories)} of ${Math.round(day.targetCalories)} calories logged`}
+      accessibilityHint={day.isFuture ? undefined : calorieHint}
     >
       <Text className={`text-[10px] font-semibold mb-0.5 ${
         day.isToday
@@ -181,7 +186,7 @@ export default function DayStrip({
           <MaterialIcons name="chevron-left" size={24} color={M3.onSurfaceVariant} />
         </Pressable>
 
-        <Text className="text-m3-on-surface text-sm font-bold">
+        <Text accessibilityRole="header" className="text-m3-on-surface text-sm font-bold">
           {monthLabel}
         </Text>
 

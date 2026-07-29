@@ -205,15 +205,19 @@ function MealRow({
   meal,
   onEditMeal,
   onDeleteMeal,
+  onViewPhoto,
 }: {
   meal: MealGroup;
   onEditMeal: (meal: MealGroup) => void;
   onDeleteMeal: (mealId: number) => void;
+  onViewPhoto: (uri: string, mealName: string) => void;
 }) {
   const totalCalories = meal.components.reduce((s, c) => s + c.calories, 0);
   const totalP = meal.components.reduce((s, c) => s + c.protein_g, 0);
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
+  const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
+  const photoUri = meal.photoUri && meal.photoUri !== failedPhotoUri ? meal.photoUri : null;
 
   return (
     <SwipeRow identity={`meal-${meal.id}`} onDelete={() => onDeleteMeal(meal.id)}>
@@ -221,7 +225,7 @@ function MealRow({
         <Pressable
           onPress={() => onEditMeal(meal)}
           className={`flex-row items-stretch active:opacity-80 ${
-            meal.photoUri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'
+            photoUri ? 'h-24' : 'px-5 py-5 min-h-[96]'
           }`}
           accessibilityRole="button"
           accessibilityLabel={`${meal.name}, ${Math.round(totalCalories)} calories`}
@@ -232,19 +236,34 @@ function MealRow({
             else onEditMeal(meal);
           }}
         >
-          {meal.photoUri ? (
-            <Image
-              source={{ uri: meal.photoUri }}
-              className="w-28 self-stretch bg-m3-surface-container-highest"
-              resizeMode="cover"
-            />
+          {photoUri ? (
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                onViewPhoto(photoUri, meal.name);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${meal.name} photo`}
+              className="h-24 w-20 bg-m3-surface-container-highest active:opacity-80"
+            >
+              <Image
+                source={{ uri: photoUri }}
+                className="h-full w-full"
+                resizeMode="cover"
+                fadeDuration={0}
+                onError={() => setFailedPhotoUri(photoUri)}
+              />
+            </Pressable>
           ) : (
             <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
               <MaterialCommunityIcons name={foodIcon(meal.name)} size={20} color={M3.onSurfaceVariant} />
             </View>
           )}
-          <View className={`flex-1 min-w-0 ${meal.photoUri ? 'px-4 py-5' : 'mr-4'}`}>
-            <Text className="text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>
+          <View className={`flex-1 min-w-0 ${photoUri ? 'px-3 py-3' : 'mr-4'}`}>
+            <Text
+              className="text-m3-on-surface text-base font-bold leading-5"
+              numberOfLines={photoUri ? 1 : 2}
+            >
               {meal.name}
             </Text>
             <Text className="text-m3-on-surface-variant text-xs mt-0.5">
@@ -254,7 +273,7 @@ function MealRow({
               <MacroPills protein={totalP} carbs={totalC} fat={totalF} />
             </View>
           </View>
-          <View className={`w-[88px] shrink-0 items-end ${meal.photoUri ? 'pt-5 pr-4' : 'pt-0.5'}`}>
+          <View className={`w-[88px] shrink-0 items-end ${photoUri ? 'pt-3 pr-4' : 'pt-0.5'}`}>
             <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
               {Math.round(totalCalories)}
               <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
@@ -287,6 +306,7 @@ interface JournalSectionProps {
   onEditMeal: (meal: MealGroup) => void;
   onDeleteFood: (food: FoodLog) => void;
   onDeleteMeal: (mealId: number) => void;
+  onViewPhoto: (uri: string, mealName: string) => void;
 }
 
 function JournalSection({
@@ -301,6 +321,7 @@ function JournalSection({
   onEditMeal,
   onDeleteFood,
   onDeleteMeal,
+  onViewPhoto,
 }: JournalSectionProps) {
   const hasEntries = entries.length > 0;
   const collapseKey = `${resetKey ?? ''}:${hasEntries ? 'filled' : 'empty'}`;
@@ -381,6 +402,7 @@ function JournalSection({
                     meal={entry.mealGroup}
                     onEditMeal={onEditMeal}
                     onDeleteMeal={onDeleteMeal}
+                    onViewPhoto={onViewPhoto}
                   />
                 );
               }

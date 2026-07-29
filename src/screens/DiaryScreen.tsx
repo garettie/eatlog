@@ -27,6 +27,7 @@ import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
 import JournalSection, { JournalEntryKind, MealGroup } from '../components/JournalSection';
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
+import MealPhotoViewer from '../components/MealPhotoViewer';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
@@ -83,6 +84,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
+  const [viewingPhoto, setViewingPhoto] = useState<{ uri: string; mealName: string } | null>(null);
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
   const loadingGenerationRef = useRef(0);
@@ -289,6 +291,11 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     loadDayAndMonth(selectedDate, monthAnchor, true);
   }, [loadDayAndMonth, monthAnchor, selectedDate]);
 
+  const retryMonth = useCallback(() => {
+    setMonthLoadError(false);
+    void loadMonth(monthAnchor);
+  }, [loadMonth, monthAnchor]);
+
   useEffect(() => {
     if (dataVersion > 0) {
       cacheGenerationRef.current += 1;
@@ -454,6 +461,14 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     onEditMeal(meal);
   }, [onEditMeal]);
 
+  const handleViewPhoto = useCallback((uri: string, mealName: string) => {
+    setViewingPhoto({ uri, mealName });
+  }, []);
+
+  const handleClosePhoto = useCallback(() => {
+    setViewingPhoto(null);
+  }, []);
+
   const handleDeleteFood = useCallback(async (food: FoodLog) => {
     try {
       await deleteFoodLog(food.id);
@@ -600,12 +615,32 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
       {/* Divider */}
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
 
+      {!loading && !dayLoadError && monthLoadError && (
+        <View
+          className="mx-4 mt-3 min-h-[56px] flex-row items-center gap-3 rounded-2xl bg-m3-error-container px-4 py-1"
+          accessibilityRole="alert"
+        >
+          <MaterialIcons name="error-outline" size={18} color={M3.onErrorContainer} />
+          <Text className="flex-1 text-m3-on-error-container text-xs font-medium">
+            Calendar totals unavailable. Diary entries are still available.
+          </Text>
+          <Pressable
+            onPress={retryMonth}
+            accessibilityRole="button"
+            accessibilityLabel="Retry calendar totals"
+            className="min-h-[48px] justify-center px-2 active:opacity-70"
+          >
+            <Text className="text-m3-on-error-container text-xs font-semibold">Retry</Text>
+          </Pressable>
+        </View>
+      )}
+
       <View className="flex-1">
       {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={M3.onSurfaceVariant} />
+        <View className="flex-1 items-center justify-center" accessibilityLiveRegion="polite">
+          <ActivityIndicator accessibilityLabel="Loading diary" color={M3.onSurfaceVariant} />
         </View>
-      ) : dayLoadError || monthLoadError ? (
+      ) : dayLoadError ? (
         <View className="flex-1 items-center justify-center px-8 gap-4">
           <MaterialIcons name="error-outline" size={40} color={M3.onSurfaceVariant} />
           <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
@@ -620,8 +655,8 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           </Pressable>
         </View>
       ) : displayedDate !== selectedDate ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={M3.onSurfaceVariant} />
+        <View className="flex-1 items-center justify-center" accessibilityLiveRegion="polite">
+          <ActivityIndicator accessibilityLabel="Loading selected day" color={M3.onSurfaceVariant} />
         </View>
       ) : (
         <ScrollView
@@ -648,7 +683,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
               </View>
               <View className="items-center gap-1 px-6">
                 <Text className="text-m3-on-surface text-sm font-semibold">Nothing logged yet</Text>
-                <Text className="text-m3-on-surface-variant text-xs text-center">Add a meal when you're ready.</Text>
+                <Text className="text-m3-on-surface-variant text-xs text-center">Add an entry when you're ready.</Text>
               </View>
               <Pressable
                 onPress={() => onOpenEntry(selectedDate)}
@@ -661,7 +696,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           )}
 
           {/* Journal sections */}
-          {journalSections.map((section) => (
+          {foodLogs.length > 0 && journalSections.map((section) => (
             <JournalSection
               key={section.meal}
               label={section.label}
@@ -675,6 +710,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
               onEditMeal={handleEditMeal}
               onDeleteFood={handleDeleteFood}
               onDeleteMeal={handleDeleteMeal}
+              onViewPhoto={handleViewPhoto}
             />
           ))}
         </ScrollView>
@@ -687,6 +723,12 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
         saving={edit.saving}
         onSave={handleSaveEdit}
         onClosed={handleEditClosed}
+      />
+
+      <MealPhotoViewer
+        uri={viewingPhoto?.uri ?? null}
+        mealName={viewingPhoto?.mealName ?? ''}
+        onClose={handleClosePhoto}
       />
 
     </SafeAreaView>
