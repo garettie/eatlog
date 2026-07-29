@@ -86,12 +86,6 @@ export default function TabNavigator() {
         setSheet({ ...INITIAL, visible: true, stateKey: 'describe', fromBar: true, logDate: logDate ?? null });
     }, []);
 
-    const openSearch = useCallback((logDate?: string) => {
-        backHistoryRef.current = [];
-        skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'search', fromBar: true, logDate: logDate ?? null });
-    }, []);
-
     const openCamera = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
@@ -342,10 +336,6 @@ export default function TabNavigator() {
                     {() => (
                         <DiaryScreen
                             onOpenEntry={openEntry}
-                            onCamera={openCamera}
-                            onGallery={openGallery}
-                            onDescribe={openDescribe}
-                            onSearch={openSearch}
                             onEditMeal={openEditMeal}
                             dataVersion={dataVersion}
                             showToast={showToast}

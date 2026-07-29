@@ -650,34 +650,26 @@ export default function DashboardScreen({
           )}
 
           {/* ── Weight Trend Card ── */}
-          <Card className="overflow-hidden">
+          <Card className="p-5 gap-4 overflow-hidden">
             <Pressable
               onPress={() => navigation.navigate('Analytics')}
-              className="p-5 gap-4 active:opacity-80"
-              accessible={false}
+              className="min-h-[48px] flex-row justify-between items-center gap-3 active:opacity-70"
+              accessibilityRole="button"
+              accessibilityLabel="Open weight analytics"
             >
-              <View className="flex-row justify-between items-center gap-3">
-                <View>
-                  <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
-                  <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">Last 30 days</Text>
-                </View>
-                <View className="flex-row items-center gap-2">
-                  {profile.target_weight_kg != null && (
-                    <Text className="text-m3-on-surface-variant text-xs font-bold tabular-nums">
-                      Goal {formatWeight(profile.target_weight_kg, weightUnit)} {unitLabel}
-                    </Text>
-                  )}
-                  <Pressable
-                    onPress={() => navigation.navigate('Analytics')}
-                    accessibilityRole="button"
-                    accessibilityLabel="Open weight analytics"
-                    hitSlop={12}
-                    className="w-6 h-6 items-center justify-center active:opacity-60"
-                  >
-                    <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
-                  </Pressable>
-                </View>
+              <View>
+                <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
+                <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">Last 30 days</Text>
               </View>
+              <View className="flex-row items-center gap-2">
+                {profile.target_weight_kg != null && (
+                  <Text className="text-m3-on-surface-variant text-xs font-bold tabular-nums">
+                    Goal {formatWeight(profile.target_weight_kg, weightUnit)} {unitLabel}
+                  </Text>
+                )}
+                <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
+              </View>
+            </Pressable>
 
               {weightLogs.length === 0 ? (
                 <View className="justify-center items-center gap-2 py-2">
@@ -745,7 +737,6 @@ export default function DashboardScreen({
                   </View>
                 </>
               )}
-            </Pressable>
           </Card>
         </Animated.View>
       </ScrollView>

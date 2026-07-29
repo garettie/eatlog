@@ -1,13 +1,20 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import {
   getFoodLogsByDate,
   getDailyTargetForDate,
   getMacrosByDateRange,
+  getDailyTargetsByDateRange,
   getMealsByIds,
   updateFoodLog,
   deleteFoodLog,
@@ -22,10 +29,10 @@ import {
 } from '../db/database';
 import { todayISO, isoFromDate, getMonthStart, getMonthDates, isToday, isFuture, formatDayHeader, formatMonthLabel } from '../utils/calendar';
 import { M3 } from '../theme/tokens';
+import { DURATION, EASING } from '../theme/motion';
 import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
 import JournalSection, { JournalEntryKind, MealGroup } from '../components/JournalSection';
-import EntryBar from '../components/EntryBar';
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
@@ -40,18 +47,19 @@ interface EditState {
   saving: boolean;
 }
 
+interface MonthSummary {
+  macros: DayMacros[];
+  targets: Map<string, DailyTarget>;
+}
+
 interface DiaryScreenProps {
   onOpenEntry: (logDate?: string) => void;
-  onCamera: (logDate?: string) => void;
-  onGallery: (logDate?: string) => void;
-  onDescribe: (logDate?: string) => void;
-  onSearch: (logDate?: string) => void;
   onEditMeal: (meal: MealGroup) => void;
   dataVersion: number;
   showToast: (message: string, undo?: () => void) => void;
 }
 
-export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescribe, onSearch, onEditMeal, dataVersion, showToast }: DiaryScreenProps) {
+export default function DiaryScreen({ onOpenEntry, onEditMeal, dataVersion, showToast }: DiaryScreenProps) {
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
   const [loading, setLoading] = useState(true);
@@ -62,89 +70,156 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
   const [refreshCount, setRefreshCount] = useState(0);
+  const [monthDirection, setMonthDirection] = useState<-1 | 0 | 1>(0);
   const initialLoadDone = useRef(false);
   const loadRequestRef = useRef(0);
   const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const monthCacheRef = useRef(new Map<string, MonthSummary>());
+  const contentDirectionRef = useRef<-1 | 0 | 1>(0);
+  const reduced = useReducedMotion();
+  const contentTranslateX = useSharedValue(0);
+  const contentOpacity = useSharedValue(1);
+
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [{ translateX: contentTranslateX.value }],
+  }));
+
+  const animateContentOut = useCallback((direction: -1 | 1) => {
+    contentDirectionRef.current = direction;
+    contentTranslateX.value = withTiming(-direction * 18, {
+      duration: reduced ? 0 : Math.round(DURATION.short * 0.6),
+      easing: EASING.emphasizedAccelerate,
+    });
+    contentOpacity.value = withTiming(0.68, {
+      duration: reduced ? 0 : Math.round(DURATION.short * 0.6),
+    });
+  }, [contentOpacity, contentTranslateX, reduced]);
 
   const loadData = useCallback((date: string, anchor: Date, showLoading = false) => {
     const requestId = ++loadRequestRef.current;
     if (showLoading) setLoading(true);
     const queued = loadQueueRef.current.catch(() => {}).then(async () => {
-      try {
-      const monthDates = getMonthDates(anchor);
-      const startISO = isoFromDate(monthDates[0]);
-      const endISO = isoFromDate(monthDates[monthDates.length - 1]);
-
-      // Keep SQLite reads serialized on Android. A burst of concurrent
-      // prepareAsync calls can race NativeStatement handles on the bridge.
-      const logs = await getFoodLogsByDate(date);
-      const macros = await getMacrosByDateRange(startISO, endISO);
-      const monthTargets: (DailyTarget | null)[] = [];
-      for (const d of monthDates) {
-        monthTargets.push(await getDailyTargetForDate(isoFromDate(d)));
-      }
-
-      const targetMap = new Map<string, DailyTarget>();
-      monthDates.forEach((d, i) => {
-        const t = monthTargets[i];
-        if (t) targetMap.set(isoFromDate(d), t);
-      });
-
-      const mealIds = [...new Set(logs.filter((l) => l.meal_id != null).map((l) => l.meal_id!))];
-      const meals = await getMealsByIds(mealIds);
-      const mealMap = new Map<number, MealRow>();
-      meals.forEach((m) => mealMap.set(m.id, m));
-
       if (requestId !== loadRequestRef.current) return;
-      setFoodLogs(logs);
-      setMonthMacros(macros);
-      setDayTargetMap(targetMap);
-      setMealRows(mealMap);
-      setLoadError(false);
+      try {
+        const monthDates = getMonthDates(anchor);
+        const startISO = isoFromDate(monthDates[0]);
+        const endISO = isoFromDate(monthDates[monthDates.length - 1]);
+        const monthKey = `${startISO}:${endISO}`;
+
+        // Keep SQLite reads serialized on Android. Same-month day switches only
+        // read the selected day's logs and meals; month summaries stay cached.
+        const logs = await getFoodLogsByDate(date);
+        if (requestId !== loadRequestRef.current) return;
+        let monthSummary = monthCacheRef.current.get(monthKey);
+        if (!monthSummary) {
+          const macros = await getMacrosByDateRange(startISO, endISO);
+          let activeTarget = await getDailyTargetForDate(startISO);
+          const targetChanges = await getDailyTargetsByDateRange(startISO, endISO);
+          let targetIndex = 0;
+          const targetMap = new Map<string, DailyTarget>();
+
+          for (const day of monthDates) {
+            const dayISO = isoFromDate(day);
+            while (
+              targetIndex < targetChanges.length
+              && targetChanges[targetIndex].effective_date <= dayISO
+            ) {
+              activeTarget = targetChanges[targetIndex];
+              targetIndex += 1;
+            }
+            if (activeTarget) targetMap.set(dayISO, activeTarget);
+          }
+
+          monthSummary = { macros, targets: targetMap };
+          monthCacheRef.current.set(monthKey, monthSummary);
+        }
+
+        const mealIds = [...new Set(logs.filter((l) => l.meal_id != null).map((l) => l.meal_id!))];
+        const meals = await getMealsByIds(mealIds);
+        const mealMap = new Map<number, MealRow>();
+        meals.forEach((m) => mealMap.set(m.id, m));
+
+        if (requestId !== loadRequestRef.current) return;
+        const direction = contentDirectionRef.current;
+        if (direction !== 0) {
+          contentTranslateX.value = direction * 24;
+          contentOpacity.value = 0.72;
+        }
+
+        setFoodLogs(logs);
+        setMonthMacros(monthSummary.macros);
+        setDayTargetMap(monthSummary.targets);
+        setMealRows(mealMap);
+        setLoadError(false);
+
+        if (direction !== 0) {
+          contentDirectionRef.current = 0;
+          requestAnimationFrame(() => {
+            contentTranslateX.value = withTiming(0, {
+              duration: reduced ? 0 : DURATION.short,
+              easing: EASING.emphasizedDecelerate,
+            });
+            contentOpacity.value = withTiming(1, {
+              duration: reduced ? 0 : DURATION.short,
+            });
+          });
+        }
       } catch (e) {
         console.error('[Diary] loadData failed', e);
-        if (requestId === loadRequestRef.current) setLoadError(true);
+        if (requestId === loadRequestRef.current) {
+          contentDirectionRef.current = 0;
+          contentTranslateX.value = withTiming(0, { duration: reduced ? 0 : DURATION.short });
+          contentOpacity.value = withTiming(1, { duration: reduced ? 0 : DURATION.short });
+          setLoadError(true);
+        }
       } finally {
         if (requestId === loadRequestRef.current) setLoading(false);
       }
     });
     loadQueueRef.current = queued;
     return queued;
-  }, []);
+  }, [contentOpacity, contentTranslateX, reduced]);
 
   useFocusEffect(
     useCallback(() => {
       const isInitial = !initialLoadDone.current;
       initialLoadDone.current = true;
       loadData(selectedDate, monthAnchor, isInitial);
-    }, [selectedDate, monthAnchor, refreshCount]),
+    }, [selectedDate, monthAnchor, refreshCount, loadData]),
   );
 
   useEffect(() => {
     if (dataVersion > 0) {
+      monthCacheRef.current.clear();
       loadData(selectedDate, monthAnchor, false);
     }
   }, [dataVersion]);
 
-  const monthDates = getMonthDates(monthAnchor);
+  const monthDates = useMemo(() => getMonthDates(monthAnchor), [monthAnchor]);
+  const monthMacroMap = useMemo(
+    () => new Map(monthMacros.map((macros) => [macros.log_date, macros])),
+    [monthMacros],
+  );
 
-  const dayCells = monthDates.map((d) => {
-    const iso = isoFromDate(d);
-    const macros = monthMacros.find((m) => m.log_date === iso);
-    const target = dayTargetMap.get(iso);
-    return {
-      date: d,
-      isoDate: iso,
-      dayNumber: d.getDate(),
-      dayLetter: ['S','M','T','W','T','F','S'][d.getDay()],
-      isToday: isToday(d),
-      isFuture: isFuture(d),
-      calories: macros?.calories ?? 0,
-      targetCalories: target?.target_calories ?? 0,
-    };
-  });
+  const dayCells = useMemo(() => monthDates.map((d) => {
+      const iso = isoFromDate(d);
+      const macros = monthMacroMap.get(iso);
+      const target = dayTargetMap.get(iso);
+      return {
+        date: d,
+        isoDate: iso,
+        dayNumber: d.getDate(),
+        dayLetter: ['S','M','T','W','T','F','S'][d.getDay()],
+        isToday: isToday(d),
+        isFuture: isFuture(d),
+        calories: macros?.calories ?? 0,
+        targetCalories: target?.target_calories ?? 0,
+      };
+    }), [dayTargetMap, monthDates, monthMacroMap]);
 
   const shiftMonth = useCallback((delta: number) => {
+    setMonthDirection(delta > 0 ? 1 : -1);
     setMonthAnchor((a) => {
       const d = new Date(a);
       d.setMonth(d.getMonth() + delta);
@@ -158,11 +233,17 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const canGoNext = monthAnchor.getTime() < currentMonth.getTime();
 
   const selectDate = useCallback((iso: string) => {
+    if (iso === selectedDate) return;
+    const direction: -1 | 1 = iso > selectedDate ? 1 : -1;
+    animateContentOut(direction);
     setSelectedDate(iso);
     const d = new Date(iso + 'T12:00:00');
     const monthStart = getMonthStart(d);
-    setMonthAnchor(monthStart);
-  }, []);
+    setMonthAnchor((current) => {
+      if (monthStart.getTime() !== current.getTime()) setMonthDirection(direction);
+      return monthStart;
+    });
+  }, [animateContentOut, selectedDate]);
 
   const todayTarget = dayTargetMap.get(selectedDate);
   const targetCalories = todayTarget?.target_calories ?? 0;
@@ -182,7 +263,16 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
     { letter: 'F', consumed: consumedFat, target: targetFat, barColor: M3.fat, unit: 'g' as const },
   ];
 
-  const journalSections = MEAL_ORDER.map(({ meal, label }) => {
+  const journalSections = useMemo(() => {
+    const componentsByMealId = new Map<number, FoodLog[]>();
+    for (const log of foodLogs) {
+      if (log.meal_id == null) continue;
+      const components = componentsByMealId.get(log.meal_id) ?? [];
+      components.push(log);
+      componentsByMealId.set(log.meal_id, components);
+    }
+
+    return MEAL_ORDER.map(({ meal, label }) => {
     const sectionLogs = foodLogs.filter((l) => l.meal === meal);
     const entries: JournalEntryKind[] = [];
     const seenMealIds = new Set<number>();
@@ -191,7 +281,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
         entries.push({ type: 'food', foodLog: log });
       } else if (!seenMealIds.has(log.meal_id)) {
         seenMealIds.add(log.meal_id);
-        const components = sectionLogs.filter((l) => l.meal_id === log.meal_id);
+        const components = componentsByMealId.get(log.meal_id) ?? [];
         const mealRow = mealRows.get(log.meal_id);
         entries.push({
           type: 'meal',
@@ -219,7 +309,8 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
       totalCarbs: sectionCa,
       totalFat: sectionF,
     };
-  });
+    });
+  }, [foodLogs, mealRows]);
 
   const handleEditFood = useCallback((food: FoodLog) => {
     setEdit({ food, saving: false });
@@ -232,6 +323,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
   const handleDeleteFood = useCallback(async (food: FoodLog) => {
     try {
       await deleteFoodLog(food.id);
+      monthCacheRef.current.clear();
       setRefreshCount((r) => r + 1);
       showToast(`Deleted ${food.name}`, () => {
         insertFoodLog({
@@ -256,7 +348,10 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
           carbs_g: food.carbs_g,
           fat_g: food.fat_g,
         })
-          .then(() => setRefreshCount((r) => r + 1))
+          .then(() => {
+            monthCacheRef.current.clear();
+            setRefreshCount((r) => r + 1);
+          })
           .catch((e) => console.error('[Diary] undo delete failed', e));
       });
     } catch (e) {
@@ -271,6 +366,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
     const mealName = mealRow?.name ?? 'Meal';
     try {
       await deleteMeal(mealId);
+      monthCacheRef.current.clear();
       setRefreshCount((r) => r + 1);
       showToast(`Deleted ${mealName}`, () => {
         (async () => {
@@ -303,6 +399,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
               fat_g: c.fat_g,
             });
           }
+          monthCacheRef.current.clear();
           setRefreshCount((r) => r + 1);
         })().catch((e) => console.error('[Diary] undo meal delete failed', e));
       });
@@ -332,6 +429,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
         carbs_g: newCarbs,
         fat_g: newFat,
       });
+      monthCacheRef.current.clear();
       setRefreshCount((r) => r + 1);
       setEdit((current) => ({ ...current, saving: false }));
       return true;
@@ -358,11 +456,13 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
         onNextMonth={nextMonth}
         canGoNext={canGoNext}
         monthLabel={formatMonthLabel(monthAnchor)}
+        transitionDirection={monthDirection}
       />
 
       {/* Divider */}
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
 
+      <Animated.View style={[{ flex: 1 }, contentStyle]}>
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={M3.onSurfaceVariant} />
@@ -437,14 +537,7 @@ export default function DiaryScreen({ onOpenEntry, onCamera, onGallery, onDescri
           ))}
         </ScrollView>
       )}
-
-      {/* Entry bar above tab navigator */}
-      <EntryBar
-        onCamera={() => onCamera(selectedDate)}
-        onGallery={() => onGallery(selectedDate)}
-        onDescribe={() => onDescribe(selectedDate)}
-        onSearch={() => onSearch(selectedDate)}
-      />
+      </Animated.View>
 
       {/* Portion edit sheet (shared Sheet vocabulary: BackHandler, discard guard, M3 handle) */}
       <DiaryEditSheet

@@ -1,9 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 
 import { M3 } from '../theme/tokens';
+import { DURATION, EASING } from '../theme/motion';
 
 const RING_R = 15;
 const RING_STROKE = 2;
@@ -30,11 +37,15 @@ interface DayStripProps {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   canGoNext?: boolean;
+  transitionDirection?: -1 | 0 | 1;
 }
 
-export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth, canGoNext = true }: DayStripProps) {
+export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate, onPrevMonth, onNextMonth, canGoNext = true, transitionDirection = 0 }: DayStripProps) {
   const scrollRef = useRef<ScrollView>(null);
   const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
+  const reduced = useReducedMotion();
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
 
   useEffect(() => {
     const idx = days.findIndex((d) => d.isoDate === selectedDate);
@@ -44,8 +55,25 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
     }
   }, [cellWidth, selectedDate, monthLabel]);
 
+  useEffect(() => {
+    if (transitionDirection === 0) return;
+    translateX.value = transitionDirection * 24;
+    opacity.value = 0.72;
+    translateX.value = withTiming(0, {
+      duration: reduced ? 0 : DURATION.short,
+      easing: EASING.emphasizedDecelerate,
+    });
+    opacity.value = withTiming(1, { duration: reduced ? 0 : DURATION.short });
+  }, [monthLabel, opacity, reduced, transitionDirection, translateX]);
+
+  const transitionStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: translateX.value }],
+  }));
+
   return (
-    <View>
+    <View className="overflow-hidden">
+      <Animated.View style={transitionStyle}>
       <View className="flex-row items-center justify-between px-2 py-2">
         <Pressable
           onPress={onPrevMonth}
@@ -135,7 +163,7 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
                     : day.isToday
                       ? M3.primary
                       : 'transparent',
-                  backgroundColor: isSelected ? M3.primary : 'transparent',
+                  backgroundColor: isSelected ? M3.surfaceContainerHighest : 'transparent',
                 }}
               >
                 <Svg width={36} height={36} viewBox="0 0 36 36" style={{ position: 'absolute' }}>
@@ -169,7 +197,7 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
                 </Svg>
                 <Text className={`text-xs font-bold tabular-nums ${
                   isSelected
-                    ? 'text-m3-on-primary'
+                    ? 'text-m3-on-surface'
                     : day.isToday
                       ? 'text-m3-primary'
                       : day.isFuture
@@ -183,6 +211,7 @@ export default function DayStrip({ days, selectedDate, monthLabel, onSelectDate,
           );
         })}
       </ScrollView>
+      </Animated.View>
     </View>
   );
 }

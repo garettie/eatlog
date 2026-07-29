@@ -71,62 +71,32 @@ function Chevron({ open }: { open: boolean }) {
 
 function SwipeRow({
   children,
-  onEdit,
   onDelete,
 }: {
   children: React.ReactNode;
-  onEdit: () => void;
   onDelete: () => void;
 }) {
   const ref = React.useRef<Swipeable>(null);
 
   const renderRightActions = () => (
-    <View
-      style={{
-        flexDirection: 'row',
-        marginRight: 16,
-        marginBottom: 8,
-        borderRadius: 16,
-        overflow: 'hidden',
+    <RectButton
+      onPress={() => {
+        onDelete();
+        ref.current?.close();
       }}
+      style={{
+        backgroundColor: M3.errorContainer,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 72,
+      }}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel="Delete entry"
     >
-      <RectButton
-        onPress={() => {
-          onEdit();
-          ref.current?.close();
-        }}
-        style={{
-          backgroundColor: M3.surfaceContainerHighest,
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 72,
-        }}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Edit entry"
-      >
-        <MaterialIcons name="edit" size={18} color={M3.onSurfaceVariant} />
-        <Text className="text-m3-on-surface-variant text-[10px] font-semibold mt-1">Edit</Text>
-      </RectButton>
-      <RectButton
-        onPress={() => {
-          onDelete();
-          ref.current?.close();
-        }}
-        style={{
-          backgroundColor: M3.errorContainer,
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 72,
-        }}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Delete entry"
-      >
-        <MaterialIcons name="delete-outline" size={18} color={M3.error} />
-        <Text className="text-m3-error text-[10px] font-semibold mt-1">Delete</Text>
-      </RectButton>
-    </View>
+      <MaterialIcons name="delete-outline" size={18} color={M3.error} />
+      <Text className="text-m3-error text-[10px] font-semibold mt-1">Delete</Text>
+    </RectButton>
   );
 
   return (
@@ -134,9 +104,14 @@ function SwipeRow({
       ref={ref}
       renderRightActions={renderRightActions}
       friction={2}
-      rightThreshold={72}
+      rightThreshold={48}
       overshootRight={false}
-      containerStyle={{ overflow: 'visible' }}
+      containerStyle={{
+        marginHorizontal: 16,
+        marginBottom: 8,
+        borderRadius: 16,
+        overflow: 'hidden',
+      }}
     >
       {children}
     </Swipeable>
@@ -155,14 +130,14 @@ function FoodRow({
   onDelete: (food: FoodLog) => void;
 }) {
   return (
-    <SwipeRow onEdit={() => onEdit(food)} onDelete={() => onDelete(food)}>
-      <View className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
+    <SwipeRow onDelete={() => onDelete(food)}>
+      <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
         <Pressable
           onPress={() => onEdit(food)}
           className="flex-row items-start px-5 py-5 min-h-[96] active:opacity-80"
           accessibilityRole="button"
           accessibilityLabel={`${food.name}, ${Math.round(food.calories)} calories`}
-          accessibilityHint="Opens portion editor. Swipe for more actions."
+          accessibilityHint="Opens portion editor. Swipe left to delete."
           accessibilityActions={[{ name: 'activate', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
           onAccessibilityAction={(event) => {
             if (event.nativeEvent.actionName === 'delete') onDelete(food);
@@ -220,8 +195,8 @@ function MealRow({
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
   return (
-    <SwipeRow onEdit={() => onEditMeal(meal)} onDelete={() => onDeleteMeal(meal.id)}>
-      <View className="mx-4 mb-2 rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
+    <SwipeRow onDelete={() => onDeleteMeal(meal.id)}>
+      <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
         <Pressable
           onPress={() => onEditMeal(meal)}
           className={`flex-row items-stretch active:opacity-80 ${
@@ -229,7 +204,7 @@ function MealRow({
           }`}
           accessibilityRole="button"
           accessibilityLabel={`${meal.name}, ${Math.round(totalCalories)} calories`}
-          accessibilityHint="Opens meal editor. Swipe for more actions."
+          accessibilityHint="Opens meal editor. Swipe left to delete."
           accessibilityActions={[{ name: 'activate', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
           onAccessibilityAction={(event) => {
             if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
