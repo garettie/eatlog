@@ -182,6 +182,7 @@ interface DashboardScreenProps {
   onOpenDescribe: () => void;
   onOpenWeight: () => void;
   onOpenAdaptiveInfo: () => void;
+  onOpenProfile: () => void;
   dataVersion: number;
 }
 
@@ -191,6 +192,7 @@ function DashboardScreen({
   onOpenDescribe,
   onOpenWeight,
   onOpenAdaptiveInfo,
+  onOpenProfile,
   dataVersion,
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
@@ -404,13 +406,20 @@ function DashboardScreen({
           {/* ── Header ── */}
           <View className="flex-row justify-between items-center gap-3">
             <View className="flex-row items-center gap-3 flex-1 min-w-0">
-              <View className="w-10 h-10 rounded-full bg-white items-center justify-center">
-                {initials ? (
-                  <Text className="text-m3-on-primary font-bold text-sm">{initials}</Text>
-                ) : (
-                  <MaterialIcons name="person" size={20} color={M3.onPrimary} />
-                )}
-              </View>
+              <Pressable
+                onPress={onOpenProfile}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
+                className="w-12 h-12 items-center justify-center -m-1"
+              >
+                <View className="w-10 h-10 rounded-full bg-white items-center justify-center">
+                  {initials ? (
+                    <Text className="text-m3-on-primary font-bold text-sm">{initials}</Text>
+                  ) : (
+                    <MaterialIcons name="person" size={20} color={M3.onPrimary} />
+                  )}
+                </View>
+              </Pressable>
               <View className="flex-1 min-w-0">
                 <Text className="text-m3-on-surface font-bold text-base" numberOfLines={1}>{formattedDate}</Text>
                 <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>{goalSubtitle}</Text>

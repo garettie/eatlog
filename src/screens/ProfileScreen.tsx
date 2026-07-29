@@ -1,0 +1,229 @@
+import React, { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import Card from '../components/Card';
+import PrimaryButton from '../components/PrimaryButton';
+import ProfileSettingRow from '../components/ProfileSettingRow';
+import { DailyTarget, getDailyTargetForDate, getProfile, Profile } from '../db/database';
+import { AdaptiveReviewState, getAdaptiveReviewState } from '../services/adaptiveReviews';
+import { parseLocalISO, todayISO } from '../utils/calendar';
+import { fromKilograms } from '../utils/weightUnits';
+
+interface ProfileScreenProps {
+  dataVersion: number;
+}
+
+function initialsFor(name: string): string {
+  const initials = name.trim().split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2);
+  return (initials || 'MU').toUpperCase();
+}
+
+function formatDate(dateISO: string): string {
+  return parseLocalISO(dateISO).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function goalLabel(profile: Profile): string {
+  if (profile.goal_type === 'maintain') return 'Maintain';
+  return profile.goal_type === 'cut' ? 'Cut' : 'Bulk';
+}
+
+function weeklyRate(profile: Profile): string {
+  if (profile.goal_type === 'maintain') return 'Maintenance';
+  const value = profile.weight_unit === 'lb'
+    ? fromKilograms(profile.goal_rate_kg_per_week, 'lb')
+    : profile.goal_rate_kg_per_week;
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)} ${profile.weight_unit}/wk`;
+}
+
+function targetSource(target: DailyTarget): string {
+  return target.calculation_method === 'adaptive' ? 'Adaptive' : 'Initial estimate';
+}
+
+function adaptiveLabel(state: AdaptiveReviewState): string {
+  if (state.kind === 'ready') return 'Adaptive review ready';
+  if (state.kind === 'next-review') return `Next review ${formatDate(state.nextReviewDate)}`;
+  return `Collecting evidence · ${state.eligibility.intakeDayCount}/10 intake days`;
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View className="gap-2">
+      <Text className="text-m3-on-surface-variant text-xs font-semibold px-1">{title}</Text>
+      <View className="gap-2">{children}</View>
+    </View>
+  );
+}
+
+export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
+  const navigation = useNavigation();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [target, setTarget] = useState<DailyTarget | null>(null);
+  const [adaptiveState, setAdaptiveState] = useState<AdaptiveReviewState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [readError, setReadError] = useState(false);
+  const initialLoadDone = useRef(false);
+  const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const loadProfile = useCallback((showLoading: boolean) => {
+    if (showLoading) setLoading(true);
+    const queued = loadQueueRef.current.catch(() => {}).then(async () => {
+      try {
+        const today = todayISO();
+        const nextProfile = await getProfile();
+        const nextTarget = nextProfile ? await getDailyTargetForDate(today) : null;
+        const nextAdaptiveState = nextProfile && nextTarget ? await getAdaptiveReviewState(today) : null;
+
+        setProfile(nextProfile);
+        setTarget(nextTarget);
+        setAdaptiveState(nextAdaptiveState);
+        setReadError(false);
+      } catch (error) {
+        console.error('[Profile] load failed', error);
+        setReadError(true);
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    });
+    loadQueueRef.current = queued;
+    return queued;
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const isInitial = !initialLoadDone.current;
+      initialLoadDone.current = true;
+      void loadProfile(isInitial);
+    }, [dataVersion, loadProfile]),
+  );
+
+  const openOnboarding = useCallback(() => {
+    navigation.getParent()?.getParent()?.navigate('Onboarding');
+  }, [navigation]);
+
+  if (loading && !profile && !target) {
+    return (
+      <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center gap-3" edges={['top', 'left', 'right']} accessibilityLabel="Loading profile">
+        <ActivityIndicator color="#ffffff" />
+        <Text className="text-m3-on-surface-variant text-sm">Loading profile</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (readError) {
+    return (
+      <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center px-6 gap-4" edges={['top', 'left', 'right']}>
+        <MaterialIcons name="error-outline" size={32} color="#ffb4ab" />
+        <View className="gap-1">
+          <Text className="text-m3-on-surface font-bold text-lg text-center">Profile could not load</Text>
+          <Text className="text-m3-on-surface-variant text-sm text-center">Your plan data is still on this device. Try loading it again.</Text>
+        </View>
+        <View className="w-full max-w-[280px]"><PrimaryButton title="Retry" onPress={() => void loadProfile(true)} /></View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center px-6 gap-4" edges={['top', 'left', 'right']}>
+        <MaterialIcons name="person-outline" size={32} color="#c4c6d0" />
+        <View className="gap-1">
+          <Text className="text-m3-on-surface font-bold text-lg text-center">No profile found</Text>
+          <Text className="text-m3-on-surface-variant text-sm text-center">Complete onboarding to create your plan.</Text>
+        </View>
+        <View className="w-full max-w-[280px]"><PrimaryButton title="Start onboarding" onPress={openOnboarding} /></View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!target) {
+    return (
+      <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center px-6 gap-3" edges={['top', 'left', 'right']}>
+        <MaterialIcons name="monitor-weight" size={32} color="#c4c6d0" />
+        <Text className="text-m3-on-surface font-bold text-lg text-center">No active nutrition target</Text>
+        <Text className="text-m3-on-surface-variant text-sm text-center">Your profile is available, but a target has not been created for today.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const displayName = profile.display_name.trim() || 'Marco user';
+  const targetWeight = profile.target_weight_kg == null
+    ? 'No target weight'
+    : `${fromKilograms(profile.target_weight_kg, profile.weight_unit).toFixed(1)} ${profile.weight_unit}`;
+
+  return (
+    <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
+      <ScrollView className="flex-1" contentContainerClassName="px-4 pt-6 pb-10 gap-6" showsVerticalScrollIndicator={false}>
+        <View className="gap-1">
+          <Text className="text-m3-on-surface text-2xl font-bold">Profile</Text>
+          <Text className="text-m3-on-surface-variant text-sm">Plan, preferences, and data</Text>
+        </View>
+
+        <Card className="p-5 gap-5">
+          <View className="flex-row items-center gap-3">
+            <View className="w-14 h-14 rounded-full bg-white items-center justify-center">
+              <Text className="text-m3-on-primary font-bold text-base">{initialsFor(displayName)}</Text>
+            </View>
+            <View className="flex-1 min-w-0 gap-0.5">
+              <Text className="text-m3-on-surface text-lg font-bold" numberOfLines={1}>{displayName}</Text>
+              <Text className="text-m3-on-surface-variant text-sm" numberOfLines={1}>{goalLabel(profile)} · {weeklyRate(profile)}</Text>
+              <Text className="text-m3-on-surface-variant text-xs tabular-nums" numberOfLines={1}>Target weight · {targetWeight}</Text>
+            </View>
+          </View>
+
+          <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+            <Text className="text-m3-on-surface-variant text-xs font-semibold">Daily calories</Text>
+            <Text className="text-m3-calories text-3xl font-bold tabular-nums">{Math.round(target.target_calories).toLocaleString()} kcal</Text>
+          </View>
+
+          <View className="flex-row gap-2">
+            <View className="flex-1 bg-m3-protein-container rounded-2xl p-3 gap-1">
+              <Text className="text-m3-protein text-[10px] font-semibold">Protein</Text>
+              <Text className="text-m3-protein text-base font-bold tabular-nums">{Math.round(target.target_protein_g)}g</Text>
+            </View>
+            <View className="flex-1 bg-m3-carbs-container rounded-2xl p-3 gap-1">
+              <Text className="text-m3-carbs text-[10px] font-semibold">Carbs</Text>
+              <Text className="text-m3-carbs text-base font-bold tabular-nums">{Math.round(target.target_carbs_g)}g</Text>
+            </View>
+            <View className="flex-1 bg-m3-fat-container rounded-2xl p-3 gap-1">
+              <Text className="text-m3-fat text-[10px] font-semibold">Fat</Text>
+              <Text className="text-m3-fat text-base font-bold tabular-nums">{Math.round(target.target_fat_g)}g</Text>
+            </View>
+          </View>
+
+          <View className="gap-1">
+            <Text className="text-m3-on-surface-variant text-[10px] font-medium">Target source · {targetSource(target)} · Effective {formatDate(target.effective_date)}</Text>
+            {adaptiveState && <Text className="text-m3-expenditure text-xs font-semibold">{adaptiveLabel(adaptiveState)}</Text>}
+          </View>
+        </Card>
+
+        <View className="gap-6">
+          <Section title="Plan">
+            <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} />
+            <ProfileSettingRow icon="flag" title="Goal and rate" detail={`${goalLabel(profile)} · ${weeklyRate(profile)}`} />
+            <ProfileSettingRow icon="restaurant-menu" title="Nutrition targets" detail={`${Math.round(target.target_calories).toLocaleString()} kcal · ${targetSource(target)}`} />
+          </Section>
+
+          <Section title="Preferences">
+            <ProfileSettingRow icon="straighten" title="Units" detail={profile.weight_unit === 'kg' ? 'Metric (kg)' : 'Imperial (lb)'} />
+            <ProfileSettingRow icon="auto-awesome" title="AI and food sources" detail="Developer-provisioned sources" />
+          </Section>
+
+          <Section title="Data & Sync">
+            <ProfileSettingRow icon="backup" title="Backup and restore" detail="Local data stays on this device" />
+            <ProfileSettingRow icon="file-download" title="Export data" detail="No export file is available" />
+            <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="No reset action is available" />
+          </Section>
+
+          <Section title="Help & About">
+            <ProfileSettingRow icon="help-outline" title="How Marco works" detail="No help article is available" />
+            <ProfileSettingRow icon="privacy-tip" title="Privacy and data sources" detail="Your plan is stored locally" />
+            <ProfileSettingRow icon="info-outline" title="About" detail="Marco for Android" />
+          </Section>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DashboardScreen from '../screens/DashboardScreen';
 import DiaryScreen from '../screens/DiaryScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
+import ProfileNavigator from './ProfileNavigator';
 import LogToast from '../components/LogToast';
 import Sheet from '../components/Sheet';
 import AdaptiveInfoSheet from '../components/AdaptiveInfoSheet';
@@ -23,7 +23,15 @@ function mealLabel(m: MealType): string {
     return m.charAt(0).toUpperCase() + m.slice(1);
 }
 
-const Tab = createBottomTabNavigator();
+export type TabParamList = {
+    Today: undefined;
+    Diary: undefined;
+    AddEntry: undefined;
+    Analytics: undefined;
+    Profile: undefined;
+};
+
+const Tab = createBottomTabNavigator<TabParamList>();
 
 const INITIAL: FoodSheetState = {
     visible: false,
@@ -328,13 +336,14 @@ export default function TabNavigator() {
                         ),
                     }}
                 >
-                    {() => (
+                    {({ navigation }) => (
                         <DashboardScreen
                             onOpenCamera={openCamera}
                             onOpenGallery={openGallery}
                             onOpenDescribe={openDescribe}
                             onOpenWeight={openWeight}
                             onOpenAdaptiveInfo={openAdaptiveInfo}
+                            onOpenProfile={() => navigation.navigate('Profile')}
                             dataVersion={dataVersion}
                         />
                     )}
@@ -393,15 +402,15 @@ export default function TabNavigator() {
                     )}
                 </Tab.Screen>
                 <Tab.Screen
-                    name="Sync"
-                    listeners={{ focus: () => { activeTabRef.current = 'Sync'; } }}
+                    name="Profile"
+                    listeners={{ focus: () => { activeTabRef.current = 'Profile'; } }}
                     options={{
                         tabBarIcon: ({ color, size }) => (
-                            <MaterialIcons name="sync" size={size} color={color} />
+                            <MaterialIcons name="person" size={size} color={color} />
                         ),
                     }}
                 >
-                    {() => <PlaceholderScreen title="Sync" />}
+                    {() => <ProfileNavigator dataVersion={dataVersion} />}
                 </Tab.Screen>
             </Tab.Navigator>
 

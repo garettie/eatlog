@@ -48,6 +48,16 @@ typography:
     fontSize: "12px"
     fontWeight: 600
     lineHeight: 16
+  navigation:
+    fontFamily: "Inter-Medium"
+    fontSize: "12px"
+    fontWeight: 500
+    lineHeight: 16
+  compact:
+    fontFamily: "Inter-Medium"
+    fontSize: "10px"
+    fontWeight: 500
+    lineHeight: 14
 rounded:
   input: "12px"
   card: "16px"
@@ -82,6 +92,11 @@ components:
     backgroundColor: "{colors.surface-container-highest}"
     textColor: "{colors.on-surface}"
     rounded: "{rounded.pill}"
+  settings-row:
+    backgroundColor: "{colors.surface-container}"
+    textColor: "{colors.on-surface}"
+    rounded: "{rounded.card}"
+    minHeight: "64px"
 ---
 
 # Design System: Marco
@@ -94,12 +109,15 @@ Marco is a serious, calm Android training tool. Its dark Material 3 surface stac
 
 The system is scanner-first. The most delightful visual moment is a real meal photo when one exists; otherwise food-relevant Material Community icons preserve semantic recognition. Motion confirms state, navigation, selection, and calculation. It never exists as ambient decoration.
 
+Profile completes the product shell. It gives occasional, high-consequence work a stable home without crowding Today, Diary, or Analytics. Profile replaces the Sync tab. Data & Sync becomes one branch inside Profile; cloud sync does not appear until it works. The shell has four tabs and one center Add FAB.
+
 **Key Characteristics:**
 - Tonal dark Material 3 layering, not gradients or glass.
 - Real Inter weights, tabular numbers, and clear numeric hierarchy.
 - Scanner/photo media is meaningful; icons are a robust offline fallback.
 - Rounded surfaces with hairline boundaries, not floating shadow stacks.
 - Android-native bottom sheets, Back behavior, 48dp touch targets, and reduced-motion support.
+- A Profile destination that groups plan, preferences, owned data, and help through progressive disclosure.
 
 **The Scanner-First Rule.** Camera capture, gallery import, and meal description are the primary entry routes. Search and manual entry remain capable fallbacks, never the visual center of the product.
 
@@ -141,6 +159,8 @@ Marco uses a near-black neutral stack for structure and reserves named macro col
 - **Title** (600, 16px, 20px): card titles, meal names, and navigation labels.
 - **Body** (400, 14px, 20px): explanatory copy and supporting metadata.
 - **Label** (600, 12px, 16px): controls, macros, and compact state labels; use `10px` only for ruler bounds and compact nutrition details.
+- **Navigation** (500, 12px, 16px): bottom navigation labels.
+- **Compact** (500, 10px, 14px): chart axes, ruler bounds, and dense nutrition metadata only. Never use it for explanatory or actionable copy.
 
 **The Stable Figure Rule.** Calories, grams, dates, trend weights, and editable measurement values always use tabular numerals. Do not introduce proportional numerals into live numeric UI.
 
@@ -174,12 +194,74 @@ Marco is flat by default. Depth comes from the surface stack, hairline outline-v
 - **Focus:** retain native focus and full-select numeric content on tap. Never add a decorative fake input state.
 
 ### Navigation
-- **Bottom navigation:** five destinations on compact Android, center white FAB for the one primary entry action.
+- **Bottom navigation:** four tabs on compact Android: Today, Diary, Analytics, and Profile. A center white Add FAB triggers entry without becoming a destination.
+- **Profile icon:** use the standard Material person/account icon with the text label `Profile`; do not label it Settings or Sync.
+- **Today shortcut:** the initials avatar may open Profile. The labeled bottom destination remains the primary discovery path.
 - **Sheets:** use `@gorhom/bottom-sheet` with M3 handle, tonal surface, Back handling, discard guard, and interactive keyboard behavior.
 
 ### Signature Components
 - **Calorie Ring and Toggle:** white ring on tonal track, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
 - **Ruler Slider:** horizontal-only gesture capture; height uses 8px per unit and tenths use 20px per unit; direct entry is always available; adjustable accessibility actions increment/decrement by the configured step.
+
+## Profile and Settings
+
+Profile uses the same Operate mode as the rest of Marco. It should feel like an instrument panel for the owner, not an account center. There is no account avatar upload, subscription card, gamification summary, or generic preference dump.
+
+### Profile home
+
+- Top app bar: `Profile` with the subtitle `Plan, preferences, and data`.
+- Summary card: initials, display name, current goal/rate, target calories, macro values, target source, and adaptive status.
+- Group rows under four headings: Plan, Preferences, Data & Sync, Help & About.
+- Each row uses a leading semantic icon, title, and one-line current value or description. Working routes add a trailing chevron; inactive rows remain non-pressable. Keep rows at least 64dp high.
+- Groups contain no more than four visible rows. Open a dedicated screen when an edit needs validation, explanation, or confirmation.
+
+### Plan screens
+
+- **Personal details:** use stacked M3 fields and selection rows. Explain that sex, birth date, height, and activity affect formula estimates.
+- **Goal and rate:** reuse onboarding's goal cards and rate control, prefilled from the profile. Do not copy the six-step onboarding shell.
+- **Nutrition targets:** show Calculated and Custom as two clear modes. A custom plan exposes calories and macro fields with the implied macro calories nearby.
+- **Review changes:** show Current and Proposed cards using the Analytics recommendation comparison vocabulary. Use `Save plan` as the primary action and `Cancel` as a text or outlined action.
+- A save confirmation names the effective date and tells the user that prior diary history stays unchanged.
+
+### Preferences
+
+- Units use a two-segment Metric/Imperial control with an example value.
+- AI and food sources is informational. Show service availability and explain network use. Never expose text fields, copy buttons, or values for API credentials.
+- System reduced motion remains automatic; do not add an app override in MVP.
+- The dark scheme remains fixed; do not add an inert appearance row.
+
+### Data & Sync
+
+- Start with a short local-ownership statement: `Your data lives on this device until you export a file.`
+- Use separate rows for Create backup, Restore backup, Export data, and Delete all data.
+- Backup and export show progress, success location/share confirmation, and recoverable failure copy.
+- Restore shows archive date, app version, database version, food/weight counts, and photo count before confirmation.
+- Create a safety backup before restore. If restore fails, keep the existing database active and state that no data changed.
+- Delete all data uses an M3 alert dialog with explicit consequences and a second destructive confirmation. Error Coral marks only the destructive action.
+- Cloud sync stays absent from the MVP interface. Add it to this screen after its backend and conflict rules exist; never ship an `In development` row.
+
+### Help and About
+
+- Use short, task-based articles: Targets, Trend weight, Adaptive reviews, Food estimates, and Backups.
+- Privacy copy distinguishes local data from photos/queries sent to remote food services.
+- About uses compact labeled rows for version, build, database version, data sources, licenses, and privacy.
+
+### Settings states and feedback
+
+- A row press opens a full-screen native-stack route; Android Back and the top app bar return to Profile.
+- Save buttons stay disabled until the form is valid and changed.
+- Consequential forms keep user input after validation or service errors.
+- Use inline field errors for validation, a snackbar for a completed reversible save, and a dialog for restore/reset decisions.
+- Long operations announce busy and completion states. Do not hide an error by returning to Profile.
+- Scan service failure preserves the chosen path and offers Retry, Search foods, Describe instead, or Enter manually.
+
+## Current-State Design Findings
+
+- The core daily surfaces share a clear product language and use nutrient colors with discipline.
+- Profile now occupies the fourth tab with a read-only plan summary; editing, Data & Sync actions, and help routes remain planned. The center Add FAB remains an action rather than a fifth tab.
+- Camera/gallery estimation can return to entry without explaining the failure. This violates the scanner-first promise and must change before release.
+- The detector reported 32 uses of `10px` and one use of `Inter-Medium` as undocumented. Those uses match the intended compact and navigation roles; this document now declares both roles.
+- Current PNG screenshots are historical references, not release evidence. Runtime visual QA requires screenshots from the signed Android build.
 
 ## Do's and Don'ts
 
@@ -190,6 +272,9 @@ Marco is flat by default. Depth comes from the surface stack, hairline outline-v
 - **Do** keep diary food names semantic: show a stored scan thumbnail when available, otherwise use the deterministic food icon map.
 - **Do** reserve a fixed right-side numeric column in diary entry rows; names wrap to two lines rather than colliding with kcal figures.
 - **Do** use the same scanner-first entry vocabulary across Dashboard, Diary Entry Bar, and Food Sheet.
+- **Do** reuse Analytics Current/Proposed cards for plan previews so target changes follow one comparison pattern.
+- **Do** show current values in Profile rows so users can inspect the plan without opening every screen.
+- **Do** keep cloud sync inside Data & Sync when it ships.
 
 ### Don't:
 - **Don't** add confetti, streaks, badges, mascot language, or gamification noise.
@@ -198,3 +283,6 @@ Marco is flat by default. Depth comes from the surface stack, hairline outline-v
 - **Don't** hide complexity behind a mascot or casual coach-bot copy; Marco is precise and transparent.
 - **Don't** make barcode camera scanning the primary interaction.
 - **Don't** create per-screen component styles. Reuse Card, PrimaryButton, segmented controls, macro pills, and sheet vocabulary.
+- **Don't** expose API credentials or credential entry in the app.
+- **Don't** add empty settings for notifications, appearance, integrations, or cloud sync.
+- **Don't** use a bottom sheet for long profile forms, backup previews, restore review, or destructive data management; use full-screen routes and M3 dialogs.
