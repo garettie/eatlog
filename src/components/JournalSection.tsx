@@ -77,9 +77,12 @@ function SwipeRow({
   onDelete: () => void;
 }) {
   const ref = React.useRef<Swipeable>(null);
+  const hasActiveSwipe = React.useRef(false);
 
   useLayoutEffect(() => {
+    if (!hasActiveSwipe.current) return;
     ref.current?.reset();
+    hasActiveSwipe.current = false;
   }, [identity]);
 
   const renderRightActions = () => (
@@ -109,6 +112,18 @@ function SwipeRow({
     <Swipeable
       ref={ref}
       renderRightActions={renderRightActions}
+      onSwipeableOpenStartDrag={() => {
+        hasActiveSwipe.current = true;
+      }}
+      onSwipeableCloseStartDrag={() => {
+        hasActiveSwipe.current = true;
+      }}
+      onSwipeableOpen={() => {
+        hasActiveSwipe.current = true;
+      }}
+      onSwipeableClose={() => {
+        hasActiveSwipe.current = false;
+      }}
       friction={2}
       rightThreshold={48}
       overshootRight={false}
