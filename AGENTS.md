@@ -1,3 +1,24 @@
+---
+ijfw_version: 1.3.2
+ijfw_schema: 1
+type: software
+primary_type: software
+secondary_types: []
+confidence: 0.907
+detected_at: 2026-07-29T01:14:49.485Z
+signals:
+  - kind: manifest
+    weight: 0.9
+    manifests: [package.json]
+  - kind: dir_design
+    weight: 0.4
+    name: assets
+  - kind: file_extension_ratio
+    weight: 0.7
+    domain: software
+    ratio: 1
+    count: 70
+---
 # AGENTS.md
 
 Drop-in operating instructions for coding agents. Read this file before every task.
@@ -215,6 +236,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Smooth transitions on toggles/rings/progress bars: use reanimated `useSharedValue` + `withTiming` on the UI thread (SVG ring via `Animated.createAnimatedComponent(Circle)` + `useAnimatedProps` on `strokeDashoffset`; bars via `useAnimatedStyle` width measured with `onLayout`; toggle pill slides via `translateX` = `val * (halfWidth - padding)`). NEVER use `key`-based remounts to trigger `FadeIn` re-entry — they flicker. Gate all `withTiming` with `reduced ? 0 : 250` (call `useReducedMotion()` in each animated component). `getDb()` must be promise-guarded (`_dbPromise`) to avoid the "Integer/NativeDatabase released" SQLite crash on concurrent first calls.
 - Weight tracking is not shipped, but its phased plan is already defined: preferred-unit persistence, weight upsert and trend recomputation, FAB entry, dashboard states, Analytics, then persisted weekly adaptive recommendations.
 - Date-selector wheels must use non-virtualized `ScrollView` rows with explicit `snapToOffsets` and final-offset normalization; `FlatList` plus selection-driven scroll effects causes laggy opening and inaccurate Android snapping.
+- Weight-chart range switches must morph the existing SVG coordinate domain and geometry in place; never fade, slide, or remount the chart container.
 
 ---
 
@@ -229,3 +251,11 @@ This boilerplate synthesizes:
 - The AGENTS.md open standard (cross-tool portability via symlinks).
 
 Read once. Edit sections 10 and 11 for your project. Prune the rest over time. This file gets better the more you use it.
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-AGENTS-START -->
+No project agents yet. Run `ijfw team` to set them up.
+<!-- IJFW-AGENTS-END -->
