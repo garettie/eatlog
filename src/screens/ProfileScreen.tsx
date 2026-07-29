@@ -9,6 +9,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import ProfileSettingRow from '../components/ProfileSettingRow';
 import { DailyTarget, getDailyTargetForDate, getProfile, Profile } from '../db/database';
 import { AdaptiveReviewState, getAdaptiveReviewState } from '../services/adaptiveReviews';
+import { M3 } from '../theme/tokens';
 import { parseLocalISO, todayISO } from '../utils/calendar';
 import { fromKilograms } from '../utils/weightUnits';
 
@@ -53,9 +54,9 @@ function adaptiveLabel(state: AdaptiveReviewState): string {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="gap-2">
-      <Text className="text-m3-on-surface-variant text-xs font-semibold px-1">{title}</Text>
-      <View className="gap-2">{children}</View>
+    <View className="gap-3">
+      <Text className="text-m3-on-surface-variant text-sm font-semibold px-1">{title}</Text>
+      <Card className="overflow-hidden">{children}</Card>
     </View>
   );
 }
@@ -109,7 +110,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
   if (loading && !profile && !target) {
     return (
       <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center gap-3" edges={['top', 'left', 'right']} accessibilityLabel="Loading profile">
-        <ActivityIndicator color="#ffffff" />
+        <ActivityIndicator color={M3.primary} />
         <Text className="text-m3-on-surface-variant text-sm">Loading profile</Text>
       </SafeAreaView>
     );
@@ -118,7 +119,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
   if (readError) {
     return (
       <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center px-6 gap-4" edges={['top', 'left', 'right']}>
-        <MaterialIcons name="error-outline" size={32} color="#ffb4ab" />
+        <MaterialIcons name="error-outline" size={32} color={M3.error} />
         <View className="gap-1">
           <Text className="text-m3-on-surface font-bold text-lg text-center">Profile could not load</Text>
           <Text className="text-m3-on-surface-variant text-sm text-center">Your plan data is still on this device. Try loading it again.</Text>
@@ -131,7 +132,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
   if (!profile) {
     return (
       <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center px-6 gap-4" edges={['top', 'left', 'right']}>
-        <MaterialIcons name="person-outline" size={32} color="#c4c6d0" />
+        <MaterialIcons name="person-outline" size={32} color={M3.onSurfaceVariant} />
         <View className="gap-1">
           <Text className="text-m3-on-surface font-bold text-lg text-center">No profile found</Text>
           <Text className="text-m3-on-surface-variant text-sm text-center">Complete onboarding to create your plan.</Text>
@@ -144,7 +145,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
   if (!target) {
     return (
       <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center px-6 gap-3" edges={['top', 'left', 'right']}>
-        <MaterialIcons name="monitor-weight" size={32} color="#c4c6d0" />
+        <MaterialIcons name="monitor-weight" size={32} color={M3.onSurfaceVariant} />
         <Text className="text-m3-on-surface font-bold text-lg text-center">No active nutrition target</Text>
         <Text className="text-m3-on-surface-variant text-sm text-center">Your profile is available, but a target has not been created for today.</Text>
       </SafeAreaView>
@@ -164,40 +165,57 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
           <Text className="text-m3-on-surface-variant text-sm">Plan and data</Text>
         </View>
 
-        <Card className="p-5 gap-5">
-          <View className="flex-row items-center gap-3">
-            <View className="w-14 h-14 rounded-full bg-white items-center justify-center">
-              <Text className="text-m3-on-primary font-bold text-base">{initialsFor(displayName)}</Text>
+        <Card className="overflow-hidden">
+          <View className="p-5 gap-5">
+            <View className="flex-row items-center gap-3">
+              <View className="w-14 h-14 rounded-full bg-m3-primary items-center justify-center">
+                <Text className="text-m3-on-primary font-bold text-base">{initialsFor(displayName)}</Text>
+              </View>
+              <View className="flex-1 min-w-0 gap-0.5">
+                <Text className="text-m3-on-surface text-lg font-bold" numberOfLines={1}>{displayName}</Text>
+                <Text className="text-m3-on-surface-variant text-sm" numberOfLines={1}>{goalLabel(profile)} · {weeklyRate(profile)}</Text>
+                <Text className="text-m3-on-surface-variant text-xs tabular-nums" numberOfLines={1}>Target weight · {targetWeight}</Text>
+              </View>
             </View>
-            <View className="flex-1 min-w-0 gap-0.5">
-              <Text className="text-m3-on-surface text-lg font-bold" numberOfLines={1}>{displayName}</Text>
-              <Text className="text-m3-on-surface-variant text-sm" numberOfLines={1}>{goalLabel(profile)} · {weeklyRate(profile)}</Text>
-              <Text className="text-m3-on-surface-variant text-xs tabular-nums" numberOfLines={1}>Target weight · {targetWeight}</Text>
+
+            <View className="h-px bg-m3-outline-variant/50" />
+
+            <View className="gap-4">
+              <View className="gap-1">
+                <Text className="text-m3-on-surface-variant text-xs font-semibold">Daily target</Text>
+                <Text className="text-m3-calories text-3xl font-bold tabular-nums">{Math.round(target.target_calories).toLocaleString()} kcal</Text>
+              </View>
+
+              <View className="flex-row">
+                <View className="flex-1 gap-1">
+                  <Text className="text-m3-protein text-[10px] font-semibold">Protein</Text>
+                  <Text className="text-m3-on-surface text-base font-bold tabular-nums">{Math.round(target.target_protein_g)}g</Text>
+                </View>
+                <View className="w-px bg-m3-outline-variant/50 mx-3" />
+                <View className="flex-1 gap-1">
+                  <Text className="text-m3-carbs text-[10px] font-semibold">Carbs</Text>
+                  <Text className="text-m3-on-surface text-base font-bold tabular-nums">{Math.round(target.target_carbs_g)}g</Text>
+                </View>
+                <View className="w-px bg-m3-outline-variant/50 mx-3" />
+                <View className="flex-1 gap-1">
+                  <Text className="text-m3-fat text-[10px] font-semibold">Fat</Text>
+                  <Text className="text-m3-on-surface text-base font-bold tabular-nums">{Math.round(target.target_fat_g)}g</Text>
+                </View>
+              </View>
             </View>
           </View>
 
-          <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-            <Text className="text-m3-on-surface-variant text-xs font-semibold">Daily calories</Text>
-            <Text className="text-m3-calories text-3xl font-bold tabular-nums">{Math.round(target.target_calories).toLocaleString()} kcal</Text>
-          </View>
-
-          <View className="flex-row gap-2">
-            <View className="flex-1 bg-m3-protein-container rounded-2xl p-3 gap-1">
-              <Text className="text-m3-protein text-[10px] font-semibold">Protein</Text>
-              <Text className="text-m3-protein text-base font-bold tabular-nums">{Math.round(target.target_protein_g)}g</Text>
+          <View className="bg-m3-surface-container-high px-5 py-4 gap-3">
+            <View className="flex-row justify-between gap-4">
+              <View className="flex-1 gap-0.5">
+                <Text className="text-m3-on-surface-variant text-[10px] font-medium">Target source</Text>
+                <Text className="text-m3-on-surface text-xs font-semibold">{targetSource(target)}</Text>
+              </View>
+              <View className="items-end gap-0.5">
+                <Text className="text-m3-on-surface-variant text-[10px] font-medium">Effective</Text>
+                <Text className="text-m3-on-surface text-xs font-semibold tabular-nums">{formatDate(target.effective_date)}</Text>
+              </View>
             </View>
-            <View className="flex-1 bg-m3-carbs-container rounded-2xl p-3 gap-1">
-              <Text className="text-m3-carbs text-[10px] font-semibold">Carbs</Text>
-              <Text className="text-m3-carbs text-base font-bold tabular-nums">{Math.round(target.target_carbs_g)}g</Text>
-            </View>
-            <View className="flex-1 bg-m3-fat-container rounded-2xl p-3 gap-1">
-              <Text className="text-m3-fat text-[10px] font-semibold">Fat</Text>
-              <Text className="text-m3-fat text-base font-bold tabular-nums">{Math.round(target.target_fat_g)}g</Text>
-            </View>
-          </View>
-
-          <View className="gap-1">
-            <Text className="text-m3-on-surface-variant text-[10px] font-medium">Target source · {targetSource(target)} · Effective {formatDate(target.effective_date)}</Text>
             {adaptiveState && <Text className="text-m3-expenditure text-xs font-semibold">{adaptiveLabel(adaptiveState)}</Text>}
           </View>
         </Card>
@@ -207,19 +225,19 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
             <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} onPress={() => navigation.navigate('PersonalDetails')} />
             <ProfileSettingRow icon="flag" title="Goal and rate" detail={`${goalLabel(profile)} · ${weeklyRate(profile)}`} onPress={() => navigation.navigate('GoalAndRate')} />
             <ProfileSettingRow icon="restaurant-menu" title="Nutrition targets" detail={`${Math.round(target.target_calories).toLocaleString()} kcal · ${targetSource(target)}`} onPress={() => navigation.navigate('NutritionTargets')} />
-            <ProfileSettingRow icon="straighten" title="Units" detail={profile.weight_unit === 'kg' ? 'Metric · kg and cm' : 'Imperial · lb and ft/in'} onPress={() => navigation.navigate('Units')} />
+            <ProfileSettingRow icon="straighten" title="Units" detail={profile.weight_unit === 'kg' ? 'Metric · kg and cm' : 'Imperial · lb and ft/in'} onPress={() => navigation.navigate('Units')} showDivider={false} />
           </Section>
 
           <Section title="Data & Sync">
-            <ProfileSettingRow icon="backup" title="Backup and restore" detail="Local data stays on this device" />
-            <ProfileSettingRow icon="file-download" title="Export data" detail="No export file is available" />
-            <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="No reset action is available" />
+            <ProfileSettingRow icon="backup" title="Backup and restore" detail="Local data stays on this device" disabled />
+            <ProfileSettingRow icon="file-download" title="Export data" detail="No export file is available" disabled />
+            <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="No reset action is available" disabled showDivider={false} />
           </Section>
 
           <Section title="Help & About">
-            <ProfileSettingRow icon="help-outline" title="How Marco works" detail="No help article is available" />
+            <ProfileSettingRow icon="help-outline" title="How Marco works" detail="No help article is available" disabled />
             <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="Your plan stays on this device" onPress={() => navigation.navigate('Privacy')} />
-            <ProfileSettingRow icon="info-outline" title="About" detail="Marco for Android" />
+            <ProfileSettingRow icon="info-outline" title="About" detail="Marco for Android" showDivider={false} />
           </Section>
         </View>
       </ScrollView>
