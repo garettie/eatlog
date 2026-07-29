@@ -258,7 +258,7 @@ Profile uses the same Operate mode as the rest of Marco. It should feel like an 
 ## Current-State Design Findings
 
 - The core daily surfaces share a clear product language and use nutrient colors with discipline.
-- Profile now occupies the fourth tab with a read-only plan summary; editing, Data & Sync actions, and help routes remain planned. The center Add FAB remains an action rather than a fifth tab.
+- Profile now occupies the fourth tab with working plan-edit routes and a versioned plan preview; Data & Sync actions and help routes remain planned. The center Add FAB remains an action rather than a fifth tab.
 - Camera/gallery estimation can return to entry without explaining the failure. This violates the scanner-first promise and must change before release.
 - The detector reported 32 uses of `10px` and one use of `Inter-Medium` as undocumented. Those uses match the intended compact and navigation roles; this document now declares both roles.
 - Current PNG screenshots are historical references, not release evidence. Runtime visual QA requires screenshots from the signed Android build.

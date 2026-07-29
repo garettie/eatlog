@@ -572,6 +572,8 @@ Verification:
 
 ### Phase 2: Plan persistence and editing
 
+**Status: Implemented.**
+
 Implementation:
 
 1. Add schema migration 5 and target provenance types.

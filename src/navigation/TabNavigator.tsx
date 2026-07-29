@@ -410,7 +410,7 @@ export default function TabNavigator() {
                         ),
                     }}
                 >
-                    {() => <ProfileNavigator dataVersion={dataVersion} />}
+                    {() => <ProfileNavigator dataVersion={dataVersion} onDataChanged={bumpDataVersion} />}
                 </Tab.Screen>
             </Tab.Navigator>
 

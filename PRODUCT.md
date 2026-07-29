@@ -35,7 +35,7 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | Food entry | Implemented with a release gap | Multiple fast paths work in source; camera/gallery estimation can fail without a preserved error and retry state. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
 | Weight and Analytics | Implemented | Range charting and adaptive reviews are substantial; plan-change semantics still need definition. |
-| Profile and Settings | Partially implemented | Profile navigation and its read-only plan summary are available. Editing, Data & Sync actions, and help/detail routes remain. |
+| Profile and Settings | Partially implemented | Profile plan editing and versioned targets are available. Data & Sync actions and help/detail routes remain. |
 | Data ownership | Missing | No backup, restore, portable export, or full reset exists. |
 | Cloud sync | Not implemented | Post-MVP. Its eventual home is Profile > Data & Sync, not a top-level tab. |
 | Release readiness | Partial | TypeScript and 36 pure utility tests pass. Migration, camera, backup, accessibility, Back, and APK checks still require hardware coverage. |
@@ -59,7 +59,7 @@ The implemented core scores **25/40, Acceptable** against Nielsen's usability he
 
 **Automated evidence as of 2026-07-29:** `npm run typecheck` passes. `npm test` passes 36 calculation, calendar, weight, unit, and adaptive recommendation tests when the test runner can create its local IPC socket. `npx expo export --platform android --dev` completes when Metro receives a writable temp directory. No database, service, navigation, component, or end-to-end tests exist yet.
 
-**MVP gaps:** personal and plan editing; calculated and custom target management; complete backup/restore; CSV export; reset; service/privacy disclosures; calculation help; scan failure recovery; migration/integration tests; physical Android release matrix.
+**MVP gaps:** complete backup/restore; CSV export; reset; service/privacy disclosures; calculation help; scan failure recovery; migration/integration tests; physical Android release matrix.
 
 **Post-MVP:** cloud multi-device sync; barcode camera scanning; Health Connect/wearables; iOS; auth/accounts; notifications; social features; coach messaging; light theme; localization.
 

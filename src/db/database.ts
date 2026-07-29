@@ -11,7 +11,7 @@ export type ActivityLevel =
   | 'active'
   | 'very_active';
 export type GoalType = 'cut' | 'maintain' | 'bulk';
-export type CalculationMethod = 'initial_estimate' | 'adaptive';
+export type CalculationMethod = 'initial_estimate' | 'profile_recalculation' | 'manual' | 'adaptive';
 export type ProteinPreference = 'low' | 'moderate' | 'high' | 'extra_high';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type WeightUnit = 'kg' | 'lb';
@@ -84,7 +84,7 @@ export interface AdaptiveReview {
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
@@ -296,6 +296,70 @@ export async function initDatabase(): Promise<void> {
     });
     currentVersion = 4;
   }
+
+  if (currentVersion === 4) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      // SQLite cannot widen a CHECK constraint in place. Preserve target ids
+      // and rebuild the dependent review table so its foreign key still points
+      // at the replacement history table.
+      await txn.execAsync(`
+        ALTER TABLE adaptive_reviews RENAME TO adaptive_reviews_v4;
+        ALTER TABLE daily_targets RENAME TO daily_targets_v4;
+        CREATE TABLE daily_targets (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          effective_date TEXT NOT NULL,
+          tdee_estimate REAL NOT NULL,
+          target_calories REAL NOT NULL,
+          target_protein_g REAL NOT NULL,
+          target_fat_g REAL NOT NULL,
+          target_carbs_g REAL NOT NULL,
+          calculation_method TEXT NOT NULL CHECK (calculation_method IN
+            ('initial_estimate','profile_recalculation','manual','adaptive')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO daily_targets
+          (id, effective_date, tdee_estimate, target_calories, target_protein_g, target_fat_g, target_carbs_g, calculation_method, created_at)
+        SELECT id, effective_date, tdee_estimate, target_calories, target_protein_g, target_fat_g, target_carbs_g,
+          CASE calculation_method WHEN 'adaptive' THEN 'adaptive' ELSE 'initial_estimate' END, created_at
+        FROM daily_targets_v4;
+        CREATE TABLE adaptive_reviews (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          review_date TEXT NOT NULL UNIQUE,
+          window_start TEXT NOT NULL,
+          window_end TEXT NOT NULL,
+          intake_day_count INTEGER NOT NULL,
+          weight_log_count INTEGER NOT NULL,
+          average_intake_kcal REAL NOT NULL,
+          start_trend_weight_kg REAL NOT NULL,
+          end_trend_weight_kg REAL NOT NULL,
+          elapsed_days INTEGER NOT NULL,
+          raw_tdee REAL NOT NULL,
+          previous_tdee REAL NOT NULL,
+          proposed_tdee REAL NOT NULL,
+          previous_target_calories REAL NOT NULL,
+          previous_target_protein_g REAL NOT NULL,
+          previous_target_fat_g REAL NOT NULL,
+          previous_target_carbs_g REAL NOT NULL,
+          proposed_target_calories REAL NOT NULL,
+          proposed_target_protein_g REAL NOT NULL,
+          proposed_target_fat_g REAL NOT NULL,
+          proposed_target_carbs_g REAL NOT NULL,
+          evidence_hash TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'kept', 'superseded')),
+          resulting_target_id INTEGER REFERENCES daily_targets(id),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          resolved_at TEXT
+        );
+        INSERT INTO adaptive_reviews
+        SELECT * FROM adaptive_reviews_v4;
+        DROP TABLE adaptive_reviews_v4;
+        DROP TABLE daily_targets_v4;
+        CREATE INDEX IF NOT EXISTS idx_daily_targets_effective_date ON daily_targets(effective_date);
+        CREATE INDEX IF NOT EXISTS idx_adaptive_reviews_status_date ON adaptive_reviews(status, review_date);
+        PRAGMA user_version = 5;
+      `);
+    });
+  }
 }
 
 export async function getProfile(): Promise<Profile | null> {
@@ -343,6 +407,73 @@ export async function setAnalyticsIntroDismissed(): Promise<void> {
 export async function updateProfileWeightUnit(unit: WeightUnit): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE profile SET weight_unit = ? WHERE id = 1', [unit]);
+}
+
+export type ProfileUpdate = Pick<Profile,
+  'display_name' | 'sex' | 'height_cm' | 'birth_date' | 'activity_level' |
+  'goal_type' | 'goal_rate_kg_per_week' | 'protein_preference' | 'weight_unit' | 'target_weight_kg'
+>;
+
+export interface DailyTargetInput {
+  effective_date: string;
+  tdee_estimate: number;
+  target_calories: number;
+  target_protein_g: number;
+  target_fat_g: number;
+  target_carbs_g: number;
+  calculation_method: CalculationMethod;
+}
+
+function profileUpdateValues(params: ProfileUpdate) {
+  return [
+    params.display_name.trim(), params.sex, params.height_cm, params.birth_date,
+    params.activity_level, params.goal_type, params.goal_rate_kg_per_week,
+    params.protein_preference, params.weight_unit, params.target_weight_kg,
+  ];
+}
+
+async function writeProfileUpdate(db: SQLite.SQLiteDatabase, params: ProfileUpdate): Promise<void> {
+  await db.runAsync(
+    `UPDATE profile SET display_name = ?, sex = ?, height_cm = ?, birth_date = ?, activity_level = ?,
+      goal_type = ?, goal_rate_kg_per_week = ?, protein_preference = ?, weight_unit = ?, target_weight_kg = ?
+     WHERE id = 1`,
+    profileUpdateValues(params),
+  );
+}
+
+export async function updateProfilePresentation(params: ProfileUpdate): Promise<void> {
+  const db = await getDb();
+  await db.withExclusiveTransactionAsync((txn) => writeProfileUpdate(txn, params));
+}
+
+export async function updateProfileAndPlan(params: {
+  profile: ProfileUpdate;
+  target: DailyTargetInput;
+}): Promise<DailyTarget> {
+  parseLocalISO(params.target.effective_date);
+  const db = await getDb();
+  let saved: DailyTarget | null = null;
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await writeProfileUpdate(txn, params.profile);
+    const inserted = await txn.runAsync(
+      `INSERT INTO daily_targets
+        (effective_date, tdee_estimate, target_calories, target_protein_g, target_fat_g, target_carbs_g, calculation_method)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.target.effective_date, params.target.tdee_estimate, params.target.target_calories,
+        params.target.target_protein_g, params.target.target_fat_g, params.target.target_carbs_g,
+        params.target.calculation_method,
+      ],
+    );
+    await txn.runAsync(
+      `UPDATE adaptive_reviews SET status = 'superseded', resolved_at = datetime('now', 'localtime')
+       WHERE status = 'pending'`,
+    );
+    saved = await txn.getFirstAsync<DailyTarget>('SELECT * FROM daily_targets WHERE id = ?', [inserted.lastInsertRowId]);
+    if (!saved) throw new Error('Saved daily target missing');
+  });
+  if (!saved) throw new Error('Profile plan transaction failed');
+  return saved;
 }
 
 export interface SaveWeightResult {
@@ -432,15 +563,7 @@ export async function deleteWeightLog(id: number): Promise<void> {
   });
 }
 
-export async function insertDailyTarget(params: {
-  effective_date: string;
-  tdee_estimate: number;
-  target_calories: number;
-  target_protein_g: number;
-  target_fat_g: number;
-  target_carbs_g: number;
-  calculation_method: CalculationMethod;
-}): Promise<void> {
+export async function insertDailyTarget(params: DailyTargetInput): Promise<void> {
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO daily_targets
@@ -1041,7 +1164,7 @@ export async function getMealComponents(mealId: number): Promise<FoodLog[]> {
 export async function getDailyTargetForDate(dateISO: string): Promise<DailyTarget | null> {
   const db = await getDb();
   return db.getFirstAsync<DailyTarget>(
-    'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC LIMIT 1',
+    'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC, id DESC LIMIT 1',
     [dateISO]
   );
 }

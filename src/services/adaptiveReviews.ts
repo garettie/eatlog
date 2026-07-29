@@ -70,6 +70,7 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
     [reviewDate],
   );
   if (!profile || !target) throw new Error('Profile and current target are required');
+  const evidenceStart = target.effective_date > windowStart ? target.effective_date : windowStart;
 
   const dailyCalories = await db.getAllAsync<DailyCaloriesRow>(
     `SELECT log_date, SUM(calories) AS calories
@@ -78,11 +79,11 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
      GROUP BY log_date
      HAVING SUM(calories) > 0
      ORDER BY log_date ASC`,
-    [windowStart, reviewDate],
+    [evidenceStart, reviewDate],
   );
   const weights = await db.getAllAsync<WeightLog>(
     'SELECT * FROM weight_logs WHERE log_date BETWEEN ? AND ? ORDER BY log_date ASC',
-    [windowStart, reviewDate],
+    [evidenceStart, reviewDate],
   );
   const eligibilityInput = {
     reviewDate,
@@ -220,9 +221,19 @@ export async function getAdaptiveReviewState(reviewDate: string): Promise<Adapti
   );
   if (pending) return refreshPending(db, pending);
 
-  const latestDecision = await db.getFirstAsync<AdaptiveReview>(
-    "SELECT * FROM adaptive_reviews WHERE status IN ('accepted', 'kept') ORDER BY review_date DESC LIMIT 1",
+  const activeTarget = await db.getFirstAsync<DailyTarget>(
+    'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC, id DESC LIMIT 1',
+    [reviewDate],
   );
+  const latestDecision = activeTarget == null
+    ? null
+    : await db.getFirstAsync<AdaptiveReview>(
+        `SELECT * FROM adaptive_reviews
+         WHERE status IN ('accepted', 'kept')
+           AND (resulting_target_id = ? OR (review_date >= ? AND resolved_at >= ?))
+         ORDER BY review_date DESC LIMIT 1`,
+        [activeTarget.id, activeTarget.effective_date, activeTarget.created_at],
+      );
   if (latestDecision) {
     const nextReviewDate = addCalendarDays(latestDecision.review_date, 7);
     if (calendarDaysBetween(latestDecision.review_date, reviewDate) < 7) {

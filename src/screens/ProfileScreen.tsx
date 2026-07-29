@@ -39,7 +39,10 @@ function weeklyRate(profile: Profile): string {
 }
 
 function targetSource(target: DailyTarget): string {
-  return target.calculation_method === 'adaptive' ? 'Adaptive' : 'Initial estimate';
+  if (target.calculation_method === 'adaptive') return 'Adaptive';
+  if (target.calculation_method === 'manual') return 'Manual';
+  if (target.calculation_method === 'profile_recalculation') return 'Profile recalculation';
+  return 'Initial estimate';
 }
 
 function adaptiveLabel(state: AdaptiveReviewState): string {
@@ -58,7 +61,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
   const [adaptiveState, setAdaptiveState] = useState<AdaptiveReviewState | null>(null);
@@ -201,9 +204,9 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
         <View className="gap-6">
           <Section title="Plan">
-            <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} />
-            <ProfileSettingRow icon="flag" title="Goal and rate" detail={`${goalLabel(profile)} · ${weeklyRate(profile)}`} />
-            <ProfileSettingRow icon="restaurant-menu" title="Nutrition targets" detail={`${Math.round(target.target_calories).toLocaleString()} kcal · ${targetSource(target)}`} />
+            <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} onPress={() => navigation.navigate('PersonalDetails')} />
+            <ProfileSettingRow icon="flag" title="Goal and rate" detail={`${goalLabel(profile)} · ${weeklyRate(profile)}`} onPress={() => navigation.navigate('GoalAndRate')} />
+            <ProfileSettingRow icon="restaurant-menu" title="Nutrition targets" detail={`${Math.round(target.target_calories).toLocaleString()} kcal · ${targetSource(target)}`} onPress={() => navigation.navigate('NutritionTargets')} />
           </Section>
 
           <Section title="Preferences">

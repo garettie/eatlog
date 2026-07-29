@@ -2,22 +2,32 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import ProfileScreen from '../screens/ProfileScreen';
-
-export type ProfileStackParamList = {
-  ProfileHome: undefined;
-};
+import {
+  GoalAndRateScreen,
+  NutritionTargetsScreen,
+  PersonalDetailsScreen,
+  PlanPreviewScreen,
+  type ProfileStackParamList,
+} from '../screens/ProfilePlanScreens';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
+  onDataChanged: () => void;
 }
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
-export default function ProfileNavigator({ dataVersion }: ProfileNavigatorProps) {
+export default function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps) {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#111318' } }}>
-      <Stack.Screen name="ProfileHome">
+    <Stack.Navigator screenOptions={{ contentStyle: { backgroundColor: '#111318' }, headerStyle: { backgroundColor: '#111318' }, headerTintColor: '#e2e2e9', headerTitleStyle: { fontFamily: 'Inter-SemiBold' } }}>
+      <Stack.Screen name="ProfileHome" options={{ headerShown: false }}>
         {() => <ProfileScreen dataVersion={dataVersion} />}
+      </Stack.Screen>
+      <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} options={{ title: 'Personal details' }} />
+      <Stack.Screen name="GoalAndRate" component={GoalAndRateScreen} options={{ title: 'Goal and rate' }} />
+      <Stack.Screen name="NutritionTargets" component={NutritionTargetsScreen} options={{ title: 'Nutrition targets' }} />
+      <Stack.Screen name="PlanPreview" options={{ title: 'Review changes' }}>
+        {(props) => <PlanPreviewScreen {...props} onDataChanged={onDataChanged} />}
       </Stack.Screen>
     </Stack.Navigator>
   );
