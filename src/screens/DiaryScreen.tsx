@@ -115,10 +115,22 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
       if (showLoading) setLoading(false);
       return Promise.resolve();
     }
+    const dateAnchor = getMonthStart(new Date(`${date}T12:00:00`));
+    const pendingMonth = monthLoadPromiseRef.current.get(getMonthRange(dateAnchor).key);
 
     return (async () => {
       if (requestId !== dayRequestRef.current) return;
       try {
+        if (pendingMonth) {
+          await pendingMonth.catch(() => undefined);
+          if (requestId !== dayRequestRef.current) return;
+          const warmed = dayCacheRef.current.get(date);
+          if (warmed) {
+            applyDaySummary(date, warmed);
+            return;
+          }
+        }
+
         const logs = await getFoodLogsByDate(date);
         if (requestId !== dayRequestRef.current) return;
         const mealIds = [...new Set(logs.filter((log) => log.meal_id != null).map((log) => log.meal_id!))];
@@ -155,9 +167,6 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           getDailyTargetsByDateRange(startISO, endISO),
           getFoodLogsByDateRange(startISO, endISO),
         ]);
-        if (getMonthRange(monthAnchorRef.current).key !== monthKey) {
-          return { macros: [], targets: new Map<string, DailyTarget>() };
-        }
 
         let activeTarget = initialTarget;
         let targetIndex = 0;
@@ -176,9 +185,6 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
 
         const mealIds = [...new Set(logs.flatMap((log) => log.meal_id == null ? [] : [log.meal_id]))];
         const meals = await getMealsByIds(mealIds);
-        if (getMonthRange(monthAnchorRef.current).key !== monthKey) {
-          return { macros: [], targets: new Map<string, DailyTarget>() };
-        }
 
         const allMealRows = new Map<number, MealRow>();
         meals.forEach((meal) => allMealRows.set(meal.id, meal));
@@ -231,6 +237,18 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     return request;
   }, []);
 
+  const prefetchAdjacentMonths = useCallback((anchor: Date) => {
+    const previous = new Date(anchor);
+    previous.setMonth(previous.getMonth() - 1);
+    void fetchMonth(previous).catch(() => undefined);
+
+    const next = new Date(anchor);
+    next.setMonth(next.getMonth() + 1);
+    if (next.getTime() <= getMonthStart(new Date()).getTime()) {
+      void fetchMonth(next).catch(() => undefined);
+    }
+  }, [fetchMonth]);
+
   const loadMonth = useCallback((anchor: Date) => {
     const requestId = ++monthRequestRef.current;
     return fetchMonth(anchor)
@@ -239,12 +257,13 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
         setMonthMacros(summary.macros);
         setDayTargetMap(summary.targets);
         setMonthLoadError(false);
+        prefetchAdjacentMonths(anchor);
       })
       .catch((error) => {
         console.error('[Diary] month load failed', error);
         if (requestId === monthRequestRef.current) setMonthLoadError(true);
       });
-  }, [fetchMonth]);
+  }, [fetchMonth, prefetchAdjacentMonths]);
 
   const loadDayAndMonth = useCallback((date: string, anchor: Date, showLoading: boolean) => {
     const generation = ++loadingGenerationRef.current;
@@ -308,7 +327,6 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     const next = new Date(monthAnchorRef.current);
     next.setMonth(next.getMonth() + delta);
     monthAnchorRef.current = next;
-    monthRequestRef.current += 1;
     setMonthLoadError(false);
     setMonthAnchor(next);
 
@@ -316,11 +334,11 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     if (cached) {
       setMonthMacros(cached.macros);
       setDayTargetMap(cached.targets);
-      setMonthLoadError(false);
+      prefetchAdjacentMonths(next);
     } else {
       void loadMonth(next);
     }
-  }, [loadMonth]);
+  }, [loadMonth, prefetchAdjacentMonths]);
 
   const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
   const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
@@ -339,19 +357,18 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     const monthStart = getMonthStart(d);
     if (monthStart.getTime() !== monthAnchorRef.current.getTime()) {
       monthAnchorRef.current = monthStart;
-      monthRequestRef.current += 1;
       setMonthLoadError(false);
       setMonthAnchor(monthStart);
       const cachedMonth = monthCacheRef.current.get(getMonthRange(monthStart).key);
       if (cachedMonth) {
         setMonthMacros(cachedMonth.macros);
         setDayTargetMap(cachedMonth.targets);
-        setMonthLoadError(false);
+        prefetchAdjacentMonths(monthStart);
       } else {
         void loadMonth(monthStart);
       }
     }
-  }, [loadDay, loadMonth, onSelectedDateChange]);
+  }, [loadDay, loadMonth, onSelectedDateChange, prefetchAdjacentMonths]);
 
   const todayTarget = dayTargetMap.get(displayedDate);
   const targetCalories = todayTarget?.target_calories ?? 0;
@@ -601,6 +618,10 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           >
             <Text className="text-m3-on-primary text-sm font-semibold">Try again</Text>
           </Pressable>
+        </View>
+      ) : displayedDate !== selectedDate ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={M3.onSurfaceVariant} />
         </View>
       ) : (
         <ScrollView
