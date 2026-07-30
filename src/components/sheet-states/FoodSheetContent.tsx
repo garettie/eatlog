@@ -36,6 +36,23 @@ export type FoodSheetStateKey =
   | 'single-food-review'
   | 'manual-input';
 
+type FoodSheetFailureKind =
+  | FoodEstimationFailureKind
+  | 'camera-unavailable'
+  | 'gallery-unavailable'
+  | 'photo-unreadable';
+
+const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
+  unavailable: 'Food estimates are not configured in this build.',
+  network: 'Check your connection, then try again.',
+  timeout: 'The estimate took too long. Try again.',
+  provider: 'The estimation service could not complete this request.',
+  'invalid-response': 'This photo did not produce a usable food estimate.',
+  'camera-unavailable': 'The camera could not open. Try again or choose another logging method.',
+  'gallery-unavailable': 'The photo library could not open. Try again or choose another logging method.',
+  'photo-unreadable': 'The selected photo could not be read. Choose another photo or logging method.',
+};
+
 export interface FoodSheetState {
   visible: boolean;
   stateKey: FoodSheetStateKey;
@@ -43,7 +60,8 @@ export interface FoodSheetState {
   selectedFood: FoodResult | null;
   photoUri?: string | null;
   pendingAction?: 'camera' | 'gallery' | 'describe' | 'search' | 'weight' | null;
-  estimationFailure?: FoodEstimationFailureKind | null;
+  estimationFailure?: FoodSheetFailureKind | null;
+  cameraPermissionCanAskAgain?: boolean | null;
   editMealId?: number | null;
   fromBar?: boolean;
   pendingMeal?: MealType | null;
@@ -81,14 +99,26 @@ export default function FoodSheetContent({
   skipHistoryRef,
 }: FoodSheetContentProps) {
   const reduced = useReducedMotion();
-  const cancelScanRef = useRef(false);
+  const scanRequestRef = useRef(0);
+  const scanInFlightRef = useRef(false);
   const scanBase64Ref = useRef<string | null>(null);
   const mealRequestRef = useRef(0);
   const fromBarRef = useRef(false);
+  const previousStateKeyRef = useRef(state.stateKey);
   fromBarRef.current = !!state.fromBar;
   useEffect(() => {
     if (state.stateKey !== 'review-loading') mealRequestRef.current += 1;
   }, [state.stateKey]);
+  useEffect(() => {
+    const leftScanning =
+      previousStateKeyRef.current === 'scanning' &&
+      state.stateKey !== 'scanning';
+    if ((!state.visible || leftScanning) && scanInFlightRef.current) {
+      scanRequestRef.current += 1;
+      scanInFlightRef.current = false;
+    }
+    previousStateKeyRef.current = state.stateKey;
+  }, [state.stateKey, state.visible]);
   const transitionTo = useCallback(
     (stateKey: FoodSheetStateKey, opts?: { describeResult?: DescribeResult | null; pushHistory?: boolean }) => {
       const { describeResult, pushHistory = true } = opts ?? {};
@@ -102,86 +132,143 @@ export default function FoodSheetContent({
     [setState, skipHistoryRef],
   );
 
+  const showScanError = useCallback(
+    (kind: FoodSheetFailureKind, pendingAction: 'camera' | 'gallery') => {
+      setState((s) => ({
+        ...s,
+        stateKey: 'estimation-error',
+        estimationFailure: kind,
+        pendingAction,
+      }));
+    },
+    [setState],
+  );
+
   const handleCamera = useCallback(async () => {
-    cancelScanRef.current = false;
-    if (!serviceConfig.availability.gemini) { transitionTo('estimation-error'); setState((s) => ({ ...s, estimationFailure: 'unavailable', pendingAction: 'camera' })); return; }
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (cancelScanRef.current) return;
-    if (status !== 'granted') {
-      if (fromBarRef.current) { resetToEntry(); return; }
-      transitionTo('permission-denied');
-      return;
-    }
-    transitionTo('scanning');
+    if (scanInFlightRef.current) return;
+    scanInFlightRef.current = true;
+    const requestId = ++scanRequestRef.current;
+
     try {
+      if (!serviceConfig.availability.gemini) {
+        showScanError('unavailable', 'camera');
+        return;
+      }
+
+      const permission = await ImagePicker.requestCameraPermissionsAsync().catch((error) => {
+        console.error('[FoodSheet] camera permission request failed', error);
+        if (requestId === scanRequestRef.current) showScanError('camera-unavailable', 'camera');
+        return null;
+      });
+      if (!permission || requestId !== scanRequestRef.current) return;
+      if (!permission.granted) {
+        setState((s) => ({
+          ...s,
+          stateKey: 'permission-denied',
+          pendingAction: null,
+          cameraPermissionCanAskAgain: permission.canAskAgain,
+        }));
+        return;
+      }
+
+      transitionTo('scanning');
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         base64: true,
         quality: 0.5,
+      }).catch((error) => {
+        console.error('[FoodSheet] camera launch failed', error);
+        if (requestId === scanRequestRef.current) showScanError('camera-unavailable', 'camera');
+        return null;
       });
-      if (cancelScanRef.current) return;
-      if (result.canceled || !result.assets?.[0]?.base64) {
+      if (!result || requestId !== scanRequestRef.current) return;
+      if (result.canceled) {
         if (fromBarRef.current) { resetToEntry(); return; }
         transitionTo('entry', { pushHistory: false });
         return;
       }
-      const base64 = result.assets[0].base64;
+      const base64 = result.assets[0]?.base64;
+      if (!base64) {
+        showScanError('photo-unreadable', 'camera');
+        return;
+      }
       scanBase64Ref.current = base64;
-      const scanResult = await scanFood(base64);
-      if (cancelScanRef.current) return;
+      const scanResult = await scanFood(base64).catch((error) => {
+        console.error('[FoodSheet] camera estimate failed unexpectedly', error);
+        if (requestId === scanRequestRef.current) showScanError('provider', 'camera');
+        return null;
+      });
+      if (!scanResult || requestId !== scanRequestRef.current) return;
       if (!scanResult.ok) {
-        setState((s) => ({ ...s, estimationFailure: scanResult.kind, pendingAction: 'camera' }));
-        transitionTo('estimation-error');
+        showScanError(scanResult.kind, 'camera');
         return;
       }
       const photoUri = await saveMealPhoto(base64).catch((e) => {
         console.error('[FoodSheet] camera photo save failed', e);
         return null;
       });
+      if (requestId !== scanRequestRef.current) return;
       setState((s) => ({ ...s, photoUri }));
       transitionTo('review', { describeResult: scanResult.result });
-    } catch (e) {
-      setState((s) => ({ ...s, estimationFailure: 'network', pendingAction: 'camera' }));
-      transitionTo('estimation-error');
+    } finally {
+      if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
     }
-  }, [transitionTo, resetToEntry]);
+  }, [transitionTo, resetToEntry, setState, showScanError]);
 
   const handleGallery = useCallback(async () => {
-    cancelScanRef.current = false;
-    if (!serviceConfig.availability.gemini) { transitionTo('estimation-error'); setState((s) => ({ ...s, estimationFailure: 'unavailable', pendingAction: 'gallery' })); return; }
-    transitionTo('scanning');
+    if (scanInFlightRef.current) return;
+    scanInFlightRef.current = true;
+    const requestId = ++scanRequestRef.current;
+
     try {
+      if (!serviceConfig.availability.gemini) {
+        showScanError('unavailable', 'gallery');
+        return;
+      }
+
+      transitionTo('scanning');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         base64: true,
         quality: 0.5,
+      }).catch((error) => {
+        console.error('[FoodSheet] gallery launch failed', error);
+        if (requestId === scanRequestRef.current) showScanError('gallery-unavailable', 'gallery');
+        return null;
       });
-      if (cancelScanRef.current) return;
-      if (result.canceled || !result.assets?.[0]?.base64) {
+      if (!result || requestId !== scanRequestRef.current) return;
+      if (result.canceled) {
         if (fromBarRef.current) { resetToEntry(); return; }
         transitionTo('entry', { pushHistory: false });
         return;
       }
-      const base64 = result.assets[0].base64;
+      const base64 = result.assets[0]?.base64;
+      if (!base64) {
+        showScanError('photo-unreadable', 'gallery');
+        return;
+      }
       scanBase64Ref.current = base64;
-      const scanResult = await scanFood(base64);
-      if (cancelScanRef.current) return;
+      const scanResult = await scanFood(base64).catch((error) => {
+        console.error('[FoodSheet] gallery estimate failed unexpectedly', error);
+        if (requestId === scanRequestRef.current) showScanError('provider', 'gallery');
+        return null;
+      });
+      if (!scanResult || requestId !== scanRequestRef.current) return;
       if (!scanResult.ok) {
-        setState((s) => ({ ...s, estimationFailure: scanResult.kind, pendingAction: 'gallery' }));
-        transitionTo('estimation-error');
+        showScanError(scanResult.kind, 'gallery');
         return;
       }
       const photoUri = await saveMealPhoto(base64).catch((e) => {
         console.error('[FoodSheet] gallery photo save failed', e);
         return null;
       });
+      if (requestId !== scanRequestRef.current) return;
       setState((s) => ({ ...s, photoUri }));
       transitionTo('review', { describeResult: scanResult.result });
-    } catch (e) {
-      setState((s) => ({ ...s, estimationFailure: 'network', pendingAction: 'gallery' }));
-      transitionTo('estimation-error');
+    } finally {
+      if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
     }
-  }, [transitionTo, setState]);
+  }, [transitionTo, resetToEntry, setState, showScanError]);
 
   const handleDescribe = useCallback(() => {
     transitionTo('describe');
@@ -302,7 +389,8 @@ export default function FoodSheetContent({
   }, [onWeightLogged, setState]);
 
   const handleScanCancel = useCallback(() => {
-    cancelScanRef.current = true;
+    scanRequestRef.current += 1;
+    scanInFlightRef.current = false;
     if (fromBarRef.current) {
       resetToEntry();
       return;
@@ -386,16 +474,36 @@ export default function FoodSheetContent({
       )}
       {state.stateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
       {state.stateKey === 'permission-denied' && (
-        <PermissionDeniedState onClose={() => transitionTo('entry', { pushHistory: false })} />
+        <PermissionDeniedState
+          canAskAgain={state.cameraPermissionCanAskAgain !== false}
+          onRetry={handleCamera}
+          onClose={() => {
+            setState((s) => ({ ...s, cameraPermissionCanAskAgain: null }));
+            transitionTo('entry', { pushHistory: false });
+          }}
+        />
       )}
       {state.stateKey === 'estimation-error' && (
         <EstimationErrorState
           kind={state.estimationFailure ?? 'provider'}
           source={state.pendingAction === 'gallery' ? 'Gallery' : 'Camera'}
-          onRetry={() => { const action = state.pendingAction; setState((s) => ({ ...s, stateKey: 'entry', pendingAction: action })); }}
-          onSearch={handleSearch}
-          onDescribe={handleDescribe}
-          onManualEntry={handleManualEntry}
+          onRetry={state.estimationFailure === 'unavailable' ? undefined : () => {
+            const action = state.pendingAction;
+            skipHistoryRef.current = true;
+            setState((s) => ({ ...s, stateKey: 'scanning', pendingAction: action, estimationFailure: null }));
+          }}
+          onSearch={() => {
+            skipHistoryRef.current = true;
+            setState((s) => ({ ...s, stateKey: 'search', pendingAction: null, estimationFailure: null }));
+          }}
+          onDescribe={() => {
+            skipHistoryRef.current = true;
+            setState((s) => ({ ...s, stateKey: 'describe', pendingAction: null, estimationFailure: null }));
+          }}
+          onManualEntry={() => {
+            skipHistoryRef.current = true;
+            setState((s) => ({ ...s, stateKey: 'manual-input', pendingAction: null, estimationFailure: null }));
+          }}
         />
       )}
       {state.stateKey === 'review-loading' && <ReviewLoadingState />}
@@ -428,7 +536,13 @@ export default function FoodSheetContent({
 
 function ReviewLoadingState() {
   return (
-    <View className="flex-1 px-5 pt-3 gap-5">
+    <View
+      className="flex-1 px-5 pt-3 gap-5"
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading meal details"
+      accessibilityLiveRegion="polite"
+    >
       <View className="h-12 rounded-xl bg-m3-surface-container-high" />
       <View className="items-center gap-3 py-4">
         <View className="h-10 w-32 rounded-full bg-m3-surface-container-highest" />
@@ -443,16 +557,43 @@ function ReviewLoadingState() {
   );
 }
 
-function PermissionDeniedState({ onClose }: { onClose: () => void }) {
+function PermissionDeniedState({
+  canAskAgain,
+  onRetry,
+  onClose,
+}: {
+  canAskAgain: boolean;
+  onRetry: () => void;
+  onClose: () => void;
+}) {
+  const handleOpenSettings = useCallback(async () => {
+    try {
+      await Linking.openSettings();
+    } catch (error) {
+      console.error('[FoodSheet] settings launch failed', error);
+      Alert.alert('Couldn’t open Settings', 'Open Android Settings and allow camera access for Marco.');
+    }
+  }, []);
+
   return (
-    <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center">
+    <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center" accessibilityLiveRegion="assertive">
       <Text className="text-m3-on-surface font-semibold text-sm">Camera access denied</Text>
-      <Text className="text-m3-on-surface-variant text-sm text-center">To scan a photo, allow camera access in your system settings.</Text>
-      <View className="flex-row gap-3">
-        <Pressable onPress={() => Linking.openSettings()} className="bg-m3-surface-container-highest rounded-full px-5 py-2.5 active:opacity-60">
-          <Text className="text-m3-on-surface text-xs font-semibold">Open Settings</Text>
-        </Pressable>
-        <Pressable onPress={onClose} className="rounded-full px-5 py-2.5 active:opacity-60">
+      <Text className="text-m3-on-surface-variant text-sm text-center">
+        {canAskAgain
+          ? 'Allow camera access to scan food, or choose another logging method.'
+          : 'Allow camera access in Android Settings, or choose another logging method.'}
+      </Text>
+      <View className="flex-row flex-wrap justify-center gap-2">
+        {canAskAgain ? (
+          <Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 active:opacity-60">
+            <Text className="text-m3-on-surface text-xs font-semibold">Try again</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={handleOpenSettings} accessibilityRole="button" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 active:opacity-60">
+            <Text className="text-m3-on-surface text-xs font-semibold">Open Settings</Text>
+          </Pressable>
+        )}
+        <Pressable onPress={onClose} accessibilityRole="button" className="min-h-[48px] justify-center rounded-full px-5 active:opacity-60">
           <Text className="text-m3-on-surface-variant text-xs font-semibold">Back to options</Text>
         </Pressable>
       </View>
@@ -460,13 +601,36 @@ function PermissionDeniedState({ onClose }: { onClose: () => void }) {
   );
 }
 
-function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onManualEntry }: { kind: FoodEstimationFailureKind; source: string; onRetry: () => void; onSearch: () => void; onDescribe: () => void; onManualEntry: () => void }) {
-  const message: Record<FoodEstimationFailureKind, string> = {
-    unavailable: 'Food estimates are not configured in this build.',
-    network: 'Check your connection, then try again.',
-    timeout: 'The estimate took too long. Try again.',
-    provider: 'The estimation service could not complete this request.',
-    'invalid-response': 'This photo did not produce a usable food estimate.',
-  };
-  return <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center" accessibilityLiveRegion="assertive"><Text className="text-m3-on-surface font-semibold text-sm">{source} estimate unavailable</Text><Text className="text-m3-on-surface-variant text-sm text-center">{message[kind]}</Text><View className="flex-row flex-wrap justify-center gap-2"><Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable><Pressable onPress={onSearch} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Search foods</Text></Pressable><Pressable onPress={onDescribe} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text></Pressable><Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable></View></View>;
+function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onManualEntry }: { kind: FoodSheetFailureKind; source: string; onRetry?: () => void; onSearch: () => void; onDescribe: () => void; onManualEntry: () => void }) {
+  const title =
+    kind === 'camera-unavailable'
+      ? 'Camera unavailable'
+      : kind === 'gallery-unavailable'
+        ? 'Gallery unavailable'
+        : kind === 'photo-unreadable'
+          ? 'Photo couldn’t be read'
+          : `${source} estimate unavailable`;
+
+  return (
+    <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center" accessibilityLiveRegion="assertive">
+      <Text className="text-m3-on-surface font-semibold text-sm">{title}</Text>
+      <Text className="text-m3-on-surface-variant text-sm text-center">{FAILURE_MESSAGES[kind]}</Text>
+      <View className="flex-row flex-wrap justify-center gap-2">
+        {onRetry ? (
+          <Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-4 active:opacity-60">
+            <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
+          </Pressable>
+        ) : null}
+        <Pressable onPress={onSearch} accessibilityRole="button" className="min-h-[48px] justify-center px-4 active:opacity-60">
+          <Text className="text-m3-on-surface text-xs font-semibold">Search foods</Text>
+        </Pressable>
+        <Pressable onPress={onDescribe} accessibilityRole="button" className="min-h-[48px] justify-center px-4 active:opacity-60">
+          <Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text>
+        </Pressable>
+        <Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center px-4 active:opacity-60">
+          <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 }
