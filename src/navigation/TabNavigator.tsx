@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
@@ -32,6 +32,11 @@ export type TabParamList = {
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
+const TAB_SCREEN_OPTIONS = {
+    headerShown: false,
+    lazy: false,
+    freezeOnBlur: true,
+} as const;
 
 const INITIAL: FoodSheetState = {
     visible: false,
@@ -90,6 +95,14 @@ export default function TabNavigator() {
 
     const openAdaptiveInfo = useCallback(() => {
         setAdaptiveInfoVisible(true);
+    }, []);
+
+    const closeAdaptiveInfo = useCallback(() => {
+        setAdaptiveInfoVisible(false);
+    }, []);
+
+    const hideToast = useCallback(() => {
+        setToast(null);
     }, []);
 
     const handleDiaryDateChange = useCallback((date: string) => {
@@ -294,65 +307,112 @@ export default function TabNavigator() {
         });
     }, []);
 
+    const handleAddEntry = useCallback(() => {
+        openEntry(activeTabRef.current === 'Diary' ? diaryDateRef.current : undefined);
+    }, [openEntry]);
+
+    const renderTabBar = useCallback(
+        (props: BottomTabBarProps) => <MarcoTabBar {...props} onAddEntry={handleAddEntry} />,
+        [handleAddEntry],
+    );
+
+    const renderToday = useCallback(
+        () => (
+            <DashboardScreen
+                onOpenCamera={openCamera}
+                onOpenGallery={openGallery}
+                onOpenDescribe={openDescribe}
+                onOpenWeight={openWeight}
+                onOpenAdaptiveInfo={openAdaptiveInfo}
+                dataVersion={dataVersion}
+            />
+        ),
+        [dataVersion, openAdaptiveInfo, openCamera, openDescribe, openGallery, openWeight],
+    );
+
+    const renderDiary = useCallback(
+        () => (
+            <DiaryScreen
+                onOpenEntry={openEntry}
+                onEditMeal={openEditMeal}
+                onSelectedDateChange={handleDiaryDateChange}
+                onDataChanged={bumpDataVersion}
+                dataVersion={dataVersion}
+                showToast={showToast}
+            />
+        ),
+        [
+            bumpDataVersion,
+            dataVersion,
+            handleDiaryDateChange,
+            openEditMeal,
+            openEntry,
+            showToast,
+        ],
+    );
+
+    const renderAnalytics = useCallback(
+        () => (
+            <AnalyticsScreen
+                onOpenWeight={openWeight}
+                dataVersion={dataVersion}
+                onDataChanged={handleDataChanged}
+            />
+        ),
+        [dataVersion, handleDataChanged, openWeight],
+    );
+
+    const renderProfile = useCallback(
+        () => <ProfileNavigator dataVersion={dataVersion} onDataChanged={bumpDataVersion} />,
+        [bumpDataVersion, dataVersion],
+    );
+
+    const todayListeners = useMemo(
+        () => ({ focus: () => { activeTabRef.current = 'Today'; } }),
+        [],
+    );
+    const diaryListeners = useMemo(
+        () => ({ focus: () => { activeTabRef.current = 'Diary'; } }),
+        [],
+    );
+    const analyticsListeners = useMemo(
+        () => ({ focus: () => { activeTabRef.current = 'Analytics'; } }),
+        [],
+    );
+    const profileListeners = useMemo(
+        () => ({ focus: () => { activeTabRef.current = 'Profile'; } }),
+        [],
+    );
+
     return (
         <DiscardGuardContext.Provider value={discardGuard}>
             <Tab.Navigator
-                screenOptions={{ headerShown: false }}
-                tabBar={(props) => (
-                    <MarcoTabBar
-                        {...props}
-                        onAddEntry={() => openEntry(activeTabRef.current === 'Diary' ? diaryDateRef.current : undefined)}
-                    />
-                )}
+                screenOptions={TAB_SCREEN_OPTIONS}
+                tabBar={renderTabBar}
             >
                 <Tab.Screen
                     name="Today"
-                    listeners={{ focus: () => { activeTabRef.current = 'Today'; } }}
+                    listeners={todayListeners}
                 >
-                    {({ navigation }) => (
-                        <DashboardScreen
-                            onOpenCamera={openCamera}
-                            onOpenGallery={openGallery}
-                            onOpenDescribe={openDescribe}
-                            onOpenWeight={openWeight}
-                            onOpenAdaptiveInfo={openAdaptiveInfo}
-                            onOpenProfile={() => navigation.navigate('Profile')}
-                            dataVersion={dataVersion}
-                        />
-                    )}
+                    {renderToday}
                 </Tab.Screen>
                 <Tab.Screen
                     name="Diary"
-                    listeners={{ focus: () => { activeTabRef.current = 'Diary'; } }}
+                    listeners={diaryListeners}
                 >
-                    {() => (
-                        <DiaryScreen
-                            onOpenEntry={openEntry}
-                            onEditMeal={openEditMeal}
-                            onSelectedDateChange={handleDiaryDateChange}
-                            onDataChanged={bumpDataVersion}
-                            dataVersion={dataVersion}
-                            showToast={showToast}
-                        />
-                    )}
+                    {renderDiary}
                 </Tab.Screen>
                 <Tab.Screen
                     name="Analytics"
-                    listeners={{ focus: () => { activeTabRef.current = 'Analytics'; } }}
+                    listeners={analyticsListeners}
                 >
-                    {() => (
-                        <AnalyticsScreen
-                            onOpenWeight={openWeight}
-                            dataVersion={dataVersion}
-                            onDataChanged={handleDataChanged}
-                        />
-                    )}
+                    {renderAnalytics}
                 </Tab.Screen>
                 <Tab.Screen
                     name="Profile"
-                    listeners={{ focus: () => { activeTabRef.current = 'Profile'; } }}
+                    listeners={profileListeners}
                 >
-                    {() => <ProfileNavigator dataVersion={dataVersion} onDataChanged={bumpDataVersion} />}
+                    {renderProfile}
                 </Tab.Screen>
             </Tab.Navigator>
 
@@ -379,12 +439,12 @@ export default function TabNavigator() {
 
             <AdaptiveInfoSheet
                 visible={adaptiveInfoVisible}
-                onClosed={() => setAdaptiveInfoVisible(false)}
+                onClosed={closeAdaptiveInfo}
             />
 
             {toast && (
                 <View className="absolute left-4 right-4" style={{ zIndex: 100, bottom: tabBarHeight + 12 }}>
-                    <LogToast message={toast.message} tone={toast.tone} onUndo={toast.undo} onHide={() => setToast(null)} />
+                    <LogToast message={toast.message} tone={toast.tone} onUndo={toast.undo} onHide={hideToast} />
                 </View>
             )}
         </DiscardGuardContext.Provider>

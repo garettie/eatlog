@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { startTransition, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -24,52 +24,71 @@ interface MealSelectorProps {
 
 export default function MealSelector({ value, onChange }: MealSelectorProps) {
   const reduced = useReducedMotion();
-  const [trackWidth, setTrackWidth] = useState(0);
-  const measuredRef = useRef(false);
   const selectedIndex = Math.max(0, MEALS.findIndex((meal) => meal.value === value));
+  const trackWidth = useSharedValue(0);
+  const measuredRef = useRef(false);
+  const requestedIndexRef = useRef(selectedIndex);
+  const pendingValueRef = useRef<MealType | null>(null);
+  const [visualIndex, setVisualIndex] = useState(selectedIndex);
   const selection = useSharedValue(selectedIndex);
-  const segmentWidth = Math.max(0, (trackWidth - 4) / MEALS.length);
 
   useEffect(() => {
+    if (pendingValueRef.current != null) {
+      if (value !== pendingValueRef.current) return;
+      pendingValueRef.current = null;
+    }
+    setVisualIndex((currentIndex) => currentIndex === selectedIndex ? currentIndex : selectedIndex);
     if (!measuredRef.current) return;
+    if (requestedIndexRef.current === selectedIndex) return;
+    requestedIndexRef.current = selectedIndex;
     selection.value = withTiming(selectedIndex, {
-      duration: reduced ? 0 : DURATION.medium,
+      duration: reduced ? 0 : DURATION.short,
       easing: EASING.emphasized,
     });
-  }, [reduced, selectedIndex]);
+  }, [reduced, selectedIndex, value]);
 
-  const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: selection.value * segmentWidth }],
-  }), [segmentWidth]);
+  const pillStyle = useAnimatedStyle(() => {
+    const segmentWidth = Math.max(0, (trackWidth.value - 4) / MEALS.length);
+    return {
+      width: segmentWidth,
+      opacity: trackWidth.value > 0 ? 1 : 0,
+      transform: [{ translateX: selection.value * segmentWidth }],
+    };
+  });
 
   return (
     <View
       className="flex-row bg-m3-surface-container-high rounded-full p-0.5 border border-m3-outline-variant/30 relative overflow-hidden"
       onLayout={(event) => {
-        selection.value = selectedIndex;
-        measuredRef.current = true;
-        setTrackWidth(event.nativeEvent.layout.width);
+        const nextWidth = event.nativeEvent.layout.width;
+        if (!measuredRef.current) {
+          selection.value = selectedIndex;
+          requestedIndexRef.current = selectedIndex;
+          measuredRef.current = true;
+        }
+        trackWidth.value = nextWidth;
       }}
     >
-      {trackWidth > 0 && (
-        <Animated.View
-          pointerEvents="none"
-          className="absolute bg-white rounded-full"
-          style={[pillStyle, { width: segmentWidth, top: 2, bottom: 2, left: 2 }]}
-        />
-      )}
+      <Animated.View
+        pointerEvents="none"
+        className="absolute bg-white rounded-full"
+        style={[pillStyle, { top: 2, bottom: 2, left: 2 }]}
+      />
       {MEALS.map((m, mealIndex) => {
-        const selected = value === m.value;
+        const selected = mealIndex === visualIndex;
         return (
           <Pressable
             key={m.value}
             onPress={() => {
-              if (mealIndex === selectedIndex) return;
+              if (mealIndex === requestedIndexRef.current) return;
+              requestedIndexRef.current = mealIndex;
+              pendingValueRef.current = m.value;
+              setVisualIndex(mealIndex);
               selection.value = withTiming(mealIndex, {
-                duration: reduced ? 0 : DURATION.medium,
+                duration: reduced ? 0 : DURATION.short,
                 easing: EASING.emphasized,
               });
-              onChange(m.value);
+              startTransition(() => onChange(m.value));
             }}
             accessibilityRole="button"
             accessibilityState={{ selected }}

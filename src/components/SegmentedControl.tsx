@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { startTransition, useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Reanimated, {
@@ -31,69 +31,83 @@ export default function SegmentedControl<T extends string>({
   onChange,
 }: SegmentedControlProps<T>) {
   const reduced = useReducedMotion();
-  const [trackWidth, setTrackWidth] = useState(0);
-  const measuredRef = useRef(false);
-
   const selectedIndex = Math.max(
     0,
     options.findIndex((o) => o.value === value)
   );
+  const trackWidth = useSharedValue(0);
+  const measuredRef = useRef(false);
+  const requestedIndexRef = useRef(selectedIndex);
+  const pendingValueRef = useRef<T | null>(null);
+  const [visualIndex, setVisualIndex] = useState(selectedIndex);
   const index = useSharedValue(selectedIndex);
   useEffect(() => {
+    if (pendingValueRef.current != null) {
+      if (value !== pendingValueRef.current) return;
+      pendingValueRef.current = null;
+    }
+    setVisualIndex((currentIndex) => currentIndex === selectedIndex ? currentIndex : selectedIndex);
     if (!measuredRef.current) return;
+    if (requestedIndexRef.current === selectedIndex) return;
+    requestedIndexRef.current = selectedIndex;
     index.value = withTiming(selectedIndex, {
-      duration: reduced ? 0 : DURATION.medium,
+      duration: reduced ? 0 : DURATION.short,
       easing: EASING.emphasized,
     });
-  }, [selectedIndex, reduced]);
+  }, [selectedIndex, reduced, value]);
 
   const thumbStyle = useAnimatedStyle(() => {
+    const segmentWidth = Math.max(0, (trackWidth.value - 4) / options.length);
     return {
-      transform: [{ translateX: index.value * Math.max(0, (trackWidth - 4) / options.length) }],
+      width: segmentWidth,
+      opacity: trackWidth.value > 0 ? 1 : 0,
+      transform: [{ translateX: index.value * segmentWidth }],
     };
-  }, [trackWidth, options.length]);
-
-  const segmentWidth = Math.max(0, (trackWidth - 4) / options.length);
+  }, [options.length]);
 
   return (
     <View className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden">
       <View
         className="flex-row relative"
         onLayout={(event) => {
-          index.value = selectedIndex;
-          measuredRef.current = true;
-          setTrackWidth(event.nativeEvent.layout.width);
+          const nextWidth = event.nativeEvent.layout.width;
+          if (!measuredRef.current) {
+            index.value = selectedIndex;
+            requestedIndexRef.current = selectedIndex;
+            measuredRef.current = true;
+          }
+          trackWidth.value = nextWidth;
         }}
       >
-        {segmentWidth > 0 && (
-          <Reanimated.View
-            style={[
-              {
-                position: 'absolute',
-                top: 2,
-                bottom: 2,
-                left: 2,
-                width: segmentWidth,
-                borderRadius: 9999,
-                backgroundColor: '#ffffff',
-              },
-              thumbStyle,
-            ]}
-            pointerEvents="none"
-          />
-        )}
+        <Reanimated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 2,
+              bottom: 2,
+              left: 2,
+              borderRadius: 9999,
+              backgroundColor: '#ffffff',
+            },
+            thumbStyle,
+          ]}
+          pointerEvents="none"
+        />
         {options.map((opt, optionIndex) => {
-          const selected = trackWidth > 0 && opt.value === value;
+          const selected = optionIndex === visualIndex;
           return (
             <Pressable
               key={opt.value}
               onPress={() => {
-                if (optionIndex === selectedIndex) return;
+                if (optionIndex === requestedIndexRef.current) return;
+                requestedIndexRef.current = optionIndex;
+                pendingValueRef.current = opt.value;
+                setVisualIndex(optionIndex);
                 index.value = withTiming(optionIndex, {
-                  duration: reduced ? 0 : DURATION.medium,
+                  duration: reduced ? 0 : DURATION.short,
                   easing: EASING.emphasized,
                 });
-                onChange(opt.value);
+                startTransition(() => onChange(opt.value));
               }}
               accessibilityRole="radio"
               accessibilityLabel={opt.label}

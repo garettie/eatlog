@@ -1,10 +1,18 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing } from 'react-native';
+import React, { useEffect } from 'react';
 import Svg, { Path } from 'react-native-svg';
 import * as SplashScreen from 'expo-splash-screen';
-import { useReducedMotion } from 'react-native-reanimated';
+import Reanimated, {
+  Easing,
+  runOnJS,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedPath = Reanimated.createAnimatedComponent(Path);
 
 interface Props {
   onAnimationFinish: () => void;
@@ -12,8 +20,8 @@ interface Props {
 
 export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => {
   const reduced = useReducedMotion();
-  const drawAnim = useRef(new Animated.Value(300)).current; // strokeDashoffset 300 -> 0
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const drawAnim = useSharedValue(300);
+  const fadeAnim = useSharedValue(1);
 
   useEffect(() => {
     async function prepare() {
@@ -21,32 +29,20 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
       await SplashScreen.hideAsync();
 
       if (reduced) {
-        drawAnim.setValue(0);
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }).start(onAnimationFinish);
+        drawAnim.value = 0;
+        fadeAnim.value = 0;
+        onAnimationFinish();
         return;
       }
 
-      // Run stroke path drawing animation
-      Animated.sequence([
-        Animated.timing(drawAnim, {
-          toValue: 0,
-          duration: 800,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: false,
-        }),
-        Animated.delay(120),
-        // Fade out overlay screen
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        onAnimationFinish();
+      drawAnim.value = withTiming(0, {
+        duration: 800,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }, (finished) => {
+        if (!finished) return;
+        fadeAnim.value = withDelay(120, withTiming(0, { duration: 250 }, (faded) => {
+          if (faded) runOnJS(onAnimationFinish)();
+        }));
       });
     }
 
@@ -54,18 +50,29 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
   }, [reduced]);
 
   const continuousArrowPath = "M14 74 L38 50 L54 62 L82 26 L68 26 L82 26 L82 40";
+  const darkPathProps = useAnimatedProps(() => ({
+    strokeDashoffset: drawAnim.value,
+  }));
+  const lightPathProps = useAnimatedProps(() => ({
+    strokeDashoffset: drawAnim.value,
+  }));
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+  }));
 
   return (
-    <Animated.View
-      style={{
-        position: 'absolute',
-        inset: 0,
-        backgroundColor: '#111318',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 999,
-        opacity: fadeAnim,
-      }}
+    <Reanimated.View
+      style={[
+        {
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: '#111318',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+        },
+        containerStyle,
+      ]}
     >
       <Svg width={140} height={140} viewBox="0 0 100 100" fill="none">
         {/* Scale Base */}
@@ -82,26 +89,26 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
 
         {/* Animated Dark Gap Underlay */}
         <AnimatedPath
+          animatedProps={darkPathProps}
           d={continuousArrowPath}
           stroke="#111318"
           strokeWidth={12}
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray={300}
-          strokeDashoffset={drawAnim}
         />
 
         {/* Animated White Stroke Overlay */}
         <AnimatedPath
+          animatedProps={lightPathProps}
           d={continuousArrowPath}
           stroke="#FFFFFF"
           strokeWidth={7}
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray={300}
-          strokeDashoffset={drawAnim}
         />
       </Svg>
-    </Animated.View>
+    </Reanimated.View>
   );
 };

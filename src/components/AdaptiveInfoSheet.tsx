@@ -8,13 +8,15 @@ interface AdaptiveInfoSheetProps {
   onClosed: () => void;
 }
 
-export default function AdaptiveInfoSheet({ visible, onClosed }: AdaptiveInfoSheetProps) {
+const SNAP_POINTS = ['50%'];
+
+function AdaptiveInfoSheet({ visible, onClosed }: AdaptiveInfoSheetProps) {
   const canCloseRef = useRef(() => true);
 
   return (
     <Sheet
       visible={visible}
-      snapPoints={['50%']}
+      snapPoints={SNAP_POINTS}
       enableDynamicSizing
       stateKey="adaptive-info"
       canCloseRef={canCloseRef}
@@ -38,3 +40,5 @@ export default function AdaptiveInfoSheet({ visible, onClosed }: AdaptiveInfoShe
     </Sheet>
   );
 }
+
+export default React.memo(AdaptiveInfoSheet);

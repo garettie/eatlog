@@ -2,6 +2,8 @@ import React, { useEffect, useLayoutEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Reanimated, {
   FadeIn,
+  FadeOut,
+  LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -11,6 +13,7 @@ import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 
 import { FoodLog } from '../db/database';
+import { DURATION, EASING } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 import { foodIcon } from '../utils/foodIcons';
 
@@ -379,37 +382,45 @@ function JournalSection({
 
       <View className="mx-4 h-px bg-m3-outline-variant/40" />
 
-      {hasEntries && !collapsed && (
-        <Reanimated.View
-          entering={!reducedMotion && collapseState.animateEntry ? FadeIn.duration(160) : undefined}
-          className="mt-2"
-        >
-          {entries.map((entry, index) => {
-              if (entry.type === 'food' && entry.foodLog) {
-                return (
-                  <FoodRow
-                    key={`entry-slot-${index}`}
-                    food={entry.foodLog}
-                    onEdit={onEditFood}
-                    onDelete={onDeleteFood}
-                  />
-                );
-              }
-              if (entry.type === 'meal' && entry.mealGroup) {
-                return (
-                  <MealRow
-                    key={`entry-slot-${index}`}
-                    meal={entry.mealGroup}
-                    onEditMeal={onEditMeal}
-                    onDeleteMeal={onDeleteMeal}
-                    onViewPhoto={onViewPhoto}
-                  />
-                );
-              }
-              return null;
-            })}
-        </Reanimated.View>
-      )}
+      <Reanimated.View
+        layout={reducedMotion
+          ? undefined
+          : LinearTransition.duration(DURATION.short).easing(EASING.emphasized)}
+        className="overflow-hidden"
+      >
+        {hasEntries && !collapsed && (
+          <Reanimated.View
+            entering={!reducedMotion && collapseState.animateEntry ? FadeIn.duration(160) : undefined}
+            exiting={!reducedMotion ? FadeOut.duration(160) : undefined}
+            className="mt-2"
+          >
+            {entries.map((entry, index) => {
+                if (entry.type === 'food' && entry.foodLog) {
+                  return (
+                    <FoodRow
+                      key={`entry-slot-${index}`}
+                      food={entry.foodLog}
+                      onEdit={onEditFood}
+                      onDelete={onDeleteFood}
+                    />
+                  );
+                }
+                if (entry.type === 'meal' && entry.mealGroup) {
+                  return (
+                    <MealRow
+                      key={`entry-slot-${index}`}
+                      meal={entry.mealGroup}
+                      onEditMeal={onEditMeal}
+                      onDeleteMeal={onDeleteMeal}
+                      onViewPhoto={onViewPhoto}
+                    />
+                  );
+                }
+                return null;
+              })}
+          </Reanimated.View>
+        )}
+      </Reanimated.View>
     </View>
   );
 }

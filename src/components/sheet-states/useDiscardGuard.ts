@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef } from 'react';
 import { Alert } from 'react-native';
 
 interface GuardEntry {
@@ -62,5 +62,8 @@ export function useDiscardGuard(): DiscardGuard {
     [isAnyDirty],
   );
 
-  return { register, isAnyDirty, requestClose };
+  return useMemo(
+    () => ({ register, isAnyDirty, requestClose }),
+    [isAnyDirty, register, requestClose],
+  );
 }

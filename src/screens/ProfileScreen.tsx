@@ -61,7 +61,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
+function ProfileScreen({ dataVersion }: ProfileScreenProps) {
   const navigation = useNavigation<any>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
@@ -244,3 +244,5 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     </SafeAreaView>
   );
 }
+
+export default React.memo(ProfileScreen);

@@ -2,12 +2,18 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeInUp, FadeOutDown, useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  FadeInUp,
+  FadeOutDown,
+  LinearTransition,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MealType, saveMealWithComponents } from '../../db/database';
 import { FoodResult } from '../../services/foodSearch';
 import { DescribeResult } from '../../services/foodScan';
+import { EASING } from '../../theme/motion';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import AddComponentSection from '../AddComponentSection';
@@ -442,13 +448,12 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
 
           return (
             <View key={`${comp.food.id}-${idx}`} className="border-b border-m3-outline-variant/20">
+              <Animated.View
+                layout={reducedMotion ? undefined : LinearTransition.duration(200).easing(EASING.emphasized)}
+                className={isExpanded ? 'py-4 gap-4 overflow-hidden' : 'flex-row items-center py-3.5 overflow-hidden'}
+              >
               {isExpanded ? (
-                <Animated.View
-                  key={`exp-${comp.food.id}`}
-                  entering={reducedMotion ? undefined : FadeInUp.duration(200)}
-                  exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
-                  className="py-4 gap-4"
-                >
+                <>
                   <View className="flex-row items-center gap-2">
                     <BottomSheetTextInput
                       value={comp.food.name}
@@ -525,14 +530,9 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                       {comp.unitMode === 'servings' ? 'per serving' : comp.unitMode === 'ml' ? 'per 100ml' : 'per 100g'}
                     </Text>
                   </View>
-                </Animated.View>
+                </>
               ) : (
-                <Animated.View
-                  key={`col-${comp.food.id}`}
-                  entering={reducedMotion ? undefined : FadeInUp.duration(200)}
-                  exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
-                  className="flex-row items-center py-3.5"
-                >
+                <>
                   <Pressable
                     onPress={() => setExpandedIndex(idx)}
                     accessibilityRole="button"
@@ -574,8 +574,9 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                   >
                     <MaterialIcons name="close" size={14} color="#c4c6d0" />
                   </Pressable>
-                </Animated.View>
+                </>
               )}
+              </Animated.View>
             </View>
           );
         })}

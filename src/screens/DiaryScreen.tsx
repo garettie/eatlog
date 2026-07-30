@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -358,7 +358,9 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
 
     onSelectedDateChange(iso);
     setSelectedDate(iso);
-    void loadDay(iso);
+    startTransition(() => {
+      void loadDay(iso);
+    });
 
     const d = new Date(iso + 'T12:00:00');
     const monthStart = getMonthStart(d);
@@ -654,15 +656,14 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
             <Text className="text-m3-on-primary text-sm font-semibold">Try again</Text>
           </Pressable>
         </View>
-      ) : displayedDate !== selectedDate ? (
-        <View className="flex-1 items-center justify-center" accessibilityLiveRegion="polite">
-          <ActivityIndicator accessibilityLabel="Loading selected day" color={M3.onSurfaceVariant} />
-        </View>
       ) : (
         <ScrollView
           className="flex-1"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 16 }}
+          pointerEvents={displayedDate === selectedDate ? 'auto' : 'none'}
+          accessibilityElementsHidden={displayedDate !== selectedDate}
+          importantForAccessibility={displayedDate === selectedDate ? 'auto' : 'no-hide-descendants'}
         >
           {/* Macro rail */}
           <MacroRail cells={macroCells} />

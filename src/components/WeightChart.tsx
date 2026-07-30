@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
   useAnimatedProps,
+  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withTiming,
@@ -71,9 +72,15 @@ function chartY(
   return top + (max - value) / Math.max(1, max - min) * height;
 }
 
-function linePath(
+interface ChartPaths {
+  scale: string;
+  trend: string;
+  points: string;
+  trendEndpoint: string;
+}
+
+function chartPaths(
   points: ChartPoint[],
-  field: 'scale' | 'trend',
   startDay: number,
   endDay: number,
   min: number,
@@ -82,65 +89,29 @@ function linePath(
   top: number,
   width: number,
   height: number,
-): string {
+): ChartPaths {
   'worklet';
-  let path = '';
+  let scale = '';
+  let trend = '';
+  let pointMarkers = '';
+  let trendEndpoint = '';
   for (let index = 0; index < points.length; index += 1) {
     const point = points[index];
     const x = chartX(point.day, startDay, endDay, left, width);
-    const y = chartY(point[field], min, max, top, height);
-    path += `${index === 0 ? 'M' : 'L'} ${x} ${y} `;
-  }
-  return path;
-}
-
-function pointPath(
-  points: ChartPoint[],
-  startDay: number,
-  endDay: number,
-  min: number,
-  max: number,
-  left: number,
-  top: number,
-  width: number,
-  height: number,
-): string {
-  'worklet';
-  let path = '';
-  for (const point of points) {
+    const scaleY = chartY(point.scale, min, max, top, height);
+    const trendY = chartY(point.trend, min, max, top, height);
+    const command = index === 0 ? 'M' : 'L';
+    scale += `${command} ${x} ${scaleY} `;
+    trend += `${command} ${x} ${trendY} `;
     if (point.day < startDay || point.day > endDay) continue;
-    const x = chartX(point.day, startDay, endDay, left, width);
-    const y = chartY(point.scale, min, max, top, height);
-    path += `M ${x - POINT_RADIUS} ${y} `
+    pointMarkers += `M ${x - POINT_RADIUS} ${scaleY} `
+      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
+      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
+    trendEndpoint = `M ${x - POINT_RADIUS} ${trendY} `
       + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
       + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
   }
-  return path;
-}
-
-function endpointPath(
-  points: ChartPoint[],
-  field: 'scale' | 'trend',
-  startDay: number,
-  endDay: number,
-  min: number,
-  max: number,
-  left: number,
-  top: number,
-  width: number,
-  height: number,
-): string {
-  'worklet';
-  for (let index = points.length - 1; index >= 0; index -= 1) {
-    const point = points[index];
-    if (point.day < startDay || point.day > endDay) continue;
-    const x = chartX(point.day, startDay, endDay, left, width);
-    const y = chartY(point[field], min, max, top, height);
-    return `M ${x - POINT_RADIUS} ${y} `
-      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
-      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
-  }
-  return '';
+  return { scale, trend, points: pointMarkers, trendEndpoint };
 }
 
 function nearestPointIndex(
@@ -250,24 +221,38 @@ function WeightChart({
   const dataWidth = Math.max(1, plotWidth - plotGutter * 2);
   const nextStartDay = dayNumber(startDate);
   const nextEndDay = dayNumber(endDate);
-  const values = visible.flatMap((log) => [log.scale_weight_kg, log.trend_weight_kg]);
-  if (targetWeightKg != null) values.push(targetWeightKg);
-  const minValue = values.length ? Math.min(...values) : 0;
-  const maxValue = values.length ? Math.max(...values) : 1;
-  const rawRange = Math.max(1, maxValue - minValue);
-  const padding = Math.max(0.25, rawRange * 0.1);
-  const nextYMin = minValue - padding;
-  const nextYMax = maxValue + padding;
-  const yTicks = [nextYMax, (nextYMax + nextYMin) / 2, nextYMin];
+  const { nextYMin, nextYMax, yTicks } = useMemo(() => {
+    let minValue = targetWeightKg ?? Number.POSITIVE_INFINITY;
+    let maxValue = targetWeightKg ?? Number.NEGATIVE_INFINITY;
+    for (const log of visible) {
+      minValue = Math.min(minValue, log.scale_weight_kg, log.trend_weight_kg);
+      maxValue = Math.max(maxValue, log.scale_weight_kg, log.trend_weight_kg);
+    }
+    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
+      minValue = 0;
+      maxValue = 1;
+    }
+    const rawRange = Math.max(1, maxValue - minValue);
+    const padding = Math.max(0.25, rawRange * 0.1);
+    const yMin = minValue - padding;
+    const yMax = maxValue + padding;
+    return {
+      nextYMin: yMin,
+      nextYMax: yMax,
+      yTicks: [yMax, (yMax + yMin) / 2, yMin],
+    };
+  }, [targetWeightKg, visible]);
 
   const animatedStartDay = useSharedValue(nextStartDay);
   const animatedEndDay = useSharedValue(nextEndDay);
   const animatedYMin = useSharedValue(nextYMin);
   const animatedYMax = useSharedValue(nextYMax);
+  const scrubbedIndex = useSharedValue(-2);
 
   useEffect(() => {
     selectedIndexRef.current = null;
     setSelectedIndex(null);
+    scrubbedIndex.value = -2;
   }, [endDate, startDate]);
 
   useEffect(() => {
@@ -291,10 +276,9 @@ function WeightChart({
     reduced,
   ]);
 
-  const scalePathProps = useAnimatedProps(() => ({
-    d: linePath(
+  const paths = useDerivedValue(() => (
+    chartPaths(
       points,
-      'scale',
       animatedStartDay.value,
       animatedEndDay.value,
       animatedYMin.value,
@@ -303,48 +287,17 @@ function WeightChart({
       topPadding,
       animatedDataWidth.value,
       plotHeight,
-    ),
-  }));
+    )
+  ));
+  const scalePathProps = useAnimatedProps(() => ({ d: paths.value.scale }));
   const trendPathProps = useAnimatedProps(() => ({
-    d: linePath(
-      points,
-      'trend',
-      animatedStartDay.value,
-      animatedEndDay.value,
-      animatedYMin.value,
-      animatedYMax.value,
-      dataLeft,
-      topPadding,
-      animatedDataWidth.value,
-      plotHeight,
-    ),
+    d: paths.value.trend,
   }));
   const pointPathProps = useAnimatedProps(() => ({
-    d: pointPath(
-      points,
-      animatedStartDay.value,
-      animatedEndDay.value,
-      animatedYMin.value,
-      animatedYMax.value,
-      dataLeft,
-      topPadding,
-      animatedDataWidth.value,
-      plotHeight,
-    ),
+    d: paths.value.points,
   }));
   const trendEndpointProps = useAnimatedProps(() => ({
-    d: endpointPath(
-      points,
-      'trend',
-      animatedStartDay.value,
-      animatedEndDay.value,
-      animatedYMin.value,
-      animatedYMax.value,
-      dataLeft,
-      topPadding,
-      animatedDataWidth.value,
-      plotHeight,
-    ),
+    d: paths.value.trendEndpoint,
   }));
   const targetLineProps = useAnimatedProps(() => {
     const y = chartY(
@@ -382,6 +335,7 @@ function WeightChart({
         dataWidth,
         Number.POSITIVE_INFINITY,
       );
+      scrubbedIndex.value = index;
       runOnJS(scrubPoint)(index);
     })
     .onUpdate((event) => {
@@ -394,12 +348,18 @@ function WeightChart({
         dataWidth,
         Number.POSITIVE_INFINITY,
       );
+      if (scrubbedIndex.value === index) return;
+      scrubbedIndex.value = index;
       runOnJS(scrubPoint)(index);
+    })
+    .onFinalize(() => {
+      scrubbedIndex.value = -2;
     }), [
     dataLeft,
     dataWidth,
     nextEndDay,
     nextStartDay,
+    scrubbedIndex,
     scrubPoint,
     visiblePoints,
   ]);

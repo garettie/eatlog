@@ -1,8 +1,14 @@
-import React, { startTransition, useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
-import Animated, { FadeInRight, FadeOutLeft, useReducedMotion } from 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { scanFood, clarifyMeal, DescribeResult, FoodEstimationFailureKind } from '../../services/foodScan';
 import { serviceConfig } from '../../config/services';
@@ -10,6 +16,7 @@ import { type DataType, type FoodResult } from '../../services/foodSearch';
 import { LoggedMeal, MealType, SaveWeightResult, getMealComponents } from '../../db/database';
 import { saveMealPhoto } from '../../utils/mealPhotos';
 import { formatDayHeader, todayISO } from '../../utils/calendar';
+import { EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
 
 import EntryMethodState from './EntryMethodState';
@@ -105,7 +112,62 @@ export default function FoodSheetContent({
   const mealRequestRef = useRef(0);
   const fromBarRef = useRef(false);
   const previousStateKeyRef = useRef(state.stateKey);
+  const [renderedStateKey, setRenderedStateKey] = useState(state.stateKey);
+  const stateTransitionRequestRef = useRef(0);
+  const enteringStateRef = useRef(false);
+  const stateOffset = useSharedValue(0);
+  const stateOpacity = useSharedValue(1);
   fromBarRef.current = !!state.fromBar;
+
+  const commitRenderedState = useCallback((stateKey: FoodSheetStateKey, requestId: number) => {
+    if (requestId !== stateTransitionRequestRef.current) return;
+    enteringStateRef.current = true;
+    setRenderedStateKey(stateKey);
+  }, []);
+
+  useEffect(() => {
+    const requestId = ++stateTransitionRequestRef.current;
+    if (state.stateKey === renderedStateKey) {
+      stateOffset.value = withTiming(0, {
+        duration: reduced ? 0 : 180,
+        easing: EASING.emphasizedDecelerate,
+      });
+      stateOpacity.value = withTiming(1, { duration: reduced ? 0 : 180 });
+      return;
+    }
+    if (reduced) {
+      enteringStateRef.current = false;
+      stateOffset.value = 0;
+      stateOpacity.value = 1;
+      setRenderedStateKey(state.stateKey);
+      return;
+    }
+    stateOffset.value = withTiming(-20, {
+      duration: 90,
+      easing: EASING.emphasizedAccelerate,
+    });
+    stateOpacity.value = withTiming(0, { duration: 90 }, (finished) => {
+      if (finished) runOnJS(commitRenderedState)(state.stateKey, requestId);
+    });
+  }, [reduced, state.stateKey]);
+
+  useLayoutEffect(() => {
+    if (!enteringStateRef.current || reduced) return;
+    enteringStateRef.current = false;
+    stateOffset.value = 20;
+    stateOpacity.value = 0;
+    stateOffset.value = withTiming(0, {
+      duration: 180,
+      easing: EASING.emphasizedDecelerate,
+    });
+    stateOpacity.value = withTiming(1, { duration: 180 });
+  }, [reduced, renderedStateKey]);
+
+  const stateTransitionStyle = useAnimatedStyle(() => ({
+    opacity: stateOpacity.value,
+    transform: [{ translateX: stateOffset.value }],
+  }));
+
   useEffect(() => {
     if (state.stateKey !== 'review-loading') mealRequestRef.current += 1;
   }, [state.stateKey]);
@@ -316,7 +378,6 @@ export default function FoodSheetContent({
     const requestId = ++mealRequestRef.current;
     transitionTo('review-loading');
     try {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const logs = await getMealComponents(meal.meal_id);
       if (requestId !== mealRequestRef.current) return;
       const components: FoodResult[] = logs.map((log, index) => {
@@ -343,11 +404,9 @@ export default function FoodSheetContent({
       });
       if (!components.length) throw new Error('Meal has no reusable components');
       setState((current) => ({ ...current, photoUri: meal.photo_uri }));
-      startTransition(() => {
-        transitionTo('review', {
-          describeResult: { mealName: meal.meal_name, components },
-          pushHistory: false,
-        });
+      transitionTo('review', {
+        describeResult: { mealName: meal.meal_name, components },
+        pushHistory: false,
       });
     } catch (error) {
       if (requestId !== mealRequestRef.current) return;
@@ -440,7 +499,7 @@ export default function FoodSheetContent({
   const showLogDateChip =
     !!state.logDate &&
     state.logDate !== todayISO() &&
-    state.stateKey !== 'weight-input';
+    renderedStateKey !== 'weight-input';
 
   return (
     <View style={{ flex: 1 }}>
@@ -453,12 +512,9 @@ export default function FoodSheetContent({
         </View>
       )}
       <Animated.View
-        key={state.stateKey}
-        entering={reduced ? undefined : FadeInRight.duration(220)}
-        exiting={reduced ? undefined : FadeOutLeft.duration(110)}
-        style={{ flex: 1 }}
+        style={[{ flex: 1 }, stateTransitionStyle]}
       >
-      {state.stateKey === 'entry' && (
+      {renderedStateKey === 'entry' && (
         <EntryMethodState
           onCamera={handleCamera}
           onGallery={handleGallery}
@@ -469,11 +525,11 @@ export default function FoodSheetContent({
           estimatesAvailable={serviceConfig.availability.gemini}
         />
       )}
-      {state.stateKey === 'describe' && (
+      {renderedStateKey === 'describe' && (
         <DescribeInputState onResult={handleDescribeResult} onCancel={handleDescribeCancel} onSearch={handleSearch} onManualEntry={handleManualEntry} />
       )}
-      {state.stateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
-      {state.stateKey === 'permission-denied' && (
+      {renderedStateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
+      {renderedStateKey === 'permission-denied' && (
         <PermissionDeniedState
           canAskAgain={state.cameraPermissionCanAskAgain !== false}
           onRetry={handleCamera}
@@ -483,7 +539,7 @@ export default function FoodSheetContent({
           }}
         />
       )}
-      {state.stateKey === 'estimation-error' && (
+      {renderedStateKey === 'estimation-error' && (
         <EstimationErrorState
           kind={state.estimationFailure ?? 'provider'}
           source={state.pendingAction === 'gallery' ? 'Gallery' : 'Camera'}
@@ -506,8 +562,8 @@ export default function FoodSheetContent({
           }}
         />
       )}
-      {state.stateKey === 'review-loading' && <ReviewLoadingState />}
-      {state.stateKey === 'review' && (
+      {renderedStateKey === 'review-loading' && <ReviewLoadingState />}
+      {renderedStateKey === 'review' && (
         <ReviewState
           result={state.describeResult}
           photoUri={state.photoUri ?? null}
@@ -518,15 +574,15 @@ export default function FoodSheetContent({
           logDate={state.logDate ?? null}
         />
       )}
-      {state.stateKey === 'search' && (
+      {renderedStateKey === 'search' && (
         <SearchInputState onSelectFood={handleSelectFood} onManualEntry={handleManualEntry} />
       )}
-      {state.stateKey === 'recent-foods' && <RecentFoodsState onSelectFood={handleSelectFood} onSelectMeal={handleSelectLoggedMeal} />}
-      {state.stateKey === 'weight-input' && <WeightInputState onLogComplete={handleWeightLogComplete} />}
-      {state.stateKey === 'single-food-review' && (
+      {renderedStateKey === 'recent-foods' && <RecentFoodsState onSelectFood={handleSelectFood} onSelectMeal={handleSelectLoggedMeal} />}
+      {renderedStateKey === 'weight-input' && <WeightInputState onLogComplete={handleWeightLogComplete} />}
+      {renderedStateKey === 'single-food-review' && (
         <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} />
       )}
-      {state.stateKey === 'manual-input' && (
+      {renderedStateKey === 'manual-input' && (
         <ManualInputState onLogComplete={handleManualLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} />
       )}
       </Animated.View>

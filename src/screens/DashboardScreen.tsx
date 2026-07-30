@@ -105,7 +105,6 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
   const overflowPct = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
   const barPctSV = useSharedValue(0);
   const overflowPctSV = useSharedValue(0);
-  const trackWidthSV = useSharedValue(0);
 
   useEffect(() => {
     barPctSV.value = withTiming(pct, { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) });
@@ -113,10 +112,10 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
   }, [pct, overflowPct, reduced]);
 
   const barStyle = useAnimatedStyle(() => ({
-    width: barPctSV.value * trackWidthSV.value,
+    transform: [{ scaleX: barPctSV.value }],
   }));
   const overflowStyle = useAnimatedStyle(() => ({
-    width: overflowPctSV.value * trackWidthSV.value,
+    transform: [{ scaleX: overflowPctSV.value }],
   }));
 
   return (
@@ -127,15 +126,15 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
           {Math.round(consumed)}g
         </Text>
       </View>
-      <View
-        className="h-1 bg-m3-surface-container-highest rounded-full overflow-hidden"
-        onLayout={(e) => { trackWidthSV.value = e.nativeEvent.layout.width; }}
-      >
+      <View className="h-1 bg-m3-surface-container-highest rounded-full overflow-hidden">
         <Animated.View
-          className={`h-full ${progressColorClass} rounded-full`}
-          style={barStyle}
+          className={`absolute inset-0 ${progressColorClass} rounded-full`}
+          style={[{ transformOrigin: 'left' }, barStyle]}
         />
-        <Animated.View className="absolute right-0 h-full bg-black/25" style={overflowStyle} />
+        <Animated.View
+          className="absolute inset-0 bg-black/25"
+          style={[{ transformOrigin: 'right' }, overflowStyle]}
+        />
       </View>
     </View>
   );
@@ -182,7 +181,6 @@ interface DashboardScreenProps {
   onOpenDescribe: () => void;
   onOpenWeight: () => void;
   onOpenAdaptiveInfo: () => void;
-  onOpenProfile: () => void;
   dataVersion: number;
 }
 
@@ -192,7 +190,6 @@ function DashboardScreen({
   onOpenDescribe,
   onOpenWeight,
   onOpenAdaptiveInfo,
-  onOpenProfile,
   dataVersion,
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
@@ -407,7 +404,7 @@ function DashboardScreen({
           <View className="flex-row justify-between items-center gap-3">
             <View className="flex-row items-center gap-3 flex-1 min-w-0">
               <Pressable
-                onPress={onOpenProfile}
+                onPress={() => navigation.navigate('Profile')}
                 accessibilityRole="button"
                 accessibilityLabel="Open profile"
                 className="w-12 h-12 items-center justify-center -m-1"

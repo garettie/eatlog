@@ -71,12 +71,12 @@ export default function RulerSlider({
     if (Object.is(next, lastEmittedRef.current)) return;
     lastEmittedRef.current = next;
     dragValRef.current = next;
+    onValueChangeRef.current(next);
     const now = Date.now();
     if (now - lastHapticAtRef.current >= 35) {
       lastHapticAtRef.current = now;
       void Haptics.selectionAsync();
     }
-    onValueChangeRef.current(next);
   }
 
   const pan = useRef(

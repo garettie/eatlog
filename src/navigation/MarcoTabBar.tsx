@@ -18,13 +18,13 @@ interface MarcoTabBarProps extends BottomTabBarProps {
   onAddEntry: () => void;
 }
 
-export default function MarcoTabBar({ state, descriptors, navigation, onAddEntry }: MarcoTabBarProps) {
+function MarcoTabBar({ state, descriptors, navigation, onAddEntry }: MarcoTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 12);
 
   const handleAddEntry = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onAddEntry();
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [onAddEntry]);
 
   return (
@@ -75,7 +75,7 @@ type TabControlProps = Pick<MarcoTabBarProps, 'navigation'> & {
   descriptor: MarcoTabBarProps['descriptors'][string];
 };
 
-function TabControl({ route, focused, descriptor, navigation }: TabControlProps) {
+const TabControl = React.memo(function TabControl({ route, focused, descriptor, navigation }: TabControlProps) {
   const options = descriptor.options;
   const name = route.name as keyof typeof tabIcons;
   const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : options.title ?? route.name;
@@ -104,4 +104,6 @@ function TabControl({ route, focused, descriptor, navigation }: TabControlProps)
       </Text>
     </Pressable>
   );
-}
+});
+
+export default React.memo(MarcoTabBar);

@@ -44,12 +44,19 @@ function useCountUp(target: number, duration = 900): number {
   return display;
 }
 
+function CountUpValue({ target }: { target: number }) {
+  const value = useCountUp(target);
+  return (
+    <Text className="text-m3-on-surface font-bold text-5xl tabular-nums">
+      {value.toLocaleString()}
+    </Text>
+  );
+}
+
 export default function SetupCompleteScreen({ route, navigation }: Props) {
   const { displayName, tdee, targetCalories, targetProtein, targetFat, targetCarbs } =
     route.params;
   const reduced = useReducedMotion();
-
-  const calories = useCountUp(targetCalories);
 
   const enter = (delay: number) =>
     reduced ? undefined : FadeInDown.duration(300).delay(delay);
@@ -93,9 +100,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
                 Daily Calorie Target
               </Text>
               <View className="bg-m3-surface-container-high rounded-2xl p-5 mb-3 items-center">
-                <Text className="text-m3-on-surface font-bold text-5xl tabular-nums">
-                  {calories.toLocaleString()}
-                </Text>
+                <CountUpValue target={targetCalories} />
                 <Text className="text-m3-on-surface-variant text-sm mt-1">kcal / day</Text>
               </View>
               <View className="flex-row justify-between">

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Alert,
@@ -189,26 +189,48 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   const animX = useSharedValue(0);
   const animOpacity = useSharedValue(1);
+  const stepTransitioningRef = useRef(false);
+  const stepDirectionRef = useRef(1);
 
   function resetScroll() {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }
 
+  function finishStepTransition() {
+    stepTransitioningRef.current = false;
+  }
+
+  function commitStep(next: number, direction: number) {
+    stepDirectionRef.current = direction;
+    setStep(next);
+    resetScroll();
+  }
+
+  useLayoutEffect(() => {
+    if (!stepTransitioningRef.current) return;
+    const direction = stepDirectionRef.current;
+    animX.value = 28 * direction;
+    animOpacity.value = 0;
+    animX.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
+    animOpacity.value = withTiming(1, { duration: 200 }, (finished) => {
+      if (finished) runOnJS(finishStepTransition)();
+    });
+  }, [step]);
+
   function goToStep(next: number) {
+    if (next === step || stepTransitioningRef.current) return;
     setStepError(null);
     if (reduced) {
       setStep(next);
       resetScroll();
       return;
     }
+    stepTransitioningRef.current = true;
     const dir = next > step ? 1 : -1;
     animX.value = withTiming(-28 * dir, { duration: 110, easing: Easing.in(Easing.quad) });
-    animOpacity.value = withTiming(0, { duration: 110 }, () => {
-      runOnJS(setStep)(next);
-      runOnJS(resetScroll)();
-      animX.value = 28 * dir;
-      animX.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
-      animOpacity.value = withTiming(1, { duration: 200 });
+    animOpacity.value = withTiming(0, { duration: 110 }, (finished) => {
+      if (finished) runOnJS(commitStep)(next, dir);
+      else runOnJS(finishStepTransition)();
     });
   }
 

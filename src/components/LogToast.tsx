@@ -24,7 +24,7 @@ interface LogToastProps {
   durationMs?: number;
 }
 
-export default function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: LogToastProps) {
+function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: LogToastProps) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -141,3 +141,5 @@ export default function LogToast({ message, tone = 'neutral', onUndo, onHide, du
     </GestureDetector>
   );
 }
+
+export default React.memo(LogToast);
