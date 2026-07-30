@@ -1,13 +1,11 @@
 /**
  * Build-time provider configuration. Values are intentionally absent by
  * default; developers inject them through the Expo build environment.
+ *
+ * Expo requires static dot-notation references to inline EXPO_PUBLIC values.
  */
-function buildValue(name: 'EXPO_PUBLIC_GEMINI_API_KEY' | 'EXPO_PUBLIC_USDA_API_KEY'): string {
-  return process.env[name]?.trim() ?? '';
-}
-
-const geminiApiKey = buildValue('EXPO_PUBLIC_GEMINI_API_KEY');
-const usdaApiKey = buildValue('EXPO_PUBLIC_USDA_API_KEY');
+const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() ?? '';
+const usdaApiKey = process.env.EXPO_PUBLIC_USDA_API_KEY?.trim() ?? '';
 
 export const serviceConfig = {
   geminiApiKey,
