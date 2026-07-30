@@ -183,7 +183,7 @@ export default function ProfileScreen({ dataVersion }: ProfileScreenProps) {
             <View className="gap-4">
               <View className="gap-1">
                 <Text className="text-m3-on-surface-variant text-xs font-semibold">Daily target</Text>
-                <Text className="text-m3-calories text-3xl font-bold tabular-nums">{Math.round(target.target_calories).toLocaleString()} kcal</Text>
+                <Text className="text-m3-on-surface text-3xl font-bold tabular-nums">{Math.round(target.target_calories).toLocaleString()} kcal</Text>
               </View>
 
               <View className="flex-row">

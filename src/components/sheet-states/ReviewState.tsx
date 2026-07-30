@@ -61,6 +61,31 @@ interface ReviewStateProps {
   logDate?: string | null;
 }
 
+function MacroTextInput({ value, onValueChange }: { value: number; onValueChange: (value: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  return (
+    <BottomSheetTextInput
+      value={draft}
+      onChangeText={(text) => {
+        setDraft(text);
+        if (text === '') return;
+        const nextValue = parseFloat(text);
+        if (!isNaN(nextValue) && nextValue >= 0) onValueChange(nextValue);
+      }}
+      onBlur={() => {
+        if (draft === '' || isNaN(parseFloat(draft))) setDraft(String(value));
+      }}
+      keyboardType="numeric"
+      className="bg-m3-surface-container text-m3-on-surface text-base font-medium rounded-xl px-3 py-3 border border-m3-outline-variant/50 text-center"
+    />
+  );
+}
+
 export default function ReviewState({ result, photoUri, onLogComplete, onClarify, editMealId, initialMeal, logDate: logDateProp }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(photoUri ?? null);
@@ -470,12 +495,9 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
 
                       return (
                         <View key={field} className="flex-1 gap-1">
-                          <BottomSheetTextInput
-                            value={String(displayVal)}
-                            onChangeText={(t) => {
-                              if (t === '') return;
-                              const v = parseFloat(t);
-                              if (isNaN(v) || v < 0) return;
+                          <MacroTextInput
+                            value={displayVal}
+                            onValueChange={(v) => {
                               const mul = comp.unitMode === 'servings'
                                 ? (comp.servingSizeGrams ?? 100) / 100
                                 : 1;
@@ -484,8 +506,6 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                                 : Math.round(v / mul * 10) / 10;
                               updatePer100g(idx, field, per100gVal);
                             }}
-                            keyboardType="numeric"
-                            className="bg-m3-surface-container text-m3-on-surface text-base font-medium rounded-xl px-3 py-3 border border-m3-outline-variant/50 text-center"
                           />
                           <Text className={`text-[10px] text-center font-medium ${
                             field === 'protein'
