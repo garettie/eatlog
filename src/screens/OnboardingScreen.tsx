@@ -23,6 +23,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 import DateSelector from '../components/DateSelector';
+import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
 import RulerSlider from '../components/RulerSlider';
 import SegmentedControl from '../components/SegmentedControl';
@@ -531,12 +532,6 @@ export default function OnboardingScreen({ navigation }: Props) {
       ? `${goalRate >= 0 ? '+' : ''}${goalRate.toFixed(2)} kg / week`
       : `${goalRate >= 0 ? '+' : ''}${(goalRate * 2.20462).toFixed(2)} lb / week`;
 
-  const goalTiles: { type: GoalType; icon: keyof typeof MaterialIcons.glyphMap; title: string; subtitle: string }[] = [
-    { type: 'cut', icon: 'trending-down', title: 'Cut', subtitle: 'Weight Loss' },
-    { type: 'maintain', icon: 'drag-handle', title: 'Maintain', subtitle: 'Stay Steady' },
-    { type: 'bulk', icon: 'trending-up', title: 'Bulk', subtitle: 'Gain Muscle' },
-  ];
-
   return (
     <SafeAreaView className="flex-1 bg-m3-surface">
       <KeyboardAvoidingView
@@ -819,39 +814,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
                   <View className="gap-3">
                     <SectionLabel>Primary Goal</SectionLabel>
-                    <View className="flex-row gap-3">
-                      {goalTiles.map((tile) => {
-                        const selected = goalType === tile.type;
-                        return (
-                          <Pressable
-                            key={tile.type}
-                            onPress={() => handleGoalTypeChange(tile.type)}
-                            accessibilityRole="radio"
-                            accessibilityLabel={`${tile.title}: ${tile.subtitle}`}
-                            accessibilityState={{ checked: selected }}
-                            className={`flex-1 p-5 rounded-2xl items-center gap-1 active:scale-[0.97] ${
-                              selected
-                                ? 'bg-m3-surface-container-high border-2 border-white'
-                                : 'bg-m3-surface-container border border-m3-outline-variant/30'
-                            }`}
-                          >
-                            <MaterialIcons
-                              name={tile.icon}
-                              size={24}
-                              color={selected ? '#ffffff' : '#c4c6d0'}
-                            />
-                            <Text
-                              className={`font-bold text-base ${
-                                selected ? 'text-white' : 'text-m3-on-surface'
-                              }`}
-                            >
-                              {tile.title}
-                            </Text>
-                            <Text className="text-xs text-m3-on-surface-variant">{tile.subtitle}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
+                    <GoalTypeSelector value={goalType} onChange={handleGoalTypeChange} />
                   </View>
 
                   {goalType !== 'maintain' && (

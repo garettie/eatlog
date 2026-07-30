@@ -134,7 +134,7 @@ export default function RulerSlider({
       )}
       <View
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-        className="relative h-14"
+        className="relative h-14 overflow-hidden"
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel={label ?? `Adjust ${unit || 'value'}`}

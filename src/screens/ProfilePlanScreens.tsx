@@ -5,7 +5,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Card from '../components/Card';
+import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
+import RulerSlider from '../components/RulerSlider';
 import SegmentedControl from '../components/SegmentedControl';
 import TappableRow from '../components/TappableRow';
 import {
@@ -38,6 +40,11 @@ export type ProfileStackParamList = {
 };
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'PlanPreview'> & { onDataChanged: () => void };
+
+const GOAL_RATE_RANGE = {
+  cut: { min: -1, max: -0.1, defaultRate: -0.5 },
+  bulk: { min: 0.05, max: 0.5, defaultRate: 0.25 },
+} as const;
 
 function Field({ label, value, onChangeText, keyboardType = 'default', error }: {
   label: string; value: string; onChangeText: (value: string) => void;
@@ -151,24 +158,33 @@ export function PrivacyScreen() {
 }
 
 export function GoalAndRateScreen() {
-  const navigation = useNavigation<NavigationProp<ProfileStackParamList>>(); const { profile, error: loadError } = useProfile();
-  const [goal, setGoal] = useState<GoalType>('maintain'); const [weight, setWeight] = useState(''); const [rate, setRate] = useState('0'); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false); const [hydrated, setHydrated] = useState(false);
+  const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
+  const { profile, error: loadError } = useProfile();
+  const [goal, setGoal] = useState<GoalType>('maintain');
+  const [targetWeight, setTargetWeight] = useState(0);
+  const [rateKg, setRateKg] = useState(0);
+  const [currentWeightKg, setCurrentWeightKg] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
   useEffect(() => {
     if (!profile) return;
     let active = true;
     void (async () => {
       try {
-        const latestWeight = profile.target_weight_kg == null
-          ? await getLatestWeightLogOnOrBefore(todayISO())
-          : null;
+        const latestWeight = await getLatestWeightLogOnOrBefore(todayISO());
+        const latestWeightKg = latestWeight?.trend_weight_kg ?? latestWeight?.scale_weight_kg ?? null;
         const targetWeightKg = profile.target_weight_kg
-          ?? latestWeight?.trend_weight_kg
-          ?? latestWeight?.scale_weight_kg
+          ?? latestWeightKg
           ?? null;
         if (!active) return;
         setGoal(profile.goal_type);
-        setWeight(targetWeightKg == null ? '' : fromKilograms(targetWeightKg, profile.weight_unit).toFixed(1));
-        setRate((profile.weight_unit === 'lb' ? fromKilograms(profile.goal_rate_kg_per_week, 'lb') : profile.goal_rate_kg_per_week).toFixed(2));
+        setCurrentWeightKg(latestWeightKg);
+        if (targetWeightKg != null) {
+          setTargetWeight(fromKilograms(targetWeightKg, profile.weight_unit));
+        }
+        setRateKg(profile.goal_rate_kg_per_week);
         if (targetWeightKg == null) setError('Current target weight is unavailable.');
       } catch {
         if (active) setError('Could not load your target weight.');
@@ -178,13 +194,119 @@ export function GoalAndRateScreen() {
     })();
     return () => { active = false; };
   }, [profile]);
-  const save = useCallback(async () => { if (!profile) return; const targetKg = toKilograms(Number(weight), profile.weight_unit); const rateKg = toKilograms(Number(rate), profile.weight_unit);
+
+  const handleGoalChange = useCallback((nextGoal: GoalType) => {
+    setGoal(nextGoal);
+    if (nextGoal === 'maintain') {
+      setRateKg(0);
+      return;
+    }
+
+    const fallbackWeightKg = profile?.target_weight_kg ?? null;
+    const baseWeightKg = currentWeightKg ?? fallbackWeightKg;
+    if (nextGoal === 'cut') {
+      setRateKg(GOAL_RATE_RANGE.cut.defaultRate);
+      if (baseWeightKg != null) {
+        setTargetWeight(fromKilograms(Math.max(20, baseWeightKg - 5), profile?.weight_unit ?? 'kg'));
+      }
+      return;
+    }
+
+    setRateKg(GOAL_RATE_RANGE.bulk.defaultRate);
+    if (baseWeightKg != null) {
+      setTargetWeight(fromKilograms(Math.min(500, baseWeightKg + 3), profile?.weight_unit ?? 'kg'));
+    }
+  }, [currentWeightKg, profile]);
+
+  const save = useCallback(async () => { if (!profile) return; const targetKg = toKilograms(targetWeight, profile.weight_unit);
     if (!Number.isFinite(targetKg) || targetKg < 20 || targetKg > 500) { setError('Target weight must be between 20 and 500 kg.'); return; }
     if (!Number.isFinite(rateKg) || (goal === 'cut' && (rateKg > -0.05 || rateKg < -1)) || (goal === 'bulk' && (rateKg < 0.05 || rateKg > 0.5))) { setError('Use a sustainable weekly rate for the selected goal.'); return; }
     setSaving(true); setError(null); try { navigation.navigate('PlanPreview', await calculatedPlan(profile, { goal_type: goal, goal_rate_kg_per_week: goal === 'maintain' ? 0 : rateKg, target_weight_kg: targetKg })); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not calculate a plan.'); } finally { setSaving(false); }
-  }, [goal, navigation, profile, rate, weight]);
+  }, [goal, navigation, profile, rateKg, targetWeight]);
+
   if (!profile || !hydrated) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
-  return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><SegmentedControl options={[{ value: 'cut', label: 'Cut' }, { value: 'maintain', label: 'Maintain' }, { value: 'bulk', label: 'Bulk' }]} value={goal} onChange={setGoal} />{goal !== 'maintain' ? <Card className="p-5 gap-5"><Field label={`Target weight (${profile.weight_unit})`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" /><Field label={`Weekly rate (${profile.weight_unit}/week)`} value={rate} onChangeText={setRate} keyboardType="decimal-pad" /></Card> : <Card className="p-5"><Text className="text-m3-on-surface-variant text-sm">Maintenance uses a zero weekly rate.</Text></Card>}{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
+
+  const weightUnit = profile.weight_unit === 'kg' ? 'kg' : 'lbs';
+  const weightMin = profile.weight_unit === 'kg' ? 20 : 44;
+  const weightMax = profile.weight_unit === 'kg' ? 500 : 1100;
+  const rateBounds = goal === 'cut'
+    ? GOAL_RATE_RANGE.cut
+    : goal === 'bulk'
+      ? GOAL_RATE_RANGE.bulk
+      : { min: 0, max: 0 };
+  const displayedRate = profile.weight_unit === 'kg'
+    ? rateKg
+    : fromKilograms(rateKg, 'lb');
+  const rateDisplay = `${displayedRate >= 0 ? '+' : ''}${displayedRate.toFixed(2)} ${profile.weight_unit} / week`;
+
+  return (
+    <Screen>
+      <ScrollView contentContainerClassName="p-6 gap-5">
+        <View className="gap-3">
+          <Text className="text-sm font-semibold text-m3-on-surface-variant uppercase tracking-wider">
+            Primary Goal
+          </Text>
+          <GoalTypeSelector value={goal} onChange={handleGoalChange} />
+        </View>
+
+        {goal !== 'maintain' ? (
+          <View className="gap-7">
+            <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm font-semibold text-m3-on-surface-variant uppercase tracking-wider">
+                  Target Weight
+                </Text>
+                <Text className="text-sm text-m3-primary font-medium">Goal Weight</Text>
+              </View>
+              <RulerSlider
+                value={targetWeight}
+                onValueChange={setTargetWeight}
+                min={weightMin}
+                max={weightMax}
+                step={0.1}
+                unit={weightUnit}
+                label="Target weight"
+              />
+            </View>
+
+            <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">
+              <View className="flex-row justify-between items-center">
+                <Text className="text-sm font-semibold text-m3-on-surface-variant uppercase tracking-wider">
+                  Target Rate
+                </Text>
+                <Text className="text-sm font-bold tabular-nums text-m3-expenditure">
+                  {rateDisplay}
+                </Text>
+              </View>
+              <RulerSlider
+                value={rateKg}
+                onValueChange={setRateKg}
+                min={rateBounds.min}
+                max={rateBounds.max}
+                step={0.05}
+                unit="kg/week"
+                label="Target rate"
+                showValue={false}
+              />
+              <View className="flex-row justify-between">
+                <Text className="text-sm text-m3-on-surface-variant font-medium">Slow</Text>
+                <Text className="text-sm text-m3-on-surface-variant font-medium">Fast</Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <Card className="p-5">
+            <Text className="text-m3-on-surface-variant text-sm">
+              Maintenance uses a zero weekly rate.
+            </Text>
+          </Card>
+        )}
+
+        {error ? <Text className="text-m3-error text-sm">{error}</Text> : null}
+        <PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} />
+      </ScrollView>
+    </Screen>
+  );
 }
 
 export function NutritionTargetsScreen() {
