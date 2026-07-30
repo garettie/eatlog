@@ -64,7 +64,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       try {
         const res = await searchFood(searchQuery);
         if (seq !== searchSeq.current) return;
-        setSearchResults(res);
+        setSearchResults(res.items);
       } catch (e) {
         console.error('[AddComponent] search failed', e);
         if (seq === searchSeq.current) setSearchResults([]);

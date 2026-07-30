@@ -11,6 +11,7 @@ interface RulerSliderProps {
   max: number;
   step?: number;
   unit: string;
+  label?: string;
   /** Custom formatter for the big value and bound labels (e.g. inches → 5'11"). */
   formatValue?: (v: number) => string;
   /** Hide the display value when the parent provides its own editable field. */
@@ -39,6 +40,7 @@ export default function RulerSlider({
   max,
   step = 1,
   unit,
+  label,
   formatValue,
   showValue = true,
   pixelsPerUnit,
@@ -135,7 +137,7 @@ export default function RulerSlider({
         className="relative h-14"
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel={`Adjust ${unit || 'value'}`}
+        accessibilityLabel={label ?? `Adjust ${unit || 'value'}`}
         accessibilityValue={{
           min,
           max,

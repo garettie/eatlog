@@ -87,7 +87,7 @@ function FoodRow({ food, pinned, onPress, onTogglePin }: { food: LoggedFood; pin
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={pinned ? `Unpin ${food.name}` : `Pin ${food.name}`}
-        className="absolute right-3 top-3 w-10 h-10 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
+        className="absolute right-2 top-2 w-12 h-12 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
       >
         <MaterialIcons name={pinned ? 'star' : 'star-border'} size={20} color={pinned ? M3.calories : M3.onSurfaceVariant} />
       </Pressable>
@@ -134,7 +134,7 @@ function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pin
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={pinned ? `Unpin ${meal.meal_name}` : `Pin ${meal.meal_name}`}
-        className="absolute right-3 top-3 w-10 h-10 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
+        className="absolute right-2 top-2 w-12 h-12 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
       >
         <MaterialIcons name={pinned ? 'star' : 'star-border'} size={20} color={pinned ? M3.calories : M3.onSurfaceVariant} />
       </Pressable>
@@ -214,7 +214,7 @@ export default function RecentFoodsState({ onSelectFood, onSelectMeal }: RecentF
             autoCorrect={false}
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-10 h-10 items-center justify-center -mr-2 -my-2">
+            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-12 h-12 items-center justify-center -mr-3 -my-3">
               <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
             </Pressable>
           )}

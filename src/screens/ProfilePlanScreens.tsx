@@ -47,6 +47,8 @@ function Field({ label, value, onChangeText, keyboardType = 'default', error }: 
     <View className="gap-2">
       <Text className="text-m3-on-surface-variant text-xs font-semibold">{label}</Text>
       <TextInput
+        accessibilityLabel={label}
+        accessibilityHint={error ?? undefined}
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType}
@@ -54,7 +56,7 @@ function Field({ label, value, onChangeText, keyboardType = 'default', error }: 
         underlineColorAndroid="transparent"
         className="min-h-[48px] bg-m3-surface-container-high border border-m3-outline-variant/40 rounded-xl px-4 text-m3-on-surface text-sm font-semibold"
       />
-      {error ? <Text className="text-m3-error text-xs">{error}</Text> : null}
+      {error ? <Text accessibilityLiveRegion="assertive" className="text-m3-error text-xs">{error}</Text> : null}
     </View>
   );
 }

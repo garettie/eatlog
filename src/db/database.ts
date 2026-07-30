@@ -86,13 +86,33 @@ let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 const DATABASE_VERSION = 5;
 
+export function getDatabaseVersion(): number {
+  return DATABASE_VERSION;
+}
+
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
   if (!_dbPromise) {
-    _dbPromise = SQLite.openDatabaseAsync('marco.db');
+    _dbPromise = SQLite.openDatabaseAsync('marco.db').catch((error) => {
+      _dbPromise = null;
+      throw error;
+    });
   }
   _db = await _dbPromise;
   return _db;
+}
+
+export async function closeDatabase(): Promise<void> {
+  const db = _db;
+  if (!db) return;
+  await db.closeAsync();
+  _db = null;
+  _dbPromise = null;
+}
+
+export function resetDatabaseConnection(): void {
+  _db = null;
+  _dbPromise = null;
 }
 
 export async function initDatabase(): Promise<void> {
@@ -976,6 +996,40 @@ export async function getActiveMealPhotoUris(): Promise<string[]> {
     'SELECT photo_uri FROM meals WHERE photo_uri IS NOT NULL'
   );
   return rows.map((r) => r.photo_uri);
+}
+
+export async function getMealPhotoReferences(): Promise<Array<{ mealId: number; uri: string }>> {
+  const db = await getDb();
+  return db.getAllAsync<{ mealId: number; uri: string }>(
+    'SELECT id AS mealId, photo_uri AS uri FROM meals WHERE photo_uri IS NOT NULL',
+  );
+}
+
+export async function getDataCounts(): Promise<{ foodLogs: number; meals: number; weightLogs: number; dailyTargets: number; photos: number }> {
+  const db = await getDb();
+  const [foodLogs, meals, weightLogs, dailyTargets, photos] = await Promise.all([
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM food_logs'),
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM meals'),
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM weight_logs'),
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM daily_targets'),
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM meals WHERE photo_uri IS NOT NULL'),
+  ]);
+  return { foodLogs: foodLogs?.count ?? 0, meals: meals?.count ?? 0, weightLogs: weightLogs?.count ?? 0, dailyTargets: dailyTargets?.count ?? 0, photos: photos?.count ?? 0 };
+}
+
+export async function getExportFoodLogs(): Promise<FoodLog[]> {
+  const db = await getDb();
+  return db.getAllAsync<FoodLog>('SELECT * FROM food_logs ORDER BY log_date, id');
+}
+
+export async function getExportWeightLogs(): Promise<WeightLog[]> {
+  const db = await getDb();
+  return db.getAllAsync<WeightLog>('SELECT * FROM weight_logs ORDER BY log_date, id');
+}
+
+export async function getExportDailyTargets(): Promise<DailyTarget[]> {
+  const db = await getDb();
+  return db.getAllAsync<DailyTarget>('SELECT * FROM daily_targets ORDER BY effective_date, id');
 }
 
 export async function cacheFoodItem(params: {

@@ -1,7 +1,7 @@
 import './global.css';
 
-import React, { useEffect, useState } from 'react';
-import { InteractionManager, View, Text } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { InteractionManager, Pressable, View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -34,6 +34,7 @@ export default function App() {
   const [appReady, setAppReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
+  const databaseInitRef = useRef<Promise<void> | null>(null);
 
   const [fontsLoaded, fontError] = useFonts({
     'Inter-Regular': require('./assets/fonts/Inter-Regular.ttf'),
@@ -42,9 +43,11 @@ export default function App() {
     'Inter-Bold': require('./assets/fonts/Inter-Bold.ttf'),
   });
 
-  useEffect(() => {
-    async function prepare() {
+  const prepare = useCallback(async () => {
+    if (databaseInitRef.current) return databaseInitRef.current;
+    const initialization = (async () => {
       try {
+        setDbError(null);
         await initDatabase();
         setAppReady(true);
         const cleanupStartedAt = Date.now();
@@ -59,9 +62,18 @@ export default function App() {
         setAppReady(true);
         await SplashScreen.hideAsync();
       }
+    })();
+    databaseInitRef.current = initialization;
+    try {
+      await initialization;
+    } finally {
+      databaseInitRef.current = null;
     }
-    prepare();
   }, []);
+
+  useEffect(() => {
+    void prepare();
+  }, [prepare]);
 
   if (!appReady || (!fontsLoaded && !fontError)) {
     return null; // Native splash screen stays visible
@@ -75,6 +87,11 @@ export default function App() {
             ? "Marco couldn't load its interface fonts. Restart the app and try again."
             : "Marco couldn't open its local data. Restart the app and try again."}
         </Text>
+        {dbError && !fontError && (
+          <Pressable onPress={() => void prepare()} accessibilityRole="button" className="mt-5 min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-6">
+            <Text className="font-inter-semibold text-sm text-m3-on-surface">Retry database</Text>
+          </Pressable>
+        )}
       </View>
     );
   }

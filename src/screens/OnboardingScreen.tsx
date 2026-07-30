@@ -3,7 +3,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Alert,
   KeyboardAvoidingView,
-  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -73,6 +72,7 @@ const EARLIEST_BIRTH_DATE = new Date(yearsAgo(TODAY, 126));
 EARLIEST_BIRTH_DATE.setDate(EARLIEST_BIRTH_DATE.getDate() + 1);
 
 function StyledInput({
+  label,
   value,
   onChangeText,
   placeholder,
@@ -80,6 +80,7 @@ function StyledInput({
   maxLength,
   autoFocus,
 }: {
+  label: string;
   value: string;
   onChangeText: (t: string) => void;
   placeholder?: string;
@@ -89,6 +90,7 @@ function StyledInput({
 }) {
   return (
     <TextInput
+      accessibilityLabel={label}
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
@@ -228,9 +230,6 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   // ── Rate slider ─────────────────────────────────────────────────────────
 
-  const [rateSliderWidth, setRateSliderWidth] = useState(0);
-  const [rateDragging, setRateDragging] = useState(false);
-
   // Cut:  -1.0 to -0.1 kg/week  (sustainable loss range)
   // Bulk: +0.05 to +0.5 kg/week (lean bulk range)
   const RATE_RANGE = {
@@ -244,37 +243,13 @@ export default function OnboardingScreen({ navigation }: Props) {
     return { min: 0, max: 0 };
   }
 
-  /** 0 = slow end (left), 1 = fast end (right) */
-  function rateToFrac(rate: number): number {
+  function applyGoalRateText(text: string) {
+    const rate = Number.parseFloat(text);
+    if (!Number.isFinite(rate)) return;
     const { min, max } = getRateBounds();
-    if (min === max) return 0;
-    if (goalType === 'cut') return (max - rate) / (max - min);
-    return (rate - min) / (max - min);
+    if (rate < min || rate > max) return;
+    setGoalRate(Math.round(rate / 0.05) * 0.05);
   }
-
-  function fracToRate(frac: number): number {
-    const { min, max } = getRateBounds();
-    const f = Math.min(1, Math.max(0, frac));
-    let rate = goalType === 'cut' ? max - f * (max - min) : min + f * (max - min);
-    rate = Math.round(rate / 0.05) * 0.05;
-    return Math.min(max, Math.max(min, rate));
-  }
-
-  const ratePan = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (e) => {
-      if (!rateSliderWidth) return;
-      setRateDragging(true);
-      setGoalRate(fracToRate(e.nativeEvent.locationX / rateSliderWidth));
-    },
-    onPanResponderMove: (e) => {
-      if (!rateSliderWidth) return;
-      setGoalRate(fracToRate(e.nativeEvent.locationX / rateSliderWidth));
-    },
-    onPanResponderRelease: () => setRateDragging(false),
-    onPanResponderTerminate: () => setRateDragging(false),
-  });
 
   // ── Unit switching ──────────────────────────────────────────────────────
 
@@ -529,7 +504,6 @@ export default function OnboardingScreen({ navigation }: Props) {
   const formatFtIn = (totalIn: number) =>
     `${Math.floor(totalIn / 12)}'${Math.round(totalIn % 12)}"`;
 
-  const rateFrac = rateToFrac(goalRate);
   const rateDisplay =
     units === 'metric'
       ? `${goalRate >= 0 ? '+' : ''}${goalRate.toFixed(2)} kg / week`
@@ -553,12 +527,15 @@ export default function OnboardingScreen({ navigation }: Props) {
             <View
               className="bg-m3-surface-container-highest h-1.5 rounded-full overflow-hidden"
               onLayout={(e) => setProgressTrackW(e.nativeEvent.layout.width)}
+              accessibilityRole="progressbar"
+              accessibilityValue={{ min: 1, max: TOTAL_STEPS, now: step, text: `Step ${step} of ${TOTAL_STEPS}` }}
             >
               <Reanimated.View
                 className="bg-white h-full rounded-full"
                 style={progressStyle}
               />
             </View>
+            <Text className="mt-2 text-xs font-semibold text-m3-on-surface-variant">Step {step} of {TOTAL_STEPS}</Text>
           </View>
 
           {/* ── Scrollable content ────────────────────────────────────── */}
@@ -596,6 +573,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                       <Text className="text-xs text-m3-on-surface-variant">Optional</Text>
                     </View>
                     <StyledInput
+                      label="Display name"
                       value={displayName}
                       onChangeText={setDisplayName}
                       placeholder="e.g. Alex"
@@ -647,6 +625,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                     {units === 'metric' ? (
                       <View className="flex-row items-baseline justify-center gap-1">
                         <TextInput
+                          accessibilityLabel="Height in centimeters"
                           value={heightCmText}
                           onChangeText={applyHeightCmText}
                           placeholder="180"
@@ -664,6 +643,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                     ) : (
                       <View className="flex-row items-baseline justify-center gap-1">
                         <TextInput
+                          accessibilityLabel="Height in feet"
                           value={heightFtText}
                           onChangeText={(t) => applyHeightImperial(t, heightInText)}
                           placeholder="5"
@@ -677,6 +657,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                         />
                         <Text className="text-sm font-medium text-m3-on-surface-variant shrink-0 mr-2">ft</Text>
                         <TextInput
+                          accessibilityLabel="Height in inches"
                           value={heightInText}
                           onChangeText={(t) => applyHeightImperial(heightFtText, t)}
                           placeholder="10"
@@ -709,6 +690,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                       max={units === 'metric' ? 220 : 87}
                       step={1}
                       unit={units === 'metric' ? 'cm' : ''}
+                      label="Height"
                       formatValue={units === 'imperial' ? formatFtIn : undefined}
                       showValue={false}
                     />
@@ -718,6 +700,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                     <SectionLabel>Starting Scale Weight</SectionLabel>
                     <View className="flex-row items-baseline justify-center gap-1">
                       <TextInput
+                        accessibilityLabel={`Starting scale weight in ${weightUnit}`}
                         value={weightText}
                         onChangeText={applyWeightText}
                         placeholder={units === 'metric' ? '80.0' : '176'}
@@ -749,6 +732,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                       max={weightMax}
                       step={0.1}
                       unit={weightUnit}
+                      label="Starting scale weight"
                       showValue={false}
                     />
                   </View>
@@ -820,6 +804,9 @@ export default function OnboardingScreen({ navigation }: Props) {
                           <Pressable
                             key={tile.type}
                             onPress={() => handleGoalTypeChange(tile.type)}
+                            accessibilityRole="radio"
+                            accessibilityLabel={`${tile.title}: ${tile.subtitle}`}
+                            accessibilityState={{ checked: selected }}
                             className={`flex-1 p-5 rounded-2xl items-center gap-1 active:scale-[0.97] ${
                               selected
                                 ? 'bg-m3-surface-container-high border-2 border-white'
@@ -858,6 +845,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                         </View>
                         <View className="flex-row items-baseline justify-center gap-1">
                           <TextInput
+                            accessibilityLabel={`Target weight in ${weightUnit}`}
                             value={targetWeightText}
                             onChangeText={applyTargetWeightText}
                             placeholder={units === 'metric' ? '75.0' : '165'}
@@ -889,6 +877,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                           max={weightMax}
                           step={0.1}
                           unit={weightUnit}
+                          label="Target weight"
                           showValue={false}
                         />
                       </View>
@@ -897,38 +886,28 @@ export default function OnboardingScreen({ navigation }: Props) {
                       <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">
                         <View className="flex-row justify-between items-center">
                           <SectionLabel>Target Rate</SectionLabel>
-                          <Text
-                            className={`text-sm font-bold tabular-nums ${
-                              goalType === 'cut' ? 'text-red-400' : 'text-emerald-400'
-                            }`}
-                          >
+                          <Text className="text-sm font-bold tabular-nums text-m3-expenditure">
                             {rateDisplay}
                           </Text>
                         </View>
-                        <View
-                          className="relative h-10 justify-center"
-                          onLayout={(e) => setRateSliderWidth(e.nativeEvent.layout.width)}
-                          {...ratePan.panHandlers}
-                        >
-                          <View className="w-full h-2 rounded-full bg-m3-surface-container-highest overflow-hidden">
-                            <View
-                              className="h-full bg-white/25 rounded-full"
-                              style={{ width: `${rateFrac * 100}%` }}
-                            />
-                          </View>
-                          <View
-                            style={{
-                              position: 'absolute',
-                              left: rateSliderWidth > 0
-                                ? rateFrac * rateSliderWidth - 10
-                                : 0,
-                              transform: [{ scale: rateDragging ? 1.2 : 1 }],
-                            }}
-                            pointerEvents="none"
-                          >
-                            <View className="w-5 h-5 rounded-full bg-white border-2 border-black" />
-                          </View>
-                        </View>
+                        <TextInput
+                          value={goalRate.toFixed(2)}
+                          onChangeText={applyGoalRateText}
+                          accessibilityLabel="Target rate in kilograms per week"
+                          keyboardType="decimal-pad"
+                          selectTextOnFocus
+                          className="min-h-[48px] rounded-xl border border-m3-outline-variant/40 bg-m3-surface-container-high px-4 text-center text-lg font-bold tabular-nums text-m3-on-surface"
+                        />
+                        <RulerSlider
+                          value={goalRate}
+                          onValueChange={setGoalRate}
+                          min={getRateBounds().min}
+                          max={getRateBounds().max}
+                          step={0.05}
+                          unit="kg/week"
+                          label="Target rate"
+                          showValue={false}
+                        />
                         <View className="flex-row justify-between">
                           <Text className="text-sm text-m3-on-surface-variant font-medium">Slow</Text>
                           <Text className="text-sm text-m3-on-surface-variant font-medium">Fast</Text>
@@ -1025,6 +1004,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                 <Reanimated.View
                   entering={reduced ? undefined : FadeIn.duration(200)}
                   className="flex-row items-center gap-2"
+                  accessibilityLiveRegion="assertive"
                 >
                   <MaterialIcons name="error-outline" size={15} color="#ffb4ab" />
                   <Text className="text-sm text-m3-error font-medium">{stepError}</Text>

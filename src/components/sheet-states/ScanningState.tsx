@@ -14,7 +14,7 @@ export default function ScanningState({ onCancel }: ScanningStateProps) {
         <Text className="text-m3-on-surface-variant text-sm text-center">
           You’ll review every estimate before it reaches your diary.
         </Text>
-        <Pressable onPress={onCancel} className="bg-m3-surface-container-highest rounded-full px-5 py-2.5 active:opacity-60">
+        <Pressable onPress={onCancel} accessibilityRole="button" accessibilityLabel="Cancel scanning" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 py-2.5 active:opacity-60">
           <Text className="text-m3-on-surface text-xs font-semibold">Cancel</Text>
         </Pressable>
       </View>

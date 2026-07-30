@@ -3,7 +3,7 @@ import { ActivityIndicator, Keyboard, Pressable, Text, View } from 'react-native
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { searchFood, FoodResult, DataType } from '../../services/foodSearch';
+import { searchFood, FoodResult, DataType, type FoodSearchOutcome } from '../../services/foodSearch';
 import { getRecentFoodLogs, RecentFood } from '../../db/database';
 import { M3 } from '../../theme/tokens';
 
@@ -63,6 +63,8 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<FoodResult[]>([]);
+  const [outcome, setOutcome] = useState<FoodSearchOutcome['kind']>('success');
+  const [retryCount, setRetryCount] = useState(0);
   const [hasSearched, setHasSearched] = useState(false);
   const [recents, setRecents] = useState<RecentFood[]>([]);
 
@@ -79,6 +81,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
 
     if (!query.trim()) {
       setResults([]);
+      setOutcome('success');
       setHasSearched(false);
       setIsSearching(false);
       return;
@@ -89,12 +92,14 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
       try {
         const res = await searchFood(query);
         if (seq !== searchSeq.current) return;
-        setResults(res);
+        setResults(res.items);
+        setOutcome(res.kind);
         setHasSearched(true);
       } catch (e) {
         console.error('[FoodSearch] search failed', e);
         if (seq === searchSeq.current) {
           setResults([]);
+          setOutcome('unavailable');
           setHasSearched(true);
         }
       } finally {
@@ -105,7 +110,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, retryCount]);
 
   const handleResultPress = useCallback((food: FoodResult) => {
     Keyboard.dismiss();
@@ -155,7 +160,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
           />
           {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} />}
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-10 h-10 items-center justify-center -mr-2 -my-2">
+            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-12 h-12 items-center justify-center -mr-3 -my-3">
               <MaterialIcons name="close" size={18} color="#c4c6d0" />
             </Pressable>
           )}
@@ -189,6 +194,10 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
           </View>
         )}
 
+        {hasSearched && outcome === 'partial' && (
+          <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm">Some sources are unavailable. Showing available results.</Text>
+        )}
+
         {hasSearched && results.length > 0 && (
           <View className="gap-1.5">
             <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-1">
@@ -200,7 +209,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
           </View>
         )}
 
-        {hasSearched && !isSearching && results.length === 0 && (
+        {hasSearched && !isSearching && outcome === 'success' && results.length === 0 && (
           <View className="py-10 items-center gap-4">
             <View className="items-center">
               <MaterialIcons name="search-off" size={32} color="#44474f" />
@@ -215,6 +224,20 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
               <MaterialIcons name="edit-note" size={18} color="#e2e2e9" />
               <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
             </Pressable>
+          </View>
+        )}
+
+        {hasSearched && !isSearching && outcome === 'unavailable' && results.length === 0 && (
+          <View className="py-10 items-center gap-4">
+            <View className="items-center">
+              <MaterialIcons name="cloud-off" size={32} color={M3.onSurfaceVariant} />
+              <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">Search is unavailable</Text>
+              <Text className="text-m3-on-surface-variant text-sm mt-1">Check your connection, then try again.</Text>
+            </View>
+            <View className="flex-row gap-3">
+              <Pressable onPress={() => setRetryCount((count) => count + 1)} accessibilityRole="button" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable>
+              <Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable>
+            </View>
           </View>
         )}
 

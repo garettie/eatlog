@@ -22,6 +22,11 @@ export interface FoodResult {
 
 export type DataType = FoodResult['dataType'];
 
+export type FoodSearchOutcome =
+  | { kind: 'success'; items: FoodResult[] }
+  | { kind: 'partial'; items: FoodResult[] }
+  | { kind: 'unavailable'; items: FoodResult[] };
+
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
@@ -36,15 +41,15 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Respons
 
 async function fetchJSON(url: string, timeoutMs: number): Promise<any | null> {
   const res = await fetchWithTimeout(url, timeoutMs);
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(`Food search request failed: ${res.status}`);
 
   const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) return null;
+  if (!contentType.includes('application/json')) throw new Error('Food search returned a non-JSON response');
 
   try {
     return await res.json();
   } catch {
-    return null;
+    throw new Error('Food search returned invalid JSON');
   }
 }
 
@@ -321,7 +326,6 @@ const USDA_BASE = 'https://api.nal.usda.gov/fdc/v1';
 async function searchUSDAGeneric(query: string): Promise<FoodResult[]> {
   if (!serviceConfig.availability.usda) return [];
 
-  try {
     const body = await fetchJSON(
       `${USDA_BASE}/foods/search?api_key=${serviceConfig.usdaApiKey}&query=${encodeURIComponent(query)}&pageSize=20&dataType=Foundation,SR%20Legacy`,
       8000
@@ -343,15 +347,11 @@ async function searchUSDAGeneric(query: string): Promise<FoodResult[]> {
     }
 
     return results;
-  } catch {
-    return [];
-  }
 }
 
 async function searchUSDABranded(query: string): Promise<FoodResult[]> {
   if (!serviceConfig.availability.usda) return [];
 
-  try {
     const body = await fetchJSON(
       `${USDA_BASE}/foods/search?api_key=${serviceConfig.usdaApiKey}&query=${encodeURIComponent(query)}&pageSize=8&dataType=Branded`,
       8000
@@ -359,9 +359,6 @@ async function searchUSDABranded(query: string): Promise<FoodResult[]> {
     if (!body || !body.foods || !Array.isArray(body.foods)) return [];
 
     return parseUSDAFoods(body.foods);
-  } catch {
-    return [];
-  }
 }
 
 function parseUSDAFoods(foods: any[]): FoodResult[] {
@@ -475,7 +472,6 @@ async function getUSDAFoodDetail(fdcId: number): Promise<{ servingSizeGrams: num
 const OFF_BASE = 'https://world.openfoodfacts.org';
 
 async function searchOFF(query: string): Promise<FoodResult[]> {
-  try {
     const body = await fetchJSON(
       `${OFF_BASE}/api/v2/search?search_terms=${encodeURIComponent(query)}&page_size=15&fields=product_name,code,brands,nutriments,serving_quantity`,
       8000
@@ -553,15 +549,11 @@ async function searchOFF(query: string): Promise<FoodResult[]> {
         };
       })
       .filter((r: FoodResult | null): r is FoodResult => r !== null);
-  } catch {
-    return [];
-  }
 }
 
 // ── Local Cache ──────────────────────────────────────────────────────────
 
 async function searchLocalCache(query: string): Promise<FoodResult[]> {
-  try {
     const rows = await searchFoodCache(query);
     return rows.map((row) => ({
       id: `cache-${row.id}`,
@@ -580,30 +572,27 @@ async function searchLocalCache(query: string): Promise<FoodResult[]> {
       servingLabel: row.serving_label,
       alternateSourceIds: [],
     }));
-  } catch {
-    return [];
-  }
 }
 
 // ── Public API ────────────────────────────────────────────────────────────
 
-export async function searchFood(query: string): Promise<FoodResult[]> {
+export async function searchFood(query: string): Promise<FoodSearchOutcome> {
   const q = query.trim();
-  if (!q) return [];
+  if (!q) return { kind: 'success', items: [] };
 
-  const [local, generic, branded, off] = await Promise.allSettled([
-    searchLocalCache(q),
-    searchUSDAGeneric(q),
-    searchUSDABranded(q),
-    searchOFF(q),
-  ]);
+  const local = await Promise.allSettled([searchLocalCache(q)]);
+  const remoteSources: Promise<FoodResult[]>[] = [searchOFF(q)];
+  if (serviceConfig.availability.usda) remoteSources.push(searchUSDAGeneric(q), searchUSDABranded(q));
+  const remote = await Promise.allSettled(remoteSources);
+  const settled = [...local, ...remote];
 
   const all: FoodResult[] = [
-    ...(local.status === 'fulfilled' ? local.value : []),
-    ...(generic.status === 'fulfilled' ? generic.value : []),
-    ...(branded.status === 'fulfilled' ? branded.value : []),
-    ...(off.status === 'fulfilled' ? off.value : []),
+    ...settled.flatMap((result) => result.status === 'fulfilled' ? result.value : []),
   ];
-
-  return deduplicateAndRank(all, q);
+  const items = deduplicateAndRank(all, q);
+  const failedSources = remote.filter((result) => result.status === 'rejected').length;
+  const completedSources = settled.length - failedSources;
+  if (failedSources === remote.length && items.length === 0) return { kind: 'unavailable', items };
+  if (failedSources > 0 && completedSources > 0) return { kind: 'partial', items };
+  return { kind: 'success', items };
 }

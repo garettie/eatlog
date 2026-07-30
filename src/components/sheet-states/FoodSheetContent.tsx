@@ -465,6 +465,7 @@ export default function FoodSheetContent({
           onDescribe={handleDescribe}
           onSearch={handleSearch}
           onRecentFoods={handleRecentFoods}
+          onManualEntry={handleManualEntry}
           onWeight={handleWeight}
           estimatesAvailable={serviceConfig.availability.gemini}
         />

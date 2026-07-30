@@ -2,6 +2,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 const PHOTO_DIR = `${FileSystem.documentDirectory}meal-photos/`;
 
+export function getMealPhotoDirectory(): string {
+  return PHOTO_DIR;
+}
+
+export async function deleteAllMealPhotos(): Promise<void> {
+  await FileSystem.deleteAsync(PHOTO_DIR, { idempotent: true });
+}
+
 async function ensureDir(): Promise<void> {
   const info = await FileSystem.getInfoAsync(PHOTO_DIR);
   if (!info.exists) {

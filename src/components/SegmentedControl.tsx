@@ -95,7 +95,8 @@ export default function SegmentedControl<T extends string>({
                 });
                 onChange(opt.value);
               }}
-              accessibilityRole="button"
+              accessibilityRole="radio"
+              accessibilityLabel={opt.label}
               accessibilityState={{ selected }}
               className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
             >

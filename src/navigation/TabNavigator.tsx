@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
@@ -19,6 +18,7 @@ import { deleteFoodLog, deleteMeal, deleteWeightLog, saveWeightLog, MealType } f
 import { formatDayHeader, todayISO } from '../utils/calendar';
 import { type FoodResult, type DataType } from '../services/foodSearch';
 import { type DescribeResult } from '../services/foodScan';
+import MarcoTabBar from './MarcoTabBar';
 
 function mealLabel(m: MealType): string {
     return m.charAt(0).toUpperCase() + m.slice(1);
@@ -27,7 +27,6 @@ function mealLabel(m: MealType): string {
 export type TabParamList = {
     Today: undefined;
     Diary: undefined;
-    AddEntry: undefined;
     Analytics: undefined;
     Profile: undefined;
 };
@@ -42,24 +41,6 @@ const INITIAL: FoodSheetState = {
     editMealId: null,
     logDate: null,
 };
-
-function FabIcon() {
-    return (
-        <View
-            style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: '#ffffff',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-            }}
-        >
-            <MaterialIcons name="add" size={28} color="#111318" />
-        </View>
-    );
-}
 
 export default function TabNavigator() {
     const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
@@ -316,32 +297,17 @@ export default function TabNavigator() {
     return (
         <DiscardGuardContext.Provider value={discardGuard}>
             <Tab.Navigator
-                screenOptions={{
-                    headerShown: false,
-                    tabBarStyle: {
-                        backgroundColor: '#1d2024',
-                        borderTopColor: '#2b2d35',
-                        borderTopWidth: 1,
-                        height: tabBarHeight,
-                        paddingTop: 8,
-                        paddingBottom: tabBarBottomPadding,
-                    },
-                    tabBarActiveTintColor: '#ffffff',
-                    tabBarInactiveTintColor: '#c4c6d0',
-                    tabBarLabelStyle: {
-                        fontSize: 12,
-                        fontFamily: 'Inter-Medium',
-                    },
-                }}
+                screenOptions={{ headerShown: false }}
+                tabBar={(props) => (
+                    <MarcoTabBar
+                        {...props}
+                        onAddEntry={() => openEntry(activeTabRef.current === 'Diary' ? diaryDateRef.current : undefined)}
+                    />
+                )}
             >
                 <Tab.Screen
                     name="Today"
                     listeners={{ focus: () => { activeTabRef.current = 'Today'; } }}
-                    options={{
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialIcons name="grid-view" size={size} color={color} />
-                        ),
-                    }}
                 >
                     {({ navigation }) => (
                         <DashboardScreen
@@ -358,11 +324,6 @@ export default function TabNavigator() {
                 <Tab.Screen
                     name="Diary"
                     listeners={{ focus: () => { activeTabRef.current = 'Diary'; } }}
-                    options={{
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialIcons name="menu-book" size={size} color={color} />
-                        ),
-                    }}
                 >
                     {() => (
                         <DiaryScreen
@@ -376,29 +337,8 @@ export default function TabNavigator() {
                     )}
                 </Tab.Screen>
                 <Tab.Screen
-                    name="AddEntry"
-                    listeners={{
-                        tabPress: (e) => {
-                            e.preventDefault();
-                            openEntry(activeTabRef.current === 'Diary' ? diaryDateRef.current : undefined);
-                        },
-                    }}
-                    options={{
-                        tabBarLabel: () => null,
-                        tabBarAccessibilityLabel: 'Add entry',
-                        tabBarIcon: () => <FabIcon />,
-                    }}
-                >
-                    {() => <View />}
-                </Tab.Screen>
-                <Tab.Screen
                     name="Analytics"
                     listeners={{ focus: () => { activeTabRef.current = 'Analytics'; } }}
-                    options={{
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialIcons name="show-chart" size={size} color={color} />
-                        ),
-                    }}
                 >
                     {() => (
                         <AnalyticsScreen
@@ -411,11 +351,6 @@ export default function TabNavigator() {
                 <Tab.Screen
                     name="Profile"
                     listeners={{ focus: () => { activeTabRef.current = 'Profile'; } }}
-                    options={{
-                        tabBarIcon: ({ color, size }) => (
-                            <MaterialIcons name="person" size={size} color={color} />
-                        ),
-                    }}
                 >
                     {() => <ProfileNavigator dataVersion={dataVersion} onDataChanged={bumpDataVersion} />}
                 </Tab.Screen>

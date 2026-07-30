@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -32,6 +32,7 @@ interface EntryMethodStateProps {
   onDescribe: () => void;
   onSearch: () => void;
   onRecentFoods: () => void;
+  onManualEntry: () => void;
   onWeight: () => void;
   estimatesAvailable: boolean;
 }
@@ -42,22 +43,33 @@ export default function EntryMethodState({
   onDescribe,
   onSearch,
   onRecentFoods,
+  onManualEntry,
   onWeight,
   estimatesAvailable,
 }: EntryMethodStateProps) {
+  const [otherWaysExpanded, setOtherWaysExpanded] = useState(false);
   return (
     <BottomSheetScrollView contentContainerClassName="px-2 pt-1 pb-6" showsVerticalScrollIndicator={false}>
-      <ActionRow icon="history" label="Recent foods" subtitle="Search foods from your log" onPress={onRecentFoods} />
+      <ActionRow icon="photo-camera" label="Scan with camera" subtitle={estimatesAvailable ? 'Take a photo of food or a nutrition label' : 'Food estimates are unavailable in this build'} onPress={onCamera} disabled={!estimatesAvailable} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="photo-camera" label="Camera" subtitle={estimatesAvailable ? 'Take a photo of food or a nutrition label' : 'Food estimates are unavailable in this build'} onPress={onCamera} disabled={!estimatesAvailable} />
+      <ActionRow icon="photo-library" label="Choose photo" subtitle={estimatesAvailable ? 'Use an existing meal photo' : 'Food estimates are unavailable in this build'} onPress={onGallery} disabled={!estimatesAvailable} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="edit-note" label="Describe" subtitle={estimatesAvailable ? 'Type your meal for instant estimates' : 'Food estimates are unavailable in this build'} onPress={onDescribe} disabled={!estimatesAvailable} />
+      <ActionRow icon="edit-note" label="Describe meal" subtitle={estimatesAvailable ? 'Type your meal for an estimate' : 'Food estimates are unavailable in this build'} onPress={onDescribe} disabled={!estimatesAvailable} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="photo-library" label="Gallery" subtitle={estimatesAvailable ? 'Use an existing photo' : 'Food estimates are unavailable in this build'} onPress={onGallery} disabled={!estimatesAvailable} />
-      <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="search" label="Search" subtitle="Look up food in database" onPress={onSearch} />
-      <View className="h-px bg-m3-outline-variant/30 mx-4" />
-      <ActionRow icon="monitor-weight" label="Weight" subtitle="Log today or add a past check-in" onPress={onWeight} />
+      <Pressable onPress={() => setOtherWaysExpanded((expanded) => !expanded)} accessibilityRole="button" accessibilityLabel="Other ways to log" accessibilityState={{ expanded: otherWaysExpanded }} className="min-h-[48px] flex-row items-center justify-between px-4">
+        <Text className="text-m3-on-surface font-semibold text-sm">Other ways to log</Text>
+        <MaterialIcons name={otherWaysExpanded ? 'expand-less' : 'expand-more'} size={22} color="#c4c6d0" />
+      </Pressable>
+      {otherWaysExpanded && <>
+        <View className="h-px bg-m3-outline-variant/30 mx-4" />
+        <ActionRow icon="history" label="Recent foods" subtitle="Search foods from your log" onPress={onRecentFoods} />
+        <View className="h-px bg-m3-outline-variant/30 mx-4" />
+        <ActionRow icon="search" label="Search foods" subtitle="Look up a food" onPress={onSearch} />
+        <View className="h-px bg-m3-outline-variant/30 mx-4" />
+        <ActionRow icon="edit" label="Enter manually" subtitle="Add nutrition yourself" onPress={onManualEntry} />
+      </>}
+      <View className="mx-4 mt-2 border-t border-m3-outline-variant/30 pt-2" />
+      <ActionRow icon="monitor-weight" label="Log weight" subtitle="Add a check-in separately" onPress={onWeight} />
     </BottomSheetScrollView>
   );
 }
