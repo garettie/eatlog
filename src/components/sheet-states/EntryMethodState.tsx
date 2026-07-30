@@ -19,7 +19,7 @@ function ActionRow({ icon, label, subtitle, onPress, disabled }: ActionRowProps)
       </View>
       <View className="flex-1">
         <Text className="text-m3-on-surface font-semibold text-sm">{label}</Text>
-        <Text className="text-m3-on-surface-variant text-xs mt-0.5">{subtitle}</Text>
+        <Text className="text-m3-on-surface-variant text-sm mt-0.5">{subtitle}</Text>
       </View>
       <MaterialIcons name="chevron-right" size={20} color="#c4c6d0" />
     </Pressable>

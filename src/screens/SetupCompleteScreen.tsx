@@ -139,7 +139,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
                   <Text className="text-m3-on-surface text-sm font-semibold mb-1">
                     Built for better calibration
                   </Text>
-                  <Text className="text-m3-on-surface-variant text-xs leading-5">
+                  <Text className="text-m3-on-surface-variant text-sm">
                     These starting targets use the Mifflin-St Jeor formula. Consistent food and
                     weight logs build the history needed for more personalized adjustments.
                   </Text>
@@ -157,7 +157,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
                   <Text className="text-m3-on-surface text-sm font-semibold mb-1">
                     Log your first meal
                   </Text>
-                  <Text className="text-m3-on-surface-variant text-xs leading-5">
+                  <Text className="text-m3-on-surface-variant text-sm">
                     Point the camera at any meal — Marco estimates the macros for you.
                     You can review every estimate before it reaches your diary.
                   </Text>

@@ -200,7 +200,7 @@ export default function WeightInputState({ onLogComplete }: WeightInputStateProp
     <BottomSheetScrollView className="flex-1" contentContainerClassName="px-5 pb-8 gap-5" keyboardShouldPersistTaps="handled">
       <View className="gap-1">
         <Text className="text-m3-on-surface text-xl font-bold">Log weight</Text>
-        <Text className="text-m3-on-surface-variant text-xs">Add today's scale reading or a past check-in.</Text>
+        <Text className="text-m3-on-surface-variant text-sm">Add today's scale reading or a past check-in.</Text>
       </View>
 
       <Pressable

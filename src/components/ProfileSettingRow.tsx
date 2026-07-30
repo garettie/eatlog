@@ -28,7 +28,7 @@ export default function ProfileSettingRow({
       </View>
       <View className="flex-1 min-w-0">
         <Text className="text-m3-on-surface font-semibold text-sm" numberOfLines={1}>{title}</Text>
-        <Text className="text-m3-on-surface-variant text-xs mt-0.5" numberOfLines={2}>{detail}</Text>
+        <Text className="text-m3-on-surface-variant text-sm mt-0.5" numberOfLines={2}>{detail}</Text>
       </View>
       {onPress && <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />}
       {showDivider && <View className="absolute bottom-0 left-[68px] right-4 h-px bg-m3-outline-variant/50" />}

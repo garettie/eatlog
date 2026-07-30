@@ -52,8 +52,8 @@ export interface FoodSheetState {
 }
 
 export type LoggedEntryInfo =
-  | { kind: 'meal'; mealId: number; logIds: number[]; meal: MealType; name: string; logDate?: string | null }
-  | { kind: 'food'; logId: number; meal: MealType; name: string; logDate?: string | null };
+  | { kind: 'meal'; mealId: number; logIds: number[]; meal: MealType; name: string; calories: number; wasUpdate: boolean; logDate?: string | null }
+  | { kind: 'food'; logId: number; meal: MealType; name: string; calories: number; logDate?: string | null };
 
 export interface WeightLoggedInfo {
   logId: number;
@@ -275,17 +275,17 @@ export default function FoodSheetContent({
   }, [transitionTo]);
 
   const handleSingleLogComplete = useCallback(
-    ({ logId, meal, name, logDate }: { logId: number; meal: MealType; name: string; logDate: string }) => {
+    ({ logId, meal, name, calories, logDate }: { logId: number; meal: MealType; name: string; calories: number; logDate: string }) => {
       setState((s) => ({ ...s, visible: false, selectedFood: null }));
-      onMealLogged({ kind: 'food', logId, meal, name, logDate });
+      onMealLogged({ kind: 'food', logId, meal, name, calories, logDate });
     },
     [onMealLogged, setState],
   );
 
   const handleManualLogComplete = useCallback(
-    ({ logId, meal, name, logDate }: { logId: number; meal: MealType; name: string; logDate: string }) => {
+    ({ logId, meal, name, calories, logDate }: { logId: number; meal: MealType; name: string; calories: number; logDate: string }) => {
       setState((s) => ({ ...s, visible: false }));
-      onMealLogged({ kind: 'food', logId, meal, name, logDate });
+      onMealLogged({ kind: 'food', logId, meal, name, calories, logDate });
     },
     [onMealLogged, setState],
   );
@@ -318,7 +318,7 @@ export default function FoodSheetContent({
   );
 
   const handleMealLogged = useCallback(
-    (info: { mealId: number; logIds: number[]; meal: MealType; name: string; logDate: string }) => {
+    (info: { mealId: number; logIds: number[]; meal: MealType; name: string; calories: number; wasUpdate: boolean; logDate: string }) => {
       setState((s) => ({ ...s, visible: false, describeResult: null, editMealId: null }));
       onMealLogged({ kind: 'meal', ...info });
     },
@@ -447,7 +447,7 @@ function PermissionDeniedState({ onClose }: { onClose: () => void }) {
   return (
     <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center">
       <Text className="text-m3-on-surface font-semibold text-sm">Camera access denied</Text>
-      <Text className="text-m3-on-surface-variant text-xs text-center">To scan a photo, allow camera access in your system settings.</Text>
+      <Text className="text-m3-on-surface-variant text-sm text-center">To scan a photo, allow camera access in your system settings.</Text>
       <View className="flex-row gap-3">
         <Pressable onPress={() => Linking.openSettings()} className="bg-m3-surface-container-highest rounded-full px-5 py-2.5 active:opacity-60">
           <Text className="text-m3-on-surface text-xs font-semibold">Open Settings</Text>
@@ -468,5 +468,5 @@ function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onM
     provider: 'The estimation service could not complete this request.',
     'invalid-response': 'This photo did not produce a usable food estimate.',
   };
-  return <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center" accessibilityLiveRegion="assertive"><Text className="text-m3-on-surface font-semibold text-sm">{source} estimate unavailable</Text><Text className="text-m3-on-surface-variant text-xs text-center">{message[kind]}</Text><View className="flex-row flex-wrap justify-center gap-2"><Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable><Pressable onPress={onSearch} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Search foods</Text></Pressable><Pressable onPress={onDescribe} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text></Pressable><Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable></View></View>;
+  return <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center" accessibilityLiveRegion="assertive"><Text className="text-m3-on-surface font-semibold text-sm">{source} estimate unavailable</Text><Text className="text-m3-on-surface-variant text-sm text-center">{message[kind]}</Text><View className="flex-row flex-wrap justify-center gap-2"><Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable><Pressable onPress={onSearch} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Search foods</Text></Pressable><Pressable onPress={onDescribe} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text></Pressable><Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center px-4"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable></View></View>;
 }

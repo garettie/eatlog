@@ -53,7 +53,7 @@ interface ReviewStateProps {
   result: DescribeResult | null;
   /** Existing or captured meal photo to persist with the meal. */
   photoUri?: string | null;
-  onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string; logDate: string }) => void;
+  onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string; calories: number; wasUpdate: boolean; logDate: string }) => void;
   onClarify: (name: string) => Promise<DescribeResult | null>;
   editMealId?: number | null;
   initialMeal?: MealType | null;
@@ -311,7 +311,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         }),
       });
       loggedRef.current = true;
-      onLogComplete({ mealId: saved.mealId, logIds: saved.logIds, meal, name, logDate });
+      onLogComplete({ mealId: saved.mealId, logIds: saved.logIds, meal, name, calories: totalMacros.calories, wasUpdate: !!editMealId, logDate });
     } catch (e) {
       console.error('[MealReview] save failed', e);
       setLogError(editMealId
@@ -320,7 +320,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     } finally {
       setLogging(false);
     }
-  }, [components, mealName, meal, onLogComplete, editMealId, logDate, selectedPhotoUri]);
+  }, [components, mealName, meal, onLogComplete, editMealId, logDate, selectedPhotoUri, totalMacros.calories]);
 
   const handleClarify = useCallback(async () => {
     const name = mealName.trim();

@@ -41,7 +41,7 @@ function ResultRow({ item, onPress }: ResultRowProps) {
         <View className="flex-1 mr-3">
           <Text className="text-m3-on-surface font-medium text-sm" numberOfLines={1}>{item.name}</Text>
           {meta.length > 0 && (
-            <Text className="text-m3-on-surface-variant text-[10px] mt-0.5" numberOfLines={1}>
+            <Text className="text-m3-on-surface-variant text-[10px] font-medium mt-0.5" numberOfLines={1}>
               {meta}
             </Text>
           )}
@@ -205,7 +205,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
             <View className="items-center">
               <MaterialIcons name="search-off" size={32} color="#44474f" />
               <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">No results found</Text>
-              <Text className="text-m3-on-surface-variant text-xs mt-1">Try a different search term</Text>
+              <Text className="text-m3-on-surface-variant text-sm mt-1">Try a different search term</Text>
             </View>
             <Pressable
               onPress={onManualEntry}

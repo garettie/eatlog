@@ -571,6 +571,9 @@ function DashboardScreen({
                   Log your first meal
                 </Text>
               </View>
+              <Text className="text-m3-on-surface-variant text-sm">
+                A photo is enough. Review the estimate before it reaches your diary.
+              </Text>
               <Pressable
                 onPress={onOpenCamera}
                 accessibilityRole="button"
@@ -614,8 +617,8 @@ function DashboardScreen({
               accessibilityLabel="Open weight analytics"
             >
               <View>
-                <Text className="text-m3-on-surface font-bold text-sm">Weight Trend</Text>
-                <Text className="text-m3-on-surface-variant text-[10px] mt-0.5">Last 30 days</Text>
+                <Text className="text-m3-on-surface font-semibold text-base">Weight Trend</Text>
+                <Text className="text-m3-on-surface-variant text-[10px] font-medium mt-0.5">Last 30 days</Text>
               </View>
               <View className="flex-row items-center gap-2">
                 {profile.target_weight_kg != null && (
@@ -632,7 +635,7 @@ function DashboardScreen({
                   <Text className="text-m3-on-surface font-bold text-sm text-center">
                     No weight check-ins yet
                   </Text>
-                  <Text className="text-m3-on-surface-variant text-xs text-center">
+                  <Text className="text-m3-on-surface-variant text-sm text-center">
                     Log weight to start your trend.
                   </Text>
                   <Pressable

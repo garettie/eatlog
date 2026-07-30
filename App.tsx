@@ -53,11 +53,13 @@ export default function App() {
     return null; // Native splash screen stays visible
   }
 
-  if (dbError) {
+  if (fontError || dbError) {
     return (
       <View style={{ flex: 1, backgroundColor: '#111318', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: '#ffb4ab', fontSize: 14, textAlign: 'center' }}>
-          Marco couldn't open its local data. Restart the app and try again.
+        <Text style={{ color: '#ffb4ab', fontFamily: 'Inter-Regular', fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
+          {fontError
+            ? "Marco couldn't load its interface fonts. Restart the app and try again."
+            : "Marco couldn't open its local data. Restart the app and try again."}
         </Text>
       </View>
     );

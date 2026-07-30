@@ -78,7 +78,7 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel, onSe
       <PrimaryButton title="Estimate" onPress={handleEstimate} loading={loading} disabled={!text.trim()} />
       {error && (
         <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-2" accessibilityLiveRegion="assertive">
-          <Text className="text-m3-on-error-container text-xs font-medium">{error}</Text>
+          <Text className="text-m3-on-error-container text-sm">{error}</Text>
           <Pressable onPress={handleEstimate} accessibilityRole="button" className="min-h-[48px] bg-m3-surface-container-high rounded-full px-4 self-start justify-center">
             <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
           </Pressable>

@@ -621,7 +621,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           accessibilityRole="alert"
         >
           <MaterialIcons name="error-outline" size={18} color={M3.onErrorContainer} />
-          <Text className="flex-1 text-m3-on-error-container text-xs font-medium">
+          <Text className="flex-1 text-m3-on-error-container text-sm">
             Calendar totals unavailable. Diary entries are still available.
           </Text>
           <Pressable
@@ -683,7 +683,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
               </View>
               <View className="items-center gap-1 px-6">
                 <Text className="text-m3-on-surface text-sm font-semibold">Nothing logged yet</Text>
-                <Text className="text-m3-on-surface-variant text-xs text-center">Add an entry when you're ready.</Text>
+                <Text className="text-m3-on-surface-variant text-sm text-center">Add an entry when you're ready.</Text>
               </View>
               <Pressable
                 onPress={() => onOpenEntry(selectedDate)}

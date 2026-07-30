@@ -3,12 +3,13 @@ import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import DiaryScreen from '../screens/DiaryScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import ProfileNavigator from './ProfileNavigator';
-import LogToast from '../components/LogToast';
+import LogToast, { type LogToastTone } from '../components/LogToast';
 import Sheet from '../components/Sheet';
 import AdaptiveInfoSheet from '../components/AdaptiveInfoSheet';
 import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo, type WeightLoggedInfo } from '../components/sheet-states/FoodSheetContent';
@@ -63,7 +64,7 @@ function FabIcon() {
 export default function TabNavigator() {
     const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
     const [adaptiveInfoVisible, setAdaptiveInfoVisible] = useState(false);
-    const [toast, setToast] = useState<{ message: string; undo?: () => void | Promise<void> } | null>(null);
+    const [toast, setToast] = useState<{ message: string; tone?: LogToastTone; undo?: () => void | Promise<void> } | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
     const insets = useSafeAreaInsets();
     const discardGuard = useDiscardGuard();
@@ -247,11 +248,14 @@ export default function TabNavigator() {
     const handleMealLogged = useCallback(
         (info: LoggedEntryInfo) => {
             setDataVersion((v) => v + 1);
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             const dateSuffix = info.logDate && info.logDate !== todayISO()
                 ? ` · ${formatDayHeader(info.logDate)}`
                 : '';
+            const verb = info.kind === 'meal' && info.wasUpdate ? 'Updated' : 'Logged';
             setToast({
-                message: `Logged ${info.name} to ${mealLabel(info.meal)}${dateSuffix}`,
+                message: `${verb} ${info.name} · ${Math.round(info.calories).toLocaleString()} kcal · ${mealLabel(info.meal)}${dateSuffix}`,
+                tone: 'success',
                 undo: async () => {
                     try {
                         if (info.kind === 'meal') await deleteMeal(info.mealId);
@@ -259,7 +263,7 @@ export default function TabNavigator() {
                         setDataVersion((v) => v + 1);
                         setToast(null);
                     } catch (e) {
-                        setToast({ message: "Couldn't undo. Your entry is still logged." });
+                        setToast({ message: "Couldn't undo. Your entry is still logged.", tone: 'error' });
                         throw e;
                     }
                 },
@@ -270,8 +274,11 @@ export default function TabNavigator() {
 
     const handleWeightLogged = useCallback((info: WeightLoggedInfo) => {
         setDataVersion((version) => version + 1);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        const dateSuffix = info.logDate === todayISO() ? 'Today' : formatDayHeader(info.logDate);
         setToast({
-            message: info.wasUpdate ? 'Weight updated' : 'Weight logged',
+            message: `${info.wasUpdate ? 'Weight updated' : 'Weight logged'} · ${dateSuffix}`,
+            tone: 'success',
             undo: async () => {
                 try {
                     if (info.wasUpdate && info.previousScaleWeightKg != null) {
@@ -282,7 +289,7 @@ export default function TabNavigator() {
                     setDataVersion((v) => v + 1);
                     setToast(null);
                 } catch (e) {
-                    setToast({ message: "Couldn't undo. Your weight entry is unchanged." });
+                    setToast({ message: "Couldn't undo. Your weight entry is unchanged.", tone: 'error' });
                     throw e;
                 }
             },
@@ -291,7 +298,7 @@ export default function TabNavigator() {
 
     const handleDataChanged = useCallback((message: string) => {
         setDataVersion((version) => version + 1);
-        setToast({ message });
+        setToast({ message, tone: 'success' });
     }, []);
 
     const showToast = useCallback((message: string, undo?: () => void) => {
@@ -442,7 +449,7 @@ export default function TabNavigator() {
 
             {toast && (
                 <View className="absolute left-4 right-4" style={{ zIndex: 100, bottom: tabBarHeight + 12 }}>
-                    <LogToast message={toast.message} onUndo={toast.undo} onHide={() => setToast(null)} />
+                    <LogToast message={toast.message} tone={toast.tone} onUndo={toast.undo} onHide={() => setToast(null)} />
                 </View>
             )}
         </DiscardGuardContext.Provider>

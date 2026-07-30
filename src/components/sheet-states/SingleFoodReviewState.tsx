@@ -33,7 +33,7 @@ function dataTypeLabel(dt: DataType): string {
 
 interface SingleFoodReviewStateProps {
   food: FoodResult | null;
-  onLogComplete: (info: { logId: number; meal: MealType; name: string; logDate: string }) => void;
+  onLogComplete: (info: { logId: number; meal: MealType; name: string; calories: number; logDate: string }) => void;
   initialMeal?: MealType | null;
   /** Diary date to write to (backfill); null = today. */
   logDate?: string | null;
@@ -171,7 +171,7 @@ export default function SingleFoodReviewState({
         carbs_g: macros.carbs,
         fat_g: macros.fat,
       });
-      onLogComplete({ logId, meal, name: food.name, logDate: targetLogDate });
+      onLogComplete({ logId, meal, name: food.name, calories: macros.calories, logDate: targetLogDate });
     } catch (e) {
       console.error('[FoodReview] save failed', e);
       setLogError("Couldn't save this entry. Try again.");

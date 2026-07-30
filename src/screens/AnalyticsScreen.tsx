@@ -440,7 +440,7 @@ function AnalyticsScreen({
           {!profile.analytics_intro_dismissed && !introDismissed && (
             <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container-high px-4 py-3 border border-m3-outline-variant/30">
               <MaterialIcons name="info-outline" size={16} color={M3.onSurfaceVariant} style={{ marginTop: 2 }} />
-              <Text className="flex-1 text-m3-on-surface-variant text-xs leading-5">
+              <Text className="flex-1 text-m3-on-surface-variant text-sm">
                 Trend weight smooths daily water swings; scale weight is the raw number. Weekly reviews compare your intake with that trend and propose targets — only Accept changes them.
               </Text>
               <Pressable
@@ -469,7 +469,7 @@ function AnalyticsScreen({
               <View className="py-5 items-center gap-2">
                 <MaterialIcons name="monitor-weight" size={30} color={M3.onSurfaceVariant} />
                 <Text className="text-m3-on-surface font-bold text-sm">No weight check-ins in the past year</Text>
-                <Text className="text-m3-on-surface-variant text-xs text-center">
+                <Text className="text-m3-on-surface-variant text-sm text-center">
                   Log weight to start your trend.
                 </Text>
                 <Pressable
@@ -510,7 +510,7 @@ function AnalyticsScreen({
                   </View>
                 ) : (
                   <View className="rounded-2xl bg-m3-surface-container-high px-4 py-3">
-                    <Text className="text-m3-on-surface-variant text-xs text-center">
+                    <Text className="text-m3-on-surface-variant text-sm text-center">
                       No check-ins in this range. Your full history is still available.
                     </Text>
                   </View>
@@ -557,7 +557,7 @@ function AnalyticsScreen({
               <View className="flex-1 gap-1">
                 <Text className="text-m3-on-surface font-bold text-base">Progress</Text>
                 <Text className="text-m3-expenditure font-semibold text-sm">{progress.title}</Text>
-                <Text className="text-m3-on-surface-variant text-xs leading-5">{progress.body}</Text>
+                <Text className="text-m3-on-surface-variant text-sm">{progress.body}</Text>
               </View>
             </View>
             <View className="flex-row gap-3">
@@ -583,7 +583,7 @@ function AnalyticsScreen({
             {recommendationError ? (
               <View className="py-3 items-center gap-3">
                 <MaterialIcons name="error-outline" size={28} color={M3.error} />
-                <Text className="text-m3-on-surface-variant text-xs text-center">
+                <Text className="text-m3-on-surface-variant text-sm text-center">
                   Couldn't load your recommendation. Other analytics are still available.
                 </Text>
                 <Pressable

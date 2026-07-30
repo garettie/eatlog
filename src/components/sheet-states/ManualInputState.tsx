@@ -10,7 +10,7 @@ import MealSelector from '../MealSelector';
 import PrimaryButton from '../PrimaryButton';
 
 interface ManualInputStateProps {
-  onLogComplete: (info: { logId: number; meal: MealType; name: string; logDate: string }) => void;
+  onLogComplete: (info: { logId: number; meal: MealType; name: string; calories: number; logDate: string }) => void;
   initialMeal?: MealType | null;
   /** Diary date to write to (backfill); null = today. */
   logDate?: string | null;
@@ -60,7 +60,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate }
       });
       const loggedName = name.trim();
       setName(''); setCalories(''); setProtein(''); setCarbs(''); setFat('');
-      onLogComplete({ logId, meal, name: loggedName, logDate: targetLogDate });
+      onLogComplete({ logId, meal, name: loggedName, calories: cal, logDate: targetLogDate });
     } catch (e) {
       console.error('[ManualEntry] save failed', e);
       setLogError("Couldn't save this entry. Try again.");

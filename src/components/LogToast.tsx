@@ -14,14 +14,17 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { M3 } from '../theme/tokens';
 
+export type LogToastTone = 'success' | 'neutral' | 'error';
+
 interface LogToastProps {
   message: string;
+  tone?: LogToastTone;
   onUndo?: () => void | Promise<void>;
   onHide: () => void;
   durationMs?: number;
 }
 
-export default function LogToast({ message, onUndo, onHide, durationMs }: LogToastProps) {
+export default function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: LogToastProps) {
   const reduced = useReducedMotion();
   const opacity = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -101,6 +104,8 @@ export default function LogToast({ message, onUndo, onHide, durationMs }: LogToa
     opacity: opacity.value,
     transform: [{ translateX: translateX.value }],
   }));
+  const icon = tone === 'success' ? 'check' : tone === 'error' ? 'error-outline' : 'info-outline';
+  const iconColor = tone === 'error' ? M3.error : M3.onSurface;
 
   return (
     <GestureDetector gesture={pan}>
@@ -110,6 +115,9 @@ export default function LogToast({ message, onUndo, onHide, durationMs }: LogToa
         accessibilityLiveRegion="polite"
         className="bg-m3-surface-container-highest rounded-2xl px-4 py-3.5 flex-row items-center border border-m3-outline-variant/30"
       >
+        <Animated.View className="w-8 h-8 rounded-full bg-white/10 items-center justify-center mr-3">
+          <MaterialIcons name={icon} size={17} color={iconColor} />
+        </Animated.View>
         <Text className="flex-1 text-m3-on-surface text-sm font-medium mr-2">{message}</Text>
         {onUndo && (
           <Pressable

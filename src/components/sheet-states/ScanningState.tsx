@@ -10,8 +10,10 @@ export default function ScanningState({ onCancel }: ScanningStateProps) {
     <View style={{ minHeight: 200 }} className="px-5 pt-2 pb-6 gap-4 items-center justify-center">
       <View className="items-center gap-3">
         <ActivityIndicator size="large" color="#ffffff" />
-        <Text className="text-m3-on-surface text-sm font-semibold">Analyzing your photo…</Text>
-        <Text className="text-m3-on-surface-variant text-xs">This takes a few seconds</Text>
+        <Text className="text-m3-on-surface text-sm font-semibold">Reading ingredients and portions…</Text>
+        <Text className="text-m3-on-surface-variant text-sm text-center">
+          You’ll review every estimate before it reaches your diary.
+        </Text>
         <Pressable onPress={onCancel} className="bg-m3-surface-container-highest rounded-full px-5 py-2.5 active:opacity-60">
           <Text className="text-m3-on-surface text-xs font-semibold">Cancel</Text>
         </Pressable>
