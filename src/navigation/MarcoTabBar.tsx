@@ -29,8 +29,8 @@ export default function MarcoTabBar({ state, descriptors, navigation, onAddEntry
 
   return (
     <View
-      className="flex-row items-start border-t border-outline-variant bg-surface-container px-1 pt-2"
-      style={{ paddingBottom: bottomPadding, minHeight: 56 + bottomPadding }}
+      className="flex-row items-center border-t border-m3-outline-variant bg-m3-surface-container px-1"
+      style={{ paddingBottom: bottomPadding, minHeight: 80 + bottomPadding }}
     >
       {state.routes.slice(0, 2).map((route, index) => (
         <TabControl
@@ -45,10 +45,13 @@ export default function MarcoTabBar({ state, descriptors, navigation, onAddEntry
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Add entry"
-        className="min-h-12 flex-1 items-center"
+        className="min-h-16 flex-1 items-center justify-center"
         onPress={handleAddEntry}
       >
-        <View className="h-14 w-14 items-center justify-center rounded-full bg-primary" style={{ marginTop: -20 }}>
+        <View
+          className="items-center justify-center"
+          style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: M3.primary }}
+        >
           <MaterialIcons name="add" size={28} color={M3.onPrimary} />
         </View>
       </Pressable>
@@ -93,7 +96,12 @@ function TabControl({ route, focused, descriptor, navigation }: TabControlProps)
       onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
     >
       <MaterialIcons name={tabIcons[name]} size={24} color={color} />
-      <Text className={focused ? 'font-inter-medium text-xs text-primary' : 'font-inter-medium text-xs text-on-surface-variant'}>{label}</Text>
+      <Text
+        className="font-inter-medium text-xs"
+        style={{ color }}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }

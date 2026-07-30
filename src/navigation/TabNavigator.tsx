@@ -50,7 +50,7 @@ export default function TabNavigator() {
     const insets = useSafeAreaInsets();
     const discardGuard = useDiscardGuard();
     const tabBarBottomPadding = Math.max(insets.bottom, 12);
-    const tabBarHeight = 56 + tabBarBottomPadding;
+    const tabBarHeight = 80 + tabBarBottomPadding;
 
     const backHistoryRef = useRef<FoodSheetStateKey[]>([]);
     const activeTabRef = useRef('Today');
