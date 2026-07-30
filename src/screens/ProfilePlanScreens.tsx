@@ -152,14 +152,38 @@ export function PrivacyScreen() {
 
 export function GoalAndRateScreen() {
   const navigation = useNavigation<NavigationProp<ProfileStackParamList>>(); const { profile, error: loadError } = useProfile();
-  const [goal, setGoal] = useState<GoalType>('maintain'); const [weight, setWeight] = useState(''); const [rate, setRate] = useState('0'); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
-  useEffect(() => { if (profile) { setGoal(profile.goal_type); setWeight(profile.target_weight_kg == null ? '' : fromKilograms(profile.target_weight_kg, profile.weight_unit).toFixed(1)); setRate((profile.weight_unit === 'lb' ? fromKilograms(profile.goal_rate_kg_per_week, 'lb') : profile.goal_rate_kg_per_week).toFixed(2)); } }, [profile]);
+  const [goal, setGoal] = useState<GoalType>('maintain'); const [weight, setWeight] = useState(''); const [rate, setRate] = useState('0'); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false); const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (!profile) return;
+    let active = true;
+    void (async () => {
+      try {
+        const latestWeight = profile.target_weight_kg == null
+          ? await getLatestWeightLogOnOrBefore(todayISO())
+          : null;
+        const targetWeightKg = profile.target_weight_kg
+          ?? latestWeight?.trend_weight_kg
+          ?? latestWeight?.scale_weight_kg
+          ?? null;
+        if (!active) return;
+        setGoal(profile.goal_type);
+        setWeight(targetWeightKg == null ? '' : fromKilograms(targetWeightKg, profile.weight_unit).toFixed(1));
+        setRate((profile.weight_unit === 'lb' ? fromKilograms(profile.goal_rate_kg_per_week, 'lb') : profile.goal_rate_kg_per_week).toFixed(2));
+        if (targetWeightKg == null) setError('Current target weight is unavailable.');
+      } catch {
+        if (active) setError('Could not load your target weight.');
+      } finally {
+        if (active) setHydrated(true);
+      }
+    })();
+    return () => { active = false; };
+  }, [profile]);
   const save = useCallback(async () => { if (!profile) return; const targetKg = toKilograms(Number(weight), profile.weight_unit); const rateKg = toKilograms(Number(rate), profile.weight_unit);
-    if (goal !== 'maintain' && (!Number.isFinite(targetKg) || targetKg < 20 || targetKg > 500)) { setError('Target weight must be between 20 and 500 kg.'); return; }
+    if (!Number.isFinite(targetKg) || targetKg < 20 || targetKg > 500) { setError('Target weight must be between 20 and 500 kg.'); return; }
     if (!Number.isFinite(rateKg) || (goal === 'cut' && (rateKg > -0.05 || rateKg < -1)) || (goal === 'bulk' && (rateKg < 0.05 || rateKg > 0.5))) { setError('Use a sustainable weekly rate for the selected goal.'); return; }
-    setSaving(true); setError(null); try { navigation.navigate('PlanPreview', await calculatedPlan(profile, { goal_type: goal, goal_rate_kg_per_week: goal === 'maintain' ? 0 : rateKg, target_weight_kg: goal === 'maintain' ? null : targetKg })); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not calculate a plan.'); } finally { setSaving(false); }
+    setSaving(true); setError(null); try { navigation.navigate('PlanPreview', await calculatedPlan(profile, { goal_type: goal, goal_rate_kg_per_week: goal === 'maintain' ? 0 : rateKg, target_weight_kg: targetKg })); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not calculate a plan.'); } finally { setSaving(false); }
   }, [goal, navigation, profile, rate, weight]);
-  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
+  if (!profile || !hydrated) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
   return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><SegmentedControl options={[{ value: 'cut', label: 'Cut' }, { value: 'maintain', label: 'Maintain' }, { value: 'bulk', label: 'Bulk' }]} value={goal} onChange={setGoal} />{goal !== 'maintain' ? <Card className="p-5 gap-5"><Field label={`Target weight (${profile.weight_unit})`} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" /><Field label={`Weekly rate (${profile.weight_unit}/week)`} value={rate} onChangeText={setRate} keyboardType="decimal-pad" /></Card> : <Card className="p-5"><Text className="text-m3-on-surface-variant text-sm">Maintenance uses a zero weekly rate.</Text></Card>}{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
 }
 
