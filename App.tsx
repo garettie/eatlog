@@ -3,7 +3,7 @@ import './global.css';
 import React, { useEffect, useState } from 'react';
 import { InteractionManager, View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -12,9 +12,23 @@ import { initDatabase, getActiveMealPhotoUris } from './src/db/database';
 import { cleanupOrphanMealPhotos } from './src/utils/mealPhotos';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
+import { M3 } from './src/theme/tokens';
 
 // Keep the splash screen visible while we load fonts + DB
 SplashScreen.preventAutoHideAsync();
+
+const navigationTheme: Theme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: M3.primary,
+    background: M3.surface,
+    card: M3.surface,
+    text: M3.onSurface,
+    border: M3.outlineVariant,
+    notification: M3.error,
+  },
+};
 
 export default function App() {
   const [appReady, setAppReady] = useState(false);
@@ -68,7 +82,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#111318' }}>
       <StatusBar style="light" />
-      <NavigationContainer>
+      <NavigationContainer theme={navigationTheme}>
         <RootNavigator />
       </NavigationContainer>
       
