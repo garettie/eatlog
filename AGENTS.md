@@ -237,7 +237,11 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Weight tracking is not shipped, but its phased plan is already defined: preferred-unit persistence, weight upsert and trend recomputation, FAB entry, dashboard states, Analytics, then persisted weekly adaptive recommendations.
 - Date-selector wheels must use non-virtualized `ScrollView` rows with explicit `snapToOffsets` and final-offset normalization; `FlatList` plus selection-driven scroll effects causes laggy opening and inaccurate Android snapping.
 - Weight-chart range switches must morph the existing SVG coordinate domain and geometry in place; never fade, slide, or remount the chart container.
-- Diary date changes must apply cached data in the press handler and never auto-scroll an already-visible day; do not start content transforms after the new tree commits.
+- Diary day/month navigation must avoid artificial `requestAnimationFrame` delays: update selection/month and start cached or SQLite work in the same handler, reuse positional calendar/journal slots, synchronously reset reused Swipeables, and do not animate day/month transitions.
+- API credentials are developer-provisioned at build time; never ask users to enter, view, or manage API keys in the app.
+- The app has four tabs (Today, Diary, Analytics, Profile); the center Add control is a FAB trigger, not a fifth tab.
+- Treat source changes attributed to another active agent as out of scope for documentation-only audits; do not review, modify, or cite them.
+- When Settings must match onboarding, reuse the same interactive controls and bounds/default behavior; do not substitute plain fields that only preload the same values.
 
 ---
 
