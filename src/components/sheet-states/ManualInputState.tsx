@@ -8,15 +8,17 @@ import { M3 } from '../../theme/tokens';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import MealSelector from '../MealSelector';
 import PrimaryButton from '../PrimaryButton';
+import SheetBackButton from './SheetBackButton';
 
 interface ManualInputStateProps {
   onLogComplete: (info: { logId: number; meal: MealType; name: string; calories: number; logDate: string }) => void;
   initialMeal?: MealType | null;
   /** Diary date to write to (backfill); null = today. */
   logDate?: string | null;
+  onBack: () => void;
 }
 
-export default function ManualInputState({ onLogComplete, initialMeal, logDate }: ManualInputStateProps) {
+export default function ManualInputState({ onLogComplete, initialMeal, logDate, onBack }: ManualInputStateProps) {
   const [name, setName] = useState('');
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -69,7 +71,10 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate }
 
   return (
     <BottomSheetScrollView className="flex-1 px-5" contentContainerClassName="pb-6 gap-4" keyboardShouldPersistTaps="handled">
-      <Text className="text-m3-on-surface font-bold text-base">Manual Entry</Text>
+      <View className="flex-row items-center gap-1">
+        <SheetBackButton onPress={onBack} />
+        <Text className="text-m3-on-surface font-bold text-base">Manual Entry</Text>
+      </View>
 
       <View className="gap-1">
         <Text className="text-[10px] text-m3-on-surface-variant font-semibold uppercase tracking-wider">Food Name</Text>

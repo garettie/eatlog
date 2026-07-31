@@ -95,6 +95,7 @@ interface FoodSheetContentProps {
   onMealLogged: (info: LoggedEntryInfo) => void;
   onWeightLogged: (info: WeightLoggedInfo) => void;
   skipHistoryRef: React.MutableRefObject<boolean>;
+  onGoBack: () => boolean;
 }
 
 export default function FoodSheetContent({
@@ -104,6 +105,7 @@ export default function FoodSheetContent({
   onMealLogged,
   onWeightLogged,
   skipHistoryRef,
+  onGoBack,
 }: FoodSheetContentProps) {
   const reduced = useReducedMotion();
   const scanRequestRef = useRef(0);
@@ -143,10 +145,10 @@ export default function FoodSheetContent({
       return;
     }
     stateOffset.value = withTiming(-20, {
-      duration: 90,
+      duration: reduced ? 0 : 90,
       easing: EASING.emphasizedAccelerate,
     });
-    stateOpacity.value = withTiming(0, { duration: 90 }, (finished) => {
+    stateOpacity.value = withTiming(0, { duration: reduced ? 0 : 90 }, (finished) => {
       if (finished) runOnJS(commitRenderedState)(state.stateKey, requestId);
     });
   }, [reduced, state.stateKey]);
@@ -157,10 +159,10 @@ export default function FoodSheetContent({
     stateOffset.value = 20;
     stateOpacity.value = 0;
     stateOffset.value = withTiming(0, {
-      duration: 180,
+      duration: reduced ? 0 : 180,
       easing: EASING.emphasizedDecelerate,
     });
-    stateOpacity.value = withTiming(1, { duration: 180 });
+    stateOpacity.value = withTiming(1, { duration: reduced ? 0 : 180 });
   }, [reduced, renderedStateKey]);
 
   const stateTransitionStyle = useAnimatedStyle(() => ({
@@ -345,15 +347,6 @@ export default function FoodSheetContent({
     [transitionTo, setState],
   );
 
-  const handleDescribeCancel = useCallback(() => {
-    if (fromBarRef.current) {
-      resetToEntry();
-      return;
-    }
-    skipHistoryRef.current = true;
-    setState((s) => ({ ...s, stateKey: 'entry', describeResult: null, selectedFood: null }));
-  }, [setState, skipHistoryRef, resetToEntry]);
-
   const handleSearch = useCallback(() => {
     transitionTo('search');
   }, [transitionTo]);
@@ -526,7 +519,7 @@ export default function FoodSheetContent({
         />
       )}
       {renderedStateKey === 'describe' && (
-        <DescribeInputState onResult={handleDescribeResult} onCancel={handleDescribeCancel} onSearch={handleSearch} onManualEntry={handleManualEntry} />
+        <DescribeInputState onResult={handleDescribeResult} onBack={onGoBack} onSearch={handleSearch} onManualEntry={handleManualEntry} />
       )}
       {renderedStateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
       {renderedStateKey === 'permission-denied' && (
@@ -572,18 +565,19 @@ export default function FoodSheetContent({
           editMealId={state.editMealId}
           initialMeal={state.pendingMeal}
           logDate={state.logDate ?? null}
+          onGoBack={onGoBack}
         />
       )}
       {renderedStateKey === 'search' && (
-        <SearchInputState onSelectFood={handleSelectFood} onManualEntry={handleManualEntry} />
+        <SearchInputState onSelectFood={handleSelectFood} onManualEntry={handleManualEntry} onBack={onGoBack} />
       )}
-      {renderedStateKey === 'recent-foods' && <RecentFoodsState onSelectFood={handleSelectFood} onSelectMeal={handleSelectLoggedMeal} />}
-      {renderedStateKey === 'weight-input' && <WeightInputState onLogComplete={handleWeightLogComplete} />}
+      {renderedStateKey === 'recent-foods' && <RecentFoodsState onSelectFood={handleSelectFood} onSelectMeal={handleSelectLoggedMeal} onBack={onGoBack} />}
+      {renderedStateKey === 'weight-input' && <WeightInputState onLogComplete={handleWeightLogComplete} onBack={onGoBack} />}
       {renderedStateKey === 'single-food-review' && (
-        <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} />
+        <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} onBack={onGoBack} />
       )}
       {renderedStateKey === 'manual-input' && (
-        <ManualInputState onLogComplete={handleManualLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} />
+        <ManualInputState onLogComplete={handleManualLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} onBack={onGoBack} />
       )}
       </Animated.View>
     </View>
@@ -641,15 +635,15 @@ function PermissionDeniedState({
       </Text>
       <View className="flex-row flex-wrap justify-center gap-2">
         {canAskAgain ? (
-          <Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 active:opacity-60">
+          <Pressable onPress={onRetry} accessibilityRole="button" accessibilityLabel="Try camera access again" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 active:opacity-60">
             <Text className="text-m3-on-surface text-xs font-semibold">Try again</Text>
           </Pressable>
         ) : (
-          <Pressable onPress={handleOpenSettings} accessibilityRole="button" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 active:opacity-60">
+          <Pressable onPress={handleOpenSettings} accessibilityRole="button" accessibilityLabel="Open Android camera settings" accessibilityHint="Opens Android Settings to allow camera access" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 active:opacity-60">
             <Text className="text-m3-on-surface text-xs font-semibold">Open Settings</Text>
           </Pressable>
         )}
-        <Pressable onPress={onClose} accessibilityRole="button" className="min-h-[48px] justify-center rounded-full px-5 active:opacity-60">
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Back to logging options" className="min-h-[48px] justify-center rounded-full px-5 active:opacity-60">
           <Text className="text-m3-on-surface-variant text-xs font-semibold">Back to options</Text>
         </Pressable>
       </View>
@@ -673,17 +667,17 @@ function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onM
       <Text className="text-m3-on-surface-variant text-sm text-center">{FAILURE_MESSAGES[kind]}</Text>
       <View className="flex-row flex-wrap justify-center gap-2">
         {onRetry ? (
-          <Pressable onPress={onRetry} accessibilityRole="button" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-4 active:opacity-60">
+          <Pressable onPress={onRetry} accessibilityRole="button" accessibilityLabel="Retry food estimate" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-4 active:opacity-60">
             <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
           </Pressable>
         ) : null}
-        <Pressable onPress={onSearch} accessibilityRole="button" className="min-h-[48px] justify-center px-4 active:opacity-60">
+        <Pressable onPress={onSearch} accessibilityRole="button" accessibilityLabel="Search foods instead" className="min-h-[48px] justify-center px-4 active:opacity-60">
           <Text className="text-m3-on-surface text-xs font-semibold">Search foods</Text>
         </Pressable>
-        <Pressable onPress={onDescribe} accessibilityRole="button" className="min-h-[48px] justify-center px-4 active:opacity-60">
+        <Pressable onPress={onDescribe} accessibilityRole="button" accessibilityLabel="Describe the meal instead" className="min-h-[48px] justify-center px-4 active:opacity-60">
           <Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text>
         </Pressable>
-        <Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center px-4 active:opacity-60">
+        <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] justify-center px-4 active:opacity-60">
           <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
         </Pressable>
       </View>

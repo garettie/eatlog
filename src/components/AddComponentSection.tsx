@@ -141,9 +141,12 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     return (
       <Pressable
         onPress={() => setMode('search')}
+        accessibilityRole="button"
+        accessibilityLabel="Add component"
+        accessibilityHint="Opens search, describe, and manual component entry"
         className="flex-row items-center justify-center gap-2 py-3.5"
       >
-        <MaterialIcons name="add-circle-outline" size={20} color="#c4c6d0" />
+        <MaterialIcons name="add-circle-outline" size={20} color={M3.onSurfaceVariant} />
         <Text className="text-m3-on-surface-variant text-sm font-medium">Add Component</Text>
       </Pressable>
     );
@@ -156,11 +159,12 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <Pressable
           onPress={() => setMode('search')}
           accessibilityRole="button"
+          accessibilityLabel="Search component"
           accessibilityState={{ selected: mode === 'search' }}
           className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'search' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <View className="flex-row items-center gap-1">
-            <MaterialIcons name="search" size={14} color={mode === 'search' ? '#e2e2e9' : '#c4c6d0'} />
+            <MaterialIcons name="search" size={14} color={mode === 'search' ? M3.onSurface : M3.onSurfaceVariant} />
             <Text className={`text-xs font-semibold ${mode === 'search' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
               Search
             </Text>
@@ -169,11 +173,12 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <Pressable
           onPress={() => setMode('describe')}
           accessibilityRole="button"
+          accessibilityLabel="Describe component"
           accessibilityState={{ selected: mode === 'describe' }}
           className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'describe' ? 'bg-m3-surface-container-highest' : ''}`}
         >
           <View className="flex-row items-center gap-1">
-            <MaterialIcons name="auto-awesome" size={14} color={mode === 'describe' ? '#e2e2e9' : '#c4c6d0'} />
+            <MaterialIcons name="auto-awesome" size={14} color={mode === 'describe' ? M3.onSurface : M3.onSurfaceVariant} />
             <Text className={`text-xs font-semibold ${mode === 'describe' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
               Describe
             </Text>
@@ -186,10 +191,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           accessibilityState={{ selected: mode === 'manual' }}
           className={`min-w-[48px] min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'manual' ? 'bg-m3-surface-container-highest' : ''}`}
         >
-          <MaterialIcons name="edit" size={14} color={mode === 'manual' ? '#e2e2e9' : '#c4c6d0'} />
+          <MaterialIcons name="edit" size={14} color={mode === 'manual' ? M3.onSurface : M3.onSurfaceVariant} />
         </Pressable>
         <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel" className="w-12 h-12 items-center justify-center active:opacity-60">
-          <MaterialIcons name="close" size={18} color="#c4c6d0" />
+          <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
         </Pressable>
       </View>
 
@@ -197,7 +202,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       {mode === 'search' && (
         <View className="gap-3">
           <View className="flex-row items-center bg-m3-surface-container rounded-xl px-4 py-3 border border-m3-outline-variant/50">
-            <MaterialIcons name="search" size={16} color="#c4c6d0" />
+            <MaterialIcons name="search" size={16} color={M3.onSurfaceVariant} />
             <BottomSheetTextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -208,10 +213,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               autoFocus
               autoCorrect={false}
             />
-            {isSearching && <ActivityIndicator size="small" color="#c4c6d0" style={{ marginLeft: 4 }} />}
+            {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} style={{ marginLeft: 4 }} />}
             {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                <MaterialIcons name="close" size={16} color="#c4c6d0" />
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear component search" className="w-12 h-12 items-center justify-center -mr-3">
+                <MaterialIcons name="close" size={16} color={M3.onSurfaceVariant} />
               </Pressable>
             )}
           </View>
@@ -219,6 +224,9 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             <Pressable
               key={item.id}
               onPress={() => handleSearchSelect(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.name}, ${item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} calories per 100 grams` : 'nutrition unavailable'}`}
+              accessibilityHint="Adds this component to the meal"
               className="bg-m3-surface-container rounded-xl px-4 py-3 flex-row justify-between items-center active:opacity-60"
             >
               <View className="flex-1 mr-2">

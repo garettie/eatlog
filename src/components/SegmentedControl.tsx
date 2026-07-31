@@ -9,6 +9,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 import { DURATION, EASING } from '../theme/motion';
+import { M3 } from '../theme/tokens';
 
 interface SegmentedOption<T extends string> {
   value: T;
@@ -87,7 +88,7 @@ export default function SegmentedControl<T extends string>({
               bottom: 2,
               left: 2,
               borderRadius: 9999,
-              backgroundColor: '#ffffff',
+              backgroundColor: M3.primary,
             },
             thumbStyle,
           ]}
@@ -118,7 +119,7 @@ export default function SegmentedControl<T extends string>({
                 <MaterialIcons
                   name={opt.icon}
                   size={20}
-                  color={selected ? '#0f1117' : '#c4c6d0'}
+                  color={selected ? M3.onPrimary : M3.onSurfaceVariant}
                 />
               )}
               <Text

@@ -28,6 +28,7 @@ import { parseLocalISO, todayISO } from '../utils/calendar';
 import { MANUAL_TARGET_CALORIE_TOLERANCE, macroCalories, validateManualTargets } from '../utils/planValidation';
 import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilograms } from '../utils/weightUnits';
 import { serviceConfig } from '../config/services';
+import { M3 } from '../theme/tokens';
 
 export type ProfileStackParamList = {
   ProfileHome: undefined;
@@ -59,7 +60,7 @@ function Field({ label, value, onChangeText, keyboardType = 'default', error }: 
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType}
-        placeholderTextColor="#9aa0aa"
+        placeholderTextColor={M3.placeholder}
         underlineColorAndroid="transparent"
         className="min-h-[48px] bg-m3-surface-container-high border border-m3-outline-variant/40 rounded-xl px-4 text-m3-on-surface text-sm font-semibold"
       />
@@ -134,9 +135,9 @@ export function PersonalDetailsScreen() {
       else { await updateProfilePresentation(next); navigation.goBack(); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save personal details.'); } finally { setSaving(false); }
   }, [activity, birthDate, height, heightInches, name, navigation, profile, sex]);
-  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
+  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
   const heightFields = profile.weight_unit === 'kg' ? <Field label="Height (cm)" value={height} onChangeText={setHeight} keyboardType="decimal-pad" /> : <View className="flex-row gap-3"><View className="flex-1"><Field label="Height (ft)" value={height} onChangeText={setHeight} keyboardType="numeric" /></View><View className="flex-1"><Field label="Height (in)" value={heightInches} onChangeText={setHeightInches} keyboardType="numeric" /></View></View>;
-  return <Screen><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1"><ScrollView className="flex-1" contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">These values determine your formula estimate.</Text><Card className="p-5 gap-5"><Field label="Display name" value={name} onChangeText={setName} /><SegmentedControl options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={sex} onChange={setSex} /><Field label="Birth date" value={birthDate} onChangeText={setBirthDate} />{heightFields}</Card><View className="gap-2"><Text className="text-m3-on-surface-variant text-xs font-semibold">Activity level</Text>{(['sedentary', 'light', 'moderate', 'active', 'very_active'] as ActivityLevel[]).map((value) => <TappableRow key={value} title={value.replace('_', ' ').replace(/^\w/, (character) => character.toUpperCase())} subtitle="Used for your daily expenditure estimate" selected={activity === value} onPress={() => setActivity(value)} />)}</View>{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></KeyboardAvoidingView></Screen>;
+  return <Screen><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1"><ScrollView className="flex-1" contentContainerClassName="p-6 gap-5" keyboardShouldPersistTaps="handled"><Text className="text-m3-on-surface-variant text-sm">These values determine your formula estimate.</Text><Card className="p-5 gap-5"><Field label="Display name" value={name} onChangeText={setName} /><SegmentedControl options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={sex} onChange={setSex} /><Field label="Birth date" value={birthDate} onChangeText={setBirthDate} />{heightFields}</Card><View className="gap-2"><Text className="text-m3-on-surface-variant text-xs font-semibold">Activity level</Text>{(['sedentary', 'light', 'moderate', 'active', 'very_active'] as ActivityLevel[]).map((value) => <TappableRow key={value} title={value.replace('_', ' ').replace(/^\w/, (character) => character.toUpperCase())} subtitle="Used for your daily expenditure estimate" selected={activity === value} onPress={() => setActivity(value)} />)}</View>{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></KeyboardAvoidingView></Screen>;
 }
 
 export function UnitsScreen({ onDataChanged }: { onDataChanged: () => void }) {
@@ -144,7 +145,7 @@ export function UnitsScreen({ onDataChanged }: { onDataChanged: () => void }) {
   const [unit, setUnit] = useState<'kg' | 'lb'>('kg'); const [saving, setSaving] = useState(false);
   useEffect(() => { if (profile) setUnit(profile.weight_unit); }, [profile]);
   const save = useCallback(async () => { if (!profile || unit === profile.weight_unit) { navigation.goBack(); return; } setSaving(true); try { await updateProfilePresentation(toUpdate(profile, { weight_unit: unit })); onDataChanged(); navigation.goBack(); } finally { setSaving(false); } }, [navigation, onDataChanged, profile, unit]);
-  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{error}</Text></View></Screen>;
+  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{error}</Text></View></Screen>;
   return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">Units change how weight, height, goals, and charts are shown. Your stored data and nutrition target stay the same.</Text><SegmentedControl options={[{ value: 'kg', label: 'Metric' }, { value: 'lb', label: 'Imperial' }]} value={unit} onChange={setUnit} /><Card className="p-5 gap-2"><Text className="text-m3-on-surface font-semibold">Current height</Text><Text className="text-m3-on-surface-variant text-sm">{formatHeight(profile.height_cm, unit)}</Text></Card><PrimaryButton title="Save units" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
 }
 
@@ -224,7 +225,7 @@ export function GoalAndRateScreen() {
     setSaving(true); setError(null); try { navigation.navigate('PlanPreview', await calculatedPlan(profile, { goal_type: goal, goal_rate_kg_per_week: goal === 'maintain' ? 0 : rateKg, target_weight_kg: targetKg })); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not calculate a plan.'); } finally { setSaving(false); }
   }, [goal, navigation, profile, rateKg, targetWeight]);
 
-  if (!profile || !hydrated) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
+  if (!profile || !hydrated) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
 
   const weightUnit = profile.weight_unit === 'kg' ? 'kg' : 'lbs';
   const weightMin = profile.weight_unit === 'kg' ? 20 : 44;
@@ -238,6 +239,8 @@ export function GoalAndRateScreen() {
     ? rateKg
     : fromKilograms(rateKg, 'lb');
   const rateDisplay = `${displayedRate >= 0 ? '+' : ''}${displayedRate.toFixed(2)} ${profile.weight_unit} / week`;
+  const rateStartLabel = goal === 'cut' ? 'Fast' : 'Slow';
+  const rateEndLabel = goal === 'cut' ? 'Slow' : 'Fast';
 
   return (
     <Screen>
@@ -284,13 +287,14 @@ export function GoalAndRateScreen() {
                 min={rateBounds.min}
                 max={rateBounds.max}
                 step={0.05}
+                pixelsPerUnit={200}
                 unit="kg/week"
                 label="Target rate"
                 showValue={false}
               />
               <View className="flex-row justify-between">
-                <Text className="text-sm text-m3-on-surface-variant font-medium">Slow</Text>
-                <Text className="text-sm text-m3-on-surface-variant font-medium">Fast</Text>
+                <Text className="text-sm text-m3-on-surface-variant font-medium">{rateStartLabel}</Text>
+                <Text className="text-sm text-m3-on-surface-variant font-medium">{rateEndLabel}</Text>
               </View>
             </View>
           </View>
@@ -318,7 +322,7 @@ export function NutritionTargetsScreen() {
     const current = await getDailyTargetForDate(todayISO()); if (!current) throw new Error('Current target is unavailable.');
     navigation.navigate('PlanPreview', { profile: toUpdate(profile), target: { effective_date: todayISO(), tdee_estimate: current.tdee_estimate, target_calories: targets.targetCalories, target_protein_g: targets.targetProteinG, target_fat_g: targets.targetFatG, target_carbs_g: targets.targetCarbsG, calculation_method: 'manual' } });
   } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not prepare targets.'); } finally { setSaving(false); } }, [calories, carbs, fat, mode, navigation, profile, protein]);
-  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color="#c4c6d0" /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
+  if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
   const implied = macroCalories({ targetProteinG: Number(protein) || 0, targetFatG: Number(fat) || 0, targetCarbsG: Number(carbs) || 0 });
   return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><SegmentedControl options={[{ value: 'calculated', label: 'Calculated' }, { value: 'manual', label: 'Custom' }]} value={mode} onChange={setMode} />{mode === 'calculated' ? <Card className="p-5"><Text className="text-m3-on-surface-variant text-sm">Recalculate calories and macros from your current profile, goal, and trend weight.</Text></Card> : <Card className="p-5 gap-4"><Field label="Calories (kcal)" value={calories} onChangeText={setCalories} keyboardType="numeric" /><Field label="Protein (g)" value={protein} onChangeText={setProtein} keyboardType="decimal-pad" /><Field label="Fat (g)" value={fat} onChangeText={setFat} keyboardType="decimal-pad" /><Field label="Carbs (g)" value={carbs} onChangeText={setCarbs} keyboardType="decimal-pad" /><Text className="text-m3-on-surface-variant text-sm">Macros imply {Math.round(implied)} kcal. Keep this within {MANUAL_TARGET_CALORIE_TOLERANCE} kcal of the target.</Text></Card>}{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
 }
@@ -330,5 +334,5 @@ export function PlanPreviewScreen({ route, navigation, onDataChanged }: Props) {
   useEffect(() => { void getDailyTargetForDate(todayISO()).then((target) => { if (target) setCurrent(target); }).catch(() => setError('Could not load the current target.')); }, []);
   const source = route.params.target.calculation_method === 'manual' ? 'Manual' : 'Profile recalculation';
   const save = async () => { setSaving(true); setError(null); try { await updateProfileAndPlan(route.params); onDataChanged(); navigation.popToTop(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save your plan.'); } finally { setSaving(false); } };
-  return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">Effective {route.params.target.effective_date}. Prior diary history stays unchanged.</Text>{current ? <TargetCard label="Current" target={current} /> : <ActivityIndicator color="#c4c6d0" />}<TargetCard label={`Proposed · ${source}`} target={route.params.target} />{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Save plan" onPress={() => void save()} loading={saving} /><Pressable onPress={() => navigation.goBack()} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel plan changes" className="min-h-[48px] items-center justify-center"><Text className="text-m3-on-surface font-semibold text-sm">Cancel</Text></Pressable></ScrollView></Screen>;
+  return <Screen><ScrollView contentContainerClassName="p-6 gap-5" keyboardShouldPersistTaps="handled"><Text className="text-m3-on-surface-variant text-sm">Effective {route.params.target.effective_date}. Prior diary history stays unchanged.</Text>{current ? <TargetCard label="Current" target={current} /> : <ActivityIndicator color={M3.onSurfaceVariant} />}<TargetCard label={`Proposed · ${source}`} target={route.params.target} />{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Save plan" onPress={() => void save()} loading={saving} /><Pressable onPress={() => navigation.goBack()} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel plan changes" className="min-h-[48px] items-center justify-center"><Text className="text-m3-on-surface font-semibold text-sm">Cancel</Text></Pressable></ScrollView></Screen>;
 }

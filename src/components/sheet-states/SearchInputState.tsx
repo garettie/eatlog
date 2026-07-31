@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, Text, View } from 'react-native';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { searchFood, FoodResult, DataType, type FoodSearchOutcome } from '../../services/foodSearch';
 import { getRecentFoodLogs, RecentFood } from '../../db/database';
 import { M3 } from '../../theme/tokens';
+import SheetBackButton from './SheetBackButton';
 
 function dataTypeBadge(dt: DataType): string {
   switch (dt) {
@@ -35,6 +36,8 @@ function ResultRow({ item, onPress }: ResultRowProps) {
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityLabel={`${item.name}, ${item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} calories per 100 grams` : 'nutrition unavailable'}`}
+      accessibilityHint="Opens food review"
       className="min-h-[52px] px-4 py-3 bg-m3-surface-container rounded-2xl border border-m3-outline-variant/30 active:opacity-70"
     >
       <View className="flex-row justify-between items-start">
@@ -57,9 +60,10 @@ function ResultRow({ item, onPress }: ResultRowProps) {
 interface SearchInputStateProps {
   onSelectFood: (food: FoodResult) => void;
   onManualEntry: () => void;
+  onBack: () => void;
 }
 
-export default function SearchInputState({ onSelectFood, onManualEntry }: SearchInputStateProps) {
+export default function SearchInputState({ onSelectFood, onManualEntry, onBack }: SearchInputStateProps) {
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<FoodResult[]>([]);
@@ -117,9 +121,9 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
     onSelectFood(food);
   }, [onSelectFood]);
 
-  const recentToFood = useCallback((item: RecentFood, idx: number): FoodResult => {
+  const recentToFood = useCallback((item: RecentFood): FoodResult => {
     return {
-      id: `recent-${idx}`,
+      id: `recent-${item.source}-${item.source_food_id ?? item.name.toLowerCase()}-${item.logged_at}`,
       name: item.name,
       source: item.source as 'usda' | 'off',
       sourceFoodId: item.source_food_id ?? '',
@@ -137,15 +141,74 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
     };
   }, []);
 
+  const listData = React.useMemo(() => {
+    if (hasSearched) return results.map((item) => ({ kind: 'result' as const, key: item.id, food: item }));
+    return recents.flatMap((item) => {
+      if ([item.calories_per_100g, item.protein_g_per_100g, item.carbs_g_per_100g, item.fat_g_per_100g].every((value) => value == null)) return [];
+      const food = recentToFood(item);
+      return [{ kind: 'recent' as const, key: food.id, food }];
+    });
+  }, [hasSearched, recentToFood, recents, results]);
+
+  const renderResult = useCallback(({ item }: { item: { kind: 'result' | 'recent'; key: string; food: FoodResult } }) => (
+    <ResultRow item={item.food} onPress={() => handleResultPress(item.food)} />
+  ), [handleResultPress]);
+
+  const listHeader = hasSearched && outcome === 'partial' ? (
+    <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm mb-2">Some sources are unavailable. Showing available results.</Text>
+  ) : listData.length > 0 ? (
+    <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-2">
+      {hasSearched ? 'Results' : 'Recents'}
+    </Text>
+  ) : null;
+
+  const listEmpty = !query.trim() && !isSearching && recents.length === 0 ? (
+    <View className="py-12 items-center">
+      <MaterialIcons name="restaurant" size={36} color={M3.outline} />
+      <Text className="text-m3-on-surface-variant text-sm mt-3 font-medium">Search for a food to get started</Text>
+    </View>
+  ) : hasSearched && !isSearching && outcome === 'success' ? (
+    <View className="py-10 items-center gap-4">
+      <View className="items-center">
+        <MaterialIcons name="search-off" size={32} color={M3.outline} />
+        <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">No results found</Text>
+        <Text className="text-m3-on-surface-variant text-sm mt-1">Try a different search term</Text>
+      </View>
+      <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" accessibilityHint="Opens manual food entry" className="min-h-[48px] flex-row items-center gap-2 bg-m3-surface-container-high px-5 rounded-full">
+        <MaterialIcons name="edit-note" size={18} color={M3.onSurface} />
+        <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
+      </Pressable>
+    </View>
+  ) : hasSearched && !isSearching && outcome === 'unavailable' ? (
+    <View className="py-10 items-center gap-4">
+      <View className="items-center">
+        <MaterialIcons name="cloud-off" size={32} color={M3.onSurfaceVariant} />
+        <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">Search is unavailable</Text>
+        <Text className="text-m3-on-surface-variant text-sm mt-1">Check your connection, then try again.</Text>
+      </View>
+      <View className="flex-row gap-3">
+        <Pressable onPress={() => setRetryCount((count) => count + 1)} accessibilityRole="button" accessibilityLabel="Retry food search" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable>
+        <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable>
+      </View>
+    </View>
+  ) : isSearching ? <View className="py-12 items-center"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View> : null;
+
+  const listFooter = hasSearched && results.length > 0 ? (
+    <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] flex-row items-center justify-center gap-2 mt-1">
+      <MaterialIcons name="add-circle-outline" size={18} color={M3.onSurfaceVariant} />
+      <Text className="text-m3-on-surface-variant text-xs font-medium">Enter manually</Text>
+    </Pressable>
+  ) : null;
+
   return (
-    <BottomSheetScrollView
-      className="flex-1"
-      contentContainerClassName="pb-6"
-      keyboardShouldPersistTaps="handled"
-    >
+    <View className="flex-1">
       <View className="bg-m3-surface-container px-5 pt-2 pb-3">
+        <View className="flex-row items-center gap-1 mb-1">
+          <SheetBackButton onPress={onBack} />
+          <Text className="text-m3-on-surface font-bold text-base">Search foods</Text>
+        </View>
         <View className="flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
-          <MaterialIcons name="search" size={18} color="#c4c6d0" />
+          <MaterialIcons name="search" size={18} color={M3.onSurfaceVariant} />
           <BottomSheetTextInput
             value={query}
             onChangeText={setQuery}
@@ -161,97 +224,22 @@ export default function SearchInputState({ onSelectFood, onManualEntry }: Search
           {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} />}
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-12 h-12 items-center justify-center -mr-3 -my-3">
-              <MaterialIcons name="close" size={18} color="#c4c6d0" />
+              <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
             </Pressable>
           )}
         </View>
       </View>
 
-      <View className="px-5 gap-1.5">
-        {!hasSearched && recents.length > 0 && (
-          <View className="gap-1.5">
-            <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-1">
-              Recents
-            </Text>
-            {recents.map((item, idx) => {
-              const cal = item.calories_per_100g;
-              const pro = item.protein_g_per_100g;
-              const ca = item.carbs_g_per_100g;
-              const fa = item.fat_g_per_100g;
-              if (cal == null && pro == null && ca == null && fa == null) return null;
-              const food = recentToFood(item, idx);
-              return (
-                <ResultRow key={food.id} item={food} onPress={() => handleResultPress(food)} />
-              );
-            })}
-          </View>
-        )}
-
-        {!query.trim() && !isSearching && recents.length === 0 && (
-          <View className="py-12 items-center">
-            <MaterialIcons name="restaurant" size={36} color="#44474f" />
-            <Text className="text-m3-on-surface-variant text-sm mt-3 font-medium">Search for a food to get started</Text>
-          </View>
-        )}
-
-        {hasSearched && outcome === 'partial' && (
-          <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm">Some sources are unavailable. Showing available results.</Text>
-        )}
-
-        {hasSearched && results.length > 0 && (
-          <View className="gap-1.5">
-            <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-1">
-              Results
-            </Text>
-            {results.map((item) => (
-              <ResultRow key={item.id} item={item} onPress={() => handleResultPress(item)} />
-            ))}
-          </View>
-        )}
-
-        {hasSearched && !isSearching && outcome === 'success' && results.length === 0 && (
-          <View className="py-10 items-center gap-4">
-            <View className="items-center">
-              <MaterialIcons name="search-off" size={32} color="#44474f" />
-              <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">No results found</Text>
-              <Text className="text-m3-on-surface-variant text-sm mt-1">Try a different search term</Text>
-            </View>
-            <Pressable
-              onPress={onManualEntry}
-              accessibilityRole="button"
-              className="min-h-[48px] flex-row items-center gap-2 bg-m3-surface-container-high px-5 rounded-full"
-            >
-              <MaterialIcons name="edit-note" size={18} color="#e2e2e9" />
-              <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {hasSearched && !isSearching && outcome === 'unavailable' && results.length === 0 && (
-          <View className="py-10 items-center gap-4">
-            <View className="items-center">
-              <MaterialIcons name="cloud-off" size={32} color={M3.onSurfaceVariant} />
-              <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">Search is unavailable</Text>
-              <Text className="text-m3-on-surface-variant text-sm mt-1">Check your connection, then try again.</Text>
-            </View>
-            <View className="flex-row gap-3">
-              <Pressable onPress={() => setRetryCount((count) => count + 1)} accessibilityRole="button" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable>
-              <Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable>
-            </View>
-          </View>
-        )}
-
-        {hasSearched && results.length > 0 && (
-          <Pressable
-            onPress={onManualEntry}
-            accessibilityRole="button"
-            className="min-h-[48px] flex-row items-center justify-center gap-2 mt-1"
-          >
-            <MaterialIcons name="add-circle-outline" size={18} color="#c4c6d0" />
-            <Text className="text-m3-on-surface-variant text-xs font-medium">Enter manually</Text>
-          </Pressable>
-        )}
-      </View>
-    </BottomSheetScrollView>
+      <BottomSheetFlatList
+        data={listData}
+        renderItem={renderResult}
+        keyExtractor={(item) => item.key}
+        contentContainerClassName="px-5 gap-1.5 pb-6"
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
+        ListFooterComponent={listFooter}
+      />
+    </View>
   );
 }

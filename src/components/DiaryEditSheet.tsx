@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { FoodLog } from '../db/database';
 import Sheet from './Sheet';
 import { useDiscardGuard } from './sheet-states/useDiscardGuard';
+import { M3 } from '../theme/tokens';
 
 export function portionRatio(food: FoodLog, grams: number): number {
   if (food.grams_logged && food.grams_logged > 0) return grams / food.grams_logged;
@@ -97,7 +98,7 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
               accessibilityLabel="Decrease portion by 10 grams"
               className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
             >
-              <MaterialIcons name="remove" size={22} color="#e2e2e9" />
+              <MaterialIcons name="remove" size={22} color={M3.onSurface} />
             </Pressable>
             <View className="items-center min-w-[80px]">
               <BottomSheetTextInput
@@ -119,7 +120,7 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
               accessibilityLabel="Increase portion by 10 grams"
               className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
             >
-              <MaterialIcons name="add" size={22} color="#e2e2e9" />
+              <MaterialIcons name="add" size={22} color={M3.onSurface} />
             </Pressable>
           </View>
 

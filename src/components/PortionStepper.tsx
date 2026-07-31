@@ -4,6 +4,7 @@ import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import SegmentedControl from './SegmentedControl';
+import { M3 } from '../theme/tokens';
 
 interface PortionStepperProps {
   unitMode: 'servings' | 'grams' | 'ml';
@@ -91,7 +92,7 @@ export default function PortionStepper({
                 accessibilityLabel="Decrease servings"
                 className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
               >
-                <MaterialIcons name="remove" size={20} color="#e2e2e9" />
+                <MaterialIcons name="remove" size={20} color={M3.onSurface} />
               </Pressable>
               <BottomSheetTextInput
                 value={servingsText}
@@ -107,7 +108,7 @@ export default function PortionStepper({
                 accessibilityLabel="Increase servings"
                 className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
               >
-                <MaterialIcons name="add" size={20} color="#e2e2e9" />
+                <MaterialIcons name="add" size={20} color={M3.onSurface} />
               </Pressable>
             </View>
             {servingDesc ? (

@@ -22,7 +22,7 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
   const overflow = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
 
   return (
-    <View className="flex-1 min-w-0 gap-1">
+    <View className="flex-1 min-w-0 gap-1" accessibilityLabel={`${unit === 'kcal' ? 'Calories' : letter === 'P' ? 'Protein' : letter === 'C' ? 'Carbohydrates' : 'Fat'}: ${Math.round(consumed)} of ${Math.round(target)} ${unit}`} accessibilityRole="text">
       <View className="flex-row items-center justify-center gap-1">
         {icon ? (
           <MaterialIcons name={icon as any} size={11} color={M3.onSurface} />

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { M3 } from '../../theme/tokens';
 
 interface ScanningStateProps {
   onCancel: () => void;
@@ -9,7 +10,7 @@ export default function ScanningState({ onCancel }: ScanningStateProps) {
   return (
     <View style={{ minHeight: 240 }} className="px-5 pt-2 pb-6 gap-4 items-center justify-center">
       <View className="w-full items-center gap-3">
-        <ActivityIndicator size="large" color="#ffffff" />
+        <ActivityIndicator size="large" color={M3.primary} />
         <Text className="text-m3-on-surface text-sm font-semibold text-center">Reading ingredients and portions…</Text>
         <Text className="text-m3-on-surface-variant text-sm text-center">
           You’ll review every estimate before it reaches your diary.

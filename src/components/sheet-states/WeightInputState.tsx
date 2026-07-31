@@ -20,9 +20,11 @@ import { formatLocalISO, parseLocalISO, todayISO } from '../../utils/calendar';
 import { formatWeight, fromKilograms, parseWeightInput, toKilograms } from '../../utils/weightUnits';
 import { M3 } from '../../theme/tokens';
 import { useDiscardGuardContext } from './useDiscardGuard';
+import SheetBackButton from './SheetBackButton';
 
 interface WeightInputStateProps {
   onLogComplete: (result: SaveWeightResult) => void;
+  onBack: () => void;
 }
 
 interface Baseline {
@@ -50,7 +52,7 @@ function confirmLargeJump(): Promise<boolean> {
   });
 }
 
-export default function WeightInputState({ onLogComplete }: WeightInputStateProps) {
+export default function WeightInputState({ onLogComplete, onBack }: WeightInputStateProps) {
   const discardGuard = useDiscardGuardContext();
   const [dateISO, setDateISO] = useState(() => todayISO());
   const [unit, setUnit] = useState<WeightUnit>('kg');
@@ -173,9 +175,12 @@ export default function WeightInputState({ onLogComplete }: WeightInputStateProp
   if (!ready && !loadError) {
     return (
       <View className="flex-1 px-5 gap-5">
-        <View className="gap-2">
-          <View className="h-6 w-28 rounded-full bg-m3-surface-container-highest" />
-          <View className="h-3 w-56 rounded-full bg-m3-surface-container-high" />
+        <View className="flex-row items-center gap-1">
+          <SheetBackButton onPress={onBack} />
+          <View className="gap-2">
+            <View className="h-6 w-28 rounded-full bg-m3-surface-container-highest" />
+            <View className="h-3 w-56 rounded-full bg-m3-surface-container-high" />
+          </View>
         </View>
         <View className="h-[52px] rounded-2xl bg-m3-surface-container-high" />
         <View className="h-[112px] rounded-3xl bg-m3-surface-container-high" />
@@ -187,6 +192,9 @@ export default function WeightInputState({ onLogComplete }: WeightInputStateProp
   if (loadError || !birthDate) {
     return (
       <View className="flex-1 items-center justify-center px-6 gap-4">
+        <View className="absolute left-5 top-2">
+          <SheetBackButton onPress={onBack} />
+        </View>
         <MaterialIcons name="error-outline" size={36} color={M3.onSurfaceVariant} />
         <Text className="text-m3-on-surface-variant text-sm text-center">Couldn't load weight details.</Text>
         <Pressable onPress={loadInitial} accessibilityRole="button" className="min-h-[48px] px-6 rounded-full bg-white items-center justify-center active:opacity-80">
@@ -198,9 +206,12 @@ export default function WeightInputState({ onLogComplete }: WeightInputStateProp
 
   return (
     <BottomSheetScrollView className="flex-1" contentContainerClassName="px-5 pb-8 gap-5" keyboardShouldPersistTaps="handled">
-      <View className="gap-1">
-        <Text className="text-m3-on-surface text-xl font-bold">Log weight</Text>
-        <Text className="text-m3-on-surface-variant text-sm">Add today's scale reading or a past check-in.</Text>
+      <View className="flex-row items-center gap-1">
+        <SheetBackButton onPress={onBack} />
+        <View className="gap-1 flex-1">
+          <Text className="text-m3-on-surface text-xl font-bold">Log weight</Text>
+          <Text className="text-m3-on-surface-variant text-sm">Add today's scale reading or a past check-in.</Text>
+        </View>
       </View>
 
       <Pressable

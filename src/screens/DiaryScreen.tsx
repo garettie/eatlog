@@ -1,5 +1,5 @@
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -25,7 +25,7 @@ import { todayISO, isoFromDate, getMonthStart, getMonthDates, isToday, isFuture,
 import { M3 } from '../theme/tokens';
 import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
-import JournalSection, { JournalEntryKind, MealGroup } from '../components/JournalSection';
+import { JournalEntryKind, JournalEntryRow, JournalSectionHeader, MealGroup } from '../components/JournalSection';
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
 import MealPhotoViewer from '../components/MealPhotoViewer';
 
@@ -50,6 +50,20 @@ interface DaySummary {
   foodLogs: FoodLog[];
   mealRows: Map<number, MealRow>;
 }
+
+interface JournalSectionModel {
+  meal: MealType;
+  label: string;
+  entries: JournalEntryKind[];
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+}
+
+type DiaryListItem =
+  | { kind: 'section'; key: string; section: JournalSectionModel }
+  | { kind: 'entry'; key: string; entry: JournalEntryKind; sectionMeal: MealType };
 
 function getMonthRange(anchor: Date) {
   const dates = getMonthDates(anchor);
@@ -85,6 +99,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
   const [viewingPhoto, setViewingPhoto] = useState<{ uri: string; mealName: string } | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<MealType>>(new Set());
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
   const loadingGenerationRef = useRef(0);
@@ -455,6 +470,25 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     });
   }, [foodLogs, mealRows]);
 
+  useEffect(() => {
+    setCollapsedSections(new Set(journalSections.filter((section) => section.entries.length === 0).map((section) => section.meal)));
+  }, [displayedDate]);
+
+  const journalListItems = useMemo<DiaryListItem[]>(() => {
+    const items: DiaryListItem[] = [];
+    for (const section of journalSections) {
+      items.push({ kind: 'section', key: `section-${section.meal}`, section });
+      if (collapsedSections.has(section.meal)) continue;
+      for (const entry of section.entries) {
+        const key = entry.type === 'food'
+          ? `food-${entry.foodLog?.id}`
+          : `meal-${entry.mealGroup?.id}`;
+        items.push({ kind: 'entry', key, entry, sectionMeal: section.meal });
+      }
+    }
+    return items;
+  }, [collapsedSections, journalSections]);
+
   const handleEditFood = useCallback((food: FoodLog) => {
     setEdit({ food, saving: false });
   }, []);
@@ -470,6 +504,46 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   const handleClosePhoto = useCallback(() => {
     setViewingPhoto(null);
   }, []);
+
+  const toggleSection = useCallback((meal: MealType) => {
+    setCollapsedSections((current) => {
+      const next = new Set(current);
+      if (next.has(meal)) next.delete(meal);
+      else next.add(meal);
+      return next;
+    });
+  }, []);
+
+  const diaryListHeader = useMemo(() => (
+    <>
+      <MacroRail cells={macroCells} />
+      <View className="h-px bg-m3-outline-variant/30 mx-4 mb-3" />
+      <View className="px-4 pb-1">
+        <Text className="text-m3-on-surface text-sm font-bold">{formatDayHeader(displayedDate)}</Text>
+      </View>
+    </>
+  ), [displayedDate, macroCells]);
+
+  const emptyDiaryState = foodLogs.length === 0 ? (
+    <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">
+      <View className="w-11 h-11 rounded-full bg-m3-surface-container-high items-center justify-center">
+        <MaterialIcons name="restaurant" size={20} color={M3.onSurfaceVariant} />
+      </View>
+      <View className="items-center gap-1 px-6">
+        <Text className="text-m3-on-surface text-sm font-semibold">Nothing logged yet</Text>
+        <Text className="text-m3-on-surface-variant text-sm text-center">Add an entry when you're ready.</Text>
+      </View>
+      <Pressable
+        onPress={() => onOpenEntry(selectedDate)}
+        accessibilityRole="button"
+        accessibilityLabel="Add entry"
+        accessibilityHint="Opens food logging options"
+        className="min-h-[48px] px-5 rounded-full bg-white items-center justify-center active:opacity-80"
+      >
+        <Text className="text-m3-on-primary text-sm font-semibold">Add entry</Text>
+      </Pressable>
+    </View>
+  ) : null;
 
   const handleDeleteFood = useCallback(async (food: FoodLog) => {
     try {
@@ -564,6 +638,28 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     }
   }, [foodLogs, mealRows, onDataChanged, selectedDate, showToast]);
 
+  const renderDiaryItem = useCallback(({ item }: { item: DiaryListItem }) => item.kind === 'section' ? (
+    <JournalSectionHeader
+      label={item.section.label}
+      hasEntries={item.section.entries.length > 0}
+      collapsed={collapsedSections.has(item.section.meal)}
+      totalCalories={item.section.totalCalories}
+      totalProtein={item.section.totalProtein}
+      totalCarbs={item.section.totalCarbs}
+      totalFat={item.section.totalFat}
+      onToggle={() => toggleSection(item.section.meal)}
+    />
+  ) : (
+    <JournalEntryRow
+      entry={item.entry}
+      onEditFood={handleEditFood}
+      onEditMeal={handleEditMeal}
+      onDeleteFood={handleDeleteFood}
+      onDeleteMeal={handleDeleteMeal}
+      onViewPhoto={handleViewPhoto}
+    />
+  ), [collapsedSections, handleDeleteFood, handleDeleteMeal, handleEditFood, handleEditMeal, handleViewPhoto, toggleSection]);
+
   const handleSaveEdit = useCallback(async (grams: number): Promise<boolean> => {
     const food = edit.food;
     if (!food || grams <= 0) return false;
@@ -657,64 +753,18 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           </Pressable>
         </View>
       ) : (
-        <ScrollView
+        <FlatList
           className="flex-1"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 16 }}
-          pointerEvents={displayedDate === selectedDate ? 'auto' : 'none'}
+          data={foodLogs.length > 0 ? journalListItems : []}
+          renderItem={renderDiaryItem}
+          keyExtractor={(item) => item.key}
+          ListHeaderComponent={diaryListHeader}
+          ListEmptyComponent={emptyDiaryState}
           accessibilityElementsHidden={displayedDate !== selectedDate}
           importantForAccessibility={displayedDate === selectedDate ? 'auto' : 'no-hide-descendants'}
-        >
-          {/* Macro rail */}
-          <MacroRail cells={macroCells} />
-
-          <View className="h-px bg-m3-outline-variant/30 mx-4 mb-3" />
-
-          {/* Day header */}
-          <View className="px-4 pb-1">
-            <Text className="text-m3-on-surface text-sm font-bold">
-              {formatDayHeader(displayedDate)}
-            </Text>
-          </View>
-
-          {foodLogs.length === 0 && (
-            <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">
-              <View className="w-11 h-11 rounded-full bg-m3-surface-container-high items-center justify-center">
-                <MaterialIcons name="restaurant" size={20} color={M3.onSurfaceVariant} />
-              </View>
-              <View className="items-center gap-1 px-6">
-                <Text className="text-m3-on-surface text-sm font-semibold">Nothing logged yet</Text>
-                <Text className="text-m3-on-surface-variant text-sm text-center">Add an entry when you're ready.</Text>
-              </View>
-              <Pressable
-                onPress={() => onOpenEntry(selectedDate)}
-                accessibilityRole="button"
-                className="min-h-[48px] px-5 rounded-full bg-white items-center justify-center active:opacity-80"
-              >
-                <Text className="text-m3-on-primary text-sm font-semibold">Add entry</Text>
-              </Pressable>
-            </View>
-          )}
-
-          {/* Journal sections */}
-          {foodLogs.length > 0 && journalSections.map((section) => (
-            <JournalSection
-              key={section.meal}
-              label={section.label}
-              entries={section.entries}
-              totalCalories={section.totalCalories}
-              totalProtein={section.totalProtein}
-              totalCarbs={section.totalCarbs}
-              totalFat={section.totalFat}
-              resetKey={displayedDate}
-              onEditFood={handleEditFood}
-              onEditMeal={handleEditMeal}
-              onDeleteFood={handleDeleteFood}
-              onDeleteMeal={handleDeleteMeal}
-              onViewPhoto={handleViewPhoto}
-            />
-          ))}
-        </ScrollView>
+        />
       )}
       </View>
 

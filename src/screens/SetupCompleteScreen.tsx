@@ -18,6 +18,7 @@ import Reanimated, {
 import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { M3 } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupComplete'>;
 
@@ -81,7 +82,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
               entering={reduced ? undefined : ZoomIn.duration(400).springify()}
               className="w-16 h-16 rounded-full bg-m3-primary-container items-center justify-center"
             >
-              <MaterialIcons name="check" size={32} color="#ffffff" />
+              <MaterialIcons name="check" size={32} color={M3.primary} />
             </Reanimated.View>
             <Reanimated.View entering={enter(150)} className="items-center gap-1.5">
               <Text className="text-m3-on-surface text-2xl font-bold text-center">
@@ -139,7 +140,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
           <Reanimated.View entering={enter(700)}>
             <Card className="p-6">
               <View className="flex-row items-start gap-3">
-                <MaterialIcons name="auto-graph" size={20} color="#c4c6d0" style={{ marginTop: 1 }} />
+                <MaterialIcons name="auto-graph" size={20} color={M3.onSurfaceVariant} style={{ marginTop: 1 }} />
                 <View className="flex-1">
                   <Text className="text-m3-on-surface text-sm font-semibold mb-1">
                     Built for better calibration
@@ -157,7 +158,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
           <Reanimated.View entering={enter(820)}>
             <Card className="p-6">
               <View className="flex-row items-start gap-3">
-                <MaterialIcons name="photo-camera" size={20} color="#c4c6d0" style={{ marginTop: 1 }} />
+                <MaterialIcons name="photo-camera" size={20} color={M3.onSurfaceVariant} style={{ marginTop: 1 }} />
                 <View className="flex-1">
                   <Text className="text-m3-on-surface text-sm font-semibold mb-1">
                     Log your first meal

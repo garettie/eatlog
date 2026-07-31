@@ -1,20 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, Text, View } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { MaterialIcons } from '@expo/vector-icons';
 
 import { describeMeal, DescribeResult } from '../../services/foodScan';
 import { M3 } from '../../theme/tokens';
 import PrimaryButton from '../PrimaryButton';
+import SheetBackButton from './SheetBackButton';
 
 interface DescribeInputStateProps {
   onResult: (result: DescribeResult) => void;
-  onCancel: () => void;
+  onBack: () => void;
   onSearch: () => void;
   onManualEntry: () => void;
 }
 
-export default function DescribeInputState({ onResult, onCancel: _onCancel, onSearch, onManualEntry }: DescribeInputStateProps) {
+export default function DescribeInputState({ onResult, onBack, onSearch, onManualEntry }: DescribeInputStateProps) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,15 +54,10 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel, onSe
       contentContainerClassName="px-5 pt-2 pb-6 gap-4"
     >
       <View className="flex-row items-center justify-between">
-        <Text className="text-m3-on-surface font-bold text-base">Describe your meal</Text>
-        <Pressable
-          onPress={() => { requestRef.current++; _onCancel(); }}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-          className="w-12 h-12 items-center justify-center -mr-3 -my-3"
-        >
-          <MaterialIcons name="close" size={20} color="#c4c6d0" />
-        </Pressable>
+        <View className="flex-row items-center gap-1">
+          <SheetBackButton onPress={() => { requestRef.current++; onBack(); }} />
+          <Text className="text-m3-on-surface font-bold text-base">Describe your meal</Text>
+        </View>
       </View>
       <BottomSheetTextInput
         ref={inputRef as any}
@@ -79,12 +74,12 @@ export default function DescribeInputState({ onResult, onCancel: _onCancel, onSe
       {error && (
         <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-2" accessibilityLiveRegion="assertive">
           <Text className="text-m3-on-error-container text-sm">{error}</Text>
-          <Pressable onPress={handleEstimate} accessibilityRole="button" className="min-h-[48px] bg-m3-surface-container-high rounded-full px-4 self-start justify-center">
+          <Pressable onPress={handleEstimate} accessibilityRole="button" accessibilityLabel="Retry estimate" accessibilityHint="Tries the meal estimate again" className="min-h-[48px] bg-m3-surface-container-high rounded-full px-4 self-start justify-center">
             <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
           </Pressable>
           <View className="flex-row gap-2">
-            <Pressable onPress={onSearch} accessibilityRole="button" className="min-h-[48px] justify-center px-2"><Text className="text-m3-on-error-container text-xs font-semibold">Search foods</Text></Pressable>
-            <Pressable onPress={onManualEntry} accessibilityRole="button" className="min-h-[48px] justify-center px-2"><Text className="text-m3-on-error-container text-xs font-semibold">Enter manually</Text></Pressable>
+            <Pressable onPress={onSearch} accessibilityRole="button" accessibilityLabel="Search foods" className="min-h-[48px] justify-center px-2"><Text className="text-m3-on-error-container text-xs font-semibold">Search foods</Text></Pressable>
+            <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] justify-center px-2"><Text className="text-m3-on-error-container text-xs font-semibold">Enter manually</Text></Pressable>
           </View>
         </View>
       )}

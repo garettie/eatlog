@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -278,6 +278,47 @@ function AnalyticsScreen({
     if (initialLoadDoneRef.current) void loadData();
   }, [dataVersion, loadData]);
 
+  const analyticsDerived = useMemo(() => {
+    if (!data) return null;
+    const chartDates = rangeDates(selectedRange, data.endDate);
+    const dailyCalories = data.dailyCalories.filter((day) => day.log_date >= chartDates.startDate && day.log_date <= chartDates.endDate);
+    const rangeWeights = data.chartWeights.filter((log) => log.log_date >= chartDates.startDate && log.log_date <= chartDates.endDate);
+    const earliestWeight = rangeWeights[0];
+    const latestWeight = rangeWeights[rangeWeights.length - 1];
+    const endpointSpanDays = earliestWeight && latestWeight
+      ? calendarDaysBetween(earliestWeight.log_date, latestWeight.log_date)
+      : 0;
+    const trendChange = rangeWeights.length > 1 && earliestWeight && latestWeight
+      ? latestWeight.trend_weight_kg - earliestWeight.trend_weight_kg
+      : null;
+    const weeklyRate = rangeWeights.length > 1 && earliestWeight && latestWeight
+      ? computeNormalizedWeeklyRate(
+        { logDate: earliestWeight.log_date, trendWeightKg: earliestWeight.trend_weight_kg },
+        { logDate: latestWeight.log_date, trendWeightKg: latestWeight.trend_weight_kg },
+      )
+      : null;
+    const totalDays = calendarDaysBetween(chartDates.startDate, chartDates.endDate) + 1;
+    const averageCalories = dailyCalories.length
+      ? dailyCalories.reduce((sum, day) => sum + day.calories, 0) / dailyCalories.length
+      : null;
+    const coveragePercent = Math.round(dailyCalories.length / totalDays * 100);
+    const progressKind = classifyProgress(data.profile, weeklyRate, rangeWeights.length, endpointSpanDays);
+    return {
+      chartDates,
+      dailyCalories,
+      rangeWeights,
+      latestWeight,
+      endpointSpanDays,
+      trendChange,
+      weeklyRate,
+      totalDays,
+      averageCalories,
+      coveragePercent,
+      progress: progressCopy(progressKind, data.profile.goal_type),
+      sufficientProgress: progressKind !== 'insufficient',
+    };
+  }, [data, selectedRange]);
+
   const handleRangeChange = useCallback((range: RangeKey) => {
     if (range === selectedRangeRef.current) return;
     selectedRangeRef.current = range;
@@ -380,39 +421,22 @@ function AnalyticsScreen({
   const {
     profile,
     chartWeights,
-    dailyCalories: calorieHistory,
     target,
-    endDate,
   } = data;
-  const chartDates = rangeDates(selectedRange, endDate);
-  const dailyCalories = calorieHistory.filter(
-    (day) => day.log_date >= chartDates.startDate && day.log_date <= chartDates.endDate,
-  );
-  const rangeWeights = chartWeights.filter(
-    (log) => log.log_date >= chartDates.startDate && log.log_date <= chartDates.endDate,
-  );
-  const earliestWeight = rangeWeights[0];
-  const latestWeight = rangeWeights[rangeWeights.length - 1];
-  const endpointSpanDays = earliestWeight && latestWeight
-    ? calendarDaysBetween(earliestWeight.log_date, latestWeight.log_date)
-    : 0;
-  const trendChange = rangeWeights.length > 1 && earliestWeight && latestWeight
-    ? latestWeight.trend_weight_kg - earliestWeight.trend_weight_kg
-    : null;
-  const weeklyRate = rangeWeights.length > 1 && earliestWeight && latestWeight
-    ? computeNormalizedWeeklyRate(
-      { logDate: earliestWeight.log_date, trendWeightKg: earliestWeight.trend_weight_kg },
-      { logDate: latestWeight.log_date, trendWeightKg: latestWeight.trend_weight_kg },
-    )
-    : null;
-  const totalDays = calendarDaysBetween(chartDates.startDate, chartDates.endDate) + 1;
-  const averageCalories = dailyCalories.length
-    ? dailyCalories.reduce((sum, day) => sum + day.calories, 0) / dailyCalories.length
-    : null;
-  const coveragePercent = Math.round(dailyCalories.length / totalDays * 100);
-  const progressKind = classifyProgress(profile, weeklyRate, rangeWeights.length, endpointSpanDays);
-  const progress = progressCopy(progressKind, profile.goal_type);
-  const sufficientProgress = progressKind !== 'insufficient';
+  const {
+    chartDates,
+    dailyCalories,
+    rangeWeights,
+    latestWeight,
+    endpointSpanDays,
+    trendChange,
+    weeklyRate,
+    totalDays,
+    averageCalories,
+    coveragePercent,
+    progress,
+    sufficientProgress,
+  } = analyticsDerived!;
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>

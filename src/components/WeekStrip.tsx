@@ -140,7 +140,7 @@ const DayButton = React.memo(function DayButton({
               : day.isToday
                 ? M3.primary
                 : day.isFuture
-                  ? 'rgba(196, 198, 208, 0.3)'
+                  ? M3.onSurfaceVariant
                   : M3.onSurface,
           }}
         >

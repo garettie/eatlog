@@ -9,6 +9,7 @@ import MealSelector from '../MealSelector';
 import MacroChipGroup from '../MacroChipGroup';
 import PortionStepper from '../PortionStepper';
 import PrimaryButton from '../PrimaryButton';
+import SheetBackButton from './SheetBackButton';
 
 function dataTypeLabel(dt: DataType): string {
   switch (dt) {
@@ -37,6 +38,7 @@ interface SingleFoodReviewStateProps {
   initialMeal?: MealType | null;
   /** Diary date to write to (backfill); null = today. */
   logDate?: string | null;
+  onBack: () => void;
 }
 
 type UnitMode = 'servings' | 'grams' | 'ml';
@@ -46,6 +48,7 @@ export default function SingleFoodReviewState({
   onLogComplete,
   initialMeal,
   logDate,
+  onBack,
 }: SingleFoodReviewStateProps) {
   const hasServing = useMemo(
     () => !!(food?.servingSizeGrams && food.servingSizeGrams > 0),
@@ -185,6 +188,10 @@ export default function SingleFoodReviewState({
   return (
     <View className="flex-1">
       <View className="px-5 pt-3 gap-3">
+        <View className="flex-row items-center gap-1">
+          <SheetBackButton onPress={onBack} />
+          <Text className="text-m3-on-surface font-bold text-base">Review food</Text>
+        </View>
         <Animated.View
           entering={reducedMotion ? undefined : FadeInUp.duration(180)}
           className="gap-3"

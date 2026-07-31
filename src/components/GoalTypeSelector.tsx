@@ -3,6 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import type { GoalType } from '../db/database';
+import { useReducedMotion } from 'react-native-reanimated';
+import { M3 } from '../theme/tokens';
 
 const GOALS: {
   type: GoalType;
@@ -21,6 +23,7 @@ interface GoalTypeSelectorProps {
 }
 
 function GoalTypeSelector({ value, onChange }: GoalTypeSelectorProps) {
+  const reduced = useReducedMotion();
   return (
     <View className="flex-row gap-3">
       {GOALS.map((goal) => {
@@ -32,18 +35,18 @@ function GoalTypeSelector({ value, onChange }: GoalTypeSelectorProps) {
             accessibilityRole="radio"
             accessibilityLabel={`${goal.title}: ${goal.subtitle}`}
             accessibilityState={{ checked: selected }}
-            className={`flex-1 p-5 rounded-2xl items-center gap-1 active:scale-[0.97] ${
+            className={`flex-1 p-5 rounded-2xl items-center gap-1 ${reduced ? '' : 'active:scale-[0.97]'} ${
               selected
-                ? 'bg-m3-surface-container-high border-2 border-white'
+                ? 'bg-m3-surface-container-high border-2 border-m3-primary'
                 : 'bg-m3-surface-container border border-m3-outline-variant/30'
             }`}
           >
             <MaterialIcons
               name={goal.icon}
               size={24}
-              color={selected ? '#ffffff' : '#c4c6d0'}
+              color={selected ? M3.primary : M3.onSurfaceVariant}
             />
-            <Text className={`font-bold text-base ${selected ? 'text-white' : 'text-m3-on-surface'}`}>
+            <Text className={`font-bold text-base ${selected ? 'text-m3-primary' : 'text-m3-on-surface'}`}>
               {goal.title}
             </Text>
             <Text className="text-xs text-m3-on-surface-variant">{goal.subtitle}</Text>

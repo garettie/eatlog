@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -257,6 +257,60 @@ function DashboardScreen({
     loadData(false);
   }, [dataVersion, loadData]);
 
+  const calorieSummary = useMemo(() => {
+    const consumedCals = Math.round(todayMacros.calories);
+    const targetCals = Math.round(target?.target_calories ?? 0);
+    const calsRemaining = Math.max(0, targetCals - consumedCals);
+    const calsOver = Math.max(0, consumedCals - targetCals);
+    const ringValue = showRemaining ? calsRemaining : consumedCals;
+    return {
+      consumedCals,
+      targetCals,
+      calsRemaining,
+      calsOver,
+      proteinRemaining: Math.max(0, (target?.target_protein_g ?? 0) - todayMacros.protein_g),
+      carbsRemaining: Math.max(0, (target?.target_carbs_g ?? 0) - todayMacros.carbs_g),
+      fatRemaining: Math.max(0, (target?.target_fat_g ?? 0) - todayMacros.fat_g),
+      ringValue,
+      ringProgress: targetCals > 0 ? Math.min(1, Math.max(0, ringValue / targetCals)) : 0,
+      flankingLeft: showRemaining ? consumedCals : calsRemaining,
+    };
+  }, [showRemaining, target, todayMacros]);
+
+  const weightSummary = useMemo(() => {
+    const weightRangeEnd = todayISO();
+    const weightRangeStart = addCalendarDays(weightRangeEnd, -29);
+    const latestWeightLog = weightLogs[weightLogs.length - 1] ?? null;
+    let weeklyReference: WeightLog | null = null;
+    if (latestWeightLog) {
+      for (const log of weightLogs.slice(0, -1)) {
+        const daysBeforeLatest = calendarDaysBetween(log.log_date, latestWeightLog.log_date);
+        if (daysBeforeLatest < 4 || daysBeforeLatest > 10) continue;
+        if (!weeklyReference) {
+          weeklyReference = log;
+          continue;
+        }
+        const referenceDays = calendarDaysBetween(weeklyReference.log_date, latestWeightLog.log_date);
+        const candidateDistance = Math.abs(daysBeforeLatest - 7);
+        const referenceDistance = Math.abs(referenceDays - 7);
+        if (candidateDistance < referenceDistance || (candidateDistance === referenceDistance && log.log_date < weeklyReference.log_date)) {
+          weeklyReference = log;
+        }
+      }
+    }
+    return {
+      weightRangeEnd,
+      weightRangeStart,
+      latestWeightLog,
+      weeklyRate: latestWeightLog && weeklyReference
+        ? computeNormalizedWeeklyRate(
+          { logDate: weeklyReference.log_date, trendWeightKg: weeklyReference.trend_weight_kg },
+          { logDate: latestWeightLog.log_date, trendWeightKg: latestWeightLog.trend_weight_kg },
+        )
+        : null,
+    };
+  }, [weightLogs]);
+
   // ── Loading / Empty / Error states ──
 
   if (loading && (!profile || !target)) {
@@ -335,18 +389,18 @@ function DashboardScreen({
     headerChip = { label: 'Reviews unlocked', locked: false };
   }
 
-  const consumedCals = Math.round(todayMacros.calories);
-  const targetCals = Math.round(target.target_calories);
-  const calsRemaining = Math.max(0, targetCals - consumedCals);
-  const calsOver = Math.max(0, consumedCals - targetCals);
-
-  const proteinRemaining = Math.max(0, target.target_protein_g - todayMacros.protein_g);
-  const carbsRemaining = Math.max(0, target.target_carbs_g - todayMacros.carbs_g);
-  const fatRemaining = Math.max(0, target.target_fat_g - todayMacros.fat_g);
-
-  const ringValue = showRemaining ? calsRemaining : consumedCals;
-  const ringProgress = targetCals > 0 ? Math.min(1, Math.max(0, ringValue / targetCals)) : 0;
-  const flankingLeft = showRemaining ? consumedCals : calsRemaining;
+  const {
+    consumedCals,
+    targetCals,
+    calsRemaining,
+    calsOver,
+    proteinRemaining,
+    carbsRemaining,
+    fatRemaining,
+    ringValue,
+    ringProgress,
+    flankingLeft,
+  } = calorieSummary;
 
   const formattedDate = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -354,35 +408,7 @@ function DashboardScreen({
     day: 'numeric',
   });
 
-  const weightRangeEnd = todayISO();
-  const weightRangeStart = addCalendarDays(weightRangeEnd, -29);
-  const latestWeightLog = weightLogs[weightLogs.length - 1];
-  let weeklyReference: WeightLog | null = null;
-  if (latestWeightLog) {
-    for (const log of weightLogs.slice(0, -1)) {
-      const daysBeforeLatest = calendarDaysBetween(log.log_date, latestWeightLog.log_date);
-      if (daysBeforeLatest < 4 || daysBeforeLatest > 10) continue;
-      if (!weeklyReference) {
-        weeklyReference = log;
-        continue;
-      }
-      const referenceDays = calendarDaysBetween(weeklyReference.log_date, latestWeightLog.log_date);
-      const candidateDistance = Math.abs(daysBeforeLatest - 7);
-      const referenceDistance = Math.abs(referenceDays - 7);
-      if (
-        candidateDistance < referenceDistance
-        || (candidateDistance === referenceDistance && log.log_date < weeklyReference.log_date)
-      ) {
-        weeklyReference = log;
-      }
-    }
-  }
-  const weeklyRate = latestWeightLog && weeklyReference
-    ? computeNormalizedWeeklyRate(
-      { logDate: weeklyReference.log_date, trendWeightKg: weeklyReference.trend_weight_kg },
-      { logDate: latestWeightLog.log_date, trendWeightKg: latestWeightLog.trend_weight_kg },
-    )
-    : null;
+  const { weightRangeEnd, weightRangeStart, latestWeightLog, weeklyRate } = weightSummary;
   const weightUnit = profile.weight_unit;
   const unitLabel = weightUnit;
   const latestDateLabel = latestWeightLog

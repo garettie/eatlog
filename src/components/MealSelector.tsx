@@ -71,7 +71,7 @@ export default function MealSelector({ value, onChange }: MealSelectorProps) {
     >
       <Animated.View
         pointerEvents="none"
-        className="absolute bg-white rounded-full"
+        className="absolute bg-m3-primary rounded-full"
         style={[pillStyle, { top: 2, bottom: 2, left: 2 }]}
       />
       {MEALS.map((m, mealIndex) => {
@@ -91,6 +91,7 @@ export default function MealSelector({ value, onChange }: MealSelectorProps) {
               startTransition(() => onChange(m.value));
             }}
             accessibilityRole="button"
+            accessibilityLabel={`${m.label} meal`}
             accessibilityState={{ selected }}
             className="flex-1 min-h-[48px] px-1 rounded-full items-center justify-center z-10 active:opacity-70"
           >

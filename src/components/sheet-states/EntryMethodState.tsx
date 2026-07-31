@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { M3 } from '../../theme/tokens';
 
 interface ActionRowProps {
   icon: React.ComponentProps<typeof MaterialIcons>['name'];
@@ -13,15 +14,15 @@ interface ActionRowProps {
 
 function ActionRow({ icon, label, subtitle, onPress, disabled }: ActionRowProps) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} className={`flex-row items-center gap-4 px-4 py-4 ${disabled ? 'opacity-50' : 'active:opacity-60'}`}>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityHint={disabled ? undefined : subtitle} accessibilityState={{ disabled }} className={`flex-row items-center gap-4 px-4 py-4 min-h-[72px] ${disabled ? 'opacity-50' : 'active:opacity-60'}`}>
       <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
-        <MaterialIcons name={icon} size={22} color="#e2e2e9" />
+        <MaterialIcons name={icon} size={22} color={M3.onSurface} />
       </View>
       <View className="flex-1">
         <Text className="text-m3-on-surface font-semibold text-sm">{label}</Text>
         <Text className="text-m3-on-surface-variant text-sm mt-0.5">{subtitle}</Text>
       </View>
-      <MaterialIcons name="chevron-right" size={20} color="#c4c6d0" />
+      <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
     </Pressable>
   );
 }

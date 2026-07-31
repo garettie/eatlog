@@ -1,16 +1,18 @@
-import React, { useDeferredValue, useEffect, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
-import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 import { getLoggedFoods, getLoggedMeals, LoggedFood, LoggedMeal, setFoodPinned } from '../../db/database';
 import { FoodResult } from '../../services/foodSearch';
 import { M3 } from '../../theme/tokens';
 import { foodIcon } from '../../utils/foodIcons';
+import SheetBackButton from './SheetBackButton';
 
 interface RecentFoodsStateProps {
   onSelectFood: (food: FoodResult) => void;
   onSelectMeal: (meal: LoggedMeal) => void;
+  onBack: () => void;
 }
 
 type LoggedEntry =
@@ -76,7 +78,7 @@ function FoodRow({ food, pinned, onPress, onTogglePin }: { food: LoggedFood; pin
             <MacroPill letter="F" grams={food.fat_g} color={M3.fat} />
           </View>
         </View>
-        <View className={`w-[88px] shrink-0 items-end ${food.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
+        <View className={`min-w-[72px] max-w-[96px] flex-1 items-end ${food.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
           <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
             {Math.round(food.calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
           </Text>
@@ -123,7 +125,7 @@ function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pin
             <MacroPill letter="F" grams={meal.total_fat} color={M3.fat} />
           </View>
         </View>
-        <View className={`w-[88px] shrink-0 items-end ${meal.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
+        <View className={`min-w-[72px] max-w-[96px] flex-1 items-end ${meal.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
           <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
             {Math.round(meal.total_calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
           </Text>
@@ -142,12 +144,13 @@ function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pin
   );
 }
 
-export default function RecentFoodsState({ onSelectFood, onSelectMeal }: RecentFoodsStateProps) {
+export default function RecentFoodsState({ onSelectFood, onSelectMeal, onBack }: RecentFoodsStateProps) {
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [entries, setEntries] = useState<LoggedEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const loadQueueRef = React.useRef<Promise<void>>(Promise.resolve());
   const loadRequestRef = React.useRef(0);
   const hasLoadedRef = React.useRef(false);
@@ -182,9 +185,9 @@ export default function RecentFoodsState({ onSelectFood, onSelectMeal }: RecentF
     return () => {
       if (requestId === loadRequestRef.current) loadRequestRef.current += 1;
     };
-  }, [deferredQuery]);
+  }, [deferredQuery, retryCount]);
 
-  const handleTogglePin = async (entry: LoggedEntry) => {
+  const handleTogglePin = useCallback(async (entry: LoggedEntry) => {
     const isPinned = entry.pinned === 1;
     const update = (current: LoggedEntry[], pinned: number) => current
       .map((item) => item.key === entry.key ? { ...item, pinned } : item)
@@ -196,11 +199,47 @@ export default function RecentFoodsState({ onSelectFood, onSelectMeal }: RecentF
       console.error('[RecentFoods] setFoodPinned failed', e);
       setEntries((current) => update(current, isPinned ? 1 : 0));
     }
-  };
+  }, []);
+
+  const renderEntry = useCallback(({ item: entry }: { item: LoggedEntry }) => entry.kind === 'food' ? (
+    <FoodRow
+      food={entry.food}
+      pinned={entry.pinned === 1}
+      onPress={() => onSelectFood(foodToResult(entry.food))}
+      onTogglePin={() => void handleTogglePin(entry)}
+    />
+  ) : (
+    <MealRow
+      meal={entry.meal}
+      pinned={entry.pinned === 1}
+      onPress={() => onSelectMeal(entry.meal)}
+      onTogglePin={() => void handleTogglePin(entry)}
+    />
+  ), [handleTogglePin, onSelectFood, onSelectMeal]);
+
+  const emptyContent = loading ? (
+    <View className="py-12 items-center"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View>
+  ) : error ? (
+    <View className="py-12 items-center" accessibilityLiveRegion="assertive">
+      <Text className="text-m3-on-surface-variant text-sm">Couldn't load your foods.</Text>
+      <Pressable onPress={() => setRetryCount((count) => count + 1)} accessibilityRole="button" accessibilityLabel="Retry loading recent foods" className="min-h-[48px] mt-3 justify-center rounded-full bg-m3-surface-container-high px-5">
+        <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
+      </Pressable>
+    </View>
+  ) : (
+    <View className="py-12 items-center gap-2">
+      <MaterialIcons name="restaurant" size={36} color={M3.onSurfaceVariant} />
+      <Text className="text-m3-on-surface-variant text-sm font-medium">{query ? 'No foods found' : 'No foods logged yet'}</Text>
+    </View>
+  );
 
   return (
-    <BottomSheetScrollView className="flex-1" contentContainerClassName="pb-6" keyboardShouldPersistTaps="handled">
+    <View className="flex-1">
       <View className="bg-m3-surface-container px-5 pt-2 pb-3">
+        <View className="flex-row items-center gap-1 mb-1">
+          <SheetBackButton onPress={onBack} />
+          <Text className="text-m3-on-surface font-bold text-base">Recent foods</Text>
+        </View>
         <View className="flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
           <MaterialIcons name="search" size={18} color={M3.onSurfaceVariant} />
           <BottomSheetTextInput
@@ -220,22 +259,14 @@ export default function RecentFoodsState({ onSelectFood, onSelectMeal }: RecentF
           )}
         </View>
       </View>
-
-      <View className="px-5 gap-2">
-        {loading && <View className="py-12 items-center"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View>}
-        {!loading && error && <View className="py-12 items-center"><Text className="text-m3-on-surface-variant text-sm">Couldn't load your foods.</Text></View>}
-        {!loading && !error && entries.length === 0 && (
-          <View className="py-12 items-center gap-2">
-            <MaterialIcons name="restaurant" size={36} color={M3.onSurfaceVariant} />
-            <Text className="text-m3-on-surface-variant text-sm font-medium">{query ? 'No foods found' : 'No foods logged yet'}</Text>
-          </View>
-        )}
-        {!loading && entries.map((entry) => entry.kind === 'food' ? (
-          <FoodRow key={entry.key} food={entry.food} pinned={entry.pinned === 1} onPress={() => onSelectFood(foodToResult(entry.food))} onTogglePin={() => handleTogglePin(entry)} />
-        ) : (
-          <MealRow key={entry.key} meal={entry.meal} pinned={entry.pinned === 1} onPress={() => onSelectMeal(entry.meal)} onTogglePin={() => handleTogglePin(entry)} />
-        ))}
-      </View>
-    </BottomSheetScrollView>
+      <BottomSheetFlatList
+        data={loading || error ? [] : entries}
+        renderItem={renderEntry}
+        keyExtractor={(entry) => entry.key}
+        contentContainerClassName="px-5 gap-2 pb-6"
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={emptyContent}
+      />
+    </View>
   );
 }

@@ -110,7 +110,7 @@ function BackButton({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       className="bg-m3-surface-container border border-m3-outline-variant/40 rounded-full py-5 px-6 flex-row items-center justify-center gap-2 active:opacity-70"
     >
-      <MaterialIcons name="arrow-back" size={18} color="#e2e2e9" />
+      <MaterialIcons name="arrow-back" size={18} color={M3.onSurface} />
       <Text className="text-m3-on-surface font-semibold text-base">Back</Text>
     </Pressable>
   );
@@ -265,6 +265,9 @@ export default function OnboardingScreen({ navigation }: Props) {
     if (goalType === 'bulk') return { min: RATE_RANGE.bulk.min, max: RATE_RANGE.bulk.max };
     return { min: 0, max: 0 };
   }
+
+  const rateStartLabel = goalType === 'cut' ? 'Fast' : 'Slow';
+  const rateEndLabel = goalType === 'cut' ? 'Slow' : 'Fast';
 
   function applyGoalRateText(text: string) {
     const rate = Number.parseFloat(text);
@@ -614,7 +617,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                           day: 'numeric',
                         })}
                       </Text>
-                      <MaterialIcons name="calendar-today" size={16} color="#c4c6d0" />
+                      <MaterialIcons name="calendar-today" size={16} color={M3.onSurfaceVariant} />
                     </Pressable>
                   </View>
                 </>
@@ -881,6 +884,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                           accessibilityLabel="Target rate in kilograms per week"
                           keyboardType="decimal-pad"
                           selectTextOnFocus
+                          underlineColorAndroid="transparent"
                           className="min-h-[48px] rounded-xl border border-m3-outline-variant/40 bg-m3-surface-container-high px-4 text-center text-lg font-bold tabular-nums text-m3-on-surface"
                         />
                         <RulerSlider
@@ -889,13 +893,14 @@ export default function OnboardingScreen({ navigation }: Props) {
                           min={getRateBounds().min}
                           max={getRateBounds().max}
                           step={0.05}
+                          pixelsPerUnit={200}
                           unit="kg/week"
                           label="Target rate"
                           showValue={false}
                         />
                         <View className="flex-row justify-between">
-                          <Text className="text-sm text-m3-on-surface-variant font-medium">Slow</Text>
-                          <Text className="text-sm text-m3-on-surface-variant font-medium">Fast</Text>
+                          <Text className="text-sm text-m3-on-surface-variant font-medium">{rateStartLabel}</Text>
+                          <Text className="text-sm text-m3-on-surface-variant font-medium">{rateEndLabel}</Text>
                         </View>
                       </View>
                     </Reanimated.View>
@@ -951,7 +956,7 @@ export default function OnboardingScreen({ navigation }: Props) {
               {step === 6 && (
                 <View className="items-center pt-14 gap-8">
                   <View className="w-16 h-16 rounded-full bg-m3-surface-container-high border border-m3-outline-variant/40 items-center justify-center">
-                    <MaterialIcons name="auto-awesome" size={28} color="#ffffff" />
+                    <MaterialIcons name="auto-awesome" size={28} color={M3.primary} />
                   </View>
                   <View className="items-center gap-1.5">
                     <Text className="text-2xl font-bold text-m3-on-surface text-center">
@@ -970,7 +975,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                           className="flex-row items-center gap-3 bg-m3-surface-container border border-m3-outline-variant/30 rounded-2xl px-5 py-4"
                         >
                           <View className="w-5 h-5 rounded-full bg-white items-center justify-center">
-                            <MaterialIcons name="check" size={13} color="#0f1117" />
+                            <MaterialIcons name="check" size={13} color={M3.onPrimary} />
                           </View>
                         <Text className="text-sm font-medium text-m3-on-surface">{line}</Text>
                         </Reanimated.View>
@@ -991,7 +996,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                   className="flex-row items-center gap-2"
                   accessibilityLiveRegion="assertive"
                 >
-                  <MaterialIcons name="error-outline" size={15} color="#ffb4ab" />
+                  <MaterialIcons name="error-outline" size={15} color={M3.error} />
                   <Text className="text-sm text-m3-error font-medium">{stepError}</Text>
                 </Reanimated.View>
               )}

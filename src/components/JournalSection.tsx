@@ -183,7 +183,7 @@ function FoodRow({
               <MacroPills protein={food.protein_g} carbs={food.carbs_g} fat={food.fat_g} />
             </View>
           </View>
-          <View className="w-[88px] shrink-0 items-end pt-0.5">
+          <View className="min-w-[72px] max-w-[96px] flex-1 items-end pt-0.5">
             <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
               {Math.round(food.calories)}
               <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
@@ -276,7 +276,7 @@ function MealRow({
               <MacroPills protein={totalP} carbs={totalC} fat={totalF} />
             </View>
           </View>
-          <View className={`w-[88px] shrink-0 items-end ${photoUri ? 'pt-3 pr-4' : 'pt-0.5'}`}>
+          <View className={`min-w-[72px] max-w-[96px] flex-1 items-end ${photoUri ? 'pt-3 pr-4' : 'pt-0.5'}`}>
             <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
               {Math.round(totalCalories)}
               <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
@@ -294,6 +294,88 @@ export interface JournalEntryKind {
   type: 'food' | 'meal';
   foodLog?: FoodLog;
   mealGroup?: MealGroup;
+}
+
+export function JournalEntryRow({
+  entry,
+  onEditFood,
+  onEditMeal,
+  onDeleteFood,
+  onDeleteMeal,
+  onViewPhoto,
+}: {
+  entry: JournalEntryKind;
+  onEditFood: (food: FoodLog) => void;
+  onEditMeal: (meal: MealGroup) => void;
+  onDeleteFood: (food: FoodLog) => void;
+  onDeleteMeal: (mealId: number) => void;
+  onViewPhoto: (uri: string, mealName: string) => void;
+}) {
+  if (entry.type === 'food' && entry.foodLog) {
+    return <FoodRow food={entry.foodLog} onEdit={onEditFood} onDelete={onDeleteFood} />;
+  }
+  if (entry.type === 'meal' && entry.mealGroup) {
+    return (
+      <MealRow
+        meal={entry.mealGroup}
+        onEditMeal={onEditMeal}
+        onDeleteMeal={onDeleteMeal}
+        onViewPhoto={onViewPhoto}
+      />
+    );
+  }
+  return null;
+}
+
+export function JournalSectionHeader({
+  label,
+  hasEntries,
+  collapsed,
+  totalCalories,
+  totalProtein,
+  totalCarbs,
+  totalFat,
+  onToggle,
+}: {
+  label: string;
+  hasEntries: boolean;
+  collapsed: boolean;
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <Pressable
+        onPress={onToggle}
+        disabled={!hasEntries}
+        className="flex-row items-center justify-between mx-4 py-4 active:opacity-60 min-h-[72]"
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !hasEntries, expanded: hasEntries ? !collapsed : undefined }}
+        accessibilityLabel={hasEntries
+          ? `${label} section, ${collapsed ? 'collapsed' : 'expanded'}`
+          : `${label} section, empty`}
+      >
+        <View className="flex-row items-center gap-2 flex-1 min-w-0 mr-3">
+          <Text className="text-m3-on-surface text-base font-bold shrink" numberOfLines={1}>{label}</Text>
+          <View className={hasEntries ? '' : 'opacity-30'}>
+            <Chevron open={!collapsed} />
+          </View>
+        </View>
+        <View className="min-w-[150px] min-h-[38px] items-end justify-center shrink-0">
+          {hasEntries && (
+            <>
+              <Text className="text-m3-on-surface-variant text-xs font-semibold tabular-nums">{kcalLabel(totalCalories)}</Text>
+              <View className="mt-1"><MacroPills protein={totalProtein} carbs={totalCarbs} fat={totalFat} /></View>
+            </>
+          )}
+        </View>
+      </Pressable>
+      <View className="mx-4 h-px bg-m3-outline-variant/40" />
+    </>
+  );
 }
 
 interface JournalSectionProps {
@@ -343,8 +425,15 @@ function JournalSection({
 
   return (
     <View className="mb-3">
-      <Pressable
-        onPress={() => {
+      <JournalSectionHeader
+        label={label}
+        hasEntries={hasEntries}
+        collapsed={collapsed}
+        totalCalories={totalCalories}
+        totalProtein={totalProtein}
+        totalCarbs={totalCarbs}
+        totalFat={totalFat}
+        onToggle={() => {
           collapseStateRef.current = {
             key: collapseKey,
             collapsed: !collapsed,
@@ -352,35 +441,7 @@ function JournalSection({
           };
           forceCollapseRender((version) => version + 1);
         }}
-        disabled={!hasEntries}
-        className="flex-row items-center justify-between mx-4 py-4 active:opacity-60 min-h-[72]"
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !hasEntries, expanded: hasEntries ? !collapsed : undefined }}
-        accessibilityLabel={hasEntries
-          ? `${label} section, ${collapsed ? 'collapsed' : 'expanded'}`
-          : `${label} section, empty`}
-      >
-        <View className="flex-row items-center gap-2 flex-1 min-w-0 mr-3">
-          <Text className="text-m3-on-surface text-base font-bold shrink" numberOfLines={1}>{label}</Text>
-          <View className={hasEntries ? '' : 'opacity-30'}>
-            <Chevron open={!collapsed} />
-          </View>
-        </View>
-        <View className="min-w-[150px] min-h-[38px] items-end justify-center shrink-0">
-          {hasEntries && (
-            <>
-            <Text className="text-m3-on-surface-variant text-xs font-semibold tabular-nums">
-              {kcalLabel(totalCalories)}
-            </Text>
-            <View className="mt-1">
-              <MacroPills protein={totalProtein} carbs={totalCarbs} fat={totalFat} />
-            </View>
-            </>
-          )}
-        </View>
-      </Pressable>
-
-      <View className="mx-4 h-px bg-m3-outline-variant/40" />
+      />
 
       <Reanimated.View
         layout={reducedMotion
@@ -394,30 +455,17 @@ function JournalSection({
             exiting={!reducedMotion ? FadeOut.duration(160) : undefined}
             className="mt-2"
           >
-            {entries.map((entry, index) => {
-                if (entry.type === 'food' && entry.foodLog) {
-                  return (
-                    <FoodRow
-                      key={`entry-slot-${index}`}
-                      food={entry.foodLog}
-                      onEdit={onEditFood}
-                      onDelete={onDeleteFood}
-                    />
-                  );
-                }
-                if (entry.type === 'meal' && entry.mealGroup) {
-                  return (
-                    <MealRow
-                      key={`entry-slot-${index}`}
-                      meal={entry.mealGroup}
-                      onEditMeal={onEditMeal}
-                      onDeleteMeal={onDeleteMeal}
-                      onViewPhoto={onViewPhoto}
-                    />
-                  );
-                }
-                return null;
-              })}
+            {entries.map((entry) => (
+              <JournalEntryRow
+                key={entry.type === 'food' ? `food-${entry.foodLog?.id}` : `meal-${entry.mealGroup?.id}`}
+                entry={entry}
+                onEditFood={onEditFood}
+                onEditMeal={onEditMeal}
+                onDeleteFood={onDeleteFood}
+                onDeleteMeal={onDeleteMeal}
+                onViewPhoto={onViewPhoto}
+              />
+            ))}
           </Reanimated.View>
         )}
       </Reanimated.View>

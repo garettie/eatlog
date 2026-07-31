@@ -34,7 +34,7 @@ export type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 const TAB_SCREEN_OPTIONS = {
     headerShown: false,
-    lazy: false,
+    lazy: true,
     freezeOnBlur: true,
 } as const;
 
@@ -184,7 +184,13 @@ export default function TabNavigator() {
 
     const handleSheetGoBack = useCallback(() => {
         const prev = backHistoryRef.current[backHistoryRef.current.length - 1];
-        if (!prev) return false;
+        if (!prev) {
+            const close = () => {
+                sheetCloseRef.current();
+            };
+            if (discardGuard.requestClose(close)) close();
+            return true;
+        }
         const goBack = () => {
             backHistoryRef.current.pop();
             setSheet((s) => ({ ...s, stateKey: prev }));
@@ -434,6 +440,7 @@ export default function TabNavigator() {
                     onMealLogged={handleMealLogged}
                     onWeightLogged={handleWeightLogged}
                     skipHistoryRef={skipHistoryRef}
+                    onGoBack={handleSheetGoBack}
                 />
             </Sheet>
 
