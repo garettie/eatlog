@@ -470,10 +470,6 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
     });
   }, [foodLogs, mealRows]);
 
-  useEffect(() => {
-    setCollapsedSections(new Set(journalSections.filter((section) => section.entries.length === 0).map((section) => section.meal)));
-  }, [displayedDate]);
-
   const journalListItems = useMemo<DiaryListItem[]>(() => {
     const items: DiaryListItem[] = [];
     for (const section of journalSections) {
@@ -515,14 +511,10 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   }, []);
 
   const diaryListHeader = useMemo(() => (
-    <>
-      <MacroRail cells={macroCells} />
-      <View className="h-px bg-m3-outline-variant/30 mx-4 mb-3" />
-      <View className="px-4 pb-1">
-        <Text className="text-m3-on-surface text-sm font-bold">{formatDayHeader(displayedDate)}</Text>
-      </View>
-    </>
-  ), [displayedDate, macroCells]);
+    <View className="px-4 pb-1">
+      <Text className="text-m3-on-surface text-sm font-bold">{formatDayHeader(displayedDate)}</Text>
+    </View>
+  ), [displayedDate]);
 
   const emptyDiaryState = foodLogs.length === 0 ? (
     <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">
@@ -731,6 +723,13 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
             <Text className="text-m3-on-error-container text-xs font-semibold">Retry</Text>
           </Pressable>
         </View>
+      )}
+
+      {!loading && !dayLoadError && (
+        <>
+          <MacroRail cells={macroCells} />
+          <View className="h-px bg-m3-outline-variant/30 mx-4 mb-3" />
+        </>
       )}
 
       <View className="flex-1">
