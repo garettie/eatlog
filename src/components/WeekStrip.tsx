@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { LayoutChangeEvent, Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -162,15 +162,52 @@ export default function DayStrip({
 }: DayStripProps) {
   const scrollRef = useRef<ScrollView>(null);
   const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
-  useEffect(() => {
-    const idx = days.findIndex((d) => d.isoDate === selectedDate);
-    if (idx !== -1 && scrollRef.current) {
-      const x = Math.max(0, idx * (cellWidth + CELL_GAP) - 20);
-      scrollRef.current.scrollTo({ x, animated: false });
-    }
-  }, [cellWidth, monthLabel]);
+  const viewportWidthRef = useRef(0);
+  const pendingScrollRef = useRef<{ selectedDate: string; monthLabel: string } | null>(null);
+  const daysRef = useRef(days);
+  const cellWidthRef = useRef(cellWidth);
+  daysRef.current = days;
+  cellWidthRef.current = cellWidth;
 
-  const handleFirstLayout = React.useCallback((measured: number) => {
+  const performScroll = useCallback(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const viewport = viewportWidthRef.current;
+    if (viewport <= 0) return;
+    const currentDays = daysRef.current;
+    const currentCellWidth = cellWidthRef.current;
+    const target = pendingScrollRef.current;
+    if (!target) return;
+
+    let idx = currentDays.findIndex((d) => d.isoDate === target.selectedDate);
+    if (idx === -1) {
+      const today = currentDays.find((d) => d.isToday);
+      idx = today ? currentDays.indexOf(today) : currentDays.length - 1;
+    }
+    if (idx < 0) return;
+
+    const step = currentCellWidth + CELL_GAP;
+    const contentWidth = currentDays.length * step;
+    const maxScroll = Math.max(0, contentWidth - viewport);
+    const x = Math.min(Math.max(0, idx * step - 20), maxScroll);
+    scroll.scrollTo({ x, animated: false });
+    pendingScrollRef.current = null;
+  }, []);
+
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const w = event.nativeEvent.layout.width;
+    if (w > 0) viewportWidthRef.current = w;
+    if (pendingScrollRef.current) {
+      requestAnimationFrame(() => performScroll());
+    }
+  }, [performScroll]);
+
+  useEffect(() => {
+    pendingScrollRef.current = { selectedDate, monthLabel };
+    requestAnimationFrame(() => performScroll());
+  }, [monthLabel, selectedDate, performScroll]);
+
+  const handleFirstLayout = useCallback((measured: number) => {
     if (measured > 0 && Math.abs(measured - cellWidth) > 0.5) setCellWidth(measured);
   }, [cellWidth]);
 
@@ -207,6 +244,7 @@ export default function DayStrip({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerClassName="px-2 pb-2 gap-1"
+        onLayout={handleLayout}
       >
         {days.map((day, index) => {
           return (

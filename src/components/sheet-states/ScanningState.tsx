@@ -13,7 +13,7 @@ export default function ScanningState({ onCancel }: ScanningStateProps) {
         <ActivityIndicator size="large" color={M3.primary} />
         <Text className="text-m3-on-surface text-sm font-semibold text-center">Reading ingredients and portions…</Text>
         <Text className="text-m3-on-surface-variant text-sm text-center">
-          You’ll review every estimate before it reaches your diary.
+          You'll review estimates before logging.
         </Text>
         <Pressable onPress={onCancel} accessibilityRole="button" accessibilityLabel="Cancel scanning" className="min-h-[48px] justify-center bg-m3-surface-container-highest rounded-full px-5 py-2.5 active:opacity-60">
           <Text className="text-m3-on-surface text-xs font-semibold">Cancel</Text>

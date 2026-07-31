@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
   FadeInUp,
@@ -381,138 +381,6 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     }
   }, [mealName, clarifying, onClarify]);
 
-  const renderComponent = useCallback(({ item: comp, index: idx }: { item: EditableComponent; index: number }) => {
-    const isExpanded = expandedIndex === idx;
-    const ratio = comp.grams / 100;
-    const cal = Math.round(comp.per100g.calories * ratio);
-    const hasServing = !!(comp.servingSizeGrams && comp.servingSizeGrams > 0);
-    const showMl = !!(comp.servingLabel && /ml\b/i.test(comp.servingLabel));
-
-    return (
-      <View className="border-b border-m3-outline-variant/20">
-        <Animated.View
-          layout={reducedMotion ? undefined : LinearTransition.duration(200).easing(EASING.emphasized)}
-          className={isExpanded ? 'py-4 gap-4 overflow-hidden' : 'flex-row items-center py-3.5 overflow-hidden'}
-        >
-          {isExpanded ? (
-            <>
-              <View className="flex-row items-center gap-2">
-                <BottomSheetTextInput
-                  value={comp.food.name}
-                  onChangeText={(t) => updateName(idx, t)}
-                  accessibilityLabel={`Food name, ${comp.food.name}`}
-                  className="flex-1 bg-m3-surface-container-high text-m3-on-surface font-medium text-base rounded-xl px-4 py-3 border border-m3-outline-variant/50"
-                />
-                <Pressable
-                  onPress={() => setExpandedIndex(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Collapse food details"
-                  className="w-12 h-12 items-center justify-center -mr-1 active:opacity-60"
-                >
-                  <MaterialIcons name="expand-less" size={20} color={M3.onSurfaceVariant} />
-                </Pressable>
-              </View>
-
-              <PortionStepper
-                unitMode={comp.unitMode}
-                servings={comp.servings}
-                grams={comp.grams}
-                servingSizeGrams={comp.servingSizeGrams}
-                servingLabel={comp.servingLabel}
-                hasServing={hasServing}
-                showMl={showMl}
-                onModeChange={(m) => updateUnitMode(idx, m)}
-                onServingsDelta={(d) => updateServings(idx, d)}
-                onServingsSet={(t) => updateServingsFromText(idx, t, comp)}
-                onGramsSet={(t) => {
-                  const v = parseFloat(t);
-                  if (!isNaN(v) && v > 0) updateGrams(idx, v);
-                }}
-              />
-
-              <View className="flex-row gap-3 items-end">
-                {(['calories', 'protein', 'carbs', 'fat'] as const).map((field) => {
-                  const perServingMul = comp.unitMode === 'servings'
-                    ? (comp.servingSizeGrams ?? 100) / 100
-                    : 1;
-                  const displayVal = perServingMul === 1
-                    ? comp.per100g[field]
-                    : field === 'calories'
-                      ? Math.round(comp.per100g[field] * perServingMul)
-                      : Math.round(comp.per100g[field] * perServingMul * 10) / 10;
-
-                  return (
-                    <View key={field} className="flex-1 gap-1">
-                      <MacroTextInput
-                        value={displayVal}
-                        onValueChange={(v) => {
-                          const mul = comp.unitMode === 'servings'
-                            ? (comp.servingSizeGrams ?? 100) / 100
-                            : 1;
-                          const per100gVal = mul === 1 ? v : field === 'calories'
-                            ? Math.round(v / mul)
-                            : Math.round(v / mul * 10) / 10;
-                          updatePer100g(idx, field, per100gVal);
-                        }}
-                      />
-                      <Text className={`text-[10px] text-center font-medium ${
-                        field === 'protein'
-                          ? 'text-m3-protein'
-                          : field === 'carbs'
-                            ? 'text-m3-carbs'
-                            : field === 'fat'
-                              ? 'text-m3-fat'
-                              : 'text-m3-on-surface-variant'
-                      }`}>
-                        {field === 'calories' ? 'Calories' : field === 'protein' ? 'Protein' : field === 'carbs' ? 'Carbs' : 'Fat'}
-                      </Text>
-                    </View>
-                  );
-                })}
-                <Text className="text-xs text-m3-on-surface-variant font-medium pb-3.5">
-                  {comp.unitMode === 'servings' ? 'per serving' : comp.unitMode === 'ml' ? 'per 100ml' : 'per 100g'}
-                </Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <Pressable
-                onPress={() => setExpandedIndex(idx)}
-                accessibilityRole="button"
-                accessibilityLabel={`Edit ${comp.food.name}, ${cal} calories`}
-                accessibilityHint="Opens food details and portion controls"
-                className="flex-1 flex-row items-center mr-2 active:opacity-60 min-h-[48px]"
-              >
-                <View className="flex-1">
-                  <Text className="text-m3-on-surface font-medium text-base" numberOfLines={1}>{comp.food.name}</Text>
-                  <View className="flex-row items-center gap-1 mt-0.5">
-                    <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>
-                      {showMl
-                        ? `${comp.grams}ml`
-                        : hasServing && comp.unitMode === 'servings'
-                          ? `${comp.servings % 1 === 0 ? comp.servings.toFixed(0) : comp.servings.toFixed(1)} × ${comp.servingLabel ?? `${comp.servingSizeGrams}g`} (${comp.grams}g)`
-                          : `${comp.grams}g`}
-                    </Text>
-                    {comp.food.brand ? <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>· {comp.food.brand}</Text> : null}
-                  </View>
-                </View>
-                <Text className="text-m3-on-surface font-semibold text-sm tabular-nums mr-1">{cal} kcal</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => removeComponent(idx)}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${comp.food.name}`}
-                className="w-12 h-12 items-center justify-center -mr-1 active:opacity-60"
-              >
-                <MaterialIcons name="close" size={14} color={M3.onSurfaceVariant} />
-              </Pressable>
-            </>
-          )}
-        </Animated.View>
-      </View>
-    );
-  }, [expandedIndex, reducedMotion, removeComponent, updateGrams, updateName, updatePer100g, updateServings, updateServingsFromText, updateUnitMode]);
-
   return (
     <View className="flex-1">
       <Pressable
@@ -557,46 +425,174 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         )}
       </View>
 
-      <MealPhotoEditor
-        value={selectedPhotoUri}
-        onChange={handlePhotoChange}
-        disabled={logging}
-      />
-
-      <View className="px-5 pt-4 pb-6 items-center gap-2">
-        <View className="items-center">
-          <Text className="text-m3-on-surface text-4xl font-bold tabular-nums">
-            {totalMacros.calories}
-            <Text className="text-m3-on-surface-variant text-sm font-medium"> kcal</Text>
-          </Text>
-          <Text className="text-[10px] text-m3-on-surface-variant font-medium mt-0.5">Calories</Text>
-        </View>
-        <View className="w-full">
-          <MacroChipGroup
-            protein={totalMacros.protein}
-            carbs={totalMacros.carbs}
-            fat={totalMacros.fat}
-          />
-        </View>
-        <Text className="text-m3-on-surface-variant text-xs">{totalMacros.totalGrams}g total</Text>
-      </View>
-
-      <BottomSheetFlatList
+      <BottomSheetScrollView
         className="flex-1 px-5"
         contentContainerClassName="pb-4"
         keyboardShouldPersistTaps="handled"
-        data={components}
-        renderItem={renderComponent}
-        keyExtractor={(component) => component.food.id}
-        ListFooterComponent={(
-          <Animated.View
-            entering={reducedMotion ? undefined : FadeInUp.duration(180).delay(components.length * 25)}
-            className="pt-2"
-          >
-            <AddComponentSection onAdd={handleAddFoods} />
-          </Animated.View>
-        )}
-      />
+      >
+        <MealPhotoEditor
+          value={selectedPhotoUri}
+          onChange={handlePhotoChange}
+          disabled={logging}
+        />
+
+        <View className="pt-4 pb-6 items-center gap-2">
+          <View className="items-center">
+            <Text className="text-m3-on-surface text-4xl font-bold tabular-nums">
+              {totalMacros.calories}
+              <Text className="text-m3-on-surface-variant text-sm font-medium"> kcal</Text>
+            </Text>
+            <Text className="text-[10px] text-m3-on-surface-variant font-medium mt-0.5">Calories</Text>
+          </View>
+          <View className="w-full">
+            <MacroChipGroup
+              protein={totalMacros.protein}
+              carbs={totalMacros.carbs}
+              fat={totalMacros.fat}
+            />
+          </View>
+          <Text className="text-m3-on-surface-variant text-xs">{totalMacros.totalGrams}g total</Text>
+        </View>
+
+        {components.map((comp, idx) => {
+          const isExpanded = expandedIndex === idx;
+          const ratio = comp.grams / 100;
+          const cal = Math.round(comp.per100g.calories * ratio);
+          const hasServing = !!(comp.servingSizeGrams && comp.servingSizeGrams > 0);
+          const showMl = !!(comp.servingLabel && /ml\b/i.test(comp.servingLabel));
+
+          return (
+            <View key={comp.food.id} className="border-b border-m3-outline-variant/20">
+              <Animated.View
+                layout={reducedMotion ? undefined : LinearTransition.duration(200).easing(EASING.emphasized)}
+                className={isExpanded ? 'py-4 gap-4 overflow-hidden' : 'flex-row items-center py-3.5 overflow-hidden'}
+              >
+                {isExpanded ? (
+                  <>
+                    <View className="flex-row items-center gap-2">
+                      <BottomSheetTextInput
+                        value={comp.food.name}
+                        onChangeText={(t) => updateName(idx, t)}
+                        accessibilityLabel={`Food name, ${comp.food.name}`}
+                        className="flex-1 bg-m3-surface-container-high text-m3-on-surface font-medium text-base rounded-xl px-4 py-3 border border-m3-outline-variant/50"
+                      />
+                      <Pressable
+                        onPress={() => setExpandedIndex(null)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Collapse food details"
+                        className="w-12 h-12 items-center justify-center -mr-1 active:opacity-60"
+                      >
+                        <MaterialIcons name="expand-less" size={20} color={M3.onSurfaceVariant} />
+                      </Pressable>
+                    </View>
+
+                    <PortionStepper
+                      unitMode={comp.unitMode}
+                      servings={comp.servings}
+                      grams={comp.grams}
+                      servingSizeGrams={comp.servingSizeGrams}
+                      servingLabel={comp.servingLabel}
+                      hasServing={hasServing}
+                      showMl={showMl}
+                      onModeChange={(m) => updateUnitMode(idx, m)}
+                      onServingsDelta={(d) => updateServings(idx, d)}
+                      onServingsSet={(t) => updateServingsFromText(idx, t, comp)}
+                      onGramsSet={(t) => {
+                        const v = parseFloat(t);
+                        if (!isNaN(v) && v > 0) updateGrams(idx, v);
+                      }}
+                    />
+
+                    <View className="flex-row gap-3 items-end">
+                      {(['calories', 'protein', 'carbs', 'fat'] as const).map((field) => {
+                        const perServingMul = comp.unitMode === 'servings'
+                          ? (comp.servingSizeGrams ?? 100) / 100
+                          : 1;
+                        const displayVal = perServingMul === 1
+                          ? comp.per100g[field]
+                          : field === 'calories'
+                            ? Math.round(comp.per100g[field] * perServingMul)
+                            : Math.round(comp.per100g[field] * perServingMul * 10) / 10;
+
+                        return (
+                          <View key={field} className="flex-1 gap-1">
+                            <MacroTextInput
+                              value={displayVal}
+                              onValueChange={(v) => {
+                                const mul = comp.unitMode === 'servings'
+                                  ? (comp.servingSizeGrams ?? 100) / 100
+                                  : 1;
+                                const per100gVal = mul === 1 ? v : field === 'calories'
+                                  ? Math.round(v / mul)
+                                  : Math.round(v / mul * 10) / 10;
+                                updatePer100g(idx, field, per100gVal);
+                              }}
+                            />
+                            <Text className={`text-[10px] text-center font-medium ${
+                              field === 'protein'
+                                ? 'text-m3-protein'
+                                : field === 'carbs'
+                                  ? 'text-m3-carbs'
+                                  : field === 'fat'
+                                    ? 'text-m3-fat'
+                                    : 'text-m3-on-surface-variant'
+                            }`}>
+                              {field === 'calories' ? 'Calories' : field === 'protein' ? 'Protein' : field === 'carbs' ? 'Carbs' : 'Fat'}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                      <Text className="text-xs text-m3-on-surface-variant font-medium pb-3.5">
+                        {comp.unitMode === 'servings' ? 'per serving' : comp.unitMode === 'ml' ? 'per 100ml' : 'per 100g'}
+                      </Text>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Pressable
+                      onPress={() => setExpandedIndex(idx)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit ${comp.food.name}, ${cal} calories`}
+                      accessibilityHint="Opens food details and portion controls"
+                      className="flex-1 flex-row items-center mr-2 active:opacity-60 min-h-[48px]"
+                    >
+                      <View className="flex-1">
+                        <Text className="text-m3-on-surface font-medium text-base" numberOfLines={1}>{comp.food.name}</Text>
+                        <View className="flex-row items-center gap-1 mt-0.5">
+                          <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>
+                            {showMl
+                              ? `${comp.grams}ml`
+                              : hasServing && comp.unitMode === 'servings'
+                                ? `${comp.servings % 1 === 0 ? comp.servings.toFixed(0) : comp.servings.toFixed(1)} × ${comp.servingLabel ?? `${comp.servingSizeGrams}g`} (${comp.grams}g)`
+                                : `${comp.grams}g`}
+                          </Text>
+                          {comp.food.brand ? <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>· {comp.food.brand}</Text> : null}
+                        </View>
+                      </View>
+                      <Text className="text-m3-on-surface font-semibold text-sm tabular-nums mr-1">{cal} kcal</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => removeComponent(idx)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${comp.food.name}`}
+                      className="w-12 h-12 items-center justify-center -mr-1 active:opacity-60"
+                    >
+                      <MaterialIcons name="close" size={14} color={M3.onSurfaceVariant} />
+                    </Pressable>
+                  </>
+                )}
+              </Animated.View>
+            </View>
+          );
+        })}
+
+        <Animated.View
+          entering={reducedMotion ? undefined : FadeInUp.duration(180).delay(components.length * 25)}
+          className="pt-2"
+        >
+          <AddComponentSection onAdd={handleAddFoods} />
+        </Animated.View>
+      </BottomSheetScrollView>
 
       <View
         className="px-5 pt-2 gap-3 border-t border-m3-outline-variant/30"
