@@ -14,11 +14,10 @@
       "package": "com.marco.tracker",
       "adaptiveIcon": {
         "backgroundColor": "#111318",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
+      "predictiveBackGestureEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "android.permission.RECORD_AUDIO"
@@ -53,8 +52,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "e4059a0a-1c21-427a-9f38-4628a6958e8e"
+        "projectId": "bffe0ee2-d580-4ad2-8fa1-ae76f16279c3"
       }
-    }
+    },
+    "owner": "yoshibig"
   }
 }
