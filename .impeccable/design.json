@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-28T13:33:06+08:00",
+  "generatedAt": "2026-08-01T17:03:22+08:00",
   "title": "Design System: Marco",
   "extensions": {
     "colorMeta": {
@@ -16,7 +16,9 @@
       "headline": { "displayName": "Screen Headline", "purpose": "Onboarding and completion state headings." },
       "title": { "displayName": "Data Title", "purpose": "Cards, meals, and navigation labels." },
       "body": { "displayName": "Supporting Body", "purpose": "Explanatory product copy." },
-      "label": { "displayName": "Control Label", "purpose": "Compact controls and nutrient metadata." }
+      "label": { "displayName": "Control Label", "purpose": "Compact controls and nutrient metadata." },
+      "navigation": { "displayName": "Navigation Label", "purpose": "Bottom navigation destinations." },
+      "compact": { "displayName": "Dense Metadata", "purpose": "Chart, calendar, nutrition, and ruler metadata only." }
     },
     "shadows": [],
     "motion": [
@@ -32,7 +34,7 @@
       "refersTo": "button-primary",
       "description": "The single primary completion action on a screen or sheet.",
       "html": "<button class=\"ds-primary-button\">SCAN A MEAL</button>",
-      "css": ".ds-primary-button{background:#fff;color:#0f1117;border:0;border-radius:9999px;padding:16px 24px;font:700 14px Inter,Arial,sans-serif;transition:transform .1s ease,opacity .2s ease}.ds-primary-button:hover{opacity:.9}.ds-primary-button:focus-visible{outline:2px solid #a0cafd;outline-offset:3px}.ds-primary-button:active{transform:scale(.97)}"
+      "css": ".ds-primary-button{background:#fff;color:#0f1117;border:0;border-radius:9999px;padding:16px 24px;font:700 14px Onest,Arial,sans-serif;transition:transform .1s ease,opacity .2s ease}.ds-primary-button:hover{opacity:.9}.ds-primary-button:focus-visible{outline:2px solid #a0cafd;outline-offset:3px}.ds-primary-button:active{transform:scale(.97)}"
     },
     {
       "name": "Surface Card",
@@ -40,7 +42,7 @@
       "refersTo": "card",
       "description": "Default dashboard and onboarding containment surface.",
       "html": "<section class=\"ds-card\"><strong>Daily target</strong><span>2,400 kcal</span></section>",
-      "css": ".ds-card{display:flex;justify-content:space-between;align-items:center;background:#1d2024;color:#e2e2e9;border:1px solid rgba(43,45,53,.6);border-radius:24px;padding:20px;font:600 16px Inter,Arial,sans-serif}.ds-card span{font-variant-numeric:tabular-nums;color:#c4c6d0;font-size:14px}"
+      "css": ".ds-card{display:flex;justify-content:space-between;align-items:center;background:#1d2024;color:#e2e2e9;border:1px solid rgba(43,45,53,.6);border-radius:24px;padding:20px;font:600 16px Onest,Arial,sans-serif}.ds-card span{font-variant-numeric:tabular-nums;color:#c4c6d0;font-size:14px}"
     },
     {
       "name": "Selected Chip",
@@ -48,7 +50,7 @@
       "refersTo": "selected-chip",
       "description": "Selected option in meal selectors and compact segmented controls.",
       "html": "<button class=\"ds-chip\">DINNER</button>",
-      "css": ".ds-chip{background:#33353a;color:#e2e2e9;border:0;border-radius:9999px;padding:10px 16px;font:600 12px Inter,Arial,sans-serif;transition:opacity .2s}.ds-chip:hover{opacity:.8}.ds-chip:focus-visible{outline:2px solid #a0cafd;outline-offset:2px}"
+      "css": ".ds-chip{background:#33353a;color:#e2e2e9;border:0;border-radius:9999px;padding:10px 16px;font:600 12px Onest,Arial,sans-serif;transition:opacity .2s}.ds-chip:hover{opacity:.8}.ds-chip:focus-visible{outline:2px solid #a0cafd;outline-offset:2px}"
     },
     {
       "name": "Measurement Field",
@@ -56,7 +58,7 @@
       "refersTo": "input",
       "description": "Editable display-scale weight or height value paired with a ruler.",
       "html": "<label class=\"ds-measurement\"><input value=\"80.0\" aria-label=\"Starting scale weight\" /><span>kg</span></label>",
-      "css": ".ds-measurement{display:flex;justify-content:center;align-items:baseline;gap:4px;color:#c4c6d0;font:500 14px Inter,Arial,sans-serif}.ds-measurement input{width:140px;padding:4px 0;background:transparent;border:0;color:#e2e2e9;text-align:center;font:700 36px Inter,Arial,sans-serif;font-variant-numeric:tabular-nums}.ds-measurement input:focus-visible{outline:2px solid #a0cafd;border-radius:12px}"
+      "css": ".ds-measurement{display:flex;justify-content:center;align-items:baseline;gap:4px;color:#c4c6d0;font:500 14px Onest,Arial,sans-serif}.ds-measurement input{width:140px;padding:4px 0;background:transparent;border:0;color:#e2e2e9;text-align:center;font:700 36px Onest,Arial,sans-serif;font-variant-numeric:tabular-nums}.ds-measurement input:focus-visible{outline:2px solid #a0cafd;border-radius:12px}"
     },
     {
       "name": "Diary Entry Card",
@@ -64,13 +66,13 @@
       "refersTo": "entry-card",
       "description": "A food or grouped meal; scanned meals use a flush media rail while non-scanned entries use a semantic icon.",
       "html": "<article class=\"ds-entry\"><div class=\"ds-entry-media\"></div><div><strong>Chicken rice bowl</strong><small>3 items</small></div><b>640 <em>kcal</em></b></article>",
-      "css": ".ds-entry{display:flex;align-items:stretch;overflow:hidden;background:#1d2024;border:1px solid rgba(43,45,53,.6);border-radius:16px;color:#e2e2e9;font-family:Inter,Arial,sans-serif}.ds-entry-media{width:112px;min-height:112px;background:#33353a}.ds-entry>div:not(.ds-entry-media){flex:1;min-width:0;padding:20px 16px}.ds-entry strong{display:block;font-size:16px;line-height:20px}.ds-entry small{display:block;margin-top:2px;color:#c4c6d0;font-size:12px}.ds-entry b{width:88px;padding:20px 16px 0 0;text-align:right;font-size:18px;font-variant-numeric:tabular-nums}.ds-entry em{color:#c4c6d0;font-size:12px;font-style:normal;font-weight:500}"
+      "css": ".ds-entry{display:flex;align-items:stretch;overflow:hidden;background:#1d2024;border:1px solid rgba(43,45,53,.6);border-radius:16px;color:#e2e2e9;font-family:Onest,Arial,sans-serif}.ds-entry-media{width:112px;min-height:112px;background:#33353a}.ds-entry>div:not(.ds-entry-media){flex:1;min-width:0;padding:20px 16px}.ds-entry strong{display:block;font-size:16px;line-height:22px}.ds-entry small{display:block;margin-top:2px;color:#c4c6d0;font-size:12px}.ds-entry b{width:88px;padding:20px 16px 0 0;text-align:right;font-size:18px;font-variant-numeric:tabular-nums}.ds-entry em{color:#c4c6d0;font-size:12px;font-style:normal;font-weight:500}"
     }
   ],
   "narrative": {
     "northStar": "The Adaptive Training Instrument",
     "overview": "Marco is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.",
-    "keyCharacteristics": ["Tonal dark Material 3 layering, not gradients or glass.", "Real Inter weights and tabular numeric hierarchy.", "Scanner/photo media is meaningful; icons are the fallback.", "Rounded surfaces with hairline boundaries, not floating shadow stacks."],
+    "keyCharacteristics": ["Tonal dark Material 3 layering, not gradients or glass.", "Real Onest weights and tabular numeric hierarchy.", "Scanner/photo media is meaningful; icons are the fallback.", "Rounded surfaces with hairline boundaries, not floating shadow stacks."],
     "rules": [
       { "name": "Scanner-First Rule", "body": "Camera capture, gallery import, and meal description are the primary entry routes. Search and manual entry remain capable fallbacks, never the visual center of the product.", "section": "overview" },
       { "name": "Nutrient Meaning Rule", "body": "Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen.", "section": "colors" },

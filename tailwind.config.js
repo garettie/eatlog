@@ -11,11 +11,19 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter-Regular', 'sans-serif'],
-        'inter-regular': ['Inter-Regular'],
-        'inter-medium': ['Inter-Medium'],
-        'inter-semibold': ['Inter-SemiBold'],
-        'inter-bold': ['Inter-Bold'],
+        sans: ['Onest_400Regular', 'sans-serif'],
+      },
+      fontSize: {
+        compact: ['11px', { lineHeight: '14px', letterSpacing: '0.15px' }],
+        xs: ['12px', { lineHeight: '16px', letterSpacing: '0.1px' }],
+        sm: ['14px', { lineHeight: '20px', letterSpacing: '0.1px' }],
+        base: ['16px', { lineHeight: '22px' }],
+        lg: ['18px', { lineHeight: '24px', letterSpacing: '-0.1px' }],
+        xl: ['20px', { lineHeight: '26px', letterSpacing: '-0.2px' }],
+        '2xl': ['24px', { lineHeight: '30px', letterSpacing: '-0.3px' }],
+        '3xl': ['30px', { lineHeight: '36px', letterSpacing: '-0.45px' }],
+        '4xl': ['36px', { lineHeight: '40px', letterSpacing: '-0.65px' }],
+        '5xl': ['48px', { lineHeight: '52px', letterSpacing: '-0.9px' }],
       },
       colors: {
         m3: {
@@ -59,11 +67,11 @@ module.exports = {
   plugins: [
     plugin(({ addUtilities }) => {
       addUtilities({
-        // Route weight classes to the bundled Inter files — otherwise Android
-        // synthesizes faux bold from Inter-Regular.
-        '.font-medium': { fontFamily: 'Inter-Medium' },
-        '.font-semibold': { fontFamily: 'Inter-SemiBold' },
-        '.font-bold': { fontFamily: 'Inter-Bold' },
+        // Route weight classes to real bundled files so Android never
+        // synthesizes faux weights from the regular face.
+        '.font-medium': { fontFamily: 'Onest_500Medium' },
+        '.font-semibold': { fontFamily: 'Onest_600SemiBold' },
+        '.font-bold': { fontFamily: 'Onest_700Bold' },
       });
     }),
   ],

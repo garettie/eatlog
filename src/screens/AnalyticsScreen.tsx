@@ -153,7 +153,7 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
       <Text className="text-m3-on-surface-variant text-xs font-semibold">{label}</Text>
       <Text className="text-m3-on-surface text-lg font-bold tabular-nums">{value}</Text>
       {detail ? (
-        <Text className="text-m3-on-surface-variant text-[10px] font-medium">{detail}</Text>
+        <Text className="text-m3-on-surface-variant text-compact font-medium">{detail}</Text>
       ) : null}
     </View>
   );
@@ -163,15 +163,15 @@ function MacroRow({ protein, carbs, fat }: { protein: number; carbs: number; fat
   return (
     <View className="flex-row gap-2">
       <View className="flex-1 bg-m3-protein/10 rounded-xl px-2 py-2.5 items-center">
-        <Text className="text-m3-protein text-[10px] font-semibold">Protein</Text>
+        <Text className="text-m3-protein text-compact font-semibold">Protein</Text>
         <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{Math.round(protein)}g</Text>
       </View>
       <View className="flex-1 bg-m3-carbs/10 rounded-xl px-2 py-2.5 items-center">
-        <Text className="text-m3-carbs text-[10px] font-semibold">Carbs</Text>
+        <Text className="text-m3-carbs text-compact font-semibold">Carbs</Text>
         <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{Math.round(carbs)}g</Text>
       </View>
       <View className="flex-1 bg-m3-fat/10 rounded-xl px-2 py-2.5 items-center">
-        <Text className="text-m3-fat text-[10px] font-semibold">Fat</Text>
+        <Text className="text-m3-fat text-compact font-semibold">Fat</Text>
         <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{Math.round(fat)}g</Text>
       </View>
     </View>
@@ -541,20 +541,20 @@ function AnalyticsScreen({
                       <View className="h-px bg-m3-outline-variant/50" />
                       <View className="flex-row flex-wrap gap-3">
                         <View className="flex-1 min-w-[88px] gap-1">
-                          <Text className="text-m3-on-surface-variant text-[10px] font-semibold">Actual rate</Text>
+                          <Text className="text-m3-on-surface-variant text-compact font-semibold">Actual rate</Text>
                           <Text className="text-m3-on-surface text-sm font-bold tabular-nums">
                             {sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : '—'}
                           </Text>
-                          <Text className="text-m3-on-surface-variant text-[10px] font-medium">
+                          <Text className="text-m3-on-surface-variant text-compact font-medium">
                             {sufficientProgress ? `${endpointSpanDays} days observed` : 'At least 7 days required'}
                           </Text>
                         </View>
                         <View className="flex-1 min-w-[88px] gap-1">
-                          <Text className="text-m3-on-surface-variant text-[10px] font-semibold">Planned rate</Text>
+                          <Text className="text-m3-on-surface-variant text-compact font-semibold">Planned rate</Text>
                           <Text className="text-m3-on-surface text-sm font-bold tabular-nums">
                             {signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
                           </Text>
-                          <Text className="text-m3-on-surface-variant text-[10px] font-medium">
+                          <Text className="text-m3-on-surface-variant text-compact font-medium">
                             {profile.goal_type === 'maintain' ? 'Maintenance' : profile.goal_type === 'cut' ? 'Weight loss' : 'Weight gain'}
                           </Text>
                         </View>
@@ -613,7 +613,7 @@ function AnalyticsScreen({
               <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                 {averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
               </Text>
-              <Text className="text-m3-on-surface-variant text-[10px] font-medium">
+              <Text className="text-m3-on-surface-variant text-compact font-medium">
                 {averageCalories == null ? 'No food-logged days' : `${dailyCalories.length} food-logged days`}
               </Text>
             </View>

@@ -200,8 +200,8 @@ export default function RulerSlider({
         </View>
       </View>
       <View className="flex-row justify-between px-0.5 mt-1">
-        <Text className="text-[10px] text-m3-on-surface-variant font-medium tabular-nums">{formatVal(min)} {unit}</Text>
-        <Text className="text-[10px] text-m3-on-surface-variant font-medium tabular-nums">{formatVal(max)} {unit}</Text>
+        <Text className="text-compact text-m3-on-surface-variant font-medium tabular-nums">{formatVal(min)} {unit}</Text>
+        <Text className="text-compact text-m3-on-surface-variant font-medium tabular-nums">{formatVal(max)} {unit}</Text>
       </View>
     </View>
   );

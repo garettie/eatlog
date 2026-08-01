@@ -106,7 +106,7 @@ const DayButton = React.memo(function DayButton({
       accessibilityState={{ selected: isSelected, disabled: day.isFuture }}
       accessibilityHint={day.isFuture ? undefined : calorieHint}
     >
-      <Text className={`text-[10px] font-semibold mb-0.5 ${
+      <Text className={`text-compact font-semibold mb-0.5 ${
         day.isToday
           ? 'text-m3-primary'
           : day.isFuture

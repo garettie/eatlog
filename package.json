@@ -5,6 +5,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo-google-fonts/onest": "^0.4.1",
     "@expo/vector-icons": "^15.0.0",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native-community/datetimepicker": "8.4.4",

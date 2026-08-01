@@ -42,3 +42,16 @@ export const M3 = {
   scrim: '#000000',
   scrimOpacityDefault: 0.55,
 } as const;
+
+export const TYPE = {
+  family: {
+    regular: 'Onest_400Regular',
+    medium: 'Onest_500Medium',
+    semibold: 'Onest_600SemiBold',
+    bold: 'Onest_700Bold',
+  },
+  compact: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+} as const;

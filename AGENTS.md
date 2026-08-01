@@ -182,7 +182,7 @@ Boris Cherny (creator of Claude Code) keeps his team's file around 100 lines. Un
 - Styling: NativeWind 4.2 (Tailwind CSS for React Native)
 - Navigation: React Navigation 7 (native stack)
 - Storage: expo-sqlite (local-first, on-device SQLite, no backend)
-- Fonts: Inter (400/500/600/700) bundled via expo-font
+- Fonts: Onest (400/500/600/700) bundled via @expo-google-fonts/onest and expo-font
 - Icons: @expo/vector-icons (MaterialIcons, MaterialCommunityIcons)
 
 ### Commands
@@ -248,6 +248,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Bottom-sheet state changes use a 200ms shell, 90ms exit, and 150ms entrance; prevent Gorhom resize gaps by extending the background beneath its clipped container, never by delaying content.
 - Logging consistency charts must use MacroFactor's rolling 30-day 10-column by 3-row block and fill the available chart width; never weekday-align, pad, or artificially width-cap them.
 - The Today Analytics card shows only logging consistency; weight trend, starting weight, and history stay on the Analytics screen.
+- Typography uses Onest 400/500/600/700 with the shared NativeWind scale; reserve `text-compact` (11/14) for dense chart, calendar, nutrition, and ruler metadata, never explanatory or actionable copy.
 
 ---
 

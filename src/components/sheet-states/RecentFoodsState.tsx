@@ -22,7 +22,7 @@ type LoggedEntry =
 function MacroPill({ letter, grams, color }: { letter: string; grams: number; color: string }) {
   return (
     <View className="rounded-full px-2 py-0.5" style={{ backgroundColor: color + '1A' }}>
-      <Text className="text-[10px] font-bold tabular-nums" style={{ color }}>{letter} {Math.round(grams)}g</Text>
+      <Text className="text-compact font-bold tabular-nums" style={{ color }}>{letter} {Math.round(grams)}g</Text>
     </View>
   );
 }

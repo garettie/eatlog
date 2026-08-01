@@ -77,7 +77,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate, 
       </View>
 
       <View className="gap-1">
-        <Text className="text-[10px] text-m3-on-surface-variant font-semibold uppercase tracking-wider">Food Name</Text>
+        <Text className="text-xs text-m3-on-surface-variant font-semibold uppercase tracking-wider">Food Name</Text>
         <BottomSheetTextInput
           value={name}
           onChangeText={setName}
@@ -89,7 +89,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate, 
       </View>
 
       <View className="gap-1">
-        <Text className="text-[10px] text-m3-on-surface-variant font-semibold uppercase tracking-wider">Calories (kcal)</Text>
+        <Text className="text-xs text-m3-on-surface-variant font-semibold uppercase tracking-wider">Calories (kcal)</Text>
         <BottomSheetTextInput
           value={calories}
           onChangeText={setCalories}
@@ -103,7 +103,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate, 
 
       <View className="flex-row gap-3">
         <View className="flex-1 gap-1">
-          <Text className="text-[10px] text-m3-protein font-semibold uppercase tracking-wider">Protein (g)</Text>
+          <Text className="text-xs text-m3-protein font-semibold uppercase tracking-wider">Protein (g)</Text>
           <BottomSheetTextInput
             value={protein}
             onChangeText={setProtein}
@@ -115,7 +115,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate, 
           />
         </View>
         <View className="flex-1 gap-1">
-          <Text className="text-[10px] text-m3-carbs font-semibold uppercase tracking-wider">Carbs (g)</Text>
+          <Text className="text-xs text-m3-carbs font-semibold uppercase tracking-wider">Carbs (g)</Text>
           <BottomSheetTextInput
             value={carbs}
             onChangeText={setCarbs}
@@ -127,7 +127,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate, 
           />
         </View>
         <View className="flex-1 gap-1">
-          <Text className="text-[10px] text-m3-fat font-semibold uppercase tracking-wider">Fat (g)</Text>
+          <Text className="text-xs text-m3-fat font-semibold uppercase tracking-wider">Fat (g)</Text>
           <BottomSheetTextInput
             value={fat}
             onChangeText={setFat}

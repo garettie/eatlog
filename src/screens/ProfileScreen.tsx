@@ -188,17 +188,17 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
               <View className="flex-row">
                 <View className="flex-1 gap-1">
-                  <Text className="text-m3-protein text-[10px] font-semibold">Protein</Text>
+                  <Text className="text-m3-protein text-compact font-semibold">Protein</Text>
                   <Text className="text-m3-on-surface text-base font-bold tabular-nums">{Math.round(target.target_protein_g)}g</Text>
                 </View>
                 <View className="w-px bg-m3-outline-variant/50 mx-3" />
                 <View className="flex-1 gap-1">
-                  <Text className="text-m3-carbs text-[10px] font-semibold">Carbs</Text>
+                  <Text className="text-m3-carbs text-compact font-semibold">Carbs</Text>
                   <Text className="text-m3-on-surface text-base font-bold tabular-nums">{Math.round(target.target_carbs_g)}g</Text>
                 </View>
                 <View className="w-px bg-m3-outline-variant/50 mx-3" />
                 <View className="flex-1 gap-1">
-                  <Text className="text-m3-fat text-[10px] font-semibold">Fat</Text>
+                  <Text className="text-m3-fat text-compact font-semibold">Fat</Text>
                   <Text className="text-m3-on-surface text-base font-bold tabular-nums">{Math.round(target.target_fat_g)}g</Text>
                 </View>
               </View>
@@ -208,11 +208,11 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
           <View className="bg-m3-surface-container-high px-5 py-4 gap-3">
             <View className="flex-row justify-between gap-4">
               <View className="flex-1 gap-0.5">
-                <Text className="text-m3-on-surface-variant text-[10px] font-medium">Target source</Text>
+                <Text className="text-m3-on-surface-variant text-xs font-medium">Target source</Text>
                 <Text className="text-m3-on-surface text-xs font-semibold">{targetSource(target)}</Text>
               </View>
               <View className="items-end gap-0.5">
-                <Text className="text-m3-on-surface-variant text-[10px] font-medium">Effective</Text>
+                <Text className="text-m3-on-surface-variant text-xs font-medium">Effective</Text>
                 <Text className="text-m3-on-surface text-xs font-semibold tabular-nums">{formatDate(target.effective_date)}</Text>
               </View>
             </View>

@@ -56,7 +56,7 @@ The implemented core scores **25/40, Acceptable** against Nielsen's usability he
 - On-device SQLite profile, food log, meal, target, food-cache, weight-log, pin, and adaptive-review records with sequential non-destructive migrations.
 - Diary: calendar strip, overflow-aware daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, aligned edit/delete swipe actions, and undo.
 - Analytics: 1M/3M/6M/1Y weight ranges, scale and EWMA trend charting, intake coverage, expenditure/target context, goal-rate progress, and persisted weekly Accept/Keep recommendations.
-- Material 3 Expressive dark system in NativeWind; real bundled Inter 400/500/600/700 files; tabular figures; shared Card, PrimaryButton, segmented controls, bottom sheets, macro pills, and ruler slider.
+- Material 3 Expressive dark system in NativeWind; real bundled Onest 400/500/600/700 files; tabular figures; shared Card, PrimaryButton, segmented controls, bottom sheets, macro pills, and ruler slider.
 - Purposeful Reanimated motion with reduced-motion handling; precise accessible ruler controls; Android bottom navigation with one central entry FAB.
 
 **Automated evidence as of 2026-07-29:** `npm run typecheck` passes. `npm test` passes 36 calculation, calendar, weight, unit, and adaptive recommendation tests when the test runner can create its local IPC socket. `npx expo export --platform android --dev` completes when Metro receives a writable temp directory. No database, service, navigation, component, or end-to-end tests exist yet.
@@ -65,7 +65,7 @@ The implemented core scores **25/40, Acceptable** against Nielsen's usability he
 
 **Post-MVP:** cloud multi-device sync; barcode camera scanning; Health Connect/wearables; iOS; auth/accounts; notifications; social features; coach messaging; light theme; localization.
 
-**Hard constraints:** Android-only Expo managed workflow and EAS APK distribution; local-first/no backend; canonical app data remains on-device unless the user exports a file; Inter remains bundled; scanner is the primary path; no silent system-font fallback; no per-screen visual restyling outside the shared component vocabulary. Users never enter, view, or manage API keys.
+**Hard constraints:** Android-only Expo managed workflow and EAS APK distribution; local-first/no backend; canonical app data remains on-device unless the user exports a file; Onest remains bundled; scanner is the primary path; no silent system-font fallback; no per-screen visual restyling outside the shared component vocabulary. Users never enter, view, or manage API keys.
 
 ## MVP Completion Contract
 
@@ -137,7 +137,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 
 **Voice:** Precise, premium, confident. The product speaks like a serious training instrument, not a coach-bot. Copy is concise, direct, and transparent about estimates and adaptation.
 
-**Visual commitment:** Material 3 Expressive dark surfaces, Inter, meaningful nutrient color, hairline outlines, tonal elevation without card shadows, `rounded-3xl` screen surfaces, `rounded-2xl` diary entry cards, and `rounded-full` actions. Real scan media is flush inside its meal card; semantic icons are the fallback. Motion is responsive and reduced-motion safe.
+**Visual commitment:** Material 3 Expressive dark surfaces, Onest, meaningful nutrient color, hairline outlines, tonal elevation without card shadows, `rounded-3xl` screen surfaces, `rounded-2xl` diary entry cards, and `rounded-full` actions. Real scan media is flush inside its meal card; semantic icons are the fallback. Motion is responsive and reduced-motion safe.
 
 **Anti-references:**
 - Over-decorated fitness apps with gamification noise: confetti, streaks, badges, mascots, and fake celebration.
@@ -168,7 +168,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 ## Accessibility & Inclusion
 
 - WCAG AA-oriented contrast: high-contrast primary text and a dedicated readable placeholder color.
-- Real Inter family files at readable product sizes; `text-[10px]` is reserved for compact nutrition/ruler metadata.
+- Real Onest family files at readable product sizes; the semantic 11px `text-compact` role is reserved for dense chart, calendar, nutrition, and ruler metadata.
 - Android touch targets are at least 48dp.
 - Reduced motion is wired through animated components; it removes timing rather than hiding content.
 - Ruler controls expose adjustable accessibility actions and direct editable values.

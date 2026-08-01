@@ -27,12 +27,12 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
         {icon ? (
           <MaterialIcons name={icon as any} size={11} color={M3.onSurface} />
         ) : (
-          <Text className="text-[10px] font-bold leading-none" style={{ color: M3.onSurface }}>
+          <Text className="text-compact font-bold leading-none" style={{ color: M3.onSurface }}>
             {letter}
           </Text>
         )}
         <Text
-          className="text-m3-on-surface-variant text-[10px] font-semibold tabular-nums leading-none shrink"
+          className="text-m3-on-surface-variant text-compact font-semibold tabular-nums leading-none shrink"
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.75}

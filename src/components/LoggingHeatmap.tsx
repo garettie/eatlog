@@ -72,7 +72,7 @@ function LoggingHeatmap({
         <Text className={`${compact ? 'text-base' : 'text-lg'} text-m3-on-surface font-bold tabular-nums`}>
           {model.currentWeekCount}/7
         </Text>
-        <Text className="text-m3-on-surface-variant text-[10px] font-medium">this week</Text>
+        <Text className="text-m3-on-surface-variant text-compact font-medium">this week</Text>
       </View>
     </View>
   );

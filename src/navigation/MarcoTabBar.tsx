@@ -97,7 +97,7 @@ const TabControl = React.memo(function TabControl({ route, focused, descriptor, 
     >
       <MaterialIcons name={tabIcons[name]} size={24} color={color} />
       <Text
-        className="font-inter-medium text-xs"
+        className="font-medium text-xs"
         style={{ color }}
       >
         {label}

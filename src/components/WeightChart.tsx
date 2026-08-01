@@ -21,7 +21,7 @@ import Svg, {
 
 import { WeightLog, WeightUnit } from '../db/database';
 import { DURATION, EASING } from '../theme/motion';
-import { M3 } from '../theme/tokens';
+import { M3, TYPE } from '../theme/tokens';
 import { fromKilograms } from '../utils/weightUnits';
 
 interface WeightChartProps {
@@ -472,8 +472,8 @@ function WeightChart({
                   x={leftPadding - 7}
                   y={y + 3.5}
                   fill={M3.onSurfaceVariant}
-                  fontSize={10}
-                  fontFamily="Inter-Regular"
+                  fontSize={TYPE.compact.fontSize}
+                  fontFamily={TYPE.family.regular}
                   textAnchor="end"
                 >
                   {fromKilograms(tick, unit).toFixed(1)}
@@ -546,9 +546,9 @@ function WeightChart({
           )}
           {showXAxisLabels && (
             <>
-              <SvgText x={leftPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} fontFamily="Inter-Regular">{dateLabel(startDate)}</SvgText>
-              <SvgText x={leftPadding + plotWidth / 2} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} fontFamily="Inter-Regular" textAnchor="middle">{dateLabel(midpoint)}</SvgText>
-              <SvgText x={width - rightPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={10} fontFamily="Inter-Regular" textAnchor="end">{dateLabel(endDate)}</SvgText>
+              <SvgText x={leftPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={TYPE.compact.fontSize} fontFamily={TYPE.family.regular}>{dateLabel(startDate)}</SvgText>
+              <SvgText x={leftPadding + plotWidth / 2} y={height - 3} fill={M3.onSurfaceVariant} fontSize={TYPE.compact.fontSize} fontFamily={TYPE.family.regular} textAnchor="middle">{dateLabel(midpoint)}</SvgText>
+              <SvgText x={width - rightPadding} y={height - 3} fill={M3.onSurfaceVariant} fontSize={TYPE.compact.fontSize} fontFamily={TYPE.family.regular} textAnchor="end">{dateLabel(endDate)}</SvgText>
             </>
           )}
           </Svg>
@@ -559,13 +559,13 @@ function WeightChart({
             className="absolute rounded-xl border border-m3-outline-variant/60 bg-m3-surface-container-highest px-3 py-2"
             style={{ left: tooltipLeft, top: tooltipTop, width: tooltipWidth }}
           >
-            <Text className="text-m3-on-surface-variant text-[10px] font-semibold">
+            <Text className="text-m3-on-surface-variant text-compact font-semibold">
               {dateLabel(selectedLog.log_date)}
             </Text>
             <Text className="text-m3-on-surface text-xs font-bold tabular-nums">
               Scale {fromKilograms(selectedLog.scale_weight_kg, unit).toFixed(1)} {unit}
             </Text>
-            <Text className="text-m3-expenditure text-[10px] font-semibold tabular-nums">
+            <Text className="text-m3-expenditure text-compact font-semibold tabular-nums">
               Trend {fromKilograms(selectedLog.trend_weight_kg, unit).toFixed(1)} {unit}
             </Text>
           </View>

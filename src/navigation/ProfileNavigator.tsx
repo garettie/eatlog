@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import ProfileScreen from '../screens/ProfileScreen';
+import { TYPE } from '../theme/tokens';
 import {
   GoalAndRateScreen,
   NutritionTargetsScreen,
@@ -23,7 +24,7 @@ const PROFILE_SCREEN_OPTIONS = {
   contentStyle: { backgroundColor: '#111318' },
   headerStyle: { backgroundColor: '#111318' },
   headerTintColor: '#e2e2e9',
-  headerTitleStyle: { fontFamily: 'Inter-SemiBold' },
+  headerTitleStyle: { fontFamily: TYPE.family.semibold, fontSize: 18 },
 } as const;
 const PROFILE_HOME_OPTIONS = { headerShown: false } as const;
 const PERSONAL_DETAILS_OPTIONS = { title: 'Personal details' } as const;

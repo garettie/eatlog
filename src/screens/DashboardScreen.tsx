@@ -390,7 +390,7 @@ function DashboardScreen({
                   color={headerChip.locked ? M3.onSurfaceVariant : M3.expenditure}
                 />
                 <Text
-                  className={`text-[10px] font-semibold ${
+                  className={`text-xs font-semibold ${
                     headerChip.locked ? 'text-m3-on-surface-variant' : 'text-m3-expenditure'
                   }`}
                   numberOfLines={1}
@@ -565,7 +565,7 @@ function DashboardScreen({
             >
               <View className="flex-1 min-w-0">
                 <Text className="text-m3-on-surface font-semibold text-base">Analytics</Text>
-                <Text className="text-m3-on-surface-variant text-[10px] font-medium mt-0.5" numberOfLines={1}>
+                <Text className="text-m3-on-surface-variant text-xs font-medium mt-0.5" numberOfLines={1}>
                   Logging consistency · Last 30 days
                 </Text>
               </View>

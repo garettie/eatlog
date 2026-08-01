@@ -13,11 +13,11 @@ export default function WeightChartLegend({ showGoal = false }: WeightChartLegen
     <View className="flex-row flex-wrap gap-x-4 gap-y-2">
       <View className="flex-row items-center gap-1.5">
         <View className="w-2 h-2 rounded-full bg-m3-on-surface" />
-        <Text className="text-m3-on-surface-variant text-[10px] font-medium">Scale</Text>
+        <Text className="text-m3-on-surface-variant text-compact font-medium">Scale</Text>
       </View>
       <View className="flex-row items-center gap-1.5">
         <View className="w-2 h-2 rounded-full bg-m3-expenditure" />
-        <Text className="text-m3-on-surface-variant text-[10px] font-medium">Trend</Text>
+        <Text className="text-m3-on-surface-variant text-compact font-medium">Trend</Text>
       </View>
       {showGoal && (
         <View className="flex-row items-center gap-1.5">
@@ -25,7 +25,7 @@ export default function WeightChartLegend({ showGoal = false }: WeightChartLegen
             className="w-3.5 border-t border-dashed border-m3-on-surface-variant"
             style={{ borderTopWidth: 1.5 }}
           />
-          <Text className="text-m3-on-surface-variant text-[10px] font-medium">Goal</Text>
+          <Text className="text-m3-on-surface-variant text-compact font-medium">Goal</Text>
         </View>
       )}
     </View>

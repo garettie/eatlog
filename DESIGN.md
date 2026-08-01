@@ -25,38 +25,38 @@ colors:
   error-container: "#93000a"
 typography:
   display:
-    fontFamily: "Inter-Bold"
+    fontFamily: "Onest_700Bold"
     fontSize: "36px"
     fontWeight: 700
     lineHeight: 40
   headline:
-    fontFamily: "Inter-Bold"
+    fontFamily: "Onest_700Bold"
     fontSize: "24px"
     fontWeight: 700
-    lineHeight: 29
+    lineHeight: 30
   title:
-    fontFamily: "Inter-SemiBold"
+    fontFamily: "Onest_600SemiBold"
     fontSize: "16px"
     fontWeight: 600
-    lineHeight: 20
+    lineHeight: 22
   body:
-    fontFamily: "Inter-Regular"
+    fontFamily: "Onest_400Regular"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 20
   label:
-    fontFamily: "Inter-SemiBold"
+    fontFamily: "Onest_600SemiBold"
     fontSize: "12px"
     fontWeight: 600
     lineHeight: 16
   navigation:
-    fontFamily: "Inter-Medium"
+    fontFamily: "Onest_500Medium"
     fontSize: "12px"
     fontWeight: 500
     lineHeight: 16
   compact:
-    fontFamily: "Inter-Medium"
-    fontSize: "10px"
+    fontFamily: "Onest_500Medium"
+    fontSize: "11px"
     fontWeight: 500
     lineHeight: 14
 rounded:
@@ -114,7 +114,7 @@ Profile completes the product shell. It gives occasional, high-consequence work 
 
 **Key Characteristics:**
 - Tonal dark Material 3 layering, not gradients or glass.
-- Real Inter weights, tabular numbers, and clear numeric hierarchy.
+- Real Onest weights, tabular numbers, and clear numeric hierarchy.
 - Scanner/photo media is meaningful; icons are a robust offline fallback.
 - Rounded surfaces with hairline boundaries, not floating shadow stacks.
 - Android-native bottom sheets, Back behavior, 48dp touch targets, and reduced-motion support.
@@ -148,20 +148,20 @@ Marco uses a near-black neutral stack for structure and reserves named macro col
 
 ## Typography
 
-**Display Font:** Inter-Bold
-**Body Font:** Inter-Regular
-**Label Font:** Inter-SemiBold
+**Display Font:** Onest 700
+**Body Font:** Onest 400
+**Label Font:** Onest 600
 
-**Character:** Inter is disciplined, legible, and data-forward. Real bundled family files are mandatory; Android must not synthesize faux bold. Numeric readouts use tabular figures so live values never shift surrounding layout.
+**Character:** Onest combines geometric precision with humanist details, giving the instrument a more authored voice without sacrificing dense UI legibility. Real bundled 400/500/600/700 files are mandatory; Android must not synthesize faux weights. Numeric readouts use tabular figures so live values never shift surrounding layout.
 
 ### Hierarchy
 - **Display** (700, 36px, 40px): editable measurement values and one-time target reveals.
-- **Headline** (700, 24px, 29px): onboarding, completion, and screen-level emphasis.
-- **Title** (600, 16px, 20px): card titles, meal names, and navigation labels.
+- **Headline** (700, 24px, 30px): onboarding, completion, and screen-level emphasis.
+- **Title** (600, 16px, 22px): card titles, meal names, and navigation labels.
 - **Body** (400, 14px, 20px): explanatory copy and supporting metadata.
-- **Label** (600, 12px, 16px): controls, macros, and compact state labels; use `10px` only for ruler bounds and compact nutrition details.
+- **Label** (600, 12px, 16px): controls, macros, and compact state labels.
 - **Navigation** (500, 12px, 16px): bottom navigation labels.
-- **Compact** (500, 10px, 14px): chart axes, ruler bounds, and dense nutrition metadata only. Never use it for explanatory or actionable copy.
+- **Compact** (500, 11px, 14px): dense chart, calendar, nutrition, and ruler metadata only. Never use it for explanatory or actionable copy.
 
 **The Stable Figure Rule.** Calories, grams, dates, trend weights, and editable measurement values always use tabular numerals. Do not introduce proportional numerals into live numeric UI.
 
@@ -191,7 +191,7 @@ Marco is flat by default. Depth comes from the surface stack, hairline outline-v
 
 ### Inputs / Fields
 - **Standard fields:** surface-container-high, input radius, outline-variant hairline, readable placeholder color.
-- **Measurement fields:** centered, borderless display-scale Inter values with a compact unit. They remain directly editable and are paired with a ruler for coarse adjustment.
+- **Measurement fields:** centered, borderless display-scale Onest values with a compact unit. They remain directly editable and are paired with a ruler for coarse adjustment.
 - **Focus:** retain native focus and full-select numeric content on tap. Never add a decorative fake input state.
 
 ### Navigation
@@ -261,7 +261,7 @@ Profile uses the same Operate mode as the rest of Marco. It should feel like an 
 - The core daily surfaces share a clear product language and use nutrient colors with discipline.
 - Profile now occupies the fourth tab with working plan-edit routes and a versioned plan preview; Data & Sync actions and help routes remain planned. The center Add FAB remains an action rather than a fifth tab.
 - Camera/gallery estimation can return to entry without explaining the failure. This violates the scanner-first promise and must change before release.
-- The detector reported 32 uses of `10px` and one use of `Inter-Medium` as undocumented. Those uses match the intended compact and navigation roles; this document now declares both roles.
+- App typography resolves through one Onest family and one normalized scale. Former arbitrary 10px metadata now uses the semantic 11px compact role, including SVG chart labels.
 - Current PNG screenshots are historical references, not release evidence. Runtime visual QA requires screenshots from the signed Android build.
 
 ## Do's and Don'ts

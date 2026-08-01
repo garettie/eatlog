@@ -442,7 +442,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
               {totalMacros.calories}
               <Text className="text-m3-on-surface-variant text-sm font-medium"> kcal</Text>
             </Text>
-            <Text className="text-[10px] text-m3-on-surface-variant font-medium mt-0.5">Calories</Text>
+            <Text className="text-compact text-m3-on-surface-variant font-medium mt-0.5">Calories</Text>
           </View>
           <View className="w-full">
             <MacroChipGroup
@@ -528,7 +528,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                                 updatePer100g(idx, field, per100gVal);
                               }}
                             />
-                            <Text className={`text-[10px] text-center font-medium ${
+                            <Text className={`text-compact text-center font-medium ${
                               field === 'protein'
                                 ? 'text-m3-protein'
                                 : field === 'carbs'
@@ -628,7 +628,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         >
           <MaterialIcons name="event" size={18} color={M3.onSurfaceVariant} />
           <View className="flex-1 ml-3">
-            <Text className="text-m3-on-surface-variant text-[10px] font-semibold uppercase tracking-wider">
+            <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider">
               Date
             </Text>
             <Text className="text-m3-on-surface text-sm font-semibold">

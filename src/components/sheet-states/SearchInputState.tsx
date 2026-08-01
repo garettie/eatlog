@@ -44,7 +44,7 @@ function ResultRow({ item, onPress }: ResultRowProps) {
         <View className="flex-1 mr-3">
           <Text className="text-m3-on-surface font-medium text-sm" numberOfLines={1}>{item.name}</Text>
           {meta.length > 0 && (
-            <Text className="text-m3-on-surface-variant text-[10px] font-medium mt-0.5" numberOfLines={1}>
+            <Text className="text-m3-on-surface-variant text-compact font-medium mt-0.5" numberOfLines={1}>
               {meta}
             </Text>
           )}

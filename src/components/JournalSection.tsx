@@ -28,7 +28,7 @@ function MacroPill({ letter, grams, color }: { letter: string; grams: number; co
       style={{ backgroundColor: color + '1A' }}
     >
       <Text
-        className="text-[10px] font-bold tabular-nums"
+        className="text-compact font-bold tabular-nums"
         style={{ color }}
       >
         {letter} {Math.round(grams)}g
@@ -107,7 +107,7 @@ function SwipeRow({
       accessibilityLabel="Delete entry"
     >
       <MaterialIcons name="delete-outline" size={18} color={M3.error} />
-      <Text className="text-m3-error text-[10px] font-semibold mt-1">Delete</Text>
+      <Text className="text-m3-error text-xs font-semibold mt-1">Delete</Text>
     </RectButton>
   );
 

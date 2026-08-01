@@ -5,6 +5,10 @@ import { InteractionManager, Pressable, View, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import { Onest_400Regular } from '@expo-google-fonts/onest/400Regular';
+import { Onest_500Medium } from '@expo-google-fonts/onest/500Medium';
+import { Onest_600SemiBold } from '@expo-google-fonts/onest/600SemiBold';
+import { Onest_700Bold } from '@expo-google-fonts/onest/700Bold';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
@@ -12,7 +16,7 @@ import { initDatabase, getActiveMealPhotoUris } from './src/db/database';
 import { cleanupOrphanMealPhotos } from './src/utils/mealPhotos';
 import RootNavigator from './src/navigation/RootNavigator';
 import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
-import { M3 } from './src/theme/tokens';
+import { M3, TYPE } from './src/theme/tokens';
 
 // Keep the splash screen visible while we load fonts + DB
 SplashScreen.preventAutoHideAsync();
@@ -37,10 +41,10 @@ export default function App() {
   const databaseInitRef = useRef<Promise<void> | null>(null);
 
   const [fontsLoaded, fontError] = useFonts({
-    'Inter-Regular': require('./assets/fonts/Inter-Regular.ttf'),
-    'Inter-Medium': require('./assets/fonts/Inter-Medium.ttf'),
-    'Inter-SemiBold': require('./assets/fonts/Inter-SemiBold.ttf'),
-    'Inter-Bold': require('./assets/fonts/Inter-Bold.ttf'),
+    Onest_400Regular,
+    Onest_500Medium,
+    Onest_600SemiBold,
+    Onest_700Bold,
   });
 
   const prepare = useCallback(async () => {
@@ -82,14 +86,14 @@ export default function App() {
   if (fontError || dbError) {
     return (
       <View style={{ flex: 1, backgroundColor: '#111318', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: '#ffb4ab', fontFamily: 'Inter-Regular', fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
+        <Text style={{ color: '#ffb4ab', fontFamily: TYPE.family.regular, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
           {fontError
             ? "Marco couldn't load its interface fonts. Restart the app and try again."
             : "Marco couldn't open its local data. Restart the app and try again."}
         </Text>
         {dbError && !fontError && (
           <Pressable onPress={() => void prepare()} accessibilityRole="button" className="mt-5 min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-6">
-            <Text className="font-inter-semibold text-sm text-m3-on-surface">Retry database</Text>
+            <Text className="font-semibold text-sm text-m3-on-surface">Retry database</Text>
           </Pressable>
         )}
       </View>
