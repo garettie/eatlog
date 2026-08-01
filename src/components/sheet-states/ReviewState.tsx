@@ -34,7 +34,13 @@ interface EditableComponent {
   servingSizeGrams: number | null;
   servingLabel: string | null;
   unitMode: 'servings' | 'grams' | 'ml';
+  originalName: string;
 }
+
+type UndoAction =
+  | { kind: 'remove'; comp: EditableComponent; idx: number }
+  | { kind: 'meal-reestimate'; components: EditableComponent[]; mealName: string }
+  | { kind: 'component-reestimate'; previous: EditableComponent; replacementId: string };
 
 function toEditable(food: FoodResult): EditableComponent {
   const hasServing = !!(food.servingSizeGrams && food.servingSizeGrams > 0);
@@ -53,6 +59,7 @@ function toEditable(food: FoodResult): EditableComponent {
     servingSizeGrams: food.servingSizeGrams ?? null,
     servingLabel: food.servingLabel ?? null,
     unitMode: isBeverage ? 'ml' : hasServing ? 'servings' : 'grams',
+    originalName: food.name,
   };
 }
 
@@ -62,6 +69,7 @@ interface ReviewStateProps {
   photoUri?: string | null;
   onLogComplete: (info: { mealId: number; logIds: number[]; meal: MealType; name: string; calories: number; wasUpdate: boolean; logDate: string }) => void;
   onClarify: (name: string) => Promise<DescribeResult | null>;
+  onClarifyComponent: (name: string) => Promise<FoodResult | null>;
   editMealId?: number | null;
   initialMeal?: MealType | null;
   /** Diary date to write to (backfill); null = today. Preserves the original date when editing a meal. */
@@ -94,25 +102,27 @@ function MacroTextInput({ value, onValueChange }: { value: number; onValueChange
   );
 }
 
-export default function ReviewState({ result, photoUri, onLogComplete, onClarify, editMealId, initialMeal, logDate: logDateProp, onGoBack }: ReviewStateProps) {
+export default function ReviewState({ result, photoUri, onLogComplete, onClarify, onClarifyComponent, editMealId, initialMeal, logDate: logDateProp, onGoBack }: ReviewStateProps) {
   const [mealName, setMealName] = useState(result?.mealName ?? '');
   const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(photoUri ?? null);
   const [components, setComponents] = useState<EditableComponent[]>(() =>
     (result?.components ?? []).map(toEditable),
   );
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logDate, setLogDate] = useState(() => logDateProp ?? todayISO());
   const [dateSelectorVisible, setDateSelectorVisible] = useState(false);
   const [logging, setLogging] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
-  const [removed, setRemoved] = useState<{ comp: EditableComponent; idx: number } | null>(null);
+  const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
   const [clarifying, setClarifying] = useState(false);
   const [clarifyError, setClarifyError] = useState<string | null>(null);
+  const [clarifyingComponentId, setClarifyingComponentId] = useState<string | null>(null);
+  const [componentClarifyError, setComponentClarifyError] = useState<{ id: string; message: string } | null>(null);
 
   const dirtyRef = useRef(false);
   const loggedRef = useRef(false);
-  const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const originalMealNameRef = useRef(result?.mealName ?? '');
   const previousResultRef = useRef(result);
   const discardGuard = useDiscardGuardContext();
@@ -126,10 +136,10 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
       originalMealNameRef.current = result.mealName;
       setMealName(result.mealName);
       setComponents(result.components.map(toEditable));
-      setExpandedIndex(null);
+      setExpandedIds(new Set());
       dirtyRef.current = false;
       loggedRef.current = false;
-      setRemoved(null);
+      setUndoAction(null);
     }
   }, [result]);
 
@@ -149,7 +159,13 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   }, [discardGuard]);
 
   useEffect(() => () => {
-    if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  }, []);
+
+  const showUndo = useCallback((action: UndoAction) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoAction(action);
+    undoTimerRef.current = setTimeout(() => setUndoAction(null), 5000);
   }, []);
 
   const totalMacros = useMemo(() => {
@@ -262,35 +278,44 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
 
   const removeComponent = useCallback(
     (idx: number) => {
+      const component = components[idx];
+      if (!component) return;
       dirtyRef.current = true;
-      setComponents((prev) => {
-        const next = [...prev];
-        const [comp] = next.splice(idx, 1);
-        if (comp) {
-          if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
-          setRemoved({ comp, idx });
-          removeTimerRef.current = setTimeout(() => setRemoved(null), 5000);
-        }
+      showUndo({ kind: 'remove', comp: component, idx });
+      setComponents((previous) => previous.filter((_, currentIndex) => currentIndex !== idx));
+      setExpandedIds((current) => {
+        const next = new Set(current);
+        next.delete(component.food.id);
         return next;
       });
-      if (expandedIndex === idx) setExpandedIndex(null);
-      if (expandedIndex != null && expandedIndex > idx) setExpandedIndex(expandedIndex - 1);
     },
-    [expandedIndex],
+    [components, showUndo],
   );
 
-  const undoRemove = useCallback(() => {
-    if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
-    setRemoved((current) => {
-      if (!current) return null;
-      setComponents((prev) => {
-        const next = [...prev];
-        next.splice(Math.min(current.idx, next.length), 0, current.comp);
+  const undoLastAction = useCallback(() => {
+    if (!undoAction) return;
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setUndoAction(null);
+    if (undoAction.kind === 'remove') {
+      setComponents((previous) => {
+        const next = [...previous];
+        next.splice(Math.min(undoAction.idx, next.length), 0, undoAction.comp);
         return next;
       });
-      return null;
-    });
-  }, []);
+    } else if (undoAction.kind === 'meal-reestimate') {
+      setMealName(undoAction.mealName);
+      setComponents(undoAction.components);
+    } else {
+      setComponents((previous) => previous.map((component) =>
+        component.food.id === undoAction.replacementId ? undoAction.previous : component,
+      ));
+      setExpandedIds((current) => {
+        const next = new Set(current);
+        if (next.delete(undoAction.replacementId)) next.add(undoAction.previous.food.id);
+        return next;
+      });
+    }
+  }, [undoAction]);
 
   const handleAddFoods = useCallback((foods: FoodResult[]) => {
     dirtyRef.current = true;
@@ -307,11 +332,14 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
 
   const handleLogMeal = useCallback(async () => {
     if (components.length === 0) return;
+    const name = mealName.trim();
+    if (!name) {
+      setLogError('Name this meal before logging.');
+      return;
+    }
     setLogError(null);
     setLogging(true);
     try {
-      const name = mealName.trim() || 'Meal';
-
       const saved = await saveMealWithComponents({
         editMealId,
         name,
@@ -372,33 +400,67 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         return;
       }
       originalMealNameRef.current = name;
+      dirtyRef.current = true;
+      showUndo({ kind: 'meal-reestimate', components, mealName });
       setComponents(newResult.components.map(toEditable));
-      setExpandedIndex(null);
+      setExpandedIds(new Set());
     } catch {
       setClarifyError('Re-estimate failed. Check your connection.');
     } finally {
       setClarifying(false);
     }
-  }, [mealName, clarifying, onClarify]);
+  }, [mealName, clarifying, onClarify, components, showUndo]);
+
+  const handleClarifyComponent = useCallback(async (component: EditableComponent) => {
+    const name = component.food.name.trim();
+    if (!name || clarifyingComponentId) return;
+    setComponentClarifyError(null);
+    setClarifyingComponentId(component.food.id);
+    try {
+      const clarified = await onClarifyComponent(name);
+      if (!clarified) {
+        setComponentClarifyError({ id: component.food.id, message: "Couldn't re-estimate. Try a more specific name." });
+        return;
+      }
+      dirtyRef.current = true;
+      showUndo({ kind: 'component-reestimate', previous: component, replacementId: clarified.id });
+      setComponents((previous) => previous.map((current) =>
+        current.food.id === component.food.id ? toEditable(clarified) : current,
+      ));
+      setExpandedIds((current) => {
+        const next = new Set(current);
+        if (next.delete(component.food.id)) next.add(clarified.id);
+        return next;
+      });
+    } catch {
+      setComponentClarifyError({ id: component.food.id, message: 'Re-estimate failed. Check your connection.' });
+    } finally {
+      setClarifyingComponentId(null);
+    }
+  }, [clarifyingComponentId, onClarifyComponent, showUndo]);
 
   return (
     <View className="flex-1">
-      <Pressable
-        onPress={onGoBack}
-        accessibilityRole="button"
-        accessibilityLabel="Back to logging options"
-        className="min-h-[48px] flex-row items-center gap-1 px-5 pt-1 self-start active:opacity-60"
-      >
-        <MaterialIcons name="arrow-back" size={20} color={M3.onSurfaceVariant} />
-        <Text className="text-m3-on-surface-variant text-xs font-semibold">Back</Text>
-      </Pressable>
-      <View className="px-5 pt-3 pb-2 gap-2">
+      <View className="px-5 pt-2 pb-2 gap-2">
+        <View className="h-12 flex-row items-center">
+          <Pressable
+            onPress={onGoBack}
+            accessibilityRole="button"
+            accessibilityLabel="Back to logging options"
+            className="w-12 h-12 -ml-3 items-center justify-center active:opacity-60"
+          >
+            <MaterialIcons name="arrow-back" size={20} color={M3.onSurfaceVariant} />
+          </Pressable>
+          <Text className="text-m3-on-surface text-lg font-bold">Review meal</Text>
+        </View>
+        <Text className="text-compact text-m3-on-surface-variant font-semibold px-1">Meal name</Text>
         <View className="flex-row items-center gap-2">
           <BottomSheetTextInput
             value={mealName}
             onChangeText={(t) => {
               setMealName(t);
               setClarifyError(null);
+              setLogError(null);
               dirtyRef.current = true;
             }}
             className="flex-1 text-m3-on-surface font-semibold text-lg bg-m3-surface-container-high rounded-xl px-4 py-3 border border-m3-outline-variant/50"
@@ -408,20 +470,24 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
               onPress={handleClarify}
               disabled={clarifying}
               accessibilityRole="button"
-              accessibilityLabel="Clarify with AI"
+              accessibilityLabel="Re-estimate meal with AI"
+              accessibilityHint="Replaces the meal estimate. Undo restores the previous values."
               className="bg-m3-surface-container-high rounded-xl px-4 py-3 items-center justify-center border border-m3-outline-variant/50 active:opacity-60"
               style={{ minWidth: 48, minHeight: 48 }}
             >
               {clarifying ? (
                   <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
               ) : (
-                <Text className="text-m3-on-surface text-xs font-semibold">Clarify</Text>
+                <Text className="text-m3-on-surface text-xs font-semibold">Re-estimate</Text>
               )}
             </Pressable>
           )}
         </View>
         {clarifyError && (
           <Text className="text-m3-error text-xs pl-2">{clarifyError}</Text>
+        )}
+        {mealName.trim() !== originalMealNameRef.current && (
+          <Text className="text-m3-on-surface-variant text-xs px-1">Re-estimate updates nutrition and portions. Undo restores your edit.</Text>
         )}
       </View>
 
@@ -442,7 +508,6 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
               {totalMacros.calories}
               <Text className="text-m3-on-surface-variant text-sm font-medium"> kcal</Text>
             </Text>
-            <Text className="text-compact text-m3-on-surface-variant font-medium mt-0.5">Calories</Text>
           </View>
           <View className="w-full">
             <MacroChipGroup
@@ -455,7 +520,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         </View>
 
         {components.map((comp, idx) => {
-          const isExpanded = expandedIndex === idx;
+          const isExpanded = expandedIds.has(comp.food.id);
           const ratio = comp.grams / 100;
           const cal = Math.round(comp.per100g.calories * ratio);
           const hasServing = !!(comp.servingSizeGrams && comp.servingSizeGrams > 0);
@@ -469,15 +534,39 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
               >
                 {isExpanded ? (
                   <>
+                    <Text className="text-compact text-m3-on-surface-variant font-semibold uppercase tracking-wider">Food</Text>
                     <View className="flex-row items-center gap-2">
                       <BottomSheetTextInput
                         value={comp.food.name}
-                        onChangeText={(t) => updateName(idx, t)}
+                        onChangeText={(t) => {
+                          updateName(idx, t);
+                          setComponentClarifyError((current) => current?.id === comp.food.id ? null : current);
+                        }}
                         accessibilityLabel={`Food name, ${comp.food.name}`}
                         className="flex-1 bg-m3-surface-container-high text-m3-on-surface font-medium text-base rounded-xl px-4 py-3 border border-m3-outline-variant/50"
                       />
+                      {comp.food.name.trim() !== comp.originalName && (
+                        <Pressable
+                          onPress={() => void handleClarifyComponent(comp)}
+                          disabled={clarifyingComponentId !== null}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Re-estimate ${comp.food.name} with AI`}
+                          accessibilityHint="Replaces this component estimate. Undo restores the previous values."
+                          className="min-w-[84px] h-12 px-3 rounded-xl bg-m3-surface-container-high items-center justify-center border border-m3-outline-variant/50 active:opacity-60"
+                        >
+                          {clarifyingComponentId === comp.food.id ? (
+                            <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+                          ) : (
+                            <Text className="text-m3-on-surface text-xs font-semibold">Re-estimate</Text>
+                          )}
+                        </Pressable>
+                      )}
                       <Pressable
-                        onPress={() => setExpandedIndex(null)}
+                        onPress={() => setExpandedIds((current) => {
+                          const next = new Set(current);
+                          next.delete(comp.food.id);
+                          return next;
+                        })}
                         accessibilityRole="button"
                         accessibilityLabel="Collapse food details"
                         className="w-12 h-12 items-center justify-center -mr-1 active:opacity-60"
@@ -485,72 +574,85 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                         <MaterialIcons name="expand-less" size={20} color={M3.onSurfaceVariant} />
                       </Pressable>
                     </View>
-
-                    <PortionStepper
-                      unitMode={comp.unitMode}
-                      servings={comp.servings}
-                      grams={comp.grams}
-                      servingSizeGrams={comp.servingSizeGrams}
-                      servingLabel={comp.servingLabel}
-                      hasServing={hasServing}
-                      showMl={showMl}
-                      onModeChange={(m) => updateUnitMode(idx, m)}
-                      onServingsDelta={(d) => updateServings(idx, d)}
-                      onServingsSet={(t) => updateServingsFromText(idx, t, comp)}
-                      onGramsSet={(t) => {
-                        const v = parseFloat(t);
-                        if (!isNaN(v) && v > 0) updateGrams(idx, v);
-                      }}
-                    />
-
-                    <View className="flex-row gap-3 items-end">
-                      {(['calories', 'protein', 'carbs', 'fat'] as const).map((field) => {
-                        const perServingMul = comp.unitMode === 'servings'
-                          ? (comp.servingSizeGrams ?? 100) / 100
-                          : 1;
-                        const displayVal = perServingMul === 1
-                          ? comp.per100g[field]
-                          : field === 'calories'
-                            ? Math.round(comp.per100g[field] * perServingMul)
-                            : Math.round(comp.per100g[field] * perServingMul * 10) / 10;
-
-                        return (
-                          <View key={field} className="flex-1 gap-1">
-                            <MacroTextInput
-                              value={displayVal}
-                              onValueChange={(v) => {
-                                const mul = comp.unitMode === 'servings'
-                                  ? (comp.servingSizeGrams ?? 100) / 100
-                                  : 1;
-                                const per100gVal = mul === 1 ? v : field === 'calories'
-                                  ? Math.round(v / mul)
-                                  : Math.round(v / mul * 10) / 10;
-                                updatePer100g(idx, field, per100gVal);
-                              }}
-                            />
-                            <Text className={`text-compact text-center font-medium ${
-                              field === 'protein'
-                                ? 'text-m3-protein'
-                                : field === 'carbs'
-                                  ? 'text-m3-carbs'
-                                  : field === 'fat'
-                                    ? 'text-m3-fat'
-                                    : 'text-m3-on-surface-variant'
-                            }`}>
-                              {field === 'calories' ? 'Calories' : field === 'protein' ? 'Protein' : field === 'carbs' ? 'Carbs' : 'Fat'}
-                            </Text>
-                          </View>
-                        );
-                      })}
-                      <Text className="text-xs text-m3-on-surface-variant font-medium pb-3.5">
-                        {comp.unitMode === 'servings' ? 'per serving' : comp.unitMode === 'ml' ? 'per 100ml' : 'per 100g'}
+                    {componentClarifyError?.id === comp.food.id && (
+                      <Text className="text-m3-error text-xs px-2" accessibilityLiveRegion="assertive">
+                        {componentClarifyError.message}
                       </Text>
+                    )}
+                    {comp.food.name.trim() !== comp.originalName && (
+                      <Text className="text-m3-on-surface-variant text-xs px-1">Re-estimate updates this component. Undo restores your edit.</Text>
+                    )}
+
+                    <View className="gap-2">
+                      <Text className="text-compact text-m3-on-surface-variant font-semibold uppercase tracking-wider">Portion</Text>
+                      <PortionStepper
+                        unitMode={comp.unitMode}
+                        servings={comp.servings}
+                        grams={comp.grams}
+                        servingSizeGrams={comp.servingSizeGrams}
+                        servingLabel={comp.servingLabel}
+                        hasServing={hasServing}
+                        showMl={showMl}
+                        onModeChange={(m) => updateUnitMode(idx, m)}
+                        onServingsDelta={(d) => updateServings(idx, d)}
+                        onServingsSet={(t) => updateServingsFromText(idx, t, comp)}
+                        onGramsSet={(t) => {
+                          const v = parseFloat(t);
+                          if (!isNaN(v) && v > 0) updateGrams(idx, v);
+                        }}
+                      />
+                    </View>
+
+                    <View className="gap-2">
+                      <Text className="text-compact text-m3-on-surface-variant font-semibold uppercase tracking-wider">
+                        Nutrition {comp.unitMode === 'servings' ? 'per serving' : comp.unitMode === 'ml' ? 'per 100ml' : 'per 100g'}
+                      </Text>
+                      <View className="flex-row gap-3 items-end">
+                        {(['calories', 'protein', 'carbs', 'fat'] as const).map((field) => {
+                          const perServingMul = comp.unitMode === 'servings'
+                            ? (comp.servingSizeGrams ?? 100) / 100
+                            : 1;
+                          const displayVal = perServingMul === 1
+                            ? comp.per100g[field]
+                            : field === 'calories'
+                              ? Math.round(comp.per100g[field] * perServingMul)
+                              : Math.round(comp.per100g[field] * perServingMul * 10) / 10;
+
+                          return (
+                            <View key={field} className="flex-1 gap-1">
+                              <MacroTextInput
+                                value={displayVal}
+                                onValueChange={(v) => {
+                                  const mul = comp.unitMode === 'servings'
+                                    ? (comp.servingSizeGrams ?? 100) / 100
+                                    : 1;
+                                  const per100gVal = mul === 1 ? v : field === 'calories'
+                                    ? Math.round(v / mul)
+                                    : Math.round(v / mul * 10) / 10;
+                                  updatePer100g(idx, field, per100gVal);
+                                }}
+                              />
+                              <Text className={`text-compact text-center font-medium ${
+                                field === 'protein'
+                                  ? 'text-m3-protein'
+                                  : field === 'carbs'
+                                    ? 'text-m3-carbs'
+                                    : field === 'fat'
+                                      ? 'text-m3-fat'
+                                      : 'text-m3-on-surface-variant'
+                              }`}>
+                                {field === 'calories' ? 'Calories' : field === 'protein' ? 'Protein' : field === 'carbs' ? 'Carbs' : 'Fat'}
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
                     </View>
                   </>
                 ) : (
                   <>
                     <Pressable
-                      onPress={() => setExpandedIndex(idx)}
+                      onPress={() => setExpandedIds((current) => new Set(current).add(comp.food.id))}
                       accessibilityRole="button"
                       accessibilityLabel={`Edit ${comp.food.name}, ${cal} calories`}
                       accessibilityHint="Opens food details and portion controls"
@@ -598,7 +700,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         className="px-5 pt-2 gap-3 border-t border-m3-outline-variant/30"
         style={{ paddingBottom: insets.bottom + 8 }}
       >
-        {removed && (
+        {undoAction && (
           <Animated.View
             entering={reducedMotion ? undefined : FadeInUp.duration(200)}
             exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
@@ -607,19 +709,24 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
             <View className="flex-row items-center flex-1 gap-2">
               <MaterialIcons name="undo" size={16} color={M3.onSurfaceVariant} />
               <Text className="flex-1 text-m3-on-surface text-sm font-medium" numberOfLines={1}>
-                {removed.comp.food.name} removed
+                {undoAction.kind === 'remove'
+                  ? `${undoAction.comp.food.name} removed`
+                  : undoAction.kind === 'meal-reestimate'
+                    ? 'Meal re-estimated'
+                    : 'Component re-estimated'}
               </Text>
             </View>
             <Pressable
-              onPress={undoRemove}
+              onPress={undoLastAction}
               accessibilityRole="button"
-              accessibilityLabel="Undo remove"
+              accessibilityLabel="Undo last change"
               className="px-3 py-1.5 bg-m3-surface-container rounded-full active:opacity-60"
             >
               <Text className="text-white font-bold text-xs">Undo</Text>
             </Pressable>
           </Animated.View>
         )}
+        <Text className="text-compact text-m3-on-surface-variant font-semibold uppercase tracking-wider px-1">Logging details</Text>
         <Pressable
           onPress={() => setDateSelectorVisible(true)}
           accessibilityRole="button"
@@ -644,7 +751,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
           iconPosition="left"
           onPress={handleLogMeal}
           loading={logging}
-          disabled={components.length === 0}
+          disabled={components.length === 0 || !mealName.trim()}
         />
         {logError && (
           <Text className="text-m3-error text-xs font-medium" accessibilityLiveRegion="assertive">

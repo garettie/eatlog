@@ -158,7 +158,7 @@ function FoodRow({
       <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
         <Pressable
           onPress={() => onEdit(food)}
-          className="flex-row items-start px-5 py-5 min-h-[96] active:opacity-80"
+          className="flex-row items-stretch min-h-[96px] active:opacity-80"
           accessibilityRole="button"
           accessibilityLabel={`${food.name}, ${Math.round(food.calories)} calories`}
           accessibilityHint="Opens portion editor. Swipe left to delete."
@@ -168,11 +168,13 @@ function FoodRow({
             else onEdit(food);
           }}
         >
-          <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
-            <MaterialCommunityIcons name={foodIcon(food.name)} size={20} color={M3.onSurfaceVariant} />
+          <View className="w-20 self-stretch items-center justify-center">
+            <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
+              <MaterialCommunityIcons name={foodIcon(food.name)} size={20} color={M3.onSurfaceVariant} />
+            </View>
           </View>
-          <View className="flex-1 min-w-0 mr-3">
-            <Text className="text-m3-on-surface text-base font-semibold" numberOfLines={2}>
+          <View className="flex-1 min-w-0 px-4 py-3">
+            <Text className="text-m3-on-surface text-base font-semibold leading-5" numberOfLines={2}>
               {food.name}
             </Text>
             <Text className="text-m3-on-surface-variant text-xs mt-0.5 tabular-nums">
@@ -183,7 +185,7 @@ function FoodRow({
               <MacroPills protein={food.protein_g} carbs={food.carbs_g} fat={food.fat_g} />
             </View>
           </View>
-          <View className="min-w-[72px] max-w-[96px] flex-1 items-end pt-0.5">
+          <View className="w-24 shrink-0 items-end pt-3 pr-5">
             <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
               {Math.round(food.calories)}
               <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
@@ -220,6 +222,7 @@ function MealRow({
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
   const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
+  const [rowHeight, setRowHeight] = useState(96);
   const photoUri = meal.photoUri && meal.photoUri !== failedPhotoUri ? meal.photoUri : null;
 
   return (
@@ -227,9 +230,7 @@ function MealRow({
       <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
         <Pressable
           onPress={() => onEditMeal(meal)}
-          className={`flex-row items-stretch active:opacity-80 ${
-            photoUri ? 'h-24' : 'px-5 py-5 min-h-[96]'
-          }`}
+          className="flex-row items-stretch min-h-[96px] active:opacity-80"
           accessibilityRole="button"
           accessibilityLabel={`${meal.name}, ${Math.round(totalCalories)} calories`}
           accessibilityHint="Opens meal editor. Swipe left to delete."
@@ -247,7 +248,8 @@ function MealRow({
               }}
               accessibilityRole="button"
               accessibilityLabel={`View ${meal.name} photo`}
-              className="h-24 w-20 bg-m3-surface-container-highest active:opacity-80"
+              className="w-20 bg-m3-surface-container-highest active:opacity-80"
+              style={{ height: rowHeight }}
             >
               <Image
                 source={{ uri: photoUri }}
@@ -258,14 +260,22 @@ function MealRow({
               />
             </Pressable>
           ) : (
-            <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
-              <MaterialCommunityIcons name={foodIcon(meal.name)} size={20} color={M3.onSurfaceVariant} />
+            <View className="w-20 self-stretch items-center justify-center">
+              <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
+                <MaterialCommunityIcons name={foodIcon(meal.name)} size={20} color={M3.onSurfaceVariant} />
+              </View>
             </View>
           )}
-          <View className={`flex-1 min-w-0 ${photoUri ? 'px-3 py-3' : 'mr-4'}`}>
+          <View
+            className="flex-1 min-w-0 px-4 py-3"
+            onLayout={(event) => {
+              const nextHeight = Math.max(96, Math.ceil(event.nativeEvent.layout.height));
+              setRowHeight((current) => current === nextHeight ? current : nextHeight);
+            }}
+          >
             <Text
               className="text-m3-on-surface text-base font-bold leading-5"
-              numberOfLines={photoUri ? 1 : 2}
+              numberOfLines={2}
             >
               {meal.name}
             </Text>
@@ -276,7 +286,7 @@ function MealRow({
               <MacroPills protein={totalP} carbs={totalC} fat={totalF} />
             </View>
           </View>
-          <View className={`min-w-[72px] max-w-[96px] flex-1 items-end ${photoUri ? 'pt-3 pr-4' : 'pt-0.5'}`}>
+          <View className="w-24 shrink-0 items-end pt-3 pr-5">
             <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
               {Math.round(totalCalories)}
               <Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>

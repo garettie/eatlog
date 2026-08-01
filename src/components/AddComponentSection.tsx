@@ -20,6 +20,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FoodResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchRetry, setSearchRetry] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSeq = useRef(0);
 
@@ -45,6 +47,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     setMode(null);
     setSearchQuery('');
     setSearchResults([]);
+    setSearchError(null);
     setDescribeText('');
     setDescribeError(null);
   }, []);
@@ -55,11 +58,13 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
 
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setSearchError(null);
       setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
+    setSearchError(null);
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await searchFood(searchQuery);
@@ -67,7 +72,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         setSearchResults(res.items);
       } catch (e) {
         console.error('[AddComponent] search failed', e);
-        if (seq === searchSeq.current) setSearchResults([]);
+        if (seq === searchSeq.current) {
+          setSearchResults([]);
+          setSearchError("Couldn't search foods. Check your connection and try again.");
+        }
       } finally {
         if (seq === searchSeq.current) setIsSearching(false);
       }
@@ -76,7 +84,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [searchQuery]);
+  }, [searchQuery, searchRetry]);
 
   const handleSearchSelect = useCallback((food: FoodResult) => {
     onAdd([food]);
@@ -140,21 +148,20 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   if (mode === null) {
     return (
       <Pressable
-        onPress={() => setMode('search')}
+        onPress={() => setMode('describe')}
         accessibilityRole="button"
         accessibilityLabel="Add component"
-        accessibilityHint="Opens search, describe, and manual component entry"
-        className="flex-row items-center justify-center gap-2 py-3.5"
+        accessibilityHint="Opens a description estimate, with search and manual entry available as fallbacks"
+        className="min-h-[56px] flex-row items-center justify-center gap-2 rounded-2xl bg-m3-surface-container border border-m3-outline-variant/30 active:opacity-60"
       >
-        <MaterialIcons name="add-circle-outline" size={20} color={M3.onSurfaceVariant} />
-        <Text className="text-m3-on-surface-variant text-sm font-medium">Add Component</Text>
+        <MaterialIcons name="add-circle-outline" size={20} color={M3.onSurface} />
+        <Text className="text-m3-on-surface text-sm font-semibold">Add component</Text>
       </Pressable>
     );
   }
 
   return (
-    <View className="bg-m3-surface-container-high rounded-xl px-4 py-4 gap-4">
-      {/* ── Mode Chips ── */}
+    <View className="bg-m3-surface-container-high rounded-2xl px-4 py-4 gap-4 border border-m3-outline-variant/30">
       <View className="flex-row gap-2 items-center">
         <Pressable
           onPress={() => setMode('search')}
@@ -189,11 +196,16 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           accessibilityRole="button"
           accessibilityLabel="Manual entry"
           accessibilityState={{ selected: mode === 'manual' }}
-          className={`min-w-[48px] min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'manual' ? 'bg-m3-surface-container-highest' : ''}`}
+          className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'manual' ? 'bg-m3-surface-container-highest' : ''}`}
         >
-          <MaterialIcons name="edit" size={14} color={mode === 'manual' ? M3.onSurface : M3.onSurfaceVariant} />
+          <View className="flex-row items-center gap-1">
+            <MaterialIcons name="edit" size={14} color={mode === 'manual' ? M3.onSurface : M3.onSurfaceVariant} />
+            <Text className={`text-xs font-semibold ${mode === 'manual' ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+              Manual
+            </Text>
+          </View>
         </Pressable>
-        <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel" className="w-12 h-12 items-center justify-center active:opacity-60">
+        <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel adding component" className="w-12 h-12 items-center justify-center active:opacity-60">
           <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
         </Pressable>
       </View>
@@ -227,7 +239,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               accessibilityRole="button"
               accessibilityLabel={`${item.name}, ${item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} calories per 100 grams` : 'nutrition unavailable'}`}
               accessibilityHint="Adds this component to the meal"
-              className="bg-m3-surface-container rounded-xl px-4 py-3 flex-row justify-between items-center active:opacity-60"
+              className="min-h-[56px] bg-m3-surface-container rounded-xl px-4 py-3 flex-row justify-between items-center active:opacity-60"
             >
               <View className="flex-1 mr-2">
                 <Text className="text-m3-on-surface text-sm font-medium" numberOfLines={1}>
@@ -240,11 +252,27 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 </Text>
               </View>
               <Text className="text-xs text-m3-primary font-semibold tabular-nums">
-                {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal` : '---'}
+                {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal/100g` : '---'}
               </Text>
             </Pressable>
           ))}
-          {!isSearching && searchQuery.trim().length > 0 && searchResults.length === 0 && (
+          {searchError && (
+            <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-3">
+              <Text className="text-m3-on-error-container text-xs font-medium">{searchError}</Text>
+              <View className="flex-row flex-wrap gap-2">
+                <Pressable onPress={() => setSearchRetry((count) => count + 1)} accessibilityRole="button" accessibilityLabel="Retry component search" className="min-h-[40px] justify-center rounded-full bg-m3-surface-container-high px-4 active:opacity-60">
+                  <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
+                </Pressable>
+                <Pressable onPress={() => setMode('describe')} accessibilityRole="button" accessibilityLabel="Describe component instead" className="min-h-[40px] justify-center px-2 active:opacity-60">
+                  <Text className="text-m3-on-error-container text-xs font-semibold">Describe instead</Text>
+                </Pressable>
+                <Pressable onPress={() => setMode('manual')} accessibilityRole="button" accessibilityLabel="Enter component manually" className="min-h-[40px] justify-center px-2 active:opacity-60">
+                  <Text className="text-m3-on-error-container text-xs font-semibold">Enter manually</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+          {!isSearching && !searchError && searchQuery.trim().length > 0 && searchResults.length === 0 && (
             <Text className="text-m3-on-surface-variant text-xs text-center py-2">No results</Text>
           )}
         </View>
@@ -272,7 +300,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           />
           {describeError && (
             <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-2">
-              <Text className="text-m3-on-surface text-xs font-medium">{describeError}</Text>
+              <Text className="text-m3-on-error-container text-xs font-medium">{describeError}</Text>
             </View>
           )}
         </View>
@@ -293,7 +321,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           <Text className="text-m3-on-surface-variant text-xs font-medium">Nutrition per 100g</Text>
           <View className="flex-row gap-2">
             <View className="flex-1 gap-1">
-              <Text className="text-xs text-white/60 font-semibold tracking-wider text-center">CAL</Text>
+              <Text className="text-compact text-m3-on-surface-variant font-semibold text-center">Calories</Text>
               <BottomSheetTextInput
                 value={manualCal}
                 onChangeText={setManualCal}
@@ -305,7 +333,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               />
             </View>
             <View className="flex-1 gap-1">
-              <Text className="text-xs text-m3-protein font-semibold tracking-wider text-center">PRO</Text>
+              <Text className="text-compact text-m3-protein font-semibold text-center">Protein</Text>
               <BottomSheetTextInput
                 value={manualPro}
                 onChangeText={setManualPro}
@@ -317,7 +345,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               />
             </View>
             <View className="flex-1 gap-1">
-              <Text className="text-xs text-m3-carbs font-semibold tracking-wider text-center">CARB</Text>
+              <Text className="text-compact text-m3-carbs font-semibold text-center">Carbs</Text>
               <BottomSheetTextInput
                 value={manualCarb}
                 onChangeText={setManualCarb}
@@ -329,7 +357,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               />
             </View>
             <View className="flex-1 gap-1">
-              <Text className="text-xs text-m3-fat font-semibold tracking-wider text-center">FAT</Text>
+              <Text className="text-compact text-m3-fat font-semibold text-center">Fat</Text>
               <BottomSheetTextInput
                 value={manualFat}
                 onChangeText={setManualFat}
