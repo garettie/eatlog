@@ -182,7 +182,6 @@ function WeightChart({
 }: WeightChartProps) {
   const reduced = useReducedMotion();
   const [width, setWidth] = useState(0);
-  const animatedDataWidth = useSharedValue(1);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedIndexRef = useRef<number | null>(null);
   const sorted = useMemo(
@@ -285,7 +284,7 @@ function WeightChart({
       animatedYMax.value,
       dataLeft,
       topPadding,
-      animatedDataWidth.value,
+      dataWidth,
       plotHeight,
     )
   ));
@@ -433,11 +432,7 @@ function WeightChart({
       <View
         onLayout={(event) => {
           const measuredWidth = event.nativeEvent.layout.width;
-          animatedDataWidth.value = Math.max(
-            1,
-            measuredWidth - leftPadding - rightPadding - plotGutter * 2,
-          );
-          setWidth(measuredWidth);
+          setWidth((currentWidth) => currentWidth === measuredWidth ? currentWidth : measuredWidth);
         }}
         style={{ height }}
         accessible
