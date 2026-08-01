@@ -68,11 +68,14 @@ function LoggingHeatmap({
 
       <View className="h-px bg-m3-outline-variant/50" />
 
-      <View className="flex-row items-baseline gap-1">
-        <Text className={`${compact ? 'text-base' : 'text-lg'} text-m3-on-surface font-bold tabular-nums`}>
+      <View>
+        <Text
+          className={`${compact ? 'text-base' : 'text-lg'} text-m3-on-surface font-bold tabular-nums`}
+          numberOfLines={1}
+        >
           {model.currentWeekCount}/7
+          <Text className="text-m3-on-surface-variant text-compact font-medium"> this week</Text>
         </Text>
-        <Text className="text-m3-on-surface-variant text-compact font-medium">this week</Text>
       </View>
     </View>
   );

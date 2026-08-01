@@ -371,35 +371,33 @@ function DashboardScreen({
                 <Text className="text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>{formattedDate}</Text>
                 <Text className="text-m3-on-surface font-bold text-4xl tracking-tight">Dashboard</Text>
               </View>
-            </View>
-            {headerChip && (
-              <View className="flex-row justify-end">
-              <Pressable
-                onPress={onOpenAdaptiveInfo}
-                accessibilityRole="button"
-                accessibilityLabel={`${headerChip.label}. What are adaptive targets?`}
-                className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border active:opacity-70 ${
-                  headerChip.locked
-                    ? 'bg-m3-surface-container border-m3-outline-variant/30'
-                    : 'bg-m3-expenditure/15 border-m3-expenditure/40'
-                }`}
-              >
-                <MaterialIcons
-                  name={headerChip.locked ? 'lock' : 'auto-awesome'}
-                  size={11}
-                  color={headerChip.locked ? M3.onSurfaceVariant : M3.expenditure}
-                />
-                <Text
-                  className={`text-xs font-semibold ${
-                    headerChip.locked ? 'text-m3-on-surface-variant' : 'text-m3-expenditure'
+              {headerChip && (
+                <Pressable
+                  onPress={onOpenAdaptiveInfo}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${headerChip.label}. What are adaptive targets?`}
+                  className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border active:opacity-70 ${
+                    headerChip.locked
+                      ? 'bg-m3-surface-container border-m3-outline-variant/30'
+                      : 'bg-m3-expenditure/15 border-m3-expenditure/40'
                   }`}
-                  numberOfLines={1}
                 >
-                  {headerChip.label}
-                </Text>
-              </Pressable>
-              </View>
-            )}
+                  <MaterialIcons
+                    name={headerChip.locked ? 'lock' : 'auto-awesome'}
+                    size={11}
+                    color={headerChip.locked ? M3.onSurfaceVariant : M3.expenditure}
+                  />
+                  <Text
+                    className={`text-xs font-semibold ${
+                      headerChip.locked ? 'text-m3-on-surface-variant' : 'text-m3-expenditure'
+                    }`}
+                    numberOfLines={1}
+                  >
+                    {headerChip.label}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           </View>
 
           {/* ── Calorie Ring Card ── */}
@@ -556,18 +554,16 @@ function DashboardScreen({
           )}
 
           {/* ── Analytics Card ── */}
-          <Card className="p-5 gap-4 overflow-hidden">
+          <Card className="p-5 gap-2 overflow-hidden">
             <Pressable
               onPress={() => navigation.navigate('Analytics')}
-              className="min-h-[48px] flex-row justify-between items-center gap-3 active:opacity-70"
+              hitSlop={{ top: 13, bottom: 13, left: 8, right: 8 }}
+              className="flex-row justify-between items-center gap-3 active:opacity-70"
               accessibilityRole="button"
               accessibilityLabel="Open analytics"
             >
               <View className="flex-1 min-w-0">
                 <Text className="text-m3-on-surface font-semibold text-base">Analytics</Text>
-                <Text className="text-m3-on-surface-variant text-xs font-medium mt-0.5" numberOfLines={1}>
-                  Logging consistency · Last 30 days
-                </Text>
               </View>
               <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
             </Pressable>
