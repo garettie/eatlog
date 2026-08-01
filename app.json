@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#111318",
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false
     },
@@ -20,7 +21,9 @@
       "predictiveBackGestureEnabled": true,
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.WRITE_WEIGHT"
       ]
     },
     "web": {
@@ -41,6 +44,17 @@
         }
       ],
       "expo-sqlite",
+      "expo-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 26
+          }
+        }
+      ],
       [
         "expo-image-picker",
         {

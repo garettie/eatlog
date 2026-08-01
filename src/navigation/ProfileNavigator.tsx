@@ -13,6 +13,7 @@ import {
   PrivacyScreen,
   type ProfileStackParamList,
 } from '../screens/ProfilePlanScreens';
+import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
@@ -32,6 +33,9 @@ const GOAL_AND_RATE_OPTIONS = { title: 'Goal and rate' } as const;
 const NUTRITION_TARGETS_OPTIONS = { title: 'Nutrition targets' } as const;
 const UNITS_OPTIONS = { title: 'Units' } as const;
 const PRIVACY_OPTIONS = { title: 'Privacy' } as const;
+const BACKUP_RESTORE_OPTIONS = { title: 'Backup & restore' } as const;
+const EXPORT_DATA_OPTIONS = { title: 'Export data' } as const;
+const HEALTH_CONNECT_OPTIONS = { title: 'Health Connect' } as const;
 const PLAN_PREVIEW_OPTIONS = { title: 'Review changes' } as const;
 
 function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps) {
@@ -49,6 +53,10 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
     ),
     [onDataChanged],
   );
+  const renderHealthConnect = useCallback(
+    () => <HealthConnectScreen onDataChanged={onDataChanged} />,
+    [onDataChanged],
+  );
 
   return (
     <Stack.Navigator screenOptions={PROFILE_SCREEN_OPTIONS}>
@@ -62,6 +70,11 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
         {renderUnits}
       </Stack.Screen>
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={PRIVACY_OPTIONS} />
+      <Stack.Screen name="BackupRestore" component={BackupRestoreScreen} options={BACKUP_RESTORE_OPTIONS} />
+      <Stack.Screen name="ExportData" component={ExportDataScreen} options={EXPORT_DATA_OPTIONS} />
+      <Stack.Screen name="HealthConnect" options={HEALTH_CONNECT_OPTIONS}>
+        {renderHealthConnect}
+      </Stack.Screen>
       <Stack.Screen name="PlanPreview" options={PLAN_PREVIEW_OPTIONS}>
         {renderPlanPreview}
       </Stack.Screen>

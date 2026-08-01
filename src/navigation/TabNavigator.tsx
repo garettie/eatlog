@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -14,11 +14,12 @@ import AdaptiveInfoSheet from '../components/AdaptiveInfoSheet';
 import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo, type WeightLoggedInfo } from '../components/sheet-states/FoodSheetContent';
 import { type MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
-import { deleteFoodLog, deleteMeal, deleteWeightLog, saveWeightLog, MealType } from '../db/database';
+import { deleteFoodLog, deleteMeal, restoreWeightSave, MealType } from '../db/database';
 import { formatDayHeader, todayISO } from '../utils/calendar';
 import { type FoodResult, type DataType } from '../services/foodSearch';
 import { type DescribeResult } from '../services/foodScan';
 import MarcoTabBar from './MarcoTabBar';
+import { syncHealthConnectWeights } from '../services/healthConnect';
 
 function mealLabel(m: MealType): string {
     return m.charAt(0).toUpperCase() + m.slice(1);
@@ -62,6 +63,25 @@ export default function TabNavigator() {
     const diaryDateRef = useRef(todayISO());
     const skipHistoryRef = useRef(false);
     const sheetCloseRef = useRef<() => void>(() => { });
+
+    const reconcileHealthConnect = useCallback(() => {
+        void syncHealthConnectWeights().then((result) => {
+            if (result.imported + result.updated + result.deleted > 0) {
+                setDataVersion((version) => version + 1);
+            }
+        }).catch((error) => console.warn('[Health Connect] foreground sync failed', error));
+    }, []);
+
+    useEffect(() => {
+        reconcileHealthConnect();
+    }, [dataVersion, reconcileHealthConnect]);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (state) => {
+            if (state === 'active') reconcileHealthConnect();
+        });
+        return () => subscription.remove();
+    }, [reconcileHealthConnect]);
 
     const openEntry = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
@@ -281,11 +301,12 @@ export default function TabNavigator() {
             tone: 'success',
             undo: async () => {
                 try {
-                    if (info.wasUpdate && info.previousScaleWeightKg != null) {
-                        await saveWeightLog({ logDate: info.logDate, scaleWeightKg: info.previousScaleWeightKg });
-                    } else {
-                        await deleteWeightLog(info.logId);
-                    }
+                    await restoreWeightSave({
+                        savedLogId: info.logId,
+                        logDate: info.logDate,
+                        previousLog: info.previousLog,
+                        previousExport: info.previousExport,
+                    });
                     setDataVersion((v) => v + 1);
                     setToast(null);
                 } catch (e) {

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,9 @@ import { AdaptiveReviewState, getAdaptiveReviewState } from '../services/adaptiv
 import { M3 } from '../theme/tokens';
 import { parseLocalISO, todayISO } from '../utils/calendar';
 import { fromKilograms } from '../utils/weightUnits';
+import { useDataMaintenance } from '../context/DataMaintenanceContext';
+import { deleteMarcoHealthConnectWeights } from '../services/healthConnect';
+import { resetLocalData } from '../services/dataReset';
 
 interface ProfileScreenProps {
   dataVersion: number;
@@ -63,6 +66,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function ProfileScreen({ dataVersion }: ProfileScreenProps) {
   const navigation = useNavigation<any>();
+  const { runDataMaintenance } = useDataMaintenance();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
   const [adaptiveState, setAdaptiveState] = useState<AdaptiveReviewState | null>(null);
@@ -106,6 +110,38 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
   const openOnboarding = useCallback(() => {
     navigation.getParent()?.getParent()?.navigate('Onboarding');
   }, [navigation]);
+
+  const deleteAllData = useCallback(() => {
+    Alert.alert(
+      'Delete all Marco data?',
+      'This will erase your profile, food history, weight history, targets, reviews, and saved meal photos from this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue', style: 'destructive', onPress: () => {
+            void deleteMarcoHealthConnectWeights().then((healthResult) => {
+              const detail = healthResult.warning
+                ? `${healthResult.warning}\n\nDelete all local Marco data anyway? This cannot be undone.`
+                : 'Marco-owned Health Connect weights were removed. Delete all local Marco data now? This cannot be undone.';
+              Alert.alert('Final confirmation', detail, [
+                { text: 'Keep my data', style: 'cancel' },
+                {
+                  text: 'Delete everything', style: 'destructive', onPress: () => {
+                    void runDataMaintenance('Deleting all data', resetLocalData).catch(() => {});
+                  },
+                },
+              ]);
+            }).catch(() => {
+              Alert.alert('Could not check Health Connect', 'Marco-owned weight records may remain in Health Connect. Delete all local data anyway?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete local data', style: 'destructive', onPress: () => { void runDataMaintenance('Deleting all data', resetLocalData).catch(() => {}); } },
+              ]);
+            });
+          },
+        },
+      ],
+    );
+  }, [runDataMaintenance]);
 
   if (loading && !profile && !target) {
     return (
@@ -229,9 +265,10 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
           </Section>
 
           <Section title="Data & Sync">
-            <ProfileSettingRow icon="backup" title="Backup and restore" detail="Local data stays on this device" disabled />
-            <ProfileSettingRow icon="file-download" title="Export data" detail="No export file is available" disabled />
-            <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="No reset action is available" disabled showDivider={false} />
+            <ProfileSettingRow icon="backup" title="Backup and restore" detail="Complete portable Marco backup" onPress={() => navigation.navigate('BackupRestore')} />
+            <ProfileSettingRow icon="file-download" title="Export data" detail="Human-readable ZIP and CSV files" onPress={() => navigation.navigate('ExportData')} />
+            <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Two-way body-weight sync" onPress={() => navigation.navigate('HealthConnect')} />
+            <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase Marco data from this device" onPress={deleteAllData} showDivider={false} />
           </Section>
 
           <Section title="Help & About">

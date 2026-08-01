@@ -39,6 +39,9 @@ export type ProfileStackParamList = {
   NutritionTargets: undefined;
   Units: undefined;
   Privacy: undefined;
+  BackupRestore: undefined;
+  ExportData: undefined;
+  HealthConnect: undefined;
   PlanPreview: { profile: ProfileUpdate; target: DailyTargetInput };
 };
 

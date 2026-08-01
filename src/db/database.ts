@@ -15,6 +15,7 @@ export type CalculationMethod = 'initial_estimate' | 'profile_recalculation' | '
 export type ProteinPreference = 'low' | 'moderate' | 'high' | 'extra_high';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type WeightUnit = 'kg' | 'lb';
+export type WeightOrigin = 'marco' | 'health_connect';
 export type AdaptiveReviewStatus = 'pending' | 'accepted' | 'kept' | 'superseded';
 
 export interface Profile {
@@ -38,7 +39,26 @@ export interface WeightLog {
   log_date: string;
   scale_weight_kg: number;
   trend_weight_kg: number;
+  origin: WeightOrigin;
+  origin_record_id: string | null;
+  origin_data_source: string | null;
+  origin_last_modified_at: string | null;
+  measured_at: string | null;
+  revision: number;
   created_at: string;
+}
+
+export interface HealthConnectWeightExport {
+  log_date: string;
+  client_record_id: string;
+  record_id: string | null;
+  exported_revision: number | null;
+  pending_delete: number;
+}
+
+export interface HealthConnectState {
+  enabled: number;
+  last_sync_at: string | null;
 }
 
 export interface DailyTarget {
@@ -84,7 +104,7 @@ export interface AdaptiveReview {
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 export function getDatabaseVersion(): number {
   return DATABASE_VERSION;
@@ -379,6 +399,36 @@ export async function initDatabase(): Promise<void> {
         PRAGMA user_version = 5;
       `);
     });
+    currentVersion = 5;
+  }
+
+  if (currentVersion === 5) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync(`
+        ALTER TABLE weight_logs ADD COLUMN origin TEXT NOT NULL DEFAULT 'marco'
+          CHECK (origin IN ('marco', 'health_connect'));
+        ALTER TABLE weight_logs ADD COLUMN origin_record_id TEXT;
+        ALTER TABLE weight_logs ADD COLUMN origin_data_source TEXT;
+        ALTER TABLE weight_logs ADD COLUMN origin_last_modified_at TEXT;
+        ALTER TABLE weight_logs ADD COLUMN measured_at TEXT;
+        ALTER TABLE weight_logs ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;
+        CREATE TABLE health_connect_state (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+          last_sync_at TEXT
+        );
+        INSERT INTO health_connect_state (id, enabled) VALUES (1, 0);
+        CREATE TABLE health_connect_weight_exports (
+          log_date TEXT PRIMARY KEY,
+          client_record_id TEXT NOT NULL UNIQUE,
+          record_id TEXT,
+          exported_revision INTEGER,
+          pending_delete INTEGER NOT NULL DEFAULT 0 CHECK (pending_delete IN (0, 1))
+        );
+        CREATE INDEX idx_weight_logs_origin_date ON weight_logs(origin, log_date);
+        PRAGMA user_version = 6;
+      `);
+    });
   }
 }
 
@@ -500,6 +550,28 @@ export interface SaveWeightResult {
   log: WeightLog;
   wasUpdate: boolean;
   previousScaleWeightKg: number | null;
+  previousLog: WeightLog | null;
+  previousExport: HealthConnectWeightExport | null;
+}
+
+async function recomputeWeightTrendWithDb(db: SQLite.SQLiteDatabase): Promise<void> {
+  const rows = await db.getAllAsync<WeightLog>('SELECT * FROM weight_logs ORDER BY log_date ASC');
+  const trend = computeWeightTrend(rows.map((row) => ({
+    logDate: row.log_date,
+    scaleWeightKg: row.scale_weight_kg,
+  })));
+  for (const reading of trend) {
+    await db.runAsync(
+      'UPDATE weight_logs SET trend_weight_kg = ? WHERE log_date = ?',
+      [reading.trendWeightKg, reading.logDate],
+    );
+  }
+}
+
+function localNoonIso(logDate: string): string {
+  const measuredAt = parseLocalISO(logDate);
+  measuredAt.setHours(12, 0, 0, 0);
+  return measuredAt.toISOString();
 }
 
 export async function saveWeightLog(params: {
@@ -520,25 +592,33 @@ export async function saveWeightLog(params: {
       'SELECT * FROM weight_logs WHERE log_date = ?',
       [params.logDate],
     );
-    await txn.runAsync(
-      `INSERT INTO weight_logs (log_date, scale_weight_kg, trend_weight_kg)
-       VALUES (?, ?, ?)
-       ON CONFLICT(log_date) DO UPDATE SET scale_weight_kg = excluded.scale_weight_kg`,
-      [params.logDate, roundedWeight, roundedWeight],
+    const previousExport = await txn.getFirstAsync<HealthConnectWeightExport>(
+      'SELECT * FROM health_connect_weight_exports WHERE log_date = ?',
+      [params.logDate],
     );
-    const rows = await txn.getAllAsync<WeightLog>('SELECT * FROM weight_logs ORDER BY log_date ASC');
-    const trend = computeWeightTrend(rows.map((row) => ({
-      logDate: row.log_date,
-      scaleWeightKg: row.scale_weight_kg,
-    })));
-    for (const reading of trend) {
-      if (reading.logDate >= params.logDate) {
-        await txn.runAsync(
-          'UPDATE weight_logs SET trend_weight_kg = ? WHERE log_date = ?',
-          [reading.trendWeightKg, reading.logDate],
-        );
-      }
-    }
+    const revision = (existing?.revision ?? 0) + 1;
+    await txn.runAsync(
+      `INSERT INTO weight_logs
+        (log_date, scale_weight_kg, trend_weight_kg, origin, origin_record_id, origin_data_source, origin_last_modified_at, measured_at, revision)
+       VALUES (?, ?, ?, 'marco', NULL, NULL, NULL, ?, ?)
+       ON CONFLICT(log_date) DO UPDATE SET
+         scale_weight_kg = excluded.scale_weight_kg,
+         origin = 'marco',
+         origin_record_id = NULL,
+         origin_data_source = NULL,
+         origin_last_modified_at = NULL,
+         measured_at = excluded.measured_at,
+         revision = excluded.revision`,
+      [params.logDate, roundedWeight, roundedWeight, localNoonIso(params.logDate), revision],
+    );
+    await txn.runAsync(
+      `INSERT INTO health_connect_weight_exports
+        (log_date, client_record_id, record_id, exported_revision, pending_delete)
+       VALUES (?, ?, NULL, NULL, 0)
+       ON CONFLICT(log_date) DO UPDATE SET pending_delete = 0`,
+      [params.logDate, `marco-weight:${params.logDate}`],
+    );
+    await recomputeWeightTrendWithDb(txn);
     const saved = await txn.getFirstAsync<WeightLog>(
       'SELECT * FROM weight_logs WHERE log_date = ?',
       [params.logDate],
@@ -551,6 +631,8 @@ export async function saveWeightLog(params: {
       log: saved,
       wasUpdate: existing != null,
       previousScaleWeightKg: existing?.scale_weight_kg ?? null,
+      previousLog: existing,
+      previousExport,
     };
   });
 
@@ -567,19 +649,230 @@ export async function deleteWeightLog(id: number): Promise<void> {
     );
     if (!existing) return;
     await txn.runAsync('DELETE FROM weight_logs WHERE id = ?', [id]);
-    const rows = await txn.getAllAsync<WeightLog>('SELECT * FROM weight_logs ORDER BY log_date ASC');
-    const trend = computeWeightTrend(rows.map((row) => ({
-      logDate: row.log_date,
-      scaleWeightKg: row.scale_weight_kg,
-    })));
-    for (const reading of trend) {
-      if (reading.logDate >= existing.log_date) {
-        await txn.runAsync(
-          'UPDATE weight_logs SET trend_weight_kg = ? WHERE log_date = ?',
-          [reading.trendWeightKg, reading.logDate],
-        );
+    const exportRow = await txn.getFirstAsync<HealthConnectWeightExport>(
+      'SELECT * FROM health_connect_weight_exports WHERE log_date = ?',
+      [existing.log_date],
+    );
+    if (exportRow?.record_id || exportRow?.exported_revision != null) {
+      await txn.runAsync(
+        'UPDATE health_connect_weight_exports SET pending_delete = 1 WHERE log_date = ?',
+        [existing.log_date],
+      );
+    } else {
+      await txn.runAsync('DELETE FROM health_connect_weight_exports WHERE log_date = ?', [existing.log_date]);
+    }
+    await recomputeWeightTrendWithDb(txn);
+  });
+}
+
+export async function restoreWeightSave(params: {
+  savedLogId: number;
+  logDate: string;
+  previousLog: WeightLog | null;
+  previousExport: HealthConnectWeightExport | null;
+}): Promise<void> {
+  const db = await getDb();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const currentExport = await txn.getFirstAsync<HealthConnectWeightExport>(
+      'SELECT * FROM health_connect_weight_exports WHERE log_date = ?',
+      [params.logDate],
+    );
+    if (params.previousLog) {
+      const row = params.previousLog;
+      await txn.runAsync(
+        `INSERT INTO weight_logs
+          (id, log_date, scale_weight_kg, trend_weight_kg, origin, origin_record_id, origin_data_source, origin_last_modified_at, measured_at, revision, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(log_date) DO UPDATE SET
+           id = excluded.id,
+           scale_weight_kg = excluded.scale_weight_kg,
+           trend_weight_kg = excluded.trend_weight_kg,
+           origin = excluded.origin,
+           origin_record_id = excluded.origin_record_id,
+           origin_data_source = excluded.origin_data_source,
+           origin_last_modified_at = excluded.origin_last_modified_at,
+           measured_at = excluded.measured_at,
+           revision = excluded.revision,
+           created_at = excluded.created_at`,
+        [row.id, row.log_date, row.scale_weight_kg, row.trend_weight_kg, row.origin,
+          row.origin_record_id, row.origin_data_source, row.origin_last_modified_at,
+          row.measured_at, row.revision, row.created_at],
+      );
+    } else {
+      await txn.runAsync('DELETE FROM weight_logs WHERE id = ?', [params.savedLogId]);
+    }
+
+    await txn.runAsync('DELETE FROM health_connect_weight_exports WHERE log_date = ?', [params.logDate]);
+    if (params.previousExport) {
+      const row = params.previousExport;
+      await txn.runAsync(
+        `INSERT INTO health_connect_weight_exports
+          (log_date, client_record_id, record_id, exported_revision, pending_delete)
+         VALUES (?, ?, ?, ?, ?)`,
+        [row.log_date, row.client_record_id, row.record_id, row.exported_revision, row.pending_delete],
+      );
+    } else if (currentExport?.record_id || currentExport?.exported_revision != null) {
+      await txn.runAsync(
+        `INSERT INTO health_connect_weight_exports
+          (log_date, client_record_id, record_id, exported_revision, pending_delete)
+         VALUES (?, ?, ?, ?, 1)`,
+        [currentExport.log_date, currentExport.client_record_id,
+          currentExport.record_id, currentExport.exported_revision],
+      );
+    }
+    await recomputeWeightTrendWithDb(txn);
+  });
+}
+
+export interface HealthConnectImportWeight {
+  logDate: string;
+  scaleWeightKg: number;
+  recordId: string;
+  dataSource: string | null;
+  lastModifiedAt: string | null;
+  measuredAt: string;
+}
+
+export interface HealthConnectReconcileResult {
+  inserted: number;
+  updated: number;
+  deleted: number;
+  skippedManual: number;
+}
+
+export async function reconcileHealthConnectWeights(
+  records: HealthConnectImportWeight[],
+  startDate: string,
+  endDate: string,
+): Promise<HealthConnectReconcileResult> {
+  parseLocalISO(startDate);
+  parseLocalISO(endDate);
+  const db = await getDb();
+  const result: HealthConnectReconcileResult = { inserted: 0, updated: 0, deleted: 0, skippedManual: 0 };
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const selectedByDate = new Map(records.map((record) => [record.logDate, record]));
+    for (const record of records) {
+      const existing = await txn.getFirstAsync<WeightLog>(
+        'SELECT * FROM weight_logs WHERE log_date = ?', [record.logDate],
+      );
+      if (existing?.origin === 'marco') {
+        result.skippedManual += 1;
+        continue;
+      }
+      const unchanged = existing?.origin === 'health_connect'
+        && existing.origin_record_id === record.recordId
+        && existing.origin_data_source === record.dataSource
+        && existing.origin_last_modified_at === record.lastModifiedAt
+        && existing.measured_at === record.measuredAt
+        && Math.abs(existing.scale_weight_kg - record.scaleWeightKg) < 0.000001;
+      if (unchanged) continue;
+      await txn.runAsync(
+        `INSERT INTO weight_logs
+          (log_date, scale_weight_kg, trend_weight_kg, origin, origin_record_id, origin_data_source, origin_last_modified_at, measured_at, revision)
+         VALUES (?, ?, ?, 'health_connect', ?, ?, ?, ?, 1)
+         ON CONFLICT(log_date) DO UPDATE SET
+           scale_weight_kg = excluded.scale_weight_kg,
+           origin_record_id = excluded.origin_record_id,
+           origin_data_source = excluded.origin_data_source,
+           origin_last_modified_at = excluded.origin_last_modified_at,
+           measured_at = excluded.measured_at,
+           revision = weight_logs.revision + 1`,
+        [record.logDate, record.scaleWeightKg, record.scaleWeightKg, record.recordId,
+          record.dataSource, record.lastModifiedAt, record.measuredAt],
+      );
+      if (existing) result.updated += 1;
+      else result.inserted += 1;
+    }
+
+    const importedRows = await txn.getAllAsync<WeightLog>(
+      `SELECT * FROM weight_logs
+       WHERE origin = 'health_connect' AND log_date BETWEEN ? AND ?`,
+      [startDate, endDate],
+    );
+    for (const row of importedRows) {
+      const selected = selectedByDate.get(row.log_date);
+      if (!selected || selected.recordId !== row.origin_record_id) {
+        await txn.runAsync('DELETE FROM weight_logs WHERE id = ?', [row.id]);
+        result.deleted += 1;
       }
     }
+    await recomputeWeightTrendWithDb(txn);
+  });
+  return result;
+}
+
+export async function getHealthConnectState(): Promise<HealthConnectState> {
+  const db = await getDb();
+  return (await db.getFirstAsync<HealthConnectState>(
+    'SELECT enabled, last_sync_at FROM health_connect_state WHERE id = 1',
+  )) ?? { enabled: 0, last_sync_at: null };
+}
+
+export async function setHealthConnectEnabled(enabled: boolean): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE health_connect_state SET enabled = ? WHERE id = 1', [enabled ? 1 : 0]);
+}
+
+export async function setHealthConnectLastSync(lastSyncAt: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE health_connect_state SET last_sync_at = ? WHERE id = 1', [lastSyncAt]);
+}
+
+export interface PendingHealthConnectExport {
+  log: WeightLog;
+  ledger: HealthConnectWeightExport;
+}
+
+export async function getPendingHealthConnectExports(): Promise<PendingHealthConnectExport[]> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT OR IGNORE INTO health_connect_weight_exports
+      (log_date, client_record_id, record_id, exported_revision, pending_delete)
+     SELECT log_date, 'marco-weight:' || log_date, NULL, NULL, 0
+     FROM weight_logs WHERE origin = 'marco'`,
+  );
+  const rows = await db.getAllAsync<WeightLog & HealthConnectWeightExport>(
+    `SELECT w.*, e.client_record_id, e.record_id, e.exported_revision, e.pending_delete
+     FROM weight_logs w
+     JOIN health_connect_weight_exports e ON e.log_date = w.log_date
+     WHERE w.origin = 'marco' AND e.pending_delete = 0
+       AND (e.exported_revision IS NULL OR e.exported_revision < w.revision)
+     ORDER BY w.log_date`,
+  );
+  return rows.map((row) => ({ log: row, ledger: row }));
+}
+
+export async function getPendingHealthConnectDeletions(): Promise<HealthConnectWeightExport[]> {
+  const db = await getDb();
+  return db.getAllAsync<HealthConnectWeightExport>(
+    'SELECT * FROM health_connect_weight_exports WHERE pending_delete = 1 ORDER BY log_date',
+  );
+}
+
+export async function markHealthConnectExported(
+  logDate: string,
+  recordId: string,
+  revision: number,
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `UPDATE health_connect_weight_exports
+     SET record_id = ?, exported_revision = ?, pending_delete = 0
+     WHERE log_date = ?`,
+    [recordId, revision, logDate],
+  );
+}
+
+export async function markHealthConnectDeletionComplete(logDate: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM health_connect_weight_exports WHERE log_date = ?', [logDate]);
+}
+
+export async function clearHealthConnectDeviceState(): Promise<void> {
+  const db = await getDb();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync('UPDATE health_connect_state SET enabled = 0, last_sync_at = NULL WHERE id = 1');
+    await txn.runAsync('DELETE FROM health_connect_weight_exports');
   });
 }
 
@@ -1005,16 +1298,44 @@ export async function getMealPhotoReferences(): Promise<Array<{ mealId: number; 
   );
 }
 
-export async function getDataCounts(): Promise<{ foodLogs: number; meals: number; weightLogs: number; dailyTargets: number; photos: number }> {
+export interface DataCounts {
+  profile: number;
+  foodLogs: number;
+  meals: number;
+  weightLogs: number;
+  dailyTargets: number;
+  adaptiveReviews: number;
+  photos: number;
+}
+
+export async function getDataCounts(): Promise<DataCounts> {
   const db = await getDb();
-  const [foodLogs, meals, weightLogs, dailyTargets, photos] = await Promise.all([
+  const [profile, foodLogs, meals, weightLogs, dailyTargets, adaptiveReviews, photos] = await Promise.all([
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM profile'),
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM food_logs'),
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM meals'),
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM weight_logs'),
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM daily_targets'),
+    db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM adaptive_reviews'),
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM meals WHERE photo_uri IS NOT NULL'),
   ]);
-  return { foodLogs: foodLogs?.count ?? 0, meals: meals?.count ?? 0, weightLogs: weightLogs?.count ?? 0, dailyTargets: dailyTargets?.count ?? 0, photos: photos?.count ?? 0 };
+  return {
+    profile: profile?.count ?? 0,
+    foodLogs: foodLogs?.count ?? 0,
+    meals: meals?.count ?? 0,
+    weightLogs: weightLogs?.count ?? 0,
+    dailyTargets: dailyTargets?.count ?? 0,
+    adaptiveReviews: adaptiveReviews?.count ?? 0,
+    photos: photos?.count ?? 0,
+  };
+}
+
+export interface ExportMeal {
+  id: number;
+  name: string;
+  log_date: string;
+  meal_type: MealType;
+  created_at: string;
 }
 
 export async function getExportFoodLogs(): Promise<FoodLog[]> {
@@ -1030,6 +1351,18 @@ export async function getExportWeightLogs(): Promise<WeightLog[]> {
 export async function getExportDailyTargets(): Promise<DailyTarget[]> {
   const db = await getDb();
   return db.getAllAsync<DailyTarget>('SELECT * FROM daily_targets ORDER BY effective_date, id');
+}
+
+export async function getExportMeals(): Promise<ExportMeal[]> {
+  const db = await getDb();
+  return db.getAllAsync<ExportMeal>(
+    'SELECT id, name, log_date, meal_type, created_at FROM meals ORDER BY log_date, id',
+  );
+}
+
+export async function getExportAdaptiveReviews(): Promise<AdaptiveReview[]> {
+  const db = await getDb();
+  return db.getAllAsync<AdaptiveReview>('SELECT * FROM adaptive_reviews ORDER BY review_date, id');
 }
 
 export async function cacheFoodItem(params: {

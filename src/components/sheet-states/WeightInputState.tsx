@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import {
   SaveWeightResult,
+  WeightOrigin,
   WeightUnit,
   getEarliestWeightLogAfter,
   getLatestWeightLogOnOrBefore,
@@ -59,6 +60,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
   const [weightText, setWeightText] = useState('');
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [existing, setExisting] = useState(false);
+  const [existingOrigin, setExistingOrigin] = useState<WeightOrigin | null>(null);
   const [dateSelectorVisible, setDateSelectorVisible] = useState(false);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
       setDateISO(nextDateISO);
       setWeightText(nextWeightKg == null ? '' : formatWeight(nextWeightKg, nextUnit));
       setExisting(exact != null);
+      setExistingOrigin(exact?.origin ?? null);
       baselineRef.current = { dateISO: nextDateISO, weightKg: nextWeightKg, unit: nextUnit };
       setLoadError(false);
       return true;
@@ -252,6 +255,13 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
         value={unit}
         onChange={handleUnitChange}
       />
+
+      {existingOrigin === 'health_connect' ? (
+        <View className="rounded-2xl border border-m3-outline-variant/40 bg-m3-surface-container px-4 py-3">
+          <Text className="text-sm font-semibold text-m3-on-surface">Imported from Health Connect</Text>
+          <Text className="mt-1 text-sm text-m3-on-surface-variant">Saving changes makes this a Marco entry, so it takes priority for this date.</Text>
+        </View>
+      ) : null}
 
       {saveError && (
         <Text accessibilityLiveRegion="assertive" className="text-m3-error text-xs font-medium">{saveError}</Text>

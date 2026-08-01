@@ -13,7 +13,7 @@ import Animated, {
 import { scanFood, clarifyComponent, clarifyMeal, DescribeResult, FoodEstimationFailureKind } from '../../services/foodScan';
 import { serviceConfig } from '../../config/services';
 import { type DataType, type FoodResult } from '../../services/foodSearch';
-import { LoggedMeal, MealType, SaveWeightResult, getMealComponents } from '../../db/database';
+import { HealthConnectWeightExport, LoggedMeal, MealType, SaveWeightResult, WeightLog, getMealComponents } from '../../db/database';
 import { saveMealPhoto } from '../../utils/mealPhotos';
 import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { EASING } from '../../theme/motion';
@@ -89,6 +89,8 @@ export interface WeightLoggedInfo {
     scaleWeightKg: number;
     wasUpdate: boolean;
     previousScaleWeightKg: number | null;
+    previousLog: WeightLog | null;
+    previousExport: HealthConnectWeightExport | null;
 }
 
 interface FoodSheetContentProps {
@@ -440,6 +442,8 @@ export default function FoodSheetContent({
             scaleWeightKg: result.log.scale_weight_kg,
             wasUpdate: result.wasUpdate,
             previousScaleWeightKg: result.previousScaleWeightKg,
+            previousLog: result.previousLog,
+            previousExport: result.previousExport,
         });
     }, [onWeightLogged, setState]);
 
