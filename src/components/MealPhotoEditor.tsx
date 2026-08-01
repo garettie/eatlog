@@ -43,22 +43,20 @@ export default function MealPhotoEditor({
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({
             mediaTypes: ['images'],
-            base64: true,
             quality: 0.7,
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
-            base64: true,
             quality: 0.7,
           });
       if (result.canceled) return;
 
-      const base64 = result.assets?.[0]?.base64;
-      if (!base64) {
+      const asset = result.assets?.[0];
+      if (!asset?.uri) {
         setError("Couldn't read that photo. Try another image.");
         return;
       }
-      const savedUri = await saveMealPhoto(base64);
+      const savedUri = await saveMealPhoto(asset.uri, asset.width, asset.height);
       if (!savedUri) {
         setError("Couldn't save that photo. Try again.");
         return;
