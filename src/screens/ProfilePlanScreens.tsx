@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Card from '../components/Card';
+import GoalRateControl from '../components/GoalRateControl';
 import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
 import RulerSlider from '../components/RulerSlider';
@@ -29,6 +30,7 @@ import { MANUAL_TARGET_CALORIE_TOLERANCE, macroCalories, validateManualTargets }
 import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilograms } from '../utils/weightUnits';
 import { serviceConfig } from '../config/services';
 import { M3 } from '../theme/tokens';
+import { GOAL_RATE_RANGES, isGoalRateValid } from '../utils/goalRate';
 
 export type ProfileStackParamList = {
   ProfileHome: undefined;
@@ -41,11 +43,6 @@ export type ProfileStackParamList = {
 };
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'PlanPreview'> & { onDataChanged: () => void };
-
-const GOAL_RATE_RANGE = {
-  cut: { min: -1, max: -0.1, defaultRate: -0.5 },
-  bulk: { min: 0.05, max: 0.5, defaultRate: 0.25 },
-} as const;
 
 function Field({ label, value, onChangeText, keyboardType = 'default', error }: {
   label: string; value: string; onChangeText: (value: string) => void;
@@ -206,14 +203,14 @@ export function GoalAndRateScreen() {
     const fallbackWeightKg = profile?.target_weight_kg ?? null;
     const baseWeightKg = currentWeightKg ?? fallbackWeightKg;
     if (nextGoal === 'cut') {
-      setRateKg(GOAL_RATE_RANGE.cut.defaultRate);
+      setRateKg(GOAL_RATE_RANGES.cut.defaultRate);
       if (baseWeightKg != null) {
         setTargetWeight(fromKilograms(Math.max(20, baseWeightKg - 5), profile?.weight_unit ?? 'kg'));
       }
       return;
     }
 
-    setRateKg(GOAL_RATE_RANGE.bulk.defaultRate);
+    setRateKg(GOAL_RATE_RANGES.bulk.defaultRate);
     if (baseWeightKg != null) {
       setTargetWeight(fromKilograms(Math.min(500, baseWeightKg + 3), profile?.weight_unit ?? 'kg'));
     }
@@ -221,7 +218,7 @@ export function GoalAndRateScreen() {
 
   const save = useCallback(async () => { if (!profile) return; const targetKg = toKilograms(targetWeight, profile.weight_unit);
     if (!Number.isFinite(targetKg) || targetKg < 20 || targetKg > 500) { setError('Target weight must be between 20 and 500 kg.'); return; }
-    if (!Number.isFinite(rateKg) || (goal === 'cut' && (rateKg > -0.05 || rateKg < -1)) || (goal === 'bulk' && (rateKg < 0.05 || rateKg > 0.5))) { setError('Use a sustainable weekly rate for the selected goal.'); return; }
+    if (!isGoalRateValid(rateKg, goal)) { setError('Use a rate within the available range for the selected goal.'); return; }
     setSaving(true); setError(null); try { navigation.navigate('PlanPreview', await calculatedPlan(profile, { goal_type: goal, goal_rate_kg_per_week: goal === 'maintain' ? 0 : rateKg, target_weight_kg: targetKg })); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not calculate a plan.'); } finally { setSaving(false); }
   }, [goal, navigation, profile, rateKg, targetWeight]);
 
@@ -230,18 +227,6 @@ export function GoalAndRateScreen() {
   const weightUnit = profile.weight_unit === 'kg' ? 'kg' : 'lbs';
   const weightMin = profile.weight_unit === 'kg' ? 20 : 44;
   const weightMax = profile.weight_unit === 'kg' ? 500 : 1100;
-  const rateBounds = goal === 'cut'
-    ? GOAL_RATE_RANGE.cut
-    : goal === 'bulk'
-      ? GOAL_RATE_RANGE.bulk
-      : { min: 0, max: 0 };
-  const displayedRate = profile.weight_unit === 'kg'
-    ? rateKg
-    : fromKilograms(rateKg, 'lb');
-  const rateDisplay = `${displayedRate >= 0 ? '+' : ''}${displayedRate.toFixed(2)} ${profile.weight_unit} / week`;
-  const rateStartLabel = goal === 'cut' ? 'Fast' : 'Slow';
-  const rateEndLabel = goal === 'cut' ? 'Slow' : 'Fast';
-
   return (
     <Screen>
       <ScrollView contentContainerClassName="p-6 gap-5">
@@ -273,29 +258,15 @@ export function GoalAndRateScreen() {
             </View>
 
             <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">
-              <View className="flex-row justify-between items-center">
-                <Text className="text-sm font-semibold text-m3-on-surface-variant uppercase tracking-wider">
-                  Target Rate
-                </Text>
-                <Text className="text-sm font-bold tabular-nums text-m3-expenditure">
-                  {rateDisplay}
-                </Text>
-              </View>
-              <RulerSlider
-                value={rateKg}
+              <Text className="text-sm font-semibold text-m3-on-surface-variant uppercase tracking-wider">
+                Target Rate
+              </Text>
+              <GoalRateControl
+                goal={goal}
+                valueKgPerWeek={rateKg}
                 onValueChange={setRateKg}
-                min={rateBounds.min}
-                max={rateBounds.max}
-                step={0.05}
-                pixelsPerUnit={200}
-                unit="kg/week"
-                label="Target rate"
-                showValue={false}
+                weightUnit={profile.weight_unit}
               />
-              <View className="flex-row justify-between">
-                <Text className="text-sm text-m3-on-surface-variant font-medium">{rateStartLabel}</Text>
-                <Text className="text-sm text-m3-on-surface-variant font-medium">{rateEndLabel}</Text>
-              </View>
             </View>
           </View>
         ) : (

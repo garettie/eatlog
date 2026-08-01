@@ -4,9 +4,12 @@ ijfw_schema: 1
 type: software
 primary_type: software
 secondary_types: []
-confidence: 0.907
-detected_at: 2026-07-29T01:14:49.485Z
+confidence: 0.943
+detected_at: 2026-08-01T06:44:21.319Z
 signals:
+  - kind: agents_md_frontmatter
+    weight: 0.9
+    value: software
   - kind: manifest
     weight: 0.9
     manifests: [package.json]
@@ -17,7 +20,7 @@ signals:
     weight: 0.7
     domain: software
     ratio: 1
-    count: 70
+    count: 87
 ---
 # AGENTS.md
 
@@ -242,6 +245,9 @@ When the user corrects your approach, append a one-line rule here before ending 
 - The app has four tabs (Today, Diary, Analytics, Profile); the center Add control is a FAB trigger, not a fifth tab.
 - Treat source changes attributed to another active agent as out of scope for documentation-only audits; do not review, modify, or cite them.
 - When Settings must match onboarding, reuse the same interactive controls and bounds/default behavior; do not substitute plain fields that only preload the same values.
+- Bottom-sheet state changes use a 200ms shell, 90ms exit, and 150ms entrance; prevent Gorhom resize gaps by extending the background beneath its clipped container, never by delaying content.
+- Logging consistency charts must use MacroFactor's rolling 30-day 10-column by 3-row block and fill the available chart width; never weekday-align, pad, or artificially width-cap them.
+- The Today Analytics card shows only logging consistency; weight trend, starting weight, and history stay on the Analytics screen.
 
 ---
 

@@ -23,6 +23,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 import DateSelector from '../components/DateSelector';
+import GoalRateControl from '../components/GoalRateControl';
 import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
 import RulerSlider from '../components/RulerSlider';
@@ -41,6 +42,7 @@ import {
 } from '../db/database';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { M3 } from '../theme/tokens';
+import { GOAL_RATE_RANGES } from '../utils/goalRate';
 import {
   ageFromBirthDate,
   calcBMR,
@@ -251,32 +253,6 @@ export default function OnboardingScreen({ navigation }: Props) {
     width: progress.value * progressTrackW,
   }));
 
-  // ── Rate slider ─────────────────────────────────────────────────────────
-
-  // Cut:  -1.0 to -0.1 kg/week  (sustainable loss range)
-  // Bulk: +0.05 to +0.5 kg/week (lean bulk range)
-  const RATE_RANGE = {
-    cut: { min: -1.0, max: -0.1, defaultRate: -0.5 },
-    bulk: { min: 0.05, max: 0.5, defaultRate: 0.25 },
-  } as const;
-
-  function getRateBounds() {
-    if (goalType === 'cut') return { min: RATE_RANGE.cut.min, max: RATE_RANGE.cut.max };
-    if (goalType === 'bulk') return { min: RATE_RANGE.bulk.min, max: RATE_RANGE.bulk.max };
-    return { min: 0, max: 0 };
-  }
-
-  const rateStartLabel = goalType === 'cut' ? 'Fast' : 'Slow';
-  const rateEndLabel = goalType === 'cut' ? 'Slow' : 'Fast';
-
-  function applyGoalRateText(text: string) {
-    const rate = Number.parseFloat(text);
-    if (!Number.isFinite(rate)) return;
-    const { min, max } = getRateBounds();
-    if (rate < min || rate > max) return;
-    setGoalRate(Math.round(rate / 0.05) * 0.05);
-  }
-
   // ── Unit switching ──────────────────────────────────────────────────────
 
   function switchUnits(newSystem: UnitSystem) {
@@ -387,13 +363,13 @@ export default function OnboardingScreen({ navigation }: Props) {
     if (gt === 'maintain') {
       setGoalRate(0);
     } else if (gt === 'cut') {
-      setGoalRate(RATE_RANGE.cut.defaultRate);
+      setGoalRate(GOAL_RATE_RANGES.cut.defaultRate);
       const nextTargetKg = Math.max(20, resolveWeightKg() - 5);
       setTargetWeightKg(nextTargetKg);
       setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
       setTargetWeightText(units === 'metric' ? nextTargetKg.toFixed(1) : String(Math.round(kgToLbs(nextTargetKg) * 10) / 10));
     } else {
-      setGoalRate(RATE_RANGE.bulk.defaultRate);
+      setGoalRate(GOAL_RATE_RANGES.bulk.defaultRate);
       const nextTargetKg = Math.min(500, resolveWeightKg() + 3);
       setTargetWeightKg(nextTargetKg);
       setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
@@ -529,11 +505,6 @@ export default function OnboardingScreen({ navigation }: Props) {
   const heightInches = Math.round(heightCm / 2.54);
   const formatFtIn = (totalIn: number) =>
     `${Math.floor(totalIn / 12)}'${Math.round(totalIn % 12)}"`;
-
-  const rateDisplay =
-    units === 'metric'
-      ? `${goalRate >= 0 ? '+' : ''}${goalRate.toFixed(2)} kg / week`
-      : `${goalRate >= 0 ? '+' : ''}${(goalRate * 2.20462).toFixed(2)} lb / week`;
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface">
@@ -872,36 +843,13 @@ export default function OnboardingScreen({ navigation }: Props) {
 
                       {/* Target Rate */}
                       <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">
-                        <View className="flex-row justify-between items-center">
-                          <SectionLabel>Target Rate</SectionLabel>
-                          <Text className="text-sm font-bold tabular-nums text-m3-expenditure">
-                            {rateDisplay}
-                          </Text>
-                        </View>
-                        <TextInput
-                          value={goalRate.toFixed(2)}
-                          onChangeText={applyGoalRateText}
-                          accessibilityLabel="Target rate in kilograms per week"
-                          keyboardType="decimal-pad"
-                          selectTextOnFocus
-                          underlineColorAndroid="transparent"
-                          className="min-h-[48px] rounded-xl border border-m3-outline-variant/40 bg-m3-surface-container-high px-4 text-center text-lg font-bold tabular-nums text-m3-on-surface"
-                        />
-                        <RulerSlider
-                          value={goalRate}
+                        <SectionLabel>Target Rate</SectionLabel>
+                        <GoalRateControl
+                          goal={goalType}
+                          valueKgPerWeek={goalRate}
                           onValueChange={setGoalRate}
-                          min={getRateBounds().min}
-                          max={getRateBounds().max}
-                          step={0.05}
-                          pixelsPerUnit={200}
-                          unit="kg/week"
-                          label="Target rate"
-                          showValue={false}
+                          weightUnit={units === 'metric' ? 'kg' : 'lb'}
                         />
-                        <View className="flex-row justify-between">
-                          <Text className="text-sm text-m3-on-surface-variant font-medium">{rateStartLabel}</Text>
-                          <Text className="text-sm text-m3-on-surface-variant font-medium">{rateEndLabel}</Text>
-                        </View>
                       </View>
                     </Reanimated.View>
                   )}

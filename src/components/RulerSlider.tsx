@@ -18,9 +18,13 @@ interface RulerSliderProps {
   showValue?: boolean;
   /** Horizontal drag distance for one whole unit; inferred from step by default. */
   pixelsPerUnit?: number;
+  /** Visual tick interval, independent from the snapped value step. */
+  tickStep?: number;
+  /** Interval between emphasized ticks. Defaults to five visual tick intervals. */
+  majorTickEvery?: number;
+  /** Scale the active min/max range to fill the available track width. */
+  fitRange?: boolean;
 }
-
-const TICK_STEP = 1;
 
 function decimalPlaces(step: number): number {
   const text = String(step);
@@ -44,6 +48,9 @@ export default function RulerSlider({
   formatValue,
   showValue = true,
   pixelsPerUnit,
+  tickStep = 1,
+  majorTickEvery = tickStep * 5,
+  fitRange = false,
 }: RulerSliderProps) {
   const [width, setWidth] = useState(0);
   const startValRef = useRef(0);
@@ -55,7 +62,10 @@ export default function RulerSlider({
 
   // Tenths need more travel than whole-number height values or the ruler
   // advances several steps from tiny finger movement.
-  const resolvedPixelsPerUnit = pixelsPerUnit ?? (step < 1 ? 20 : 8);
+  const defaultPixelsPerUnit = pixelsPerUnit ?? (step < 1 ? 20 : 8);
+  const resolvedPixelsPerUnit = fitRange && width > 0 && max > min
+    ? Math.max(1, (width - 32) / (max - min))
+    : defaultPixelsPerUnit;
   const configRef = useRef({ min, max, step, pixelsPerUnit: resolvedPixelsPerUnit });
   configRef.current = { min, max, step, pixelsPerUnit: resolvedPixelsPerUnit };
 
@@ -106,16 +116,20 @@ export default function RulerSlider({
     })
   ).current;
 
-  const halfUnits = Math.ceil(width / (2 * resolvedPixelsPerUnit));
-  const start = Math.floor(value - halfUnits);
-  const end = Math.ceil(value + halfUnits);
+  const halfUnits = width / (2 * resolvedPixelsPerUnit);
+  const startIndex = Math.floor((value - halfUnits) / tickStep) - 1;
+  const endIndex = Math.ceil((value + halfUnits) / tickStep) + 1;
+  const tickPrecision = Math.max(decimalPlaces(tickStep), decimalPlaces(majorTickEvery));
 
   const ticks: { v: number; x: number; isMajor: boolean }[] = [];
-  for (let i = start; i <= end; i += TICK_STEP) {
-    const isMajor = i % 5 === 0;
-    const x = (i - value) * resolvedPixelsPerUnit + width / 2;
+  for (let index = startIndex; index <= endIndex; index += 1) {
+    const tickValue = Number((index * tickStep).toFixed(tickPrecision));
+    if (fitRange && (tickValue < min || tickValue > max)) continue;
+    const majorRatio = tickValue / majorTickEvery;
+    const isMajor = Math.abs(majorRatio - Math.round(majorRatio)) < 1e-6;
+    const x = (tickValue - value) * resolvedPixelsPerUnit + width / 2;
     if (x >= -resolvedPixelsPerUnit * 2 && x <= width + resolvedPixelsPerUnit * 2) {
-      ticks.push({ v: i, x, isMajor });
+      ticks.push({ v: tickValue, x, isMajor });
     }
   }
 

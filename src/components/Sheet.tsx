@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { BackHandler, Keyboard } from 'react-native';
+import { BackHandler, Keyboard, useWindowDimensions } from 'react-native';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
@@ -8,6 +8,7 @@ import BottomSheet, {
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DURATION } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 
 interface SheetProps {
@@ -39,6 +40,7 @@ export default function Sheet({
 }: SheetProps) {
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const reduced = useReducedMotion();
   const lastIndexRef = useRef(0);
   const wasVisible = useRef(false);
@@ -141,8 +143,17 @@ export default function Sheet({
     [],
   );
   const animationConfigs = useMemo(
-    () => ({ duration: reduced ? 0 : 300 }),
+    () => ({ duration: reduced ? 0 : DURATION.short }),
     [reduced],
+  );
+  const backgroundStyle = useMemo(
+    () => ({
+      ...styles.background,
+      // Gorhom resizes the sheet body as snap points change. Keep the surface
+      // extended beneath the clipped container so its bottom edge never lifts.
+      bottom: -windowHeight,
+    }),
+    [windowHeight],
   );
 
   return (
@@ -156,7 +167,7 @@ export default function Sheet({
       onChange={handleChange}
       backdropComponent={backdrop}
       handleIndicatorStyle={styles.handle}
-      backgroundStyle={styles.background}
+      backgroundStyle={backgroundStyle}
       handleStyle={styles.handleArea}
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
@@ -194,6 +205,8 @@ const styles = {
     backgroundColor: M3.surfaceContainer,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     borderTopWidth: 1,
     borderTopColor: M3.outlineVariant,
   },

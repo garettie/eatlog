@@ -60,13 +60,8 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
   'photo-unreadable': 'The selected photo could not be read. Choose another photo or logging method.',
 };
 
-const SHEET_HEIGHT_RANK: Partial<Record<FoodSheetStateKey, number>> = {
-  describe: 30,
-  entry: 60,
-  review: 92,
-  search: 92,
-  'recent-foods': 92,
-};
+const CONTENT_EXIT_DURATION = 90;
+const CONTENT_ENTER_DURATION = 150;
 
 export interface FoodSheetState {
   visible: boolean;
@@ -139,10 +134,10 @@ export default function FoodSheetContent({
     const requestId = ++stateTransitionRequestRef.current;
     if (state.stateKey === renderedStateKey) {
       stateOffset.value = withTiming(0, {
-        duration: reduced ? 0 : 180,
+        duration: reduced ? 0 : CONTENT_ENTER_DURATION,
         easing: EASING.emphasizedDecelerate,
       });
-      stateOpacity.value = withTiming(1, { duration: reduced ? 0 : 180 });
+      stateOpacity.value = withTiming(1, { duration: reduced ? 0 : CONTENT_ENTER_DURATION });
       return;
     }
     if (reduced) {
@@ -152,13 +147,11 @@ export default function FoodSheetContent({
       setRenderedStateKey(state.stateKey);
       return;
     }
-    const isExpanding = (SHEET_HEIGHT_RANK[state.stateKey] ?? 0) > (SHEET_HEIGHT_RANK[renderedStateKey] ?? 0);
-    const exitDuration = isExpanding ? 300 : 90;
     stateOffset.value = withTiming(-20, {
-      duration: reduced ? 0 : exitDuration,
+      duration: reduced ? 0 : CONTENT_EXIT_DURATION,
       easing: EASING.emphasizedAccelerate,
     });
-    stateOpacity.value = withTiming(0, { duration: reduced ? 0 : exitDuration }, (finished) => {
+    stateOpacity.value = withTiming(0, { duration: reduced ? 0 : CONTENT_EXIT_DURATION }, (finished) => {
       if (finished) runOnJS(commitRenderedState)(state.stateKey, requestId);
     });
   }, [reduced, state.stateKey]);
@@ -169,10 +162,10 @@ export default function FoodSheetContent({
     stateOffset.value = 20;
     stateOpacity.value = 0;
     stateOffset.value = withTiming(0, {
-      duration: reduced ? 0 : 180,
+      duration: reduced ? 0 : CONTENT_ENTER_DURATION,
       easing: EASING.emphasizedDecelerate,
     });
-    stateOpacity.value = withTiming(1, { duration: reduced ? 0 : 180 });
+    stateOpacity.value = withTiming(1, { duration: reduced ? 0 : CONTENT_ENTER_DURATION });
   }, [reduced, renderedStateKey]);
 
   const stateTransitionStyle = useAnimatedStyle(() => ({

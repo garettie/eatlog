@@ -32,6 +32,9 @@ export const M3 = {
   fatContainer: '#453812',
   calories: '#a0cafd',
   expenditure: '#d0bcff',
+  goalRateSafe: '#8ed9aa',
+  goalRateCaution: '#f0cc72',
+  goalRateExtreme: '#ff9f96',
 
   // Placeholder text — ≥4.5:1 on surface-container-high inputs
   placeholder: '#9aa0aa',
