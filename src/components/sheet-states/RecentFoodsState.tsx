@@ -89,9 +89,9 @@ function FoodRow({ food, pinned, onPress, onTogglePin }: { food: LoggedFood; pin
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={pinned ? `Unpin ${food.name}` : `Pin ${food.name}`}
-        className="absolute right-2 top-2 w-12 h-12 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
+        className="absolute right-2 top-2 w-12 h-12 items-center justify-center active:opacity-60"
       >
-        <MaterialIcons name={pinned ? 'star' : 'star-border'} size={20} color={pinned ? M3.calories : M3.onSurfaceVariant} />
+        <MaterialIcons name={pinned ? 'favorite' : 'favorite-border'} size={20} color={pinned ? M3.error : M3.onSurfaceVariant} />
       </Pressable>
     </View>
   );
@@ -136,9 +136,9 @@ function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pin
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={pinned ? `Unpin ${meal.meal_name}` : `Pin ${meal.meal_name}`}
-        className="absolute right-2 top-2 w-12 h-12 items-center justify-center rounded-full bg-m3-surface-container-high active:opacity-60"
+        className="absolute right-2 top-2 w-12 h-12 items-center justify-center active:opacity-60"
       >
-        <MaterialIcons name={pinned ? 'star' : 'star-border'} size={20} color={pinned ? M3.calories : M3.onSurfaceVariant} />
+        <MaterialIcons name={pinned ? 'favorite' : 'favorite-border'} size={20} color={pinned ? M3.error : M3.onSurfaceVariant} />
       </Pressable>
     </View>
   );

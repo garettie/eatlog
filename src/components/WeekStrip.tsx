@@ -1,9 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
+import Reanimated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { M3 } from '../theme/tokens';
+import { DURATION, EASING } from '../theme/motion';
 
 const RING_R = 15;
 const RING_STROKE = 2;
@@ -50,6 +58,29 @@ const DayButton = React.memo(function DayButton({
   onSelectDate,
   onFirstLayout,
 }: DayButtonProps) {
+  const reduced = useReducedMotion();
+  const selectedProgress = useSharedValue(isSelected ? 1 : 0);
+
+  useEffect(() => {
+    selectedProgress.value = withTiming(isSelected ? 1 : 0, {
+      duration: reduced ? 0 : DURATION.short,
+      easing: EASING.emphasized,
+    });
+  }, [isSelected, reduced, selectedProgress]);
+
+  const selectionStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(
+      selectedProgress.value,
+      [0, 1],
+      [day.isToday ? M3.primary : 'transparent', M3.primary],
+    ),
+    backgroundColor: interpolateColor(
+      selectedProgress.value,
+      [0, 1],
+      ['transparent', M3.surfaceContainerHighest],
+    ),
+  }), [day.isToday]);
+
   const fraction = day.isFuture || day.targetCalories <= 0
     ? 0
     : Math.min(1, day.calories / day.targetCalories);
@@ -85,19 +116,9 @@ const DayButton = React.memo(function DayButton({
         {day.dayLetter}
       </Text>
 
-      <View
+      <Reanimated.View
         className="items-center justify-center rounded-full"
-        style={{
-          width: 36,
-          height: 36,
-          borderWidth: 1.5,
-          borderColor: isSelected
-            ? M3.primary
-            : day.isToday
-              ? M3.primary
-              : 'transparent',
-          backgroundColor: isSelected ? M3.surfaceContainerHighest : 'transparent',
-        }}
+        style={[{ width: 36, height: 36, borderWidth: 1.5 }, selectionStyle]}
       >
         {!day.isFuture && fraction === 0 && (
           <View
@@ -146,7 +167,7 @@ const DayButton = React.memo(function DayButton({
         >
           {day.dayNumber}
         </Text>
-      </View>
+      </Reanimated.View>
     </Pressable>
   );
 });
@@ -160,14 +181,40 @@ export default function DayStrip({
   onNextMonth,
   canGoNext = true,
 }: DayStripProps) {
+  const reduced = useReducedMotion();
   const scrollRef = useRef<ScrollView>(null);
   const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
   const viewportWidthRef = useRef(0);
   const pendingScrollRef = useRef<{ selectedDate: string; monthLabel: string } | null>(null);
   const daysRef = useRef(days);
   const cellWidthRef = useRef(cellWidth);
+  const periodOffset = useSharedValue(0);
+  const periodOpacity = useSharedValue(1);
+  const previousMonthLabelRef = useRef(monthLabel);
+  const previousPeriodStartRef = useRef(days[0]?.date.getTime() ?? 0);
   daysRef.current = days;
   cellWidthRef.current = cellWidth;
+
+  useLayoutEffect(() => {
+    if (previousMonthLabelRef.current === monthLabel) return;
+    previousMonthLabelRef.current = monthLabel;
+    const nextPeriodStart = days[0]?.date.getTime() ?? previousPeriodStartRef.current;
+    const direction = nextPeriodStart >= previousPeriodStartRef.current ? 1 : -1;
+    previousPeriodStartRef.current = nextPeriodStart;
+    if (reduced) return;
+    periodOffset.value = 12 * direction;
+    periodOpacity.value = 0.72;
+    periodOffset.value = withTiming(0, {
+      duration: DURATION.medium,
+      easing: EASING.emphasizedDecelerate,
+    });
+    periodOpacity.value = withTiming(1, { duration: DURATION.short });
+  }, [days, monthLabel, periodOffset, periodOpacity, reduced]);
+
+  const periodStyle = useAnimatedStyle(() => ({
+    opacity: periodOpacity.value,
+    transform: [{ translateX: periodOffset.value }],
+  }));
 
   const performScroll = useCallback(() => {
     const scroll = scrollRef.current;
@@ -239,25 +286,27 @@ export default function DayStrip({
         </Pressable>
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerClassName="px-2 pb-2 gap-1"
-        onLayout={handleLayout}
-      >
-        {days.map((day, index) => {
-          return (
-            <DayButton
-              key={`month-slot-${index}`}
-              day={day}
-              isSelected={day.isoDate === selectedDate}
-              onSelectDate={onSelectDate}
-              onFirstLayout={day === days[0] ? handleFirstLayout : undefined}
-            />
-          );
-        })}
-      </ScrollView>
+      <Reanimated.View style={periodStyle}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="px-2 pb-2 gap-1"
+          onLayout={handleLayout}
+        >
+          {days.map((day, index) => {
+            return (
+              <DayButton
+                key={`month-slot-${index}`}
+                day={day}
+                isSelected={day.isoDate === selectedDate}
+                onSelectDate={onSelectDate}
+                onFirstLayout={day === days[0] ? handleFirstLayout : undefined}
+              />
+            );
+          })}
+        </ScrollView>
+      </Reanimated.View>
     </View>
   );
 }

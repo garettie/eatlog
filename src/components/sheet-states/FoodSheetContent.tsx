@@ -60,6 +60,14 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
   'photo-unreadable': 'The selected photo could not be read. Choose another photo or logging method.',
 };
 
+const SHEET_HEIGHT_RANK: Partial<Record<FoodSheetStateKey, number>> = {
+  describe: 30,
+  entry: 60,
+  review: 92,
+  search: 92,
+  'recent-foods': 92,
+};
+
 export interface FoodSheetState {
   visible: boolean;
   stateKey: FoodSheetStateKey;
@@ -144,11 +152,13 @@ export default function FoodSheetContent({
       setRenderedStateKey(state.stateKey);
       return;
     }
+    const isExpanding = (SHEET_HEIGHT_RANK[state.stateKey] ?? 0) > (SHEET_HEIGHT_RANK[renderedStateKey] ?? 0);
+    const exitDuration = isExpanding ? 300 : 90;
     stateOffset.value = withTiming(-20, {
-      duration: reduced ? 0 : 90,
+      duration: reduced ? 0 : exitDuration,
       easing: EASING.emphasizedAccelerate,
     });
-    stateOpacity.value = withTiming(0, { duration: reduced ? 0 : 90 }, (finished) => {
+    stateOpacity.value = withTiming(0, { duration: reduced ? 0 : exitDuration }, (finished) => {
       if (finished) runOnJS(commitRenderedState)(state.stateKey, requestId);
     });
   }, [reduced, state.stateKey]);

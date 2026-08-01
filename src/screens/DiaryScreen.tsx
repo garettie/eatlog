@@ -1,8 +1,15 @@
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
+import Reanimated, {
+  LinearTransition,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import {
   getFoodLogsByDate,
@@ -28,6 +35,7 @@ import MacroRail from '../components/MacroRail';
 import { JournalEntryKind, JournalEntryRow, JournalSectionHeader, MealGroup } from '../components/JournalSection';
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
 import MealPhotoViewer from '../components/MealPhotoViewer';
+import { DURATION, EASING } from '../theme/motion';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
@@ -87,6 +95,7 @@ interface DiaryScreenProps {
 }
 
 function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast }: DiaryScreenProps) {
+  const reduced = useReducedMotion();
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
   const [displayedDate, setDisplayedDate] = useState(() => todayISO());
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
@@ -115,6 +124,31 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   const monthCacheRef = useRef(new Map<string, MonthSummary>());
   const monthLoadPromiseRef = useRef(new Map<string, Promise<MonthSummary>>());
   const cacheGenerationRef = useRef(0);
+  const previousDisplayedDateRef = useRef(displayedDate);
+  const dayContentOpacity = useSharedValue(1);
+  const dayContentOffset = useSharedValue(0);
+
+  useEffect(() => {
+    if (previousDisplayedDateRef.current === displayedDate) return;
+    previousDisplayedDateRef.current = displayedDate;
+    if (reduced) {
+      dayContentOpacity.value = 1;
+      dayContentOffset.value = 0;
+      return;
+    }
+    dayContentOpacity.value = 0.72;
+    dayContentOffset.value = 8;
+    dayContentOpacity.value = withTiming(1, { duration: DURATION.short });
+    dayContentOffset.value = withTiming(0, {
+      duration: DURATION.medium,
+      easing: EASING.emphasizedDecelerate,
+    });
+  }, [dayContentOffset, dayContentOpacity, displayedDate, reduced]);
+
+  const dayContentStyle = useAnimatedStyle(() => ({
+    opacity: dayContentOpacity.value,
+    transform: [{ translateX: dayContentOffset.value }],
+  }));
 
   const applyDaySummary = useCallback((date: string, summary: DaySummary) => {
     setFoodLogs(summary.foodLogs);
@@ -732,7 +766,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
         </>
       )}
 
-      <View className="flex-1">
+      <Reanimated.View className="flex-1" style={dayContentStyle}>
       {loading ? (
         <View className="flex-1 items-center justify-center" accessibilityLiveRegion="polite">
           <ActivityIndicator accessibilityLabel="Loading diary" color={M3.onSurfaceVariant} />
@@ -752,20 +786,21 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           </Pressable>
         </View>
       ) : (
-        <FlatList
+        <Reanimated.FlatList
           className="flex-1"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 16 }}
           data={foodLogs.length > 0 ? journalListItems : []}
           renderItem={renderDiaryItem}
           keyExtractor={(item) => item.key}
+          itemLayoutAnimation={reduced ? undefined : LinearTransition.duration(DURATION.short).easing(EASING.emphasized)}
           ListHeaderComponent={diaryListHeader}
           ListEmptyComponent={emptyDiaryState}
           accessibilityElementsHidden={displayedDate !== selectedDate}
           importantForAccessibility={displayedDate === selectedDate ? 'auto' : 'no-hide-descendants'}
         />
       )}
-      </View>
+      </Reanimated.View>
 
       {/* Portion edit sheet (shared Sheet vocabulary: BackHandler, discard guard, M3 handle) */}
       <DiaryEditSheet
