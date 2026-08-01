@@ -328,12 +328,11 @@ export default function TabNavigator() {
                 onOpenCamera={openCamera}
                 onOpenGallery={openGallery}
                 onOpenDescribe={openDescribe}
-                onOpenWeight={openWeight}
                 onOpenAdaptiveInfo={openAdaptiveInfo}
                 dataVersion={dataVersion}
             />
         ),
-        [dataVersion, openAdaptiveInfo, openCamera, openDescribe, openGallery, openWeight],
+        [dataVersion, openAdaptiveInfo, openCamera, openDescribe, openGallery],
     );
 
     const renderDiary = useCallback(

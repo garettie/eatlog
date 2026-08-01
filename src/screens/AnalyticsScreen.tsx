@@ -6,6 +6,7 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Card from '../components/Card';
+import LoggingHeatmap from '../components/LoggingHeatmap';
 import SegmentedControl from '../components/SegmentedControl';
 import WeightChart from '../components/WeightChart';
 import WeightChartLegend from '../components/WeightChartLegend';
@@ -297,23 +298,18 @@ function AnalyticsScreen({
         { logDate: latestWeight.log_date, trendWeightKg: latestWeight.trend_weight_kg },
       )
       : null;
-    const totalDays = calendarDaysBetween(chartDates.startDate, chartDates.endDate) + 1;
     const averageCalories = dailyCalories.length
       ? dailyCalories.reduce((sum, day) => sum + day.calories, 0) / dailyCalories.length
       : null;
-    const coveragePercent = Math.round(dailyCalories.length / totalDays * 100);
     const progressKind = classifyProgress(data.profile, weeklyRate, rangeWeights.length, endpointSpanDays);
     return {
       chartDates,
       dailyCalories,
-      rangeWeights,
       latestWeight,
       endpointSpanDays,
       trendChange,
       weeklyRate,
-      totalDays,
       averageCalories,
-      coveragePercent,
       progress: progressCopy(progressKind, data.profile.goal_type),
       sufficientProgress: progressKind !== 'insufficient',
     };
@@ -426,17 +422,16 @@ function AnalyticsScreen({
   const {
     chartDates,
     dailyCalories,
-    rangeWeights,
     latestWeight,
     endpointSpanDays,
     trendChange,
     weeklyRate,
-    totalDays,
     averageCalories,
-    coveragePercent,
     progress,
     sufficientProgress,
   } = analyticsDerived!;
+  const foodLoggedDates = data.dailyCalories.map((day) => day.log_date);
+  const weightLoggedDates = chartWeights.map((log) => log.log_date);
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
@@ -449,7 +444,7 @@ function AnalyticsScreen({
           <View className="gap-1">
             <Text className="text-m3-on-surface text-2xl font-bold">Analytics</Text>
             <Text className="text-m3-on-surface-variant text-sm">
-              Weight, energy, and target calibration
+              Weight, consistency, and target calibration
             </Text>
           </View>
 
@@ -519,18 +514,52 @@ function AnalyticsScreen({
                 />
                 <WeightChartLegend showGoal={profile.target_weight_kg != null} />
                 {latestWeight ? (
-                  <View className="flex-row flex-wrap gap-3">
-                    <Metric
-                      label="Latest trend"
-                      value={`${formatWeight(latestWeight.trend_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                    />
-                    <Metric
-                      label="Latest scale"
-                      value={`${formatWeight(latestWeight.scale_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                      detail={displayDate(latestWeight.log_date)}
-                    />
-                    <Metric label="Trend change" value={trendChange == null ? '—' : signedWeight(trendChange, profile.weight_unit)} />
-                    <Metric label="Weekly rate" value={weeklyRate == null ? '—' : signedRate(weeklyRate, profile.weight_unit)} />
+                  <View className="gap-3">
+                    <View className="flex-row flex-wrap gap-3">
+                      <Metric
+                        label="Latest trend"
+                        value={`${formatWeight(latestWeight.trend_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
+                        detail={trendChange == null ? undefined : `${signedWeight(trendChange, profile.weight_unit)} in this range`}
+                      />
+                      <Metric
+                        label="Latest scale"
+                        value={`${formatWeight(latestWeight.scale_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
+                        detail={displayDate(latestWeight.log_date)}
+                      />
+                    </View>
+
+                    <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-3">
+                      <View className="flex-row items-start gap-3">
+                        <View className="w-8 h-8 rounded-full bg-m3-expenditure/15 items-center justify-center">
+                          <MaterialIcons name="trending-up" size={18} color={M3.expenditure} />
+                        </View>
+                        <View className="flex-1 min-w-0 gap-0.5">
+                          <Text className="text-m3-expenditure font-semibold text-sm">{progress.title}</Text>
+                          <Text className="text-m3-on-surface-variant text-xs">{progress.body}</Text>
+                        </View>
+                      </View>
+                      <View className="h-px bg-m3-outline-variant/50" />
+                      <View className="flex-row flex-wrap gap-3">
+                        <View className="flex-1 min-w-[88px] gap-1">
+                          <Text className="text-m3-on-surface-variant text-[10px] font-semibold">Actual rate</Text>
+                          <Text className="text-m3-on-surface text-sm font-bold tabular-nums">
+                            {sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : '—'}
+                          </Text>
+                          <Text className="text-m3-on-surface-variant text-[10px] font-medium">
+                            {sufficientProgress ? `${endpointSpanDays} days observed` : 'At least 7 days required'}
+                          </Text>
+                        </View>
+                        <View className="flex-1 min-w-[88px] gap-1">
+                          <Text className="text-m3-on-surface-variant text-[10px] font-semibold">Planned rate</Text>
+                          <Text className="text-m3-on-surface text-sm font-bold tabular-nums">
+                            {signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
+                          </Text>
+                          <Text className="text-m3-on-surface-variant text-[10px] font-medium">
+                            {profile.goal_type === 'maintain' ? 'Maintenance' : profile.goal_type === 'cut' ? 'Weight loss' : 'Weight gain'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
                   </View>
                 ) : (
                   <View className="rounded-2xl bg-m3-surface-container-high px-4 py-3">
@@ -554,47 +583,43 @@ function AnalyticsScreen({
 
           <Card className="p-5 gap-4">
             <View>
-              <Text className="text-m3-on-surface font-bold text-base">Energy</Text>
-              <Text className="text-m3-on-surface-variant text-xs mt-0.5">Logged days exclude missing dates</Text>
+              <Text className="text-m3-on-surface font-bold text-base">Logging consistency</Text>
+              <Text className="text-m3-on-surface-variant text-xs mt-0.5">Last 30 days</Text>
             </View>
-            <View className="flex-row flex-wrap gap-3">
-              <Metric
-                label="Average intake"
-                value={averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
-                detail={averageCalories == null ? 'No food-logged days' : `${dailyCalories.length} logged days`}
+            <View className="flex-row gap-4">
+              <LoggingHeatmap
+                kind="weight"
+                loggedDates={weightLoggedDates}
+                endDate={data.endDate}
               />
-              <Metric
-                label="Logging coverage"
-                value={`${dailyCalories.length} / ${totalDays} days`}
-                detail={`${coveragePercent}% of range`}
+              <View className="w-px bg-m3-outline-variant/50" />
+              <LoggingHeatmap
+                kind="food"
+                loggedDates={foodLoggedDates}
+                endDate={data.endDate}
               />
-              <Metric label="TDEE estimate" value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`} />
-              <Metric label="Current target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
             </View>
           </Card>
 
           <Card className="p-5 gap-4">
-            <View className="flex-row items-start gap-3">
-              <View className="w-10 h-10 rounded-full bg-m3-expenditure/15 items-center justify-center">
-                <MaterialIcons name="trending-up" size={20} color={M3.expenditure} />
-              </View>
-              <View className="flex-1 gap-1">
-                <Text className="text-m3-on-surface font-bold text-base">Progress</Text>
-                <Text className="text-m3-expenditure font-semibold text-sm">{progress.title}</Text>
-                <Text className="text-m3-on-surface-variant text-sm">{progress.body}</Text>
-              </View>
+            <View>
+              <Text className="text-m3-on-surface font-bold text-base">Energy</Text>
+              <Text className="text-m3-on-surface-variant text-xs mt-0.5">
+                Logged-day average for the selected range
+              </Text>
             </View>
-            <View className="flex-row gap-3">
-              <Metric
-                label="Actual rate"
-                value={sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : '—'}
-                detail={sufficientProgress ? `${endpointSpanDays} days observed` : 'At least 7 days required'}
-              />
-              <Metric
-                label="Planned rate"
-                value={signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
-                detail={profile.goal_type === 'maintain' ? 'Maintenance' : profile.goal_type === 'cut' ? 'Weight loss' : 'Weight gain'}
-              />
+            <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+              <Text className="text-m3-on-surface-variant text-xs font-semibold">Average intake</Text>
+              <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
+                {averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
+              </Text>
+              <Text className="text-m3-on-surface-variant text-[10px] font-medium">
+                {averageCalories == null ? 'No food-logged days' : `${dailyCalories.length} food-logged days`}
+              </Text>
+            </View>
+            <View className="flex-row flex-wrap gap-3">
+              <Metric label="Current target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
+              <Metric label="TDEE estimate" value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`} />
             </View>
           </Card>
 

@@ -15,8 +15,7 @@ import Animated, {
 import Svg, { Circle } from 'react-native-svg';
 
 import Card from '../components/Card';
-import WeightChart from '../components/WeightChart';
-import WeightChartLegend from '../components/WeightChartLegend';
+import LoggingHeatmap from '../components/LoggingHeatmap';
 import SegmentedControl from '../components/SegmentedControl';
 import * as Haptics from 'expo-haptics';
 import {
@@ -25,16 +24,14 @@ import {
   getMostRecentEntry,
   getTodayMacros,
   getWeightLogsByDateRange,
+  getDailyCaloriesByDateRange,
   getDistinctLoggedDayCount,
   Profile,
   DailyTarget,
   LastEntry,
-  WeightLog,
 } from '../db/database';
-import { addCalendarDays, calendarDaysBetween, parseLocalISO, todayISO } from '../utils/calendar';
+import { addCalendarDays, todayISO } from '../utils/calendar';
 import { foodIcon } from '../utils/foodIcons';
-import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
-import { formatWeight } from '../utils/weightUnits';
 import { M3 } from '../theme/tokens';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -168,18 +165,12 @@ function getRelativeTime(loggedAtStr: string): string {
   }
 }
 
-function formatWeightDate(dateISO: string, today: string): string {
-  if (dateISO === today) return 'Today';
-  return parseLocalISO(dateISO).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
 // ── DashboardScreen Component ─────────────────────────────────────────────
 
 interface DashboardScreenProps {
   onOpenCamera: () => void;
   onOpenGallery: () => void;
   onOpenDescribe: () => void;
-  onOpenWeight: () => void;
   onOpenAdaptiveInfo: () => void;
   dataVersion: number;
 }
@@ -188,7 +179,6 @@ function DashboardScreen({
   onOpenCamera,
   onOpenGallery,
   onOpenDescribe,
-  onOpenWeight,
   onOpenAdaptiveInfo,
   dataVersion,
 }: DashboardScreenProps) {
@@ -203,7 +193,8 @@ function DashboardScreen({
     carbs_g: number;
     fat_g: number;
   }>({ calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
-  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [weightLoggedDates, setWeightLoggedDates] = useState<string[]>([]);
+  const [foodLoggedDates, setFoodLoggedDates] = useState<string[]>([]);
   const [distinctLoggedDays, setDistinctLoggedDays] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showRemaining, setShowRemaining] = useState(false);
@@ -222,14 +213,17 @@ function DashboardScreen({
         const targ = await getLatestDailyTarget();
         const rFood = await getMostRecentEntry();
         const tMacros = await getTodayMacros(today);
-        const wLogs = await getWeightLogsByDateRange(addCalendarDays(today, -29), today);
+        const historyStart = addCalendarDays(today, -29);
+        const wLogs = await getWeightLogsByDateRange(historyStart, today);
+        const calorieDays = await getDailyCaloriesByDateRange(historyStart, today);
         const ddCount = await getDistinctLoggedDayCount();
 
         setProfile(prof);
         setTarget(targ);
         setRecentFood(rFood);
         setTodayMacros(tMacros);
-        setWeightLogs(wLogs);
+        setWeightLoggedDates(wLogs.map((log) => log.log_date));
+        setFoodLoggedDates(calorieDays.map((day) => day.log_date));
         setDistinctLoggedDays(ddCount);
         setError(false);
       } catch (e) {
@@ -276,40 +270,6 @@ function DashboardScreen({
       flankingLeft: showRemaining ? consumedCals : calsRemaining,
     };
   }, [showRemaining, target, todayMacros]);
-
-  const weightSummary = useMemo(() => {
-    const weightRangeEnd = todayISO();
-    const weightRangeStart = addCalendarDays(weightRangeEnd, -29);
-    const latestWeightLog = weightLogs[weightLogs.length - 1] ?? null;
-    let weeklyReference: WeightLog | null = null;
-    if (latestWeightLog) {
-      for (const log of weightLogs.slice(0, -1)) {
-        const daysBeforeLatest = calendarDaysBetween(log.log_date, latestWeightLog.log_date);
-        if (daysBeforeLatest < 4 || daysBeforeLatest > 10) continue;
-        if (!weeklyReference) {
-          weeklyReference = log;
-          continue;
-        }
-        const referenceDays = calendarDaysBetween(weeklyReference.log_date, latestWeightLog.log_date);
-        const candidateDistance = Math.abs(daysBeforeLatest - 7);
-        const referenceDistance = Math.abs(referenceDays - 7);
-        if (candidateDistance < referenceDistance || (candidateDistance === referenceDistance && log.log_date < weeklyReference.log_date)) {
-          weeklyReference = log;
-        }
-      }
-    }
-    return {
-      weightRangeEnd,
-      weightRangeStart,
-      latestWeightLog,
-      weeklyRate: latestWeightLog && weeklyReference
-        ? computeNormalizedWeeklyRate(
-          { logDate: weeklyReference.log_date, trendWeightKg: weeklyReference.trend_weight_kg },
-          { logDate: latestWeightLog.log_date, trendWeightKg: latestWeightLog.trend_weight_kg },
-        )
-        : null,
-    };
-  }, [weightLogs]);
 
   // ── Loading / Empty / Error states ──
 
@@ -408,12 +368,7 @@ function DashboardScreen({
     day: 'numeric',
   });
 
-  const { weightRangeEnd, weightRangeStart, latestWeightLog, weeklyRate } = weightSummary;
-  const weightUnit = profile.weight_unit;
-  const unitLabel = weightUnit;
-  const latestDateLabel = latestWeightLog
-    ? formatWeightDate(latestWeightLog.log_date, weightRangeEnd)
-    : null;
+  const consistencyEndDate = todayISO();
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
@@ -631,94 +586,38 @@ function DashboardScreen({
             </Card>
           )}
 
-          {/* ── Weight Trend Card ── */}
+          {/* ── Analytics Card ── */}
           <Card className="p-5 gap-4 overflow-hidden">
             <Pressable
               onPress={() => navigation.navigate('Analytics')}
               className="min-h-[48px] flex-row justify-between items-center gap-3 active:opacity-70"
               accessibilityRole="button"
-              accessibilityLabel="Open weight analytics"
+              accessibilityLabel="Open analytics"
             >
-              <View>
-                <Text className="text-m3-on-surface font-semibold text-base">Weight Trend</Text>
-                <Text className="text-m3-on-surface-variant text-[10px] font-medium mt-0.5">Last 30 days</Text>
+              <View className="flex-1 min-w-0">
+                <Text className="text-m3-on-surface font-semibold text-base">Analytics</Text>
+                <Text className="text-m3-on-surface-variant text-[10px] font-medium mt-0.5" numberOfLines={1}>
+                  Logging consistency · Last 30 days
+                </Text>
               </View>
-              <View className="flex-row items-center gap-2">
-                {profile.target_weight_kg != null && (
-                  <Text className="text-m3-on-surface-variant text-xs font-bold tabular-nums">
-                    Goal {formatWeight(profile.target_weight_kg, weightUnit)} {unitLabel}
-                  </Text>
-                )}
-                <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
-              </View>
+              <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
             </Pressable>
 
-              {weightLogs.length === 0 ? (
-                <View className="justify-center items-center gap-2 py-2">
-                  <Text className="text-m3-on-surface font-bold text-sm text-center">
-                    No weight check-ins yet
-                  </Text>
-                  <Text className="text-m3-on-surface-variant text-sm text-center">
-                    Log weight to start your trend.
-                  </Text>
-                  <Pressable
-                    onPress={onOpenWeight}
-                    accessibilityRole="button"
-                    accessibilityLabel="Log weight"
-                    className="min-h-[48px] bg-white rounded-full px-6 mt-1 items-center justify-center active:opacity-80"
-                  >
-                    <Text className="text-m3-on-primary font-bold text-sm">Log weight</Text>
-                  </Pressable>
-                </View>
-              ) : weightLogs.length === 1 ? (
-                <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                  <Text className="text-m3-on-surface-variant text-xs font-semibold">Starting weight</Text>
-                  <Text className="text-m3-on-surface font-bold text-xl tabular-nums">
-                    {formatWeight(latestWeightLog.scale_weight_kg, weightUnit)} {unitLabel}
-                  </Text>
-                  <Text className="text-m3-on-surface-variant text-[10px] font-medium">{latestDateLabel}</Text>
-                </View>
-              ) : (
-                <>
-                  <WeightChart
-                    logs={weightLogs}
-                    startDate={weightRangeStart}
-                    endDate={weightRangeEnd}
-                    height={132}
-                    showXAxisLabels
-                    targetWeightKg={profile.target_weight_kg}
-                    unit={weightUnit}
-                  />
-                  <WeightChartLegend showGoal={profile.target_weight_kg != null} />
-                  <View className="flex-row gap-3">
-                    <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                      <Text className="text-m3-on-surface-variant text-xs font-semibold">Trend weight</Text>
-                      <Text className="text-m3-expenditure font-bold text-xl tabular-nums">
-                        {formatWeight(latestWeightLog.trend_weight_kg, weightUnit)} {unitLabel}
-                      </Text>
-                    </View>
-                    <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                      <Text className="text-m3-on-surface-variant text-xs font-semibold">
-                        {latestWeightLog.log_date === weightRangeEnd ? "Today's weight" : 'Latest scale'}
-                      </Text>
-                      <Text className="text-m3-on-surface font-bold text-xl tabular-nums">
-                        {formatWeight(latestWeightLog.scale_weight_kg, weightUnit)} {unitLabel}
-                      </Text>
-                      <Text className="text-m3-on-surface-variant text-[10px] font-medium">{latestDateLabel}</Text>
-                    </View>
-                  </View>
-                  <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                    <Text className="text-m3-on-surface-variant text-xs font-semibold">7-day rate</Text>
-                    {weeklyRate == null ? (
-                      <Text className="text-m3-on-surface font-bold text-sm">More check-ins needed</Text>
-                    ) : (
-                      <Text className="text-m3-on-surface font-bold text-lg tabular-nums">
-                        {weeklyRate >= 0 ? '+' : '-'}{formatWeight(Math.abs(weeklyRate), weightUnit)} {unitLabel}/wk
-                      </Text>
-                    )}
-                  </View>
-                </>
-              )}
+            <View className="flex-row gap-4">
+              <LoggingHeatmap
+                kind="weight"
+                loggedDates={weightLoggedDates}
+                endDate={consistencyEndDate}
+                compact
+              />
+              <View className="w-px bg-m3-outline-variant/50" />
+              <LoggingHeatmap
+                kind="food"
+                loggedDates={foodLoggedDates}
+                endDate={consistencyEndDate}
+                compact
+              />
+            </View>
           </Card>
         </Animated.View>
       </ScrollView>
