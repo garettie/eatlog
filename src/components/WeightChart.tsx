@@ -182,6 +182,8 @@ function WeightChart({
 }: WeightChartProps) {
   const reduced = useReducedMotion();
   const [width, setWidth] = useState(0);
+  const [layoutReady, setLayoutReady] = useState(false);
+  const animatedDataWidth = useSharedValue(1);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedIndexRef = useRef<number | null>(null);
   const sorted = useMemo(
@@ -249,6 +251,12 @@ function WeightChart({
   const scrubbedIndex = useSharedValue(-2);
 
   useEffect(() => {
+    if (width === 0) return;
+    animatedDataWidth.value = dataWidth;
+    setLayoutReady(true);
+  }, [animatedDataWidth, dataWidth, width]);
+
+  useEffect(() => {
     selectedIndexRef.current = null;
     setSelectedIndex(null);
     scrubbedIndex.value = -2;
@@ -284,7 +292,7 @@ function WeightChart({
       animatedYMax.value,
       dataLeft,
       topPadding,
-      dataWidth,
+      animatedDataWidth.value,
       plotHeight,
     )
   ));
@@ -432,14 +440,17 @@ function WeightChart({
       <View
         onLayout={(event) => {
           const measuredWidth = event.nativeEvent.layout.width;
-          setWidth((currentWidth) => currentWidth === measuredWidth ? currentWidth : measuredWidth);
+          if (measuredWidth !== width) {
+            setLayoutReady(false);
+            setWidth(measuredWidth);
+          }
         }}
         style={{ height }}
         accessible
         accessibilityRole="image"
         accessibilityLabel={accessibilityLabel}
       >
-        {width > 0 && (
+        {layoutReady && (
           <Svg width={width} height={height} accessible={false}>
           <Defs>
             <ClipPath id={clipId}>
