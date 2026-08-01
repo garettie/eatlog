@@ -248,7 +248,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Bottom-sheet state changes use a 200ms shell, 90ms exit, and 150ms entrance; prevent Gorhom resize gaps by extending the background beneath its clipped container, never by delaying content.
 - Logging consistency charts must use MacroFactor's rolling 30-day 10-column by 3-row block and fill the available chart width; never weekday-align, pad, or artificially width-cap them.
 - The Today Analytics card shows only logging consistency; weight trend, starting weight, and history stay on the Analytics screen.
-- Typography uses Onest 400/500/600/700 with the shared NativeWind scale; reserve `text-compact` (11/14) for dense chart, calendar, nutrition, and ruler metadata, never explanatory or actionable copy.
+- Typography uses named Onest 400/500/600/700 assets. NativeWind's web preflight does not set the native default, so every `text-*` size role must bind Onest Regular. Every Onest family utility must emit `fontWeight: 400` even for medium/semibold/bold files; otherwise Android searches for a variant of the already-weighted named asset and falls back to Roboto. Reserve `text-compact` (11/14) for dense chart, calendar, nutrition, and ruler metadata, never explanatory or actionable copy.
 
 ---
 

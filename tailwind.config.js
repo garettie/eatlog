@@ -67,11 +67,25 @@ module.exports = {
   plugins: [
     plugin(({ addUtilities }) => {
       addUtilities({
-        // Route weight classes to real bundled files so Android never
-        // synthesizes faux weights from the regular face.
-        '.font-medium': { fontFamily: 'Onest_500Medium' },
-        '.font-semibold': { fontFamily: 'Onest_600SemiBold' },
-        '.font-bold': { fontFamily: 'Onest_700Bold' },
+        // Native text does not inherit the web preflight's sans family.
+        // Bind every size role to the regular face before weight overrides.
+        '.text-compact': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-xs': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-sm': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-base': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-lg': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-xl': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-2xl': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-3xl': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-4xl': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.text-5xl': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        // Each named font asset is already weighted. Keep Android on the
+        // normal style slot so it does not search for nonexistent variants.
+        '.font-sans': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.font-normal': { fontFamily: 'Onest_400Regular', fontWeight: '400' },
+        '.font-medium': { fontFamily: 'Onest_500Medium', fontWeight: '400' },
+        '.font-semibold': { fontFamily: 'Onest_600SemiBold', fontWeight: '400' },
+        '.font-bold': { fontFamily: 'Onest_700Bold', fontWeight: '400' },
       });
     }),
   ],
