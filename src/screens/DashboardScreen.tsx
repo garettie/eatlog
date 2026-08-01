@@ -38,9 +38,9 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // ── Ring Constants ────────────────────────────────────────────────────────
 
-const RING_SIZE = 140;
-const RING_R = 60;
-const STROKE = 8;
+const RING_SIZE = 164;
+const RING_R = 70;
+const STROKE = 9;
 const CIRCUMFERENCE = 2 * Math.PI * RING_R;
 
 // ── CircularProgress Component ────────────────────────────────────────────
@@ -86,17 +86,16 @@ function CircularProgress({ progress }: { progress: number }) {
   );
 }
 
-// ── MacroTile Component ───────────────────────────────────────────────────
+// ── MacroProgress Component ───────────────────────────────────────────────
 
-interface MacroTileProps {
+interface MacroProgressProps {
   label: string;
   consumed: number;
   target: number;
-  textColorClass: string;
   progressColorClass: string;
 }
 
-function MacroTile({ label, consumed, target, textColorClass, progressColorClass }: MacroTileProps) {
+function MacroProgress({ label, consumed, target, progressColorClass }: MacroProgressProps) {
   const reduced = useReducedMotion();
   const pct = target > 0 ? Math.min(1, Math.max(0, consumed / target)) : 0;
   const overflowPct = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
@@ -116,14 +115,9 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
   }));
 
   return (
-    <View className="flex-1 bg-m3-surface-container-high rounded-2xl p-3">
-      <View className="flex-row justify-between items-baseline mb-2">
-        <Text className={`${textColorClass} text-xs font-semibold`}>{label}</Text>
-        <Text className="text-m3-on-surface-variant text-xs tabular-nums font-medium">
-          {Math.round(consumed)}g
-        </Text>
-      </View>
-      <View className="h-1 bg-m3-surface-container-highest rounded-full overflow-hidden">
+    <View className="flex-1 gap-2 min-w-0">
+      <Text className="text-m3-on-surface-variant text-sm font-medium text-center" numberOfLines={1}>{label}</Text>
+      <View className="h-1.5 bg-m3-surface-container-highest rounded-full overflow-hidden">
         <Animated.View
           className={`absolute inset-0 ${progressColorClass} rounded-full`}
           style={[{ transformOrigin: 'left' }, barStyle]}
@@ -133,6 +127,9 @@ function MacroTile({ label, consumed, target, textColorClass, progressColorClass
           style={[{ transformOrigin: 'right' }, overflowStyle]}
         />
       </View>
+      <Text className="text-m3-on-surface text-sm font-semibold tabular-nums text-center" numberOfLines={1}>
+        {Math.round(consumed)} / {Math.round(target)}g
+      </Text>
     </View>
   );
 }
@@ -325,20 +322,6 @@ function DashboardScreen({
 
   // ── Derived data ──
 
-  const initials = profile.display_name
-    ? profile.display_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-    : null;
-
-  const goalLabels = {
-    cut: 'Weight Loss',
-    bulk: 'Weight Gain',
-    maintain: 'Maintenance',
-  };
-  const goalLabel = goalLabels[profile.goal_type] || 'Maintenance';
-  const goalSubtitle = profile.goal_type === 'maintain'
-    ? `Goal: ${goalLabel}`
-    : `Goal: ${goalLabel} (${profile.goal_rate_kg_per_week >= 0 ? '+' : ''}${profile.goal_rate_kg_per_week.toFixed(2)} kg/wk)`;
-
   const hasRecentFood = !!recentFood;
   let headerChip: { label: string; locked: boolean } | null;
   if (!hasRecentFood) {
@@ -374,7 +357,7 @@ function DashboardScreen({
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-4 pt-6 pb-10"
+        contentContainerClassName="px-5 pt-5 pb-10"
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
@@ -382,28 +365,15 @@ function DashboardScreen({
           className="gap-4"
         >
           {/* ── Header ── */}
-          <View className="flex-row justify-between items-center gap-3">
-            <View className="flex-row items-center gap-3 flex-1 min-w-0">
-              <Pressable
-                onPress={() => navigation.navigate('Profile')}
-                accessibilityRole="button"
-                accessibilityLabel="Open profile"
-                className="w-12 h-12 items-center justify-center -m-1"
-              >
-                <View className="w-10 h-10 rounded-full bg-white items-center justify-center">
-                  {initials ? (
-                    <Text className="text-m3-on-primary font-bold text-sm">{initials}</Text>
-                  ) : (
-                    <MaterialIcons name="person" size={20} color={M3.onPrimary} />
-                  )}
-                </View>
-              </Pressable>
-              <View className="flex-1 min-w-0">
-                <Text className="text-m3-on-surface font-bold text-base" numberOfLines={1}>{formattedDate}</Text>
-                <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>{goalSubtitle}</Text>
+          <View className="gap-3">
+            <View className="flex-row justify-between items-start gap-3">
+              <View className="flex-1 min-w-0 gap-0.5">
+                <Text className="text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>{formattedDate}</Text>
+                <Text className="text-m3-on-surface font-bold text-4xl tracking-tight">Dashboard</Text>
               </View>
             </View>
             {headerChip && (
+              <View className="flex-row justify-end">
               <Pressable
                 onPress={onOpenAdaptiveInfo}
                 accessibilityRole="button"
@@ -428,19 +398,21 @@ function DashboardScreen({
                   {headerChip.label}
                 </Text>
               </Pressable>
+              </View>
             )}
           </View>
 
           {/* ── Calorie Ring Card ── */}
-          <Card className="p-5 gap-4 items-center">
+          <Card className="p-6 gap-5 items-center">
+            <Text className="text-m3-on-surface text-2xl font-bold self-start">Daily nutrition</Text>
             {/* Ring + flanking numbers */}
-            <View className="flex-row items-center justify-center w-full gap-3">
+            <View className="flex-row items-center justify-center w-full gap-2">
               {/* Left: flanking number */}
-              <View className="items-center min-w-[56px]">
-                <Text className="text-m3-on-surface-variant text-sm font-bold tabular-nums">
+              <View className="items-center flex-1 min-w-0">
+                <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                   {flankingLeft.toLocaleString()}
                 </Text>
-                <Text className="text-m3-on-surface-variant text-xs font-medium">
+                <Text className="text-m3-on-surface-variant text-sm font-medium">
                   {showRemaining ? 'Consumed' : 'Remaining'}
                 </Text>
               </View>
@@ -449,26 +421,54 @@ function DashboardScreen({
               <View className="items-center justify-center">
                 <CircularProgress progress={ringProgress} />
                 <View className="absolute inset-0 items-center justify-center">
-                  <Text className="text-m3-on-surface font-bold text-3xl tabular-nums">
+                  <Text className="text-m3-on-surface font-bold text-4xl tabular-nums tracking-tight">
                     {ringValue.toLocaleString()}
                   </Text>
-                  <Text className="text-m3-on-surface-variant text-xs font-medium mt-0.5">
+                  <Text className="text-m3-on-surface-variant text-sm font-medium mt-0.5">
                     {showRemaining ? 'Remaining' : 'Consumed'}
                   </Text>
                 </View>
               </View>
 
               {/* Right: target */}
-              <View className="items-center min-w-[56px]">
-                <Text className="text-m3-on-surface-variant text-sm font-bold tabular-nums">
+              <View className="items-center flex-1 min-w-0">
+                <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                   {targetCals.toLocaleString()}
                 </Text>
-                <Text className="text-m3-on-surface-variant text-xs font-medium">Target</Text>
+                <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
               </View>
             </View>
 
+            {calsOver > 0 && (
+              <Text className="text-m3-error text-xs font-semibold tabular-nums">
+                +{calsOver.toLocaleString()} kcal over target
+              </Text>
+            )}
+
+            {/* Macro progress */}
+            <View className="flex-row gap-3 w-full">
+              <MacroProgress
+                label="Protein"
+                consumed={showRemaining ? proteinRemaining : todayMacros.protein_g}
+                target={target.target_protein_g}
+                progressColorClass="bg-m3-protein"
+              />
+              <MacroProgress
+                label="Carbs"
+                consumed={showRemaining ? carbsRemaining : todayMacros.carbs_g}
+                target={target.target_carbs_g}
+                progressColorClass="bg-m3-carbs"
+              />
+              <MacroProgress
+                label="Fat"
+                consumed={showRemaining ? fatRemaining : todayMacros.fat_g}
+                target={target.target_fat_g}
+                progressColorClass="bg-m3-fat"
+              />
+            </View>
+
             {/* Toggle pill */}
-            <View className="w-full">
+            <View className="w-full mt-1">
               <SegmentedControl
                 options={[
                   { value: 'consumed', label: 'Consumed' },
@@ -479,37 +479,6 @@ function DashboardScreen({
                   setShowRemaining(value === 'remaining');
                   void Haptics.selectionAsync();
                 }}
-              />
-            </View>
-
-            {calsOver > 0 && (
-              <Text className="text-m3-error text-xs font-semibold tabular-nums">
-                +{calsOver.toLocaleString()} kcal over target
-              </Text>
-            )}
-
-            {/* Macro tiles */}
-            <View className="flex-row gap-2 w-full">
-              <MacroTile
-                label="Protein"
-                consumed={showRemaining ? proteinRemaining : todayMacros.protein_g}
-                target={target.target_protein_g}
-                textColorClass="text-m3-protein"
-                progressColorClass="bg-m3-protein"
-              />
-              <MacroTile
-                label="Carbs"
-                consumed={showRemaining ? carbsRemaining : todayMacros.carbs_g}
-                target={target.target_carbs_g}
-                textColorClass="text-m3-carbs"
-                progressColorClass="bg-m3-carbs"
-              />
-              <MacroTile
-                label="Fat"
-                consumed={showRemaining ? fatRemaining : todayMacros.fat_g}
-                target={target.target_fat_g}
-                textColorClass="text-m3-fat"
-                progressColorClass="bg-m3-fat"
               />
             </View>
           </Card>
