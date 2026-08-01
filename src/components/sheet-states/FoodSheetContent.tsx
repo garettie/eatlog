@@ -272,7 +272,8 @@ export default function FoodSheetContent({
                 showScanError(scanResult.kind, 'camera');
                 return;
             }
-            const photoUri = await saveMealPhoto(base64).catch((e) => {
+            const asset = result.assets[0];
+            const photoUri = await saveMealPhoto(asset.uri, asset.width, asset.height).catch((e) => {
                 console.error('[FoodSheet] camera photo save failed', e);
                 return null;
             });
@@ -327,7 +328,8 @@ export default function FoodSheetContent({
                 showScanError(scanResult.kind, 'gallery');
                 return;
             }
-            const photoUri = await saveMealPhoto(base64).catch((e) => {
+            const asset = result.assets[0];
+            const photoUri = await saveMealPhoto(asset.uri, asset.width, asset.height).catch((e) => {
                 console.error('[FoodSheet] gallery photo save failed', e);
                 return null;
             });

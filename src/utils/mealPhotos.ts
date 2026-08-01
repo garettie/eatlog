@@ -1,6 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 const PHOTO_DIR = `${FileSystem.documentDirectory}meal-photos/`;
+const MAX_PHOTO_DIMENSION = 1600;
+const PHOTO_QUALITY = 0.75;
 
 export function getMealPhotoDirectory(): string {
   return PHOTO_DIR;
@@ -21,17 +24,34 @@ async function ensureDir(): Promise<void> {
  * Persist a meal photo to app-private storage.
  * Returns the file URI, or null on failure (photo is non-critical).
  */
-export async function saveMealPhoto(base64: string): Promise<string | null> {
+export async function saveMealPhoto(
+  sourceUri: string,
+  width: number,
+  height: number,
+): Promise<string | null> {
+  let optimizedUri: string | null = null;
   try {
     await ensureDir();
     const uri = `${PHOTO_DIR}${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-    await FileSystem.writeAsStringAsync(uri, base64, {
-      encoding: FileSystem.EncodingType.Base64,
+    const resize = Math.max(width, height) > MAX_PHOTO_DIMENSION
+      ? width >= height
+        ? [{ resize: { width: MAX_PHOTO_DIMENSION } }]
+        : [{ resize: { height: MAX_PHOTO_DIMENSION } }]
+      : [];
+    const optimized = await manipulateAsync(sourceUri, resize, {
+      compress: PHOTO_QUALITY,
+      format: SaveFormat.JPEG,
     });
+    optimizedUri = optimized.uri;
+    await FileSystem.copyAsync({ from: optimizedUri, to: uri });
     return uri;
   } catch (e) {
     console.error('[mealPhotos] save failed', e);
     return null;
+  } finally {
+    if (optimizedUri) {
+      await FileSystem.deleteAsync(optimizedUri, { idempotent: true }).catch(() => {});
+    }
   }
 }
 
