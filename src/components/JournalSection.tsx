@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Reanimated, {
   FadeIn,
   FadeOut,
@@ -16,6 +16,7 @@ import { FoodLog } from '../db/database';
 import { DURATION, EASING } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 import { foodIcon } from '../utils/foodIcons';
+import NutritionCard from './NutritionCard';
 
 function kcalLabel(calories: number): string {
   return `${Math.round(calories)} kcal`;
@@ -221,73 +222,26 @@ function MealRow({
   const totalP = meal.components.reduce((s, c) => s + c.protein_g, 0);
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
-  const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
-  const photoUri = meal.photoUri && meal.photoUri !== failedPhotoUri ? meal.photoUri : null;
 
   return (
     <SwipeRow identity={`meal-${meal.id}`} onDelete={() => onDeleteMeal(meal.id)}>
-      <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
-        <Pressable
-          onPress={() => onEditMeal(meal)}
-          className="flex-row items-stretch min-h-[96px] active:opacity-80"
-          accessibilityRole="button"
-          accessibilityLabel={`${meal.name}, ${Math.round(totalCalories)} calories`}
-          accessibilityHint="Opens meal editor. Swipe left to delete."
-          accessibilityActions={[{ name: 'activate', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
-          onAccessibilityAction={(event) => {
-            if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
-            else onEditMeal(meal);
-          }}
-        >
-          {photoUri ? (
-            <Pressable
-              onPress={(event) => {
-                event.stopPropagation();
-                onViewPhoto(photoUri, meal.name);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${meal.name} photo`}
-              className="w-24 self-stretch bg-m3-surface-container-highest active:opacity-80"
-            >
-              <Image
-                source={{ uri: photoUri }}
-                className="h-full w-full"
-                resizeMode="cover"
-                fadeDuration={0}
-                onError={() => setFailedPhotoUri(photoUri)}
-              />
-            </Pressable>
-          ) : (
-            <View
-              className="w-24 self-stretch items-center justify-center"
-            >
-              <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
-                <MaterialCommunityIcons name={foodIcon(meal.name)} size={20} color={M3.onSurfaceVariant} />
-              </View>
-            </View>
-          )}
-          <View className="flex-1 min-w-0 px-4 py-3">
-            <Text
-              className="text-m3-on-surface text-base font-bold leading-5"
-              numberOfLines={2}
-            >
-              {meal.name}
-            </Text>
-            <Text className="text-m3-on-surface-variant text-xs mt-0.5">
-              {meal.components.length} {meal.components.length === 1 ? 'item' : 'items'}
-            </Text>
-            <View className="mt-2">
-              <MacroPills protein={totalP} carbs={totalC} fat={totalF} />
-            </View>
-          </View>
-          <View className="w-24 shrink-0 items-end pt-3 pr-5">
-            <Text className="text-m3-on-surface text-base font-bold tabular-nums">
-              {Math.round(totalCalories)}
-              <Text className="text-m3-on-surface-variant text-compact font-medium"> kcal</Text>
-            </Text>
-          </View>
-        </Pressable>
-      </View>
+      <NutritionCard
+        name={meal.name}
+        photoUri={meal.photoUri}
+        secondaryText={`${meal.components.length} ${meal.components.length === 1 ? 'item' : 'items'}`}
+        calories={totalCalories}
+        protein={totalP}
+        carbs={totalC}
+        fat={totalF}
+        onPress={() => onEditMeal(meal)}
+        accessibilityHint="Opens meal editor. Swipe left to delete."
+        accessibilityActions={[{ name: 'activate', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
+          else onEditMeal(meal);
+        }}
+        onPressPhoto={(uri) => onViewPhoto(uri, meal.name)}
+      />
     </SwipeRow>
   );
 }
