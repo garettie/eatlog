@@ -19,6 +19,7 @@ import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
 import { M3, TYPE } from './src/theme/tokens';
 import { DataMaintenanceContext, type MaintenanceTask } from './src/context/DataMaintenanceContext';
 import type { OwnershipProgressEvent, OwnershipResult } from './src/services/dataOwnership.types';
+import ResponsiveContent from './src/components/ResponsiveContent';
 
 // Keep the splash screen visible while we load fonts + DB
 SplashScreen.preventAutoHideAsync();
@@ -126,6 +127,7 @@ export default function App() {
   if (fontError || dbError) {
     return (
       <View style={{ flex: 1, backgroundColor: '#111318', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <ResponsiveContent maxWidth={520} className="items-center">
         <Text style={{ color: '#ffb4ab', fontFamily: TYPE.family.regular, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
           {fontError
             ? "Marco couldn't load its interface fonts. Restart the app and try again."
@@ -136,6 +138,7 @@ export default function App() {
             <Text className="font-semibold text-sm text-m3-on-surface">Retry database</Text>
           </Pressable>
         )}
+        </ResponsiveContent>
       </View>
     );
   }
@@ -146,6 +149,7 @@ export default function App() {
       <DataMaintenanceContext.Provider value={maintenanceContext}>
         {maintenance ? (
           <View className="flex-1 items-center justify-center bg-m3-surface px-8">
+            <ResponsiveContent maxWidth={520} className="items-center">
             {maintenanceError ? (
               <>
                 <Text className="text-center font-semibold text-lg text-m3-on-surface">{maintenance.label} failed</Text>
@@ -168,9 +172,11 @@ export default function App() {
                 </Text>
               </>
             )}
+            </ResponsiveContent>
           </View>
         ) : maintenanceResult ? (
           <View className="flex-1 items-center justify-center bg-m3-surface px-8">
+            <ResponsiveContent maxWidth={520} className="items-center">
             <View className="h-14 w-14 items-center justify-center rounded-full bg-m3-primary-container">
               <Text className="font-bold text-xl text-m3-on-primary-container">✓</Text>
             </View>
@@ -183,6 +189,7 @@ export default function App() {
             >
               <Text className="font-semibold text-sm text-m3-on-primary">Continue</Text>
             </Pressable>
+            </ResponsiveContent>
           </View>
         ) : (
           <NavigationContainer key={dataEpoch} theme={navigationTheme}>

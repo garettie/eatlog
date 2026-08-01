@@ -19,6 +19,8 @@ import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { M3 } from '../theme/tokens';
+import ResponsiveContent from '../components/ResponsiveContent';
+import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupComplete'>;
 
@@ -58,6 +60,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
   const { displayName, tdee, targetCalories, targetProtein, targetFat, targetCarbs } =
     route.params;
   const reduced = useReducedMotion();
+  const { isNarrow, horizontalPadding } = useResponsiveLayout();
 
   const enter = (delay: number) =>
     reduced ? undefined : FadeInDown.duration(300).delay(delay);
@@ -72,9 +75,10 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
     <SafeAreaView className="flex-1 bg-m3-surface">
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-4 pt-12 pb-10"
+        contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 48, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
+        <ResponsiveContent maxWidth={FORM_MAX_WIDTH}>
         <View className="gap-5">
           {/* ── Success header ── */}
           <View className="items-center gap-4 mb-2">
@@ -114,12 +118,12 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
           </Reanimated.View>
 
           {/* ── Macro split — staggered ── */}
-          <View className="flex-row gap-3">
+          <View className={isNarrow ? 'gap-3' : 'flex-row gap-3'}>
             {macros.map((macro, i) => {
               const kcal = Math.round(macro.grams * macro.cpg);
               const pct = Math.round((kcal / targetCalories) * 100);
               return (
-                <Reanimated.View key={macro.label} entering={enter(420 + i * 90)} className="flex-1">
+                <Reanimated.View key={macro.label} entering={enter(420 + i * 90)} className={isNarrow ? 'w-full' : 'flex-1'}>
                   <Card className="p-4 items-center gap-0.5">
                     <Text className={`${macro.textColor} text-xs font-semibold`}>
                       {macro.label}
@@ -181,6 +185,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
             />
           </Reanimated.View>
         </View>
+        </ResponsiveContent>
       </ScrollView>
     </SafeAreaView>
   );

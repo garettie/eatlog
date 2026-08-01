@@ -20,6 +20,7 @@ import { type FoodResult, type DataType } from '../services/foodSearch';
 import { type DescribeResult } from '../services/foodScan';
 import MarcoTabBar from './MarcoTabBar';
 import { syncHealthConnectWeights } from '../services/healthConnect';
+import { NAVIGATION_RAIL_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 function mealLabel(m: MealType): string {
     return m.charAt(0).toUpperCase() + m.slice(1);
@@ -54,9 +55,14 @@ export default function TabNavigator() {
     const [toast, setToast] = useState<{ message: string; tone?: LogToastTone; undo?: () => void | Promise<void> } | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
     const insets = useSafeAreaInsets();
+    const { isMedium } = useResponsiveLayout();
     const discardGuard = useDiscardGuard();
     const tabBarBottomPadding = Math.max(insets.bottom, 12);
     const tabBarHeight = 80 + tabBarBottomPadding;
+    const screenOptions = useMemo(() => ({
+        ...TAB_SCREEN_OPTIONS,
+        tabBarPosition: isMedium ? 'left' as const : 'bottom' as const,
+    }), [isMedium]);
 
     const backHistoryRef = useRef<FoodSheetStateKey[]>([]);
     const activeTabRef = useRef('Today');
@@ -413,7 +419,7 @@ export default function TabNavigator() {
     return (
         <DiscardGuardContext.Provider value={discardGuard}>
             <Tab.Navigator
-                screenOptions={TAB_SCREEN_OPTIONS}
+                screenOptions={screenOptions}
                 tabBar={renderTabBar}
                 backBehavior="history"
             >
@@ -471,7 +477,15 @@ export default function TabNavigator() {
             />
 
             {toast && (
-                <View className="absolute left-4 right-4" style={{ zIndex: 100, bottom: tabBarHeight + 12 }}>
+                <View
+                    className="absolute"
+                    style={{
+                        zIndex: 100,
+                        left: (isMedium ? NAVIGATION_RAIL_WIDTH : 0) + 16,
+                        right: 16,
+                        bottom: isMedium ? Math.max(insets.bottom, 12) + 12 : tabBarHeight + 12,
+                    }}
+                >
                     <LogToast message={toast.message} tone={toast.tone} onUndo={toast.undo} onHide={hideToast} />
                 </View>
             )}

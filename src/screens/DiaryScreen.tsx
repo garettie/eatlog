@@ -35,6 +35,8 @@ import { JournalEntryKind, JournalEntryRow, JournalSectionHeader, MealGroup } fr
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
 import MealPhotoViewer from '../components/MealPhotoViewer';
 import { DURATION, EASING } from '../theme/motion';
+import ResponsiveContent from '../components/ResponsiveContent';
+import { READING_MAX_WIDTH } from '../theme/layout';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
@@ -724,6 +726,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
+      <ResponsiveContent className="flex-1" maxWidth={READING_MAX_WIDTH}>
       {/* Day strip */}
       <WeekStrip
         days={dayCells}
@@ -799,6 +802,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
         />
       )}
       </Reanimated.View>
+      </ResponsiveContent>
 
       {/* Portion edit sheet (shared Sheet vocabulary: BackHandler, discard guard, M3 handle) */}
       <DiaryEditSheet

@@ -15,6 +15,8 @@ import { fromKilograms } from '../utils/weightUnits';
 import { useDataMaintenance } from '../context/DataMaintenanceContext';
 import { deleteMarcoHealthConnectWeights } from '../services/healthConnect';
 import { resetLocalData } from '../services/dataReset';
+import ResponsiveContent from '../components/ResponsiveContent';
+import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 interface ProfileScreenProps {
     dataVersion: number;
@@ -67,6 +69,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     const navigation = useNavigation<any>();
     const { runDataMaintenance } = useDataMaintenance();
+    const { isTwoPane, horizontalPadding } = useResponsiveLayout();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [target, setTarget] = useState<DailyTarget | null>(null);
     const [adaptiveState, setAdaptiveState] = useState<AdaptiveReviewState | null>(null);
@@ -195,12 +198,19 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
     return (
         <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
-            <ScrollView className="flex-1" contentContainerClassName="px-4 pt-6 pb-10 gap-6" showsVerticalScrollIndicator={false}>
+            <ScrollView
+                className="flex-1"
+                contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 24, paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+            >
+                <ResponsiveContent maxWidth={APP_MAX_WIDTH} className="gap-6">
                 <View className="gap-1">
                     <Text className="text-m3-on-surface text-2xl font-bold">Profile</Text>
                     <Text className="text-m3-on-surface-variant text-sm">Plan and data</Text>
                 </View>
 
+                <View className={isTwoPane ? 'flex-row items-start gap-6' : 'gap-6'}>
+                <View className={isTwoPane ? 'flex-[2] min-w-0' : 'w-full'}>
                 <Card className="overflow-hidden">
                     <View className="p-5 gap-5">
                         <View className="flex-row items-center gap-3">
@@ -255,8 +265,9 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                         {adaptiveState && <Text className="text-m3-expenditure text-xs font-semibold">{adaptiveLabel(adaptiveState)}</Text>}
                     </View>
                 </Card>
+                </View>
 
-                <View className="gap-6">
+                <View className={isTwoPane ? 'flex-[3] min-w-0 gap-6' : 'gap-6'}>
                     <Section title="Plan">
                         <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} onPress={() => navigation.navigate('PersonalDetails')} />
                         <ProfileSettingRow icon="flag" title="Goal and rate" detail={`${goalLabel(profile)} · ${weeklyRate(profile)}`} onPress={() => navigation.navigate('GoalAndRate')} />
@@ -277,6 +288,8 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                         <ProfileSettingRow icon="info-outline" title="About" detail="Marco for Android" showDivider={false} />
                     </Section>
                 </View>
+                </View>
+                </ResponsiveContent>
             </ScrollView>
         </SafeAreaView>
     );

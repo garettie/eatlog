@@ -36,6 +36,8 @@ import {
 } from '../utils/calendar';
 import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
 import { formatWeight } from '../utils/weightUnits';
+import ResponsiveContent from '../components/ResponsiveContent';
+import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 type RangeKey = '1M' | '3M' | '6M' | '1Y';
 
@@ -184,6 +186,7 @@ function AnalyticsScreen({
   onDataChanged,
 }: AnalyticsScreenProps) {
   const reduced = useReducedMotion();
+  const { isTwoPane, horizontalPadding } = useResponsiveLayout();
   const [selectedRange, setSelectedRange] = useState<RangeKey>('1M');
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [recommendation, setRecommendation] = useState<AdaptiveReviewState | null>(null);
@@ -437,10 +440,11 @@ function AnalyticsScreen({
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-4 pt-6 pb-10"
+        contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 24, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
         disableScrollViewPanResponder
       >
+        <ResponsiveContent maxWidth={APP_MAX_WIDTH}>
         <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} className="gap-4">
           <View className="gap-1">
             <Text className="text-m3-on-surface text-2xl font-bold">Analytics</Text>
@@ -474,6 +478,8 @@ function AnalyticsScreen({
             </View>
           )}
 
+          <View className={isTwoPane ? 'flex-row items-start gap-4' : 'gap-4'}>
+          <View className={isTwoPane ? 'flex-[3] min-w-0 gap-4' : 'gap-4'}>
           <Card className="p-5 gap-4">
             <View className="flex-row items-baseline justify-between gap-3">
               <View>
@@ -601,6 +607,9 @@ function AnalyticsScreen({
               />
             </View>
           </Card>
+
+          </View>
+          <View className={isTwoPane ? 'flex-[2] min-w-0 gap-4' : 'gap-4'}>
 
           <Card className="p-5 gap-4">
             <View>
@@ -765,7 +774,10 @@ function AnalyticsScreen({
               <ActivityIndicator color={M3.onSurfaceVariant} accessibilityLabel="Loading recommendation" />
             )}
           </Card>
+          </View>
+          </View>
         </Animated.View>
+        </ResponsiveContent>
       </ScrollView>
     </SafeAreaView>
   );

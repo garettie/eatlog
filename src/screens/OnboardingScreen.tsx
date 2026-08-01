@@ -54,6 +54,8 @@ import {
   lbsToKg,
   todayISO,
 } from '../utils/calculations';
+import ResponsiveContent from '../components/ResponsiveContent';
+import { FORM_MAX_WIDTH } from '../theme/layout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 type UnitSystem = 'metric' | 'imperial';
@@ -514,7 +516,8 @@ export default function OnboardingScreen({ navigation }: Props) {
       >
         <View className="flex-1">
           {/* ── Progress bar ──────────────────────────────────────────── */}
-          <View className="px-5 py-3 border-b border-m3-outline-variant/30 shrink-0">
+          <View className="border-b border-m3-outline-variant/30 shrink-0">
+            <ResponsiveContent maxWidth={FORM_MAX_WIDTH} className="px-5 py-3">
             <View
               className="bg-m3-surface-container-highest h-1.5 rounded-full overflow-hidden"
               onLayout={(e) => setProgressTrackW(e.nativeEvent.layout.width)}
@@ -527,16 +530,17 @@ export default function OnboardingScreen({ navigation }: Props) {
               />
             </View>
             <Text className="mt-2 text-xs font-semibold text-m3-on-surface-variant">Step {step} of {TOTAL_STEPS}</Text>
+            </ResponsiveContent>
           </View>
 
           {/* ── Scrollable content ────────────────────────────────────── */}
           <ScrollView
             ref={scrollRef}
             className="flex-1"
-            contentContainerClassName="px-5 py-5"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            <ResponsiveContent maxWidth={FORM_MAX_WIDTH} className="px-5 py-5">
             <Reanimated.View style={stepAnimStyle} className="gap-7 pb-8">
               {/* ═══════════════════ STEP 1 — About You ═══════════════════ */}
               {step === 1 && (
@@ -933,11 +937,13 @@ export default function OnboardingScreen({ navigation }: Props) {
                 </View>
               )}
             </Reanimated.View>
+            </ResponsiveContent>
           </ScrollView>
 
           {/* ── Footer ────────────────────────────────────────────────── */}
           {step < TOTAL_STEPS && (
-            <View className="px-7 py-5 bg-m3-surface-container-low border-t border-m3-outline-variant/40 shrink-0 gap-3">
+            <View className="bg-m3-surface-container-low border-t border-m3-outline-variant/40 shrink-0">
+              <ResponsiveContent maxWidth={FORM_MAX_WIDTH} className="px-7 py-5 gap-3">
               {stepError && (
                 <Reanimated.View
                   entering={reduced ? undefined : FadeIn.duration(200)}
@@ -972,6 +978,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                   </View>
                 </View>
               )}
+              </ResponsiveContent>
             </View>
           )}
         </View>

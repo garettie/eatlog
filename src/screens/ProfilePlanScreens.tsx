@@ -31,6 +31,8 @@ import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilogram
 import { serviceConfig } from '../config/services';
 import { M3 } from '../theme/tokens';
 import { GOAL_RATE_RANGES, isGoalRateValid } from '../utils/goalRate';
+import ResponsiveContent from '../components/ResponsiveContent';
+import { FORM_MAX_WIDTH } from '../theme/layout';
 
 export type ProfileStackParamList = {
   ProfileHome: undefined;
@@ -70,7 +72,11 @@ function Field({ label, value, onChangeText, keyboardType = 'default', error }: 
 }
 
 function Screen({ children }: { children: React.ReactNode }) {
-  return <SafeAreaView edges={['bottom']} className="flex-1 bg-m3-surface">{children}</SafeAreaView>;
+  return (
+    <SafeAreaView edges={['bottom', 'left', 'right']} className="flex-1 bg-m3-surface">
+      <ResponsiveContent className="flex-1" maxWidth={FORM_MAX_WIDTH}>{children}</ResponsiveContent>
+    </SafeAreaView>
+  );
 }
 
 function toUpdate(profile: Profile, overrides: Partial<ProfileUpdate> = {}): ProfileUpdate {

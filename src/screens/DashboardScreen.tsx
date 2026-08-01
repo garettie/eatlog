@@ -33,6 +33,8 @@ import {
 import { addCalendarDays, todayISO } from '../utils/calendar';
 import { foodIcon } from '../utils/foodIcons';
 import { M3 } from '../theme/tokens';
+import ResponsiveContent from '../components/ResponsiveContent';
+import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -181,6 +183,7 @@ function DashboardScreen({
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
   const reduced = useReducedMotion();
+  const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
   const [recentFood, setRecentFood] = useState<LastEntry | null>(null);
@@ -357,16 +360,17 @@ function DashboardScreen({
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-5 pt-5 pb-10"
+        contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
+        <ResponsiveContent maxWidth={APP_MAX_WIDTH}>
         <Animated.View
           entering={reduced ? undefined : FadeIn.duration(200)}
           className="gap-4"
         >
           {/* ── Header ── */}
           <View className="gap-3">
-            <View className="flex-row justify-between items-start gap-3">
+            <View className={isNarrow ? 'gap-3' : 'flex-row justify-between items-start gap-3'}>
               <View className="flex-1 min-w-0 gap-0.5">
                 <Text className="text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>{formattedDate}</Text>
                 <Text className="text-m3-on-surface font-bold text-4xl tracking-tight">Dashboard</Text>
@@ -400,20 +404,22 @@ function DashboardScreen({
             </View>
           </View>
 
+          <View className={isTwoPane ? 'flex-row items-start gap-4' : 'gap-4'}>
+          <View className={isTwoPane ? 'flex-[3] min-w-0' : 'w-full'}>
           {/* ── Calorie Ring Card ── */}
           <Card className="p-6 gap-5 items-center">
             <Text className="text-m3-on-surface text-2xl font-bold self-start">Daily nutrition</Text>
             {/* Ring + flanking numbers */}
-            <View className="flex-row items-center justify-center w-full gap-2">
+            <View className={`${isNarrow ? 'gap-3' : 'flex-row'} items-center justify-center w-full`}>
               {/* Left: flanking number */}
-              <View className="items-center flex-1 min-w-0">
+              {!isNarrow && <View className="items-center flex-1 min-w-0">
                 <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                   {flankingLeft.toLocaleString()}
                 </Text>
                 <Text className="text-m3-on-surface-variant text-sm font-medium">
                   {showRemaining ? 'Consumed' : 'Remaining'}
                 </Text>
-              </View>
+              </View>}
 
               {/* Center: ring with value overlaid */}
               <View className="items-center justify-center">
@@ -429,12 +435,32 @@ function DashboardScreen({
               </View>
 
               {/* Right: target */}
-              <View className="items-center flex-1 min-w-0">
+              {!isNarrow && <View className="items-center flex-1 min-w-0">
                 <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                   {targetCals.toLocaleString()}
                 </Text>
                 <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
-              </View>
+              </View>}
+
+              {isNarrow && (
+                <View className="w-full flex-row gap-4">
+                  <View className="items-center flex-1 min-w-0">
+                    <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
+                      {flankingLeft.toLocaleString()}
+                    </Text>
+                    <Text className="text-m3-on-surface-variant text-sm font-medium">
+                      {showRemaining ? 'Consumed' : 'Remaining'}
+                    </Text>
+                  </View>
+                  <View className="w-px bg-m3-outline-variant/50" />
+                  <View className="items-center flex-1 min-w-0">
+                    <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
+                      {targetCals.toLocaleString()}
+                    </Text>
+                    <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
+                  </View>
+                </View>
+              )}
             </View>
 
             {calsOver > 0 && (
@@ -480,6 +506,9 @@ function DashboardScreen({
               />
             </View>
           </Card>
+          </View>
+
+          <View className={isTwoPane ? 'flex-[2] min-w-0 gap-4' : 'gap-4'}>
 
           {/* ── Last Logged Card OR First-Use Hero ── */}
           {recentFood ? (
@@ -530,7 +559,7 @@ function DashboardScreen({
                   <Text className="text-m3-on-primary font-bold text-base">Scan a meal</Text>
                 </View>
               </Pressable>
-              <View className="flex-row items-center justify-between">
+              <View className="flex-row flex-wrap items-center justify-between gap-2">
                 <Pressable
                   onPress={onOpenGallery}
                   className="flex-row items-center gap-1.5 py-2 active:opacity-60"
@@ -584,7 +613,10 @@ function DashboardScreen({
               />
             </View>
           </Card>
+          </View>
+          </View>
         </Animated.View>
+        </ResponsiveContent>
       </ScrollView>
 
     </SafeAreaView>

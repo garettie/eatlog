@@ -40,7 +40,7 @@ export default function Sheet({
 }: SheetProps) {
   const sheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const reduced = useReducedMotion();
   const lastIndexRef = useRef(0);
   const wasVisible = useRef(false);
@@ -155,6 +155,13 @@ export default function Sheet({
     }),
     [windowHeight],
   );
+  const sheetStyle = useMemo(
+    () => ({
+      alignSelf: 'center' as const,
+      width: windowWidth >= 600 ? Math.min(windowWidth - 64, 720) : windowWidth,
+    }),
+    [windowWidth],
+  );
 
   return (
     <BottomSheet
@@ -174,6 +181,7 @@ export default function Sheet({
       topInset={insets.top}
       bottomInset={Math.max(insets.bottom, 8)}
       containerStyle={containerStyle}
+      style={sheetStyle}
       animationConfigs={animationConfigs}
     >
       <Animated.View style={styles.content}>
