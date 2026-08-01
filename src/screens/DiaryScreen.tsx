@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Reanimated, {
-  LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -793,7 +792,6 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
           data={foodLogs.length > 0 ? journalListItems : []}
           renderItem={renderDiaryItem}
           keyExtractor={(item) => item.key}
-          itemLayoutAnimation={reduced ? undefined : LinearTransition.duration(DURATION.short).easing(EASING.emphasized)}
           ListHeaderComponent={diaryListHeader}
           ListEmptyComponent={emptyDiaryState}
           accessibilityElementsHidden={displayedDate !== selectedDate}

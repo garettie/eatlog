@@ -81,8 +81,8 @@ function FoodRow({ food, pinned, onPress, onTogglePin }: { food: LoggedFood; pin
           </View>
         </View>
         <View className="w-24 shrink-0 items-end pt-14 pr-5">
-          <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
-            {Math.round(food.calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
+          <Text className="text-m3-on-surface text-base font-bold tabular-nums">
+            {Math.round(food.calories)}<Text className="text-m3-on-surface-variant text-compact font-medium"> kcal</Text>
           </Text>
         </View>
       </Pressable>
@@ -130,8 +130,8 @@ function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pin
           </View>
         </View>
         <View className="w-24 shrink-0 items-end pt-14 pr-5">
-          <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
-            {Math.round(meal.total_calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
+          <Text className="text-m3-on-surface text-base font-bold tabular-nums">
+            {Math.round(meal.total_calories)}<Text className="text-m3-on-surface-variant text-compact font-medium"> kcal</Text>
           </Text>
         </View>
       </Pressable>

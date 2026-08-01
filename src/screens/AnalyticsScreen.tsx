@@ -439,6 +439,7 @@ function AnalyticsScreen({
         className="flex-1"
         contentContainerClassName="px-4 pt-6 pb-10"
         showsVerticalScrollIndicator={false}
+        disableScrollViewPanResponder
       >
         <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} className="gap-4">
           <View className="gap-1">

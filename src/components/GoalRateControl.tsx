@@ -36,9 +36,9 @@ function mixColor(from: string, to: string, progress: number): string {
 
 function severityColor(severity: number): string {
   if (severity <= 0.5) {
-    return mixColor(M3.goalRateSafe, M3.goalRateCaution, severity * 2);
+    return mixColor(M3.goalRateSafe, M3.primary, severity * 2);
   }
-  return mixColor(M3.goalRateCaution, M3.goalRateExtreme, (severity - 0.5) * 2);
+  return mixColor(M3.primary, M3.goalRateExtreme, (severity - 0.5) * 2);
 }
 
 function parseRate(text: string): number | null {

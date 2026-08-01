@@ -415,6 +415,7 @@ export default function TabNavigator() {
             <Tab.Navigator
                 screenOptions={TAB_SCREEN_OPTIONS}
                 tabBar={renderTabBar}
+                backBehavior="history"
             >
                 <Tab.Screen
                     name="Today"
