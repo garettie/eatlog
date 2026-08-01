@@ -58,16 +58,18 @@ function FoodRow({ food, pinned, onPress, onTogglePin }: { food: LoggedFood; pin
         accessibilityRole="button"
         accessibilityLabel={`${food.name}, ${Math.round(food.calories)} calories`}
         accessibilityHint="Opens food review"
-        className={`flex-row items-stretch active:opacity-80 ${food.photo_uri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'}`}
+        className="flex-row items-stretch min-h-[112px] active:opacity-80"
       >
         {food.photo_uri ? (
           <Image source={{ uri: food.photo_uri }} className="w-28 self-stretch bg-m3-surface-container-highest" resizeMode="cover" />
         ) : (
-          <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
-            <MaterialCommunityIcons name={foodIcon(food.name)} size={20} color={M3.onSurfaceVariant} />
+          <View className="w-28 self-stretch items-center justify-center">
+            <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
+              <MaterialCommunityIcons name={foodIcon(food.name)} size={20} color={M3.onSurfaceVariant} />
+            </View>
           </View>
         )}
-        <View className={`flex-1 min-w-0 ${food.photo_uri ? 'px-4 py-5' : 'mr-4'}`}>
+        <View className="flex-1 min-w-0 px-5 py-5">
           <Text className="text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>{food.name}</Text>
           <Text className="text-m3-on-surface-variant text-xs mt-0.5" numberOfLines={1}>
             {[food.brand, food.serving_label, food.grams_logged ? `${Math.round(food.grams_logged)}g` : null].filter(Boolean).join(' · ')}
@@ -78,7 +80,7 @@ function FoodRow({ food, pinned, onPress, onTogglePin }: { food: LoggedFood; pin
             <MacroPill letter="F" grams={food.fat_g} color={M3.fat} />
           </View>
         </View>
-        <View className={`min-w-[72px] max-w-[96px] flex-1 items-end ${food.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
+        <View className="w-24 shrink-0 items-end pt-14 pr-5">
           <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
             {Math.round(food.calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
           </Text>
@@ -105,16 +107,18 @@ function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pin
         accessibilityRole="button"
         accessibilityLabel={`${meal.meal_name}, ${Math.round(meal.total_calories)} calories`}
         accessibilityHint="Opens meal review"
-        className={`flex-row items-stretch active:opacity-80 ${meal.photo_uri ? 'min-h-[112]' : 'px-5 py-5 min-h-[96]'}`}
+        className="flex-row items-stretch min-h-[112px] active:opacity-80"
       >
         {meal.photo_uri ? (
           <Image source={{ uri: meal.photo_uri }} className="w-28 self-stretch bg-m3-surface-container-highest" resizeMode="cover" />
         ) : (
-          <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center mr-4 mt-0.5">
-            <MaterialCommunityIcons name={foodIcon(meal.meal_name)} size={20} color={M3.onSurfaceVariant} />
+          <View className="w-28 self-stretch items-center justify-center">
+            <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
+              <MaterialCommunityIcons name={foodIcon(meal.meal_name)} size={20} color={M3.onSurfaceVariant} />
+            </View>
           </View>
         )}
-        <View className={`flex-1 min-w-0 ${meal.photo_uri ? 'px-4 py-5' : 'mr-4'}`}>
+        <View className="flex-1 min-w-0 px-5 py-5">
           <Text className="text-m3-on-surface text-base font-bold leading-5" numberOfLines={2}>{meal.meal_name}</Text>
           <Text className="text-m3-on-surface-variant text-xs mt-0.5">
             {meal.component_count} {meal.component_count === 1 ? 'item' : 'items'}
@@ -125,7 +129,7 @@ function MealRow({ meal, pinned, onPress, onTogglePin }: { meal: LoggedMeal; pin
             <MacroPill letter="F" grams={meal.total_fat} color={M3.fat} />
           </View>
         </View>
-        <View className={`min-w-[72px] max-w-[96px] flex-1 items-end ${meal.photo_uri ? 'pt-12 pr-2' : 'pt-8'}`}>
+        <View className="w-24 shrink-0 items-end pt-14 pr-5">
           <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
             {Math.round(meal.total_calories)}<Text className="text-m3-on-surface-variant text-xs font-medium"> kcal</Text>
           </Text>

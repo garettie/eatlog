@@ -56,6 +56,14 @@ const VISION_SCHEMA = {
     required: ['mealName', 'components'],
 };
 
+const SINGLE_COMPONENT_SCHEMA = {
+    type: 'object' as const,
+    properties: {
+        component: COMPONENT_SCHEMA,
+    },
+    required: ['component'],
+};
+
 interface DescribeResponse {
     mealName: string;
     components: {
@@ -70,6 +78,10 @@ interface DescribeResponse {
         preparation?: string | null;
         servingLabel?: string | null;
     }[];
+}
+
+interface SingleComponentResponse {
+    component: DescribeResponse['components'][number];
 }
 
 function hashString(s: string): string {
@@ -134,6 +146,11 @@ function validEstimate(result: DescribeResponse | undefined): result is Describe
     return !!result?.mealName?.trim() && Array.isArray(result.components) && result.components.length > 0 && result.components.every((component) =>
         !!component.name?.trim() && [component.estimatedGrams, component.caloriesPer100g, component.proteinPer100g, component.carbsPer100g, component.fatPer100g].every(Number.isFinite)
     );
+}
+
+function validComponent(component: DescribeResponse['components'][number] | undefined): component is DescribeResponse['components'][number] {
+    return !!component?.name?.trim()
+        && [component.estimatedGrams, component.caloriesPer100g, component.proteinPer100g, component.carbsPer100g, component.fatPer100g].every(Number.isFinite);
 }
 
 function normalizeScanName(name: string): string {
@@ -264,6 +281,35 @@ export async function clarifyMeal(opts: {
             const components = await mapComponents(result.components, 'describe', timestamp);
             return { mealName: name, components };
         }
+    }
+
+    return null;
+}
+
+export async function clarifyComponent(opts: {
+    name: string;
+    imageBase64?: string;
+}): Promise<FoodResult | null> {
+    if (!serviceConfig.availability.gemini) return null;
+
+    const { name, imageBase64 } = opts;
+    const timestamp = Date.now();
+    const prompt = imageBase64
+        ? `The user has renamed one component in this meal photo to "${name}". Analyze only that named component. Return its estimated visible portion, per-100g nutrition, and a typical serving size. Do not break down or return the rest of the meal.`
+        : `The user has renamed one meal component to "${name}". Estimate only that component's portion, per-100g nutrition, and a typical serving size. Do not add other meal components.`;
+    const parts = imageBase64
+        ? [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } }]
+        : [{ text: prompt }];
+
+    for (const model of MODELS) {
+        const response = await callGemini<SingleComponentResponse>(
+            model,
+            parts,
+            SINGLE_COMPONENT_SCHEMA,
+        );
+        if (!('value' in response) || !validComponent(response.value.component)) continue;
+        const [component] = await mapComponents([response.value.component], imageBase64 ? 'scan' : 'describe', timestamp);
+        return component ?? null;
     }
 
     return null;

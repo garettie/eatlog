@@ -10,7 +10,7 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 
-import { scanFood, clarifyMeal, DescribeResult, FoodEstimationFailureKind } from '../../services/foodScan';
+import { scanFood, clarifyComponent, clarifyMeal, DescribeResult, FoodEstimationFailureKind } from '../../services/foodScan';
 import { serviceConfig } from '../../config/services';
 import { type DataType, type FoodResult } from '../../services/foodSearch';
 import { LoggedMeal, MealType, SaveWeightResult, getMealComponents } from '../../db/database';
@@ -460,6 +460,13 @@ export default function FoodSheetContent({
         [],
     );
 
+    const handleClarifyComponent = useCallback(
+        async (name: string): Promise<FoodResult | null> => {
+            return clarifyComponent({ name, imageBase64: scanBase64Ref.current ?? undefined });
+        },
+        [],
+    );
+
     const handleMealLogged = useCallback(
         (info: { mealId: number; logIds: number[]; meal: MealType; name: string; calories: number; wasUpdate: boolean; logDate: string }) => {
             setState((s) => ({ ...s, visible: false, describeResult: null, editMealId: null }));
@@ -565,6 +572,7 @@ export default function FoodSheetContent({
                         photoUri={state.photoUri ?? null}
                         onLogComplete={handleMealLogged}
                         onClarify={handleClarify}
+                        onClarifyComponent={handleClarifyComponent}
                         editMealId={state.editMealId}
                         initialMeal={state.pendingMeal}
                         logDate={state.logDate ?? null}
