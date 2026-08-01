@@ -222,6 +222,7 @@ function MealRow({
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
   const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
+  const [thumbnailSize, setThumbnailSize] = useState(96);
   const photoUri = meal.photoUri && meal.photoUri !== failedPhotoUri ? meal.photoUri : null;
 
   return (
@@ -247,7 +248,8 @@ function MealRow({
               }}
               accessibilityRole="button"
               accessibilityLabel={`View ${meal.name} photo`}
-              className="w-20 h-20 self-center bg-m3-surface-container-highest active:opacity-80"
+              className="self-center bg-m3-surface-container-highest active:opacity-80"
+              style={{ width: thumbnailSize, height: thumbnailSize }}
             >
               <Image
                 source={{ uri: photoUri }}
@@ -258,13 +260,22 @@ function MealRow({
               />
             </Pressable>
           ) : (
-            <View className="w-20 h-20 self-center items-center justify-center">
+            <View
+              className="self-center items-center justify-center"
+              style={{ width: thumbnailSize, height: thumbnailSize }}
+            >
               <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
                 <MaterialCommunityIcons name={foodIcon(meal.name)} size={20} color={M3.onSurfaceVariant} />
               </View>
             </View>
           )}
-          <View className="flex-1 min-w-0 px-4 py-3">
+          <View
+            className="flex-1 min-w-0 px-4 py-3"
+            onLayout={(event) => {
+              const nextSize = Math.max(96, Math.ceil(event.nativeEvent.layout.height));
+              setThumbnailSize((current) => current === nextSize ? current : nextSize);
+            }}
+          >
             <Text
               className="text-m3-on-surface text-base font-bold leading-5"
               numberOfLines={2}
