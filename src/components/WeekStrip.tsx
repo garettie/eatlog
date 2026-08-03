@@ -99,18 +99,17 @@ const DayButton = React.memo(function DayButton({
         ? (event) => onFirstLayout(event.nativeEvent.layout.width)
         : undefined}
       onPress={() => onSelectDate(day.isoDate)}
-      disabled={day.isFuture}
       className="items-center py-1 px-1.5 active:opacity-70"
       accessibilityRole="button"
       accessibilityLabel={DAY_LABEL_FORMATTER.format(day.date) + (day.isToday ? ', today' : '')}
-      accessibilityState={{ selected: isSelected, disabled: day.isFuture }}
-      accessibilityHint={day.isFuture ? undefined : calorieHint}
+      accessibilityState={{ selected: isSelected }}
+      accessibilityHint={day.isFuture ? 'Select to add food for this day in advance' : calorieHint}
     >
       <Text className={`text-compact font-semibold mb-0.5 ${
         day.isToday
           ? 'text-m3-primary'
           : day.isFuture
-            ? 'text-m3-on-surface-variant/30'
+            ? 'text-m3-on-surface-variant/60'
             : 'text-m3-on-surface-variant'
       }`}>
         {day.dayLetter}
@@ -120,7 +119,7 @@ const DayButton = React.memo(function DayButton({
         className="items-center justify-center rounded-full"
         style={[{ width: 36, height: 36, borderWidth: 1.5 }, selectionStyle]}
       >
-        {!day.isFuture && fraction === 0 && (
+        {fraction === 0 && (
           <View
             className="absolute rounded-full"
             style={{ width: 32, height: 32, borderWidth: RING_STROKE, borderColor: M3.outline, opacity: 0.5 }}
