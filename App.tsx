@@ -130,8 +130,8 @@ export default function App() {
         <ResponsiveContent maxWidth={520} className="items-center">
         <Text style={{ color: '#ffb4ab', fontFamily: TYPE.family.regular, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
           {fontError
-            ? "Marco couldn't load its interface fonts. Restart the app and try again."
-            : "Marco couldn't open its local data. Restart the app and try again."}
+            ? "Eatlog couldn't load its interface fonts. Restart the app and try again."
+            : "Eatlog couldn't open its local data. Restart the app and try again."}
         </Text>
         {dbError && !fontError && (
           <Pressable onPress={() => void prepare()} accessibilityRole="button" className="mt-5 min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-6">
@@ -154,13 +154,13 @@ export default function App() {
               <>
                 <Text className="text-center font-semibold text-lg text-m3-on-surface">{maintenance.label} failed</Text>
                 <Text accessibilityLiveRegion="assertive" className="mt-3 text-center text-sm text-m3-error">{maintenanceError}</Text>
-                <Text className="mt-3 text-center text-sm text-m3-on-surface-variant">Marco stopped the operation. Return to verify your local data before trying again.</Text>
+                <Text className="mt-3 text-center text-sm text-m3-on-surface-variant">Eatlog stopped the operation. Return to verify your local data before trying again.</Text>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => { setMaintenance(null); setMaintenanceError(null); setDataEpoch((value) => value + 1); }}
                   className="mt-6 min-h-[48px] justify-center rounded-full bg-m3-primary px-6"
                 >
-                  <Text className="font-semibold text-sm text-m3-on-primary">Return to Marco</Text>
+                  <Text className="font-semibold text-sm text-m3-on-primary">Return to Eatlog</Text>
                 </Pressable>
               </>
             ) : (

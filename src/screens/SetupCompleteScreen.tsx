@@ -168,7 +168,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
                     Log your first meal
                   </Text>
                   <Text className="text-m3-on-surface-variant text-sm">
-                    Point the camera at any meal — Marco estimates the macros for you.
+                    Point the camera at any meal — Eatlog estimates the macros for you.
                     You can review every estimate before it reaches your diary.
                   </Text>
                 </View>

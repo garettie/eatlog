@@ -161,7 +161,7 @@ export function PrivacyScreen() {
     ['Food estimates', serviceConfig.availability.gemini ? 'Photos and descriptions are sent to Gemini when you choose Estimate.' : 'Photo and description estimates are unavailable in this build.'],
     ['Food search', `${serviceConfig.availability.usda ? 'USDA' : 'USDA unavailable'}, Open Food Facts, and your local food cache are used when available.`],
   ];
-  return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">Marco does not provide a place to enter or manage provider credentials.</Text><View className="gap-3">{rows.map(([title, detail]) => <Card key={title} className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">{title}</Text><Text className="text-m3-on-surface-variant text-sm">{detail}</Text></Card>)}</View></ScrollView></Screen>;
+  return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><Text className="text-m3-on-surface-variant text-sm">Eatlog does not provide a place to enter or manage provider credentials.</Text><View className="gap-3">{rows.map(([title, detail]) => <Card key={title} className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">{title}</Text><Text className="text-m3-on-surface-variant text-sm">{detail}</Text></Card>)}</View></ScrollView></Screen>;
 }
 
 export function GoalAndRateScreen() {

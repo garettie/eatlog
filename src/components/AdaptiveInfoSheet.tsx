@@ -29,7 +29,7 @@ function AdaptiveInfoSheet({ visible, onClosed }: AdaptiveInfoSheetProps) {
           Log food on 14 different days to unlock weekly target reviews.
         </Text>
         <Text className="text-m3-on-surface-variant text-sm leading-5">
-          Each week, Marco compares your logged intake with your measured weight trend and
+          Each week, Eatlog compares your logged intake with your measured weight trend and
           proposes updated calorie and macro targets. Nothing changes unless you accept.
         </Text>
         <Text className="text-m3-on-surface-variant text-sm leading-5">

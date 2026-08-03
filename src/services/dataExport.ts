@@ -111,14 +111,14 @@ export async function exportData(onProgress?: OwnershipProgressListener): Promis
       appBuild: application.appBuild,
       databaseVersion: getDatabaseVersion(),
       files: stage.list().filter((entry): entry is File => entry instanceof File).map((file) => file.uri.split('/').pop()),
-      note: 'CSV exports are human-readable and cannot be restored into Marco.',
+      note: 'CSV exports are human-readable and cannot be restored into Eatlog.',
     }, null, 2));
 
     onProgress?.({ operation: 'export', phase: 'zip', completed: 2, total: 3, message: 'Packaging CSV files', cancellable: false });
     await zip(nativePath(stage.uri), nativePath(archive.uri));
     if (!await Sharing.isAvailableAsync()) throw new Error('Android sharing is unavailable.');
     onProgress?.({ operation: 'export', phase: 'share', completed: 3, total: 3, message: 'Choose where to save your export', cancellable: false });
-    await Sharing.shareAsync(archive.uri, { mimeType: 'application/zip', dialogTitle: 'Export Marco data' });
+    await Sharing.shareAsync(archive.uri, { mimeType: 'application/zip', dialogTitle: 'Export Eatlog data' });
     return { operation: 'export', completedAt: new Date().toISOString(), summary: 'CSV export created.' };
   } finally {
     if (archive.exists) archive.delete();

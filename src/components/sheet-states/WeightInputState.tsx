@@ -259,7 +259,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
       {existingOrigin === 'health_connect' ? (
         <View className="rounded-2xl border border-m3-outline-variant/40 bg-m3-surface-container px-4 py-3">
           <Text className="text-sm font-semibold text-m3-on-surface">Imported from Health Connect</Text>
-          <Text className="mt-1 text-sm text-m3-on-surface-variant">Saving changes makes this a Marco entry, so it takes priority for this date.</Text>
+          <Text className="mt-1 text-sm text-m3-on-surface-variant">Saving changes makes this an Eatlog entry, so it takes priority for this date.</Text>
         </View>
       ) : null}
 

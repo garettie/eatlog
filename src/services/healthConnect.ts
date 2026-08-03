@@ -70,7 +70,7 @@ export async function getHealthConnectStatus(): Promise<HealthConnectStatus> {
     message: 'Update Health Connect to use weight sync.',
   };
   const healthConnect = getHealthConnectModule();
-  if (!healthConnect) throw new Error('Health Connect requires a rebuilt Marco APK.');
+  if (!healthConnect) throw new Error('Health Connect requires a rebuilt Eatlog APK.');
   const directions = permissionDirections(await healthConnect.getGrantedPermissions());
   if (!directions.canRead && !directions.canWrite) return {
     kind: 'disconnected', ...directions, enabled: false, lastSyncAt: state.last_sync_at,
@@ -82,7 +82,7 @@ export async function getHealthConnectStatus(): Promise<HealthConnectStatus> {
   };
   if (!directions.canRead || !directions.canWrite) return {
     kind: 'partial', ...directions, enabled: true, lastSyncAt: state.last_sync_at,
-    message: directions.canRead ? 'Marco can import weights but cannot publish them.' : 'Marco can publish weights but cannot import them.',
+    message: directions.canRead ? 'Eatlog can import weights but cannot publish them.' : 'Eatlog can publish weights but cannot import them.',
   };
   return {
     kind: 'connected', ...directions, enabled: true, lastSyncAt: state.last_sync_at,
@@ -104,7 +104,7 @@ export async function connectHealthConnect(): Promise<HealthConnectStatus> {
 
 async function readAllWeights(startTime: string, endTime: string): Promise<ExternalWeightCandidate[]> {
   const healthConnect = getHealthConnectModule();
-  if (!healthConnect) throw new Error('Health Connect requires a rebuilt Marco APK.');
+  if (!healthConnect) throw new Error('Health Connect requires a rebuilt Eatlog APK.');
   const candidates: ExternalWeightCandidate[] = [];
   let pageToken: string | undefined;
   do {
@@ -226,21 +226,21 @@ export async function resumeHealthConnectSync(): Promise<HealthConnectStatus> {
 
 export function manageHealthConnectAccess(): void {
   const healthConnect = getHealthConnectModule();
-  if (!healthConnect) throw new Error('Health Connect requires a rebuilt Marco APK.');
+  if (!healthConnect) throw new Error('Health Connect requires a rebuilt Eatlog APK.');
   healthConnect.openHealthConnectSettings();
 }
 
 export async function deleteMarcoHealthConnectWeights(): Promise<HealthConnectResetResult> {
   if (await availability() !== 'available') return {
-    attempted: false, deleted: false, warning: 'Health Connect is unavailable, so Marco-written weight records may remain there.',
+    attempted: false, deleted: false, warning: 'Health Connect is unavailable, so Eatlog-written weight records may remain there.',
   };
   const healthConnect = getHealthConnectModule();
   if (!healthConnect) return {
-    attempted: false, deleted: false, warning: 'This Marco APK does not include Health Connect, so Marco-written weight records may remain there.',
+    attempted: false, deleted: false, warning: 'This Eatlog APK does not include Health Connect, so Eatlog-written weight records may remain there.',
   };
   const { canWrite } = permissionDirections(await healthConnect.getGrantedPermissions());
   if (!canWrite) return {
-    attempted: false, deleted: false, warning: 'Write access is not granted, so Marco-written weight records may remain in Health Connect.',
+    attempted: false, deleted: false, warning: 'Write access is not granted, so Eatlog-written weight records may remain in Health Connect.',
   };
   try {
     await healthConnect.deleteRecordsByTimeRange('Weight', {
@@ -248,6 +248,6 @@ export async function deleteMarcoHealthConnectWeights(): Promise<HealthConnectRe
     });
     return { attempted: true, deleted: true, warning: null };
   } catch {
-    return { attempted: true, deleted: false, warning: 'Marco could not remove its Health Connect records. They may remain after local reset.' };
+    return { attempted: true, deleted: false, warning: 'Eatlog could not remove its Health Connect records. They may remain after local reset.' };
   }
 }

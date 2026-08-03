@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Marco",
+    "name": "Eatlog",
     "slug": "marco",
     "version": "1.0.0",
     "orientation": "default",
@@ -14,7 +14,7 @@
     "android": {
       "package": "com.marco.tracker",
       "adaptiveIcon": {
-        "backgroundColor": "#111318",
+        "backgroundColor": "#151515",
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -29,18 +29,14 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "splash": {
-      "image": "./assets/splash-scale-static.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#111318"
-    },
     "plugins": [
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#111318",
-          "image": "./assets/splash-scale-static.png",
-          "imageWidth": 200
+          "backgroundColor": "#151515",
+          "image": "./assets/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
         }
       ],
       "expo-sqlite",

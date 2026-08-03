@@ -116,7 +116,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
     const deleteAllData = useCallback(() => {
         Alert.alert(
-            'Delete all Marco data?',
+            'Delete all Eatlog data?',
             'This will erase your profile, food history, weight history, targets, reviews, and saved meal photos from this device.',
             [
                 { text: 'Cancel', style: 'cancel' },
@@ -124,8 +124,8 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                     text: 'Continue', style: 'destructive', onPress: () => {
                         void deleteMarcoHealthConnectWeights().then((healthResult) => {
                             const detail = healthResult.warning
-                                ? `${healthResult.warning}\n\nDelete all local Marco data anyway? This cannot be undone.`
-                                : 'Marco-owned Health Connect weights were removed. Delete all local Marco data now? This cannot be undone.';
+                                ? `${healthResult.warning}\n\nDelete all local Eatlog data anyway? This cannot be undone.`
+                                : 'Eatlog-owned Health Connect weights were removed. Delete all local Eatlog data now? This cannot be undone.';
                             Alert.alert('Final confirmation', detail, [
                                 { text: 'Keep my data', style: 'cancel' },
                                 {
@@ -135,7 +135,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                                 },
                             ]);
                         }).catch(() => {
-                            Alert.alert('Could not check Health Connect', 'Marco-owned weight records may remain in Health Connect. Delete all local data anyway?', [
+                            Alert.alert('Could not check Health Connect', 'Eatlog-owned weight records may remain in Health Connect. Delete all local data anyway?', [
                                 { text: 'Cancel', style: 'cancel' },
                                 { text: 'Delete local data', style: 'destructive', onPress: () => { void runDataMaintenance('Deleting all data', resetLocalData).catch(() => { }); } },
                             ]);
@@ -191,7 +191,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
         );
     }
 
-    const displayName = profile.display_name.trim() || 'Marco user';
+    const displayName = profile.display_name.trim() || 'Eatlog user';
     const targetWeight = profile.target_weight_kg == null
         ? 'No target weight'
         : `${fromKilograms(profile.target_weight_kg, profile.weight_unit).toFixed(1)} ${profile.weight_unit}`;
@@ -276,16 +276,16 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                     </Section>
 
                     <Section title="Data & Sync">
-                        <ProfileSettingRow icon="backup" title="Backup and restore" detail="Complete portable Marco backup" onPress={() => navigation.navigate('BackupRestore')} />
+                        <ProfileSettingRow icon="backup" title="Backup and restore" detail="Complete portable Eatlog backup" onPress={() => navigation.navigate('BackupRestore')} />
                         <ProfileSettingRow icon="file-download" title="Export data" detail="Human-readable ZIP and CSV files" onPress={() => navigation.navigate('ExportData')} />
                         <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync your weight logs" onPress={() => navigation.navigate('HealthConnect')} />
-                        <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase Marco data from this device" onPress={deleteAllData} showDivider={false} />
+                        <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase Eatlog data from this device" onPress={deleteAllData} showDivider={false} />
                     </Section>
 
                     <Section title="Help & About">
-                        <ProfileSettingRow icon="help-outline" title="How Marco works" detail="No help article is available" disabled />
+                        <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="No help article is available" disabled />
                         <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="Your plan stays on this device" onPress={() => navigation.navigate('Privacy')} />
-                        <ProfileSettingRow icon="info-outline" title="About" detail="Marco for Android" showDivider={false} />
+                        <ProfileSettingRow icon="info-outline" title="About" detail="Eatlog for Android" showDivider={false} />
                     </Section>
                 </View>
                 </View>

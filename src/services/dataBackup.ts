@@ -147,7 +147,7 @@ export async function shareBackup(onProgress?: OwnershipProgressListener, signal
     onProgress?.({ operation: 'backup', phase: 'share', completed: 3, total: 3, message: 'Choose where to save your backup', cancellable: false });
     await Sharing.shareAsync(archive.uri, {
       mimeType: 'application/octet-stream',
-      dialogTitle: 'Save Marco backup',
+      dialogTitle: 'Save Eatlog backup',
       UTI: 'public.archive',
     });
     return { operation: 'backup', completedAt: new Date().toISOString(), summary: 'Backup created.' };
@@ -307,7 +307,7 @@ export async function restoreBackup(preview: RestorePreview, onProgress?: Owners
       resetDatabaseConnection();
       await initDatabase();
     } catch (rollbackError) {
-      throw new AggregateError([error, rollbackError], 'Restore failed and Marco could not complete its automatic rollback.');
+      throw new AggregateError([error, rollbackError], 'Restore failed and Eatlog could not complete its automatic rollback.');
     }
     throw error;
   } finally {

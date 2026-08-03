@@ -24,7 +24,7 @@ export async function resetLocalData(onProgress?: OwnershipProgressListener): Pr
   resetDatabaseConnection();
   await SQLite.deleteDatabaseAsync('marco.db');
 
-  onProgress?.({ operation: 'reset', phase: 'initialize', completed: 2, total: 3, message: 'Preparing a fresh Marco database', cancellable: false });
+  onProgress?.({ operation: 'reset', phase: 'initialize', completed: 2, total: 3, message: 'Preparing a fresh Eatlog database', cancellable: false });
   await initDatabase();
-  return { operation: 'reset', completedAt: new Date().toISOString(), summary: 'All local Marco data was deleted.' };
+  return { operation: 'reset', completedAt: new Date().toISOString(), summary: 'All local Eatlog data was deleted.' };
 }

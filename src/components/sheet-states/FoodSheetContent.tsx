@@ -638,7 +638,7 @@ function PermissionDeniedState({
             await Linking.openSettings();
         } catch (error) {
             console.error('[FoodSheet] settings launch failed', error);
-            Alert.alert('Couldn’t open Settings', 'Open Android Settings and allow camera access for Marco.');
+            Alert.alert('Couldn’t open Settings', 'Open Android Settings and allow camera access for Eatlog.');
         }
     }, []);
 
