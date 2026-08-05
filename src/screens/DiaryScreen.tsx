@@ -28,6 +28,7 @@ import {
   MealRow,
 } from '../db/database';
 import { todayISO, isoFromDate, getMonthStart, getMonthDates, isToday, isFuture, formatDayHeader, formatMonthLabel } from '../utils/calendar';
+import { useToday } from '../hooks/useToday';
 import { M3 } from '../theme/tokens';
 import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
@@ -97,6 +98,7 @@ interface DiaryScreenProps {
 
 function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast }: DiaryScreenProps) {
   const reduced = useReducedMotion();
+  const today = useToday();
   const [selectedDate, setSelectedDate] = useState(() => todayISO());
   const [displayedDate, setDisplayedDate] = useState(() => todayISO());
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
@@ -378,7 +380,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
         calories: macros?.calories ?? 0,
         targetCalories: target?.target_calories ?? 0,
       };
-    }), [dayTargetMap, monthDates, monthMacroMap]);
+    }), [dayTargetMap, monthDates, monthMacroMap, today]);
 
   const shiftMonth = useCallback((delta: number) => {
     const next = new Date(monthAnchorRef.current);
@@ -428,6 +430,20 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
       }
     }
   }, [loadDay, loadMonth, onSelectedDateChange, prefetchAdjacentMonths]);
+
+  const previousTodayRef = useRef(today);
+  useEffect(() => {
+    const previous = previousTodayRef.current;
+    previousTodayRef.current = today;
+    if (today === previous) return;
+    if (selectedDateRef.current === previous) {
+      selectDate(today);
+    }
+  }, [selectDate, today]);
+
+  useEffect(() => {
+    onSelectedDateChange(selectedDate);
+  }, [onSelectedDateChange, selectedDate]);
 
   const todayTarget = dayTargetMap.get(displayedDate);
   const targetCalories = todayTarget?.target_calories ?? 0;

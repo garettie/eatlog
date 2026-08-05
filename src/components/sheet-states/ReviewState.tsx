@@ -15,6 +15,7 @@ import { FoodResult } from '../../services/foodSearch';
 import { DescribeResult } from '../../services/foodScan';
 import { EASING } from '../../theme/motion';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
+import { useToday } from '../../hooks/useToday';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import AddComponentSection from '../AddComponentSection';
 import MealSelector from '../MealSelector';
@@ -128,6 +129,9 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   const discardGuard = useDiscardGuardContext();
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
+  const today = useToday();
+  const logDateExplicitRef = useRef<boolean>(logDateProp != null);
+  const effectiveLogDate = logDateExplicitRef.current ? logDate : today;
 
   useEffect(() => {
     if (previousResultRef.current === result) return;
@@ -343,7 +347,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
       const saved = await saveMealWithComponents({
         editMealId,
         name,
-        log_date: logDate,
+        log_date: effectiveLogDate,
         meal_type: meal,
         photo_uri: selectedPhotoUri,
         components: components.map((comp) => {
@@ -353,7 +357,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         const carb = Math.round(comp.per100g.carbs * ratio * 10) / 10;
         const fat = Math.round(comp.per100g.fat * ratio * 10) / 10;
         return {
-          log_date: logDate,
+          log_date: effectiveLogDate,
           name: comp.food.name,
           source: (comp.food.source as 'describe' | 'manual') || 'manual',
           source_food_id: comp.food.sourceFoodId || undefined,
@@ -376,7 +380,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         }),
       });
       loggedRef.current = true;
-      onLogComplete({ mealId: saved.mealId, logIds: saved.logIds, meal, name, calories: totalMacros.calories, wasUpdate: !!editMealId, logDate });
+      onLogComplete({ mealId: saved.mealId, logIds: saved.logIds, meal, name, calories: totalMacros.calories, wasUpdate: !!editMealId, logDate: effectiveLogDate });
     } catch (e) {
       console.error('[MealReview] save failed', e);
       setLogError(editMealId
@@ -385,7 +389,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
     } finally {
       setLogging(false);
     }
-  }, [components, mealName, meal, onLogComplete, editMealId, logDate, selectedPhotoUri, totalMacros.calories]);
+  }, [components, mealName, meal, onLogComplete, editMealId, effectiveLogDate, selectedPhotoUri, totalMacros.calories]);
 
   const handleClarify = useCallback(async () => {
     const name = mealName.trim();
@@ -730,7 +734,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         <Pressable
           onPress={() => setDateSelectorVisible(true)}
           accessibilityRole="button"
-          accessibilityLabel={`Log date, ${formatDayHeader(logDate)}`}
+          accessibilityLabel={`Log date, ${formatDayHeader(effectiveLogDate)}`}
           className="min-h-[48px] flex-row items-center rounded-2xl bg-m3-surface-container-high px-4 border border-m3-outline-variant/30 active:opacity-70"
         >
           <MaterialIcons name="event" size={18} color={M3.onSurfaceVariant} />
@@ -739,7 +743,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
               Date
             </Text>
             <Text className="text-m3-on-surface text-sm font-semibold">
-              {formatDayHeader(logDate)}
+              {formatDayHeader(effectiveLogDate)}
             </Text>
           </View>
           <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
@@ -761,13 +765,14 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
       </View>
       <DateSelector
         visible={dateSelectorVisible}
-        value={parseLocalISO(logDate)}
+        value={parseLocalISO(effectiveLogDate)}
         minimumDate={new Date(1900, 0, 1)}
         maximumDate={parseLocalISO(todayISO())}
         onCancel={() => setDateSelectorVisible(false)}
         onConfirm={(date) => {
           setDateSelectorVisible(false);
           const nextDate = isoFromDate(date);
+          logDateExplicitRef.current = true;
           if (nextDate === logDate) return;
           dirtyRef.current = true;
           setLogDate(nextDate);

@@ -20,6 +20,7 @@ import SegmentedControl from '../SegmentedControl';
 import { formatLocalISO, parseLocalISO, todayISO } from '../../utils/calendar';
 import { formatWeight, fromKilograms, parseWeightInput, toKilograms } from '../../utils/weightUnits';
 import { M3 } from '../../theme/tokens';
+import { useToday } from '../../hooks/useToday';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import SheetBackButton from './SheetBackButton';
 
@@ -69,10 +70,13 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
   const [saveError, setSaveError] = useState<string | null>(null);
   const baselineRef = useRef<Baseline>({ dateISO: todayISO(), weightKg: null, unit: 'kg' });
   const draftRef = useRef<Baseline>(baselineRef.current);
+  const today = useToday();
+  const dateExplicitRef = useRef(false);
+  const effectiveDate = dateExplicitRef.current ? dateISO : today;
 
   const parsed = parseWeightInput(weightText);
   const weightKg = parsed == null ? null : toKilograms(parsed, unit);
-  draftRef.current = { dateISO, weightKg, unit };
+  draftRef.current = { dateISO: effectiveDate, weightKg, unit };
 
   const loadDate = useCallback(async (nextDateISO: string, nextUnit: WeightUnit) => {
     setLoading(true);
@@ -158,13 +162,13 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
     setSaving(true);
     setSaveError(null);
     try {
-      const neighbors = await getNearestWeightNeighbors(dateISO);
+      const neighbors = await getNearestWeightNeighbors(effectiveDate);
       const suspicious = [neighbors.before, neighbors.after].some(
         (neighbor) => neighbor != null && isLargeJump(canonicalKg, neighbor.scale_weight_kg),
       );
       if (suspicious && !await confirmLargeJump()) return;
-      const result = await saveWeightLog({ logDate: dateISO, scaleWeightKg: canonicalKg, weightUnit: unit });
-      baselineRef.current = { dateISO, weightKg: result.log.scale_weight_kg, unit };
+      const result = await saveWeightLog({ logDate: effectiveDate, scaleWeightKg: canonicalKg, weightUnit: unit });
+      baselineRef.current = { dateISO: effectiveDate, weightKg: result.log.scale_weight_kg, unit };
       draftRef.current = baselineRef.current;
       onLogComplete(result);
     } catch (error) {
@@ -173,7 +177,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
     } finally {
       setSaving(false);
     }
-  }, [dateISO, onLogComplete, unit, weightText]);
+  }, [effectiveDate, onLogComplete, unit, weightText]);
 
   if (!ready && !loadError) {
     return (
@@ -225,7 +229,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
         className="min-h-[52px] px-4 rounded-2xl bg-m3-surface-container-high border border-m3-outline-variant/30 flex-row items-center justify-between active:opacity-70"
       >
         <Text className="text-m3-on-surface text-sm font-semibold">
-          {parseLocalISO(dateISO).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          {parseLocalISO(effectiveDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
         </Text>
         <MaterialIcons name="calendar-today" size={18} color={M3.onSurfaceVariant} />
       </Pressable>
@@ -277,12 +281,13 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
 
       <DateSelector
         visible={dateSelectorVisible}
-        value={parseLocalISO(dateISO)}
+        value={parseLocalISO(effectiveDate)}
         minimumDate={birthDate}
         maximumDate={parseLocalISO(todayISO())}
         onCancel={() => setDateSelectorVisible(false)}
         onConfirm={(date) => {
           setDateSelectorVisible(false);
+          dateExplicitRef.current = true;
           void loadDate(formatLocalISO(date), unit);
         }}
       />

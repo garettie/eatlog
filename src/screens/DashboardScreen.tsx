@@ -31,6 +31,7 @@ import {
   LastEntry,
 } from '../db/database';
 import { addCalendarDays, todayISO } from '../utils/calendar';
+import { useToday } from '../hooks/useToday';
 import { foodIcon } from '../utils/foodIcons';
 import { M3 } from '../theme/tokens';
 import ResponsiveContent from '../components/ResponsiveContent';
@@ -183,6 +184,7 @@ function DashboardScreen({
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
   const reduced = useReducedMotion();
+  const today = useToday();
   const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
@@ -250,6 +252,13 @@ function DashboardScreen({
     if (!initialLoadDone.current) return; // skip mount, useFocusEffect handles it
     loadData(false);
   }, [dataVersion, loadData]);
+
+  const previousTodayRef = useRef(today);
+  useEffect(() => {
+    if (previousTodayRef.current === today) return;
+    previousTodayRef.current = today;
+    loadData(false);
+  }, [loadData, today]);
 
   const calorieSummary = useMemo(() => {
     const consumedCals = Math.round(todayMacros.calories);
