@@ -191,6 +191,7 @@ export default function DayStrip({
   const periodOpacity = useSharedValue(1);
   const previousMonthLabelRef = useRef(monthLabel);
   const previousPeriodStartRef = useRef(days[0]?.date.getTime() ?? 0);
+  const lastScrollMonthRef = useRef<string | null>(null);
   daysRef.current = days;
   cellWidthRef.current = cellWidth;
 
@@ -249,6 +250,8 @@ export default function DayStrip({
   }, [performScroll]);
 
   useEffect(() => {
+    if (lastScrollMonthRef.current === monthLabel) return;
+    lastScrollMonthRef.current = monthLabel;
     pendingScrollRef.current = { selectedDate, monthLabel };
     requestAnimationFrame(() => performScroll());
   }, [monthLabel, selectedDate, performScroll]);
