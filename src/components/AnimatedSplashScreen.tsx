@@ -13,7 +13,14 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 
-const AnimatedG = Reanimated.createAnimatedComponent(G);
+type GroupMatrix = [number, number, number, number, number, number];
+type GroupAnimatedProps = { matrix: GroupMatrix };
+
+type AnimatedGroupProps = React.ComponentProps<typeof G> & {
+  animatedProps?: Partial<GroupAnimatedProps>;
+};
+
+const AnimatedG = Reanimated.createAnimatedComponent(G) as React.ComponentType<AnimatedGroupProps>;
 
 const BACKGROUND = '#111318';
 const EGG = '#FFFFFF';
@@ -56,8 +63,9 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
     void prepare();
   }, [fadeAnim, onAnimationFinish, reduced, tickTravel]);
 
-  const tickTrackProps = useAnimatedProps(() => ({
-    transform: `translate(${tickTravel.value} 0)`,
+  // Animate the native Group matrix directly; Reanimated bypasses G's transform extraction.
+  const tickTrackProps = useAnimatedProps<GroupAnimatedProps>(() => ({
+    matrix: [1, 0, 0, 1, tickTravel.value, 0],
   }));
   const containerStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
