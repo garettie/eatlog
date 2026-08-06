@@ -15,7 +15,6 @@ import { StatusBar } from 'expo-status-bar';
 import { initDatabase, getActiveMealPhotoUris } from './src/db/database';
 import { cleanupOrphanMealPhotos } from './src/utils/mealPhotos';
 import RootNavigator from './src/navigation/RootNavigator';
-import { AnimatedSplashScreen } from './src/components/AnimatedSplashScreen';
 import { M3, TYPE } from './src/theme/tokens';
 import { DataMaintenanceContext, type MaintenanceTask } from './src/context/DataMaintenanceContext';
 import type { OwnershipProgressEvent, OwnershipResult } from './src/services/dataOwnership.types';
@@ -40,7 +39,6 @@ const navigationTheme: Theme = {
 export default function App() {
   const [appReady, setAppReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
-  const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
   const databaseInitRef = useRef<Promise<void> | null>(null);
   const [dataEpoch, setDataEpoch] = useState(0);
   const [maintenance, setMaintenance] = useState<{
@@ -78,7 +76,6 @@ export default function App() {
         console.error('DB init error:', e);
         setDbError(String(e));
         setAppReady(true);
-        await SplashScreen.hideAsync();
       }
     })();
     databaseInitRef.current = initialization;
@@ -92,6 +89,12 @@ export default function App() {
   useEffect(() => {
     void prepare();
   }, [prepare]);
+
+  useEffect(() => {
+    if (appReady && (fontsLoaded || fontError)) {
+      void SplashScreen.hideAsync();
+    }
+  }, [appReady, fontError, fontsLoaded]);
 
   const runDataMaintenance = useCallback((label: string, task: MaintenanceTask) => (
     new Promise<OwnershipResult>((resolve, reject) => {
@@ -197,10 +200,6 @@ export default function App() {
           </NavigationContainer>
         )}
       </DataMaintenanceContext.Provider>
-      
-      {!splashAnimationFinished && (
-        <AnimatedSplashScreen onAnimationFinish={() => setSplashAnimationFinished(true)} />
-      )}
     </GestureHandlerRootView>
   );
 }

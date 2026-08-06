@@ -4,12 +4,9 @@ ijfw_schema: 1
 type: software
 primary_type: software
 secondary_types: []
-confidence: 0.943
-detected_at: 2026-08-01T06:44:21.319Z
+confidence: 0.907
+detected_at: 2026-07-29T01:14:49.485Z
 signals:
-  - kind: agents_md_frontmatter
-    weight: 0.9
-    value: software
   - kind: manifest
     weight: 0.9
     manifests: [package.json]
@@ -20,7 +17,7 @@ signals:
     weight: 0.7
     domain: software
     ratio: 1
-    count: 87
+    count: 70
 ---
 # AGENTS.md
 
@@ -251,6 +248,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Typography uses named Onest 400/500/600/700 assets. NativeWind's web preflight does not set the native default, so every `text-*` size role must bind Onest Regular. Every Onest family utility must emit `fontWeight: 400` even for medium/semibold/bold files; otherwise Android searches for a variant of the already-weighted named asset and falls back to Roboto. Reserve `text-compact` (11/14) for dense chart, calendar, nutrition, and ruler metadata, never explanatory or actionable copy.
 - Eatlog raster branding must derive from one canonical 1024×1024 flat-white egg mask; vary only platform-required padding/background, and update every legacy PNG alias with the same branding change.
 - Direct pushes to GitHub SSH remotes do not require authenticated `gh`; use `git commit` and `git push` when explicitly requested, and reserve `gh` authentication for API or PR operations.
+- Never treat a human-readable CSV export as a restorable backup; only `.eatlog-backup` and legacy `.marco-backup` archives containing `manifest.json` and `database.sqlite` can be restored.
 
 ---
 
