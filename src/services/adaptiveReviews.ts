@@ -3,31 +3,50 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   AdaptiveReview,
   DailyTarget,
+  IntakeDayConfirmation,
+  IntakeDayConfirmationStatus,
   Profile,
   WeightLog,
   getDb,
 } from '../db/database';
 import {
   AdaptiveEligibility as CalculatedEligibility,
+  AdaptivePauseReason,
   AdaptiveRecommendation,
+  AdaptiveIntakeConfirmationDay,
   calculateAdaptiveRecommendation,
-  evaluateAdaptiveEligibility,
 } from '../utils/adaptiveRecommendations';
-import { addCalendarDays, calendarDaysBetween, todayISO } from '../utils/calendar';
+import { ADAPTIVE_ALGORITHM_CONFIG } from '../utils/adaptiveAlgorithmConfig';
+import { gateAdaptiveReview } from '../utils/adaptiveReviewGate';
+import { addCalendarDays, calendarDaysBetween, parseLocalISO, todayISO } from '../utils/calendar';
 
 export interface AdaptiveEligibility {
   intakeDayCount: number;
-  requiredIntakeDayCount: 10;
+  requiredIntakeDayCount: number;
   weightLogCount: number;
-  requiredWeightLogCount: 4;
-  hasEarlyWeight: boolean;
-  hasLateWeight: boolean;
+  requiredWeightLogCount: number;
+  daysSinceLastWeight: number | null;
+  maximumDaysSinceLastWeight: number;
+  hasRecentWeight: boolean;
   endpointSpanDays: number;
-  requiredEndpointSpanDays: 7;
+  requiredEndpointSpanDays: number;
 }
 
 export type AdaptiveReviewState =
-  | { kind: 'collecting'; reviewDate: string; eligibility: AdaptiveEligibility }
+  | {
+      kind: 'holding';
+      reviewDate: string;
+      reason: 'insufficient_evidence' | 'intake_confirmation_required';
+      eligibility: AdaptiveEligibility;
+      currentTarget: DailyTarget;
+      confirmationDays: AdaptiveIntakeConfirmationDay[];
+    }
+  | {
+      kind: 'paused';
+      reviewDate: string;
+      reason: AdaptivePauseReason;
+      eligibility: AdaptiveEligibility;
+    }
   | { kind: 'ready'; review: AdaptiveReview }
   | { kind: 'next-review'; nextReviewDate: string; latestDecision: AdaptiveReview };
 
@@ -45,25 +64,32 @@ interface ReviewEvidence {
   target: DailyTarget;
   dailyCalories: DailyCaloriesRow[];
   weights: WeightLog[];
+  intakeDayConfirmations: IntakeDayConfirmation[];
   eligibility: CalculatedEligibility;
   recommendation: AdaptiveRecommendation | null;
+  pauseReason: AdaptivePauseReason | null;
+  confirmationDays: AdaptiveIntakeConfirmationDay[];
 }
 
 function toPublicEligibility(value: CalculatedEligibility): AdaptiveEligibility {
   return {
     intakeDayCount: value.intakeDayCount,
-    requiredIntakeDayCount: 10,
+    requiredIntakeDayCount: value.requiredIntakeDayCount,
     weightLogCount: value.weightLogCount,
-    requiredWeightLogCount: 4,
-    hasEarlyWeight: value.hasEarlyWeight,
-    hasLateWeight: value.hasLateWeight,
+    requiredWeightLogCount: value.requiredWeightLogCount,
+    daysSinceLastWeight: value.daysSinceLastWeight,
+    maximumDaysSinceLastWeight: value.maximumDaysSinceLastWeight,
+    hasRecentWeight: value.hasRecentWeight,
     endpointSpanDays: value.endpointSpanDays,
-    requiredEndpointSpanDays: 7,
+    requiredEndpointSpanDays: value.requiredEndpointSpanDays,
   };
 }
 
 async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<ReviewEvidence> {
-  const windowStart = addCalendarDays(reviewDate, -13);
+  const windowStart = addCalendarDays(
+    reviewDate,
+    -(ADAPTIVE_ALGORITHM_CONFIG.windowDays - 1),
+  );
   const profile = await db.getFirstAsync<Profile>('SELECT * FROM profile WHERE id = 1');
   const target = await db.getFirstAsync<DailyTarget>(
     'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC, id DESC LIMIT 1',
@@ -85,6 +111,13 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
     'SELECT * FROM weight_logs WHERE log_date BETWEEN ? AND ? ORDER BY log_date ASC',
     [evidenceStart, reviewDate],
   );
+  const intakeDayConfirmations = await db.getAllAsync<IntakeDayConfirmation>(
+    `SELECT log_date, status, confirmation_source, confirmed_at
+     FROM adaptive_intake_day_confirmations
+     WHERE log_date BETWEEN ? AND ?
+     ORDER BY log_date ASC`,
+    [evidenceStart, reviewDate],
+  );
   const eligibilityInput = {
     reviewDate,
     dailyCalories: dailyCalories.map((row) => ({ date: row.log_date, calories: row.calories })),
@@ -93,24 +126,46 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
       scaleWeightKg: row.scale_weight_kg,
       trendWeightKg: row.trend_weight_kg,
     })),
+    intakeDayConfirmations: intakeDayConfirmations.map((row) => ({
+      date: row.log_date,
+      status: row.status,
+      source: row.confirmation_source,
+    })),
   };
-  const eligibility = evaluateAdaptiveEligibility(eligibilityInput);
-  const recommendation = eligibility.eligible
-    ? calculateAdaptiveRecommendation({
-        ...eligibilityInput,
-        profile: {
-          sex: profile.sex,
-          heightCm: profile.height_cm,
-          birthDate: profile.birth_date,
-          goalType: profile.goal_type,
-          goalRateKgPerWeek: profile.goal_rate_kg_per_week,
-          proteinPreference: profile.protein_preference,
-        },
-        previousTdee: target.tdee_estimate,
-        previousTargetId: target.id,
-      })
-    : null;
-  return { profile, target, dailyCalories, weights, eligibility, recommendation };
+  const calculation = calculateAdaptiveRecommendation({
+    ...eligibilityInput,
+    profile: {
+      sex: profile.sex,
+      heightCm: profile.height_cm,
+      birthDate: profile.birth_date,
+      goalType: profile.goal_type,
+      goalRateKgPerWeek: profile.goal_rate_kg_per_week,
+      proteinPreference: profile.protein_preference,
+    },
+    previousTdee: target.tdee_estimate,
+    previousTargetId: target.id,
+  });
+  const gate = gateAdaptiveReview(calculation, target);
+  const recommendation = gate.kind === 'persist' ? gate.recommendation : null;
+  const eligibility = calculation.kind === 'recommendation'
+    ? calculation.recommendation.eligibility
+    : calculation.eligibility;
+  const pauseReason = gate.kind === 'paused' ? gate.reason : null;
+  const confirmationDays = gate.kind === 'holding'
+    && gate.reason === 'intake_confirmation_required'
+    ? gate.confirmationDays
+    : [];
+  return {
+    profile,
+    target,
+    dailyCalories,
+    weights,
+    intakeDayConfirmations,
+    eligibility,
+    recommendation,
+    pauseReason,
+    confirmationDays,
+  };
 }
 
 function reviewValues(reviewDate: string, evidence: ReviewEvidence) {
@@ -184,29 +239,62 @@ async function writePendingReview(
 async function refreshPending(
   db: SQLiteDatabase,
   pending: AdaptiveReview,
+  reviewDate = pending.review_date,
 ): Promise<AdaptiveReviewState> {
-  const evidence = await loadEvidence(db, pending.review_date);
+  const evidence = await loadEvidence(db, reviewDate);
+  if (evidence.pauseReason) {
+    await db.runAsync(
+      "UPDATE adaptive_reviews SET status = 'superseded', resolved_at = datetime('now', 'localtime') WHERE id = ? AND status = 'pending'",
+      [pending.id],
+    );
+    return {
+      kind: 'paused',
+      reviewDate,
+      reason: evidence.pauseReason,
+      eligibility: toPublicEligibility(evidence.eligibility),
+    };
+  }
+  if (evidence.confirmationDays.length > 0) {
+    await db.runAsync(
+      "UPDATE adaptive_reviews SET status = 'superseded', resolved_at = datetime('now', 'localtime') WHERE id = ? AND status = 'pending'",
+      [pending.id],
+    );
+    return {
+      kind: 'holding',
+      reviewDate,
+      reason: 'intake_confirmation_required',
+      eligibility: toPublicEligibility(evidence.eligibility),
+      currentTarget: evidence.target,
+      confirmationDays: evidence.confirmationDays,
+    };
+  }
   if (!evidence.eligibility.eligible) {
     await db.runAsync(
       "UPDATE adaptive_reviews SET status = 'superseded', resolved_at = datetime('now', 'localtime') WHERE id = ? AND status = 'pending'",
       [pending.id],
     );
     return {
-      kind: 'collecting',
-      reviewDate: pending.review_date,
+      kind: 'holding',
+      reviewDate,
+      reason: 'insufficient_evidence',
       eligibility: toPublicEligibility(evidence.eligibility),
+      currentTarget: evidence.target,
+      confirmationDays: [],
     };
   }
   if (evidence.recommendation!.evidenceHash !== pending.evidence_hash) {
-    const refreshed = await writePendingReview(db, pending.review_date, evidence, pending.id);
+    const refreshed = await writePendingReview(db, reviewDate, evidence, pending.id);
     if (refreshed.status === 'accepted' || refreshed.status === 'kept') {
       return { kind: 'next-review', nextReviewDate: addCalendarDays(refreshed.review_date, 7), latestDecision: refreshed };
     }
     if (refreshed.status === 'superseded') {
       return {
-        kind: 'collecting',
+        kind: 'holding',
         reviewDate: refreshed.review_date,
+        reason: 'insufficient_evidence',
         eligibility: toPublicEligibility(evidence.eligibility),
+        currentTarget: evidence.target,
+        confirmationDays: [],
       };
     }
     return { kind: 'ready', review: refreshed };
@@ -219,7 +307,7 @@ export async function getAdaptiveReviewState(reviewDate: string): Promise<Adapti
   const pending = await db.getFirstAsync<AdaptiveReview>(
     "SELECT * FROM adaptive_reviews WHERE status = 'pending' ORDER BY review_date DESC LIMIT 1",
   );
-  if (pending) return refreshPending(db, pending);
+  if (pending) return refreshPending(db, pending, reviewDate);
 
   const activeTarget = await db.getFirstAsync<DailyTarget>(
     'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC, id DESC LIMIT 1',
@@ -242,11 +330,32 @@ export async function getAdaptiveReviewState(reviewDate: string): Promise<Adapti
   }
 
   const evidence = await loadEvidence(db, reviewDate);
+  if (evidence.pauseReason) {
+    return {
+      kind: 'paused',
+      reviewDate,
+      reason: evidence.pauseReason,
+      eligibility: toPublicEligibility(evidence.eligibility),
+    };
+  }
+  if (evidence.confirmationDays.length > 0) {
+    return {
+      kind: 'holding',
+      reviewDate,
+      reason: 'intake_confirmation_required',
+      eligibility: toPublicEligibility(evidence.eligibility),
+      currentTarget: evidence.target,
+      confirmationDays: evidence.confirmationDays,
+    };
+  }
   if (!evidence.eligibility.eligible) {
     return {
-      kind: 'collecting',
+      kind: 'holding',
       reviewDate,
+      reason: 'insufficient_evidence',
       eligibility: toPublicEligibility(evidence.eligibility),
+      currentTarget: evidence.target,
+      confirmationDays: [],
     };
   }
 
@@ -272,6 +381,34 @@ export async function getAdaptiveReviewState(reviewDate: string): Promise<Adapti
     }
     throw error;
   }
+}
+
+export async function confirmAdaptiveIntakeDay(
+  reviewDate: string,
+  logDate: string,
+  status: IntakeDayConfirmationStatus,
+): Promise<AdaptiveReviewState> {
+  parseLocalISO(reviewDate);
+  parseLocalISO(logDate);
+  if (!['complete', 'partial', 'intentional_fast'].includes(status)) {
+    throw new RangeError('Intake confirmation status is invalid');
+  }
+  const windowStart = addCalendarDays(reviewDate, -(ADAPTIVE_ALGORITHM_CONFIG.windowDays - 1));
+  if (logDate < windowStart || logDate > reviewDate) {
+    throw new RangeError('Intake confirmation date is outside the review window');
+  }
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO adaptive_intake_day_confirmations
+       (log_date, status, confirmation_source, confirmed_at)
+     VALUES (?, ?, 'adaptive_review', datetime('now', 'localtime'))
+     ON CONFLICT(log_date) DO UPDATE SET
+       status = excluded.status,
+       confirmation_source = excluded.confirmation_source,
+       confirmed_at = excluded.confirmed_at`,
+    [logDate, status],
+  );
+  return getAdaptiveReviewState(reviewDate);
 }
 
 async function resolveReview(
@@ -302,11 +439,11 @@ async function resolveReview(
       return;
     }
     const evidence = await loadEvidence(txn, review.review_date);
-    if (!evidence.eligibility.eligible || evidence.recommendation!.evidenceHash !== review.evidence_hash) {
-      const refreshed = evidence.eligibility.eligible
+    if (!evidence.recommendation || evidence.recommendation.evidenceHash !== review.evidence_hash) {
+      const refreshed = evidence.recommendation
         ? await writePendingReview(txn, review.review_date, evidence, review.id)
         : review;
-      if (!evidence.eligibility.eligible) {
+      if (!evidence.recommendation) {
         await txn.runAsync(
           "UPDATE adaptive_reviews SET status = 'superseded', resolved_at = datetime('now', 'localtime') WHERE id = ?",
           [review.id],

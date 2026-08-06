@@ -17,6 +17,8 @@ export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type WeightUnit = 'kg' | 'lb';
 export type WeightOrigin = 'marco' | 'health_connect';
 export type AdaptiveReviewStatus = 'pending' | 'accepted' | 'kept' | 'superseded';
+export type IntakeDayConfirmationStatus = 'complete' | 'partial' | 'intentional_fast';
+export type IntakeDayConfirmationSource = 'adaptive_review';
 
 export interface Profile {
   id: number;
@@ -102,9 +104,16 @@ export interface AdaptiveReview {
   resolved_at: string | null;
 }
 
+export interface IntakeDayConfirmation {
+  log_date: string;
+  status: IntakeDayConfirmationStatus;
+  confirmation_source: IntakeDayConfirmationSource;
+  confirmed_at: string;
+}
+
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-const DATABASE_VERSION = 6;
+const DATABASE_VERSION = 7;
 
 export function getDatabaseVersion(): number {
   return DATABASE_VERSION;
@@ -427,6 +436,23 @@ export async function initDatabase(): Promise<void> {
         );
         CREATE INDEX idx_weight_logs_origin_date ON weight_logs(origin, log_date);
         PRAGMA user_version = 6;
+      `);
+    });
+    currentVersion = 6;
+  }
+
+  if (currentVersion === 6) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync(`
+        CREATE TABLE adaptive_intake_day_confirmations (
+          log_date TEXT PRIMARY KEY,
+          status TEXT NOT NULL CHECK (status IN ('complete', 'partial', 'intentional_fast')),
+          confirmation_source TEXT NOT NULL CHECK (confirmation_source IN ('adaptive_review')),
+          confirmed_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+        );
+        CREATE INDEX idx_adaptive_intake_confirmations_status_date
+          ON adaptive_intake_day_confirmations(status, log_date);
+        PRAGMA user_version = 7;
       `);
     });
   }

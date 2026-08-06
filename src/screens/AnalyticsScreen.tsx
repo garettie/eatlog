@@ -23,6 +23,7 @@ import {
 import {
   AdaptiveReviewState,
   acceptAdaptiveReview,
+  confirmAdaptiveIntakeDay,
   getAdaptiveReviewState,
   keepAdaptiveReview,
 } from '../services/adaptiveReviews';
@@ -195,6 +196,7 @@ function AnalyticsScreen({
   const [recommendationError, setRecommendationError] = useState(false);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
   const [resolving, setResolving] = useState<'accept' | 'keep' | null>(null);
+  const [confirmingIntakeDate, setConfirmingIntakeDate] = useState<string | null>(null);
   const [staleMessage, setStaleMessage] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
 
@@ -383,6 +385,27 @@ function AnalyticsScreen({
       if (mountedRef.current) setResolving(null);
     }
   }, [enqueue, onDataChanged, recommendation, resolving]);
+
+  const confirmIntakeDay = useCallback(async (
+    logDate: string,
+    status: 'complete' | 'partial' | 'intentional_fast',
+  ) => {
+    if (confirmingIntakeDate || recommendation?.kind !== 'holding') return;
+    setConfirmingIntakeDate(logDate);
+    try {
+      await enqueue(async () => {
+        const next = await confirmAdaptiveIntakeDay(recommendation.reviewDate, logDate, status);
+        if (!mountedRef.current) return;
+        setRecommendation(next);
+        setRecommendationError(false);
+      });
+    } catch (error) {
+      console.error('[Analytics] intake confirmation failed', error);
+      if (mountedRef.current) setRecommendationError(true);
+    } finally {
+      if (mountedRef.current) setConfirmingIntakeDate(null);
+    }
+  }, [confirmingIntakeDate, enqueue, recommendation]);
 
   if (initialLoading && !data) {
     return (
@@ -660,35 +683,91 @@ function AnalyticsScreen({
                   )}
                 </Pressable>
               </View>
-            ) : recommendation?.kind === 'collecting' ? (
+            ) : recommendation?.kind === 'holding' ? (
               <View className="gap-3">
                 <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                  <Text className="text-m3-on-surface font-bold text-sm">Collecting data</Text>
+                  <Text className="text-m3-on-surface font-bold text-sm">Holding current targets</Text>
                   <Text className="text-m3-on-surface-variant text-xs tabular-nums">
-                    {recommendation.eligibility.intakeDayCount} / {recommendation.eligibility.requiredIntakeDayCount} intake days · {recommendation.eligibility.weightLogCount} / {recommendation.eligibility.requiredWeightLogCount} weights
+                    {recommendation.reason === 'intake_confirmation_required'
+                      ? `${Math.round(recommendation.currentTarget.target_calories).toLocaleString()} kcal remains active while you confirm`
+                      : `${recommendation.eligibility.intakeDayCount} / ${recommendation.eligibility.requiredIntakeDayCount} intake days · ${recommendation.eligibility.weightLogCount} / ${recommendation.eligibility.requiredWeightLogCount} weights`}
                   </Text>
                 </View>
-                {recommendation.eligibility.intakeDayCount < recommendation.eligibility.requiredIntakeDayCount ? (
+                {recommendation.reason === 'intake_confirmation_required' ? (
+                  <View className="gap-3">
+                    <Text className="text-m3-on-surface-variant text-xs">
+                      These logged days differ from your recent intake pattern. Confirm how each day should be used in this review.
+                    </Text>
+                    {recommendation.confirmationDays.map((day) => (
+                      <View key={day.date} className="bg-m3-surface-container-high rounded-2xl p-4 gap-3">
+                        <View className="gap-0.5">
+                          <Text className="text-m3-on-surface font-semibold text-sm">
+                            {displayDate(day.date)} · {Math.round(day.calories).toLocaleString()} kcal logged
+                          </Text>
+                          <Text className="text-m3-on-surface-variant text-xs">
+                            Recent logged-day median: {Math.round(day.recentMedianCalories).toLocaleString()} kcal
+                          </Text>
+                        </View>
+                        <View className="gap-2">
+                          {([
+                            ['complete', 'Complete log'],
+                            ['partial', 'Partially logged'],
+                            ['intentional_fast', 'Intentional fast'],
+                          ] as const).map(([status, label]) => {
+                            const busy = confirmingIntakeDate === day.date;
+                            return (
+                              <Pressable
+                                key={status}
+                                onPress={() => void confirmIntakeDay(day.date, status)}
+                                disabled={confirmingIntakeDate !== null}
+                                className={`min-h-[44px] rounded-full px-4 items-center justify-center ${confirmingIntakeDate !== null ? 'bg-m3-surface-container opacity-60' : 'bg-white active:opacity-80'}`}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${label} for ${displayDate(day.date)}`}
+                                accessibilityState={{ disabled: confirmingIntakeDate !== null, busy }}
+                              >
+                                {busy ? (
+                                  <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+                                ) : (
+                                  <Text className="text-m3-on-primary font-semibold text-xs">{label}</Text>
+                                )}
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : recommendation.eligibility.intakeDayCount < recommendation.eligibility.requiredIntakeDayCount ? (
                   <Text className="text-m3-on-surface-variant text-xs">
                     • {recommendation.eligibility.requiredIntakeDayCount - recommendation.eligibility.intakeDayCount} more food-logged days needed
                   </Text>
                 ) : null}
-                {recommendation.eligibility.weightLogCount < recommendation.eligibility.requiredWeightLogCount ? (
+                {recommendation.reason === 'insufficient_evidence' && recommendation.eligibility.weightLogCount < recommendation.eligibility.requiredWeightLogCount ? (
                   <Text className="text-m3-on-surface-variant text-xs">
                     • {recommendation.eligibility.requiredWeightLogCount - recommendation.eligibility.weightLogCount} more weight check-ins needed
                   </Text>
                 ) : null}
-                {!recommendation.eligibility.hasEarlyWeight ? (
-                  <Text className="text-m3-on-surface-variant text-xs">• One weight is needed in the first 4 days of the window</Text>
+                {recommendation.reason === 'insufficient_evidence' && !recommendation.eligibility.hasRecentWeight ? (
+                  <Text className="text-m3-on-surface-variant text-xs tabular-nums">
+                    • {recommendation.eligibility.daysSinceLastWeight === null
+                      ? 'A recent weight check-in is needed'
+                      : `Latest check-in is ${recommendation.eligibility.daysSinceLastWeight} days old; maximum is ${recommendation.eligibility.maximumDaysSinceLastWeight}`}
+                  </Text>
                 ) : null}
-                {!recommendation.eligibility.hasLateWeight ? (
-                  <Text className="text-m3-on-surface-variant text-xs">• One weight is needed in the final 4 days of the window</Text>
-                ) : null}
-                {recommendation.eligibility.endpointSpanDays < recommendation.eligibility.requiredEndpointSpanDays ? (
+                {recommendation.reason === 'insufficient_evidence' && recommendation.eligibility.endpointSpanDays < recommendation.eligibility.requiredEndpointSpanDays ? (
                   <Text className="text-m3-on-surface-variant text-xs tabular-nums">
                     • Check-ins span {recommendation.eligibility.endpointSpanDays} of the required {recommendation.eligibility.requiredEndpointSpanDays} days
                   </Text>
                 ) : null}
+              </View>
+            ) : recommendation?.kind === 'paused' ? (
+              <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+                <Text className="text-m3-on-surface font-bold text-sm">Recommendation paused</Text>
+                <Text className="text-m3-on-surface-variant text-xs">
+                  {recommendation.reason === 'tdee_floor_conflict'
+                    ? 'The BMR-derived floor conflicts with the permitted TDEE update range.'
+                    : 'The current macro rules cannot fit the calculated calorie target.'}
+                </Text>
               </View>
             ) : recommendation?.kind === 'ready' ? (
               <View className="gap-4">

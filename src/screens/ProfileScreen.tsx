@@ -54,7 +54,9 @@ function targetSource(target: DailyTarget): string {
 function adaptiveLabel(state: AdaptiveReviewState): string {
     if (state.kind === 'ready') return 'Adaptive review ready';
     if (state.kind === 'next-review') return `Next review ${formatDate(state.nextReviewDate)}`;
-    return `Collecting evidence · ${state.eligibility.intakeDayCount}/10 intake days`;
+    if (state.kind === 'paused') return 'Adaptive recommendation paused';
+    if (state.reason === 'intake_confirmation_required') return 'Intake confirmation needed';
+    return `Holding targets · ${state.eligibility.weightLogCount}/${state.eligibility.requiredWeightLogCount} weights`;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
