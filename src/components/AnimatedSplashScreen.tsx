@@ -22,12 +22,14 @@ type AnimatedGroupProps = React.ComponentProps<typeof G> & {
 
 const AnimatedG = Reanimated.createAnimatedComponent(G) as React.ComponentType<AnimatedGroupProps>;
 
-const BACKGROUND = '#111318';
+// Matches the canonical 1024px icon/splash egg mask exactly at a 200px render size.
+const BACKGROUND = '#151515';
 const EGG = '#FFFFFF';
 const INK = '#111318';
 const ACCENT_RED = '#F04438';
-const EGG_LOWER_PATH = 'M18 53C28 56 39 57 50 57C61 57 72 56 82 53C82 76 69 92 50 92C31 92 18 76 18 53Z';
-const TICK_POSITIONS = Array.from({ length: 16 }, (_, index) => index * 8 - 24);
+const EGG_PATH = 'M23 54C23 37.5 36 13 50 13C64 13 77 37.5 77 54C77 69.5 72 87 50 87C28 87 23 69.5 23 54Z';
+const EGG_LOWER_PATH = 'M23 54C40 57 60 57 77 54C77 69.5 72 87 50 87C28 87 23 69.5 23 54Z';
+const TICK_POSITIONS = Array.from({ length: 16 }, (_, index) => index * 7 - 20);
 
 interface Props {
   onAnimationFinish: () => void;
@@ -85,7 +87,7 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
         containerStyle,
       ]}
     >
-      <Svg width={150} height={150} viewBox="0 0 100 100" fill="none">
+      <Svg width={200} height={200} viewBox="0 0 100 100" fill="none">
         <Defs>
           <ClipPath id="egg-lower-clip">
             <Path d={EGG_LOWER_PATH} />
@@ -94,7 +96,7 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
 
         {/* Egg timer body */}
         <Path
-          d="M18 53C18 27 31 8 50 8C69 8 82 27 82 53C82 76 69 92 50 92C31 92 18 76 18 53Z"
+          d={EGG_PATH}
           fill={EGG}
         />
 
@@ -103,17 +105,17 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
           {TICK_POSITIONS.map((x, index) => (
             <Path
               key={x}
-              d={`M${x} 54V${index % 5 === 0 ? 68 : 63}`}
+              d={`M${x} 55V${index % 5 === 0 ? 67 : 62}`}
               stroke={INK}
-              strokeWidth={index % 5 === 0 ? 2.5 : 1.8}
+              strokeWidth={index % 5 === 0 ? 2.2 : 1.5}
               strokeLinecap="round"
             />
           ))}
         </AnimatedG>
 
         {/* Fixed seam and indicator */}
-        <Path d="M18 53C28 56 39 57 50 57C61 57 72 56 82 53" stroke={INK} strokeWidth={3.2} />
-        <Path d="M45.5 43.5H54.5L50 51.5L45.5 43.5Z" fill={ACCENT_RED} />
+        <Path d="M23 54C40 57 60 57 77 54" stroke={INK} strokeWidth={2.2} />
+        <Path d="M47.75 50.25H52.25L50 54.25L47.75 50.25Z" fill={ACCENT_RED} />
       </Svg>
     </Reanimated.View>
   );
