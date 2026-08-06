@@ -41,6 +41,11 @@ export interface BackupManifestV2 {
 
 export type BackupManifest = BackupManifestV1 | BackupManifestV2;
 
+export function isSupportedBackupFileName(name: string): boolean {
+  const normalized = name.toLowerCase();
+  return normalized.endsWith('.eatlog-backup') || normalized.endsWith('.marco-backup');
+}
+
 export function isSafeArchivePath(path: unknown): path is string {
   if (typeof path !== 'string' || path.length === 0 || path.startsWith('/') || path.includes('\\')) return false;
   return path.split('/').every((part) => part.length > 0 && part !== '.' && part !== '..');

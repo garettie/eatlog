@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-08-01T17:03:22+08:00",
-  "title": "Design System: Marco",
+  "title": "Design System: Eatlog",
   "extensions": {
     "colorMeta": {
       "surface": { "role": "neutral", "displayName": "Training Black", "canonical": "#111318", "tonalRamp": ["#0c0e13", "#111318", "#191c20", "#1d2024", "#282a2f", "#33353a", "#c4c6d0", "#e2e2e9"] },
@@ -71,7 +71,7 @@
   ],
   "narrative": {
     "northStar": "The Adaptive Training Instrument",
-    "overview": "Marco is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.",
+    "overview": "Eatlog is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.",
     "keyCharacteristics": ["Tonal dark Material 3 layering, not gradients or glass.", "Real Onest weights and tabular numeric hierarchy.", "Scanner/photo media is meaningful; icons are the fallback.", "Rounded surfaces with hairline boundaries, not floating shadow stacks."],
     "rules": [
       { "name": "Scanner-First Rule", "body": "Camera capture, gallery import, and meal description are the primary entry routes. Search and manual entry remain capable fallbacks, never the visual center of the product.", "section": "overview" },

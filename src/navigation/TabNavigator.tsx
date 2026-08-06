@@ -18,7 +18,7 @@ import { deleteFoodLog, deleteMeal, restoreWeightSave, MealType } from '../db/da
 import { formatDayHeader, todayISO } from '../utils/calendar';
 import { type FoodResult, type DataType } from '../services/foodSearch';
 import { type DescribeResult } from '../services/foodScan';
-import MarcoTabBar from './MarcoTabBar';
+import EatlogTabBar from './EatlogTabBar';
 import { syncHealthConnectWeights } from '../services/healthConnect';
 import { NAVIGATION_RAIL_WIDTH, useResponsiveLayout } from '../theme/layout';
 
@@ -345,7 +345,7 @@ export default function TabNavigator() {
     }, [openEntry]);
 
     const renderTabBar = useCallback(
-        (props: BottomTabBarProps) => <MarcoTabBar {...props} onAddEntry={handleAddEntry} />,
+        (props: BottomTabBarProps) => <EatlogTabBar {...props} onAddEntry={handleAddEntry} />,
         [handleAddEntry],
     );
 

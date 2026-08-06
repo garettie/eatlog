@@ -189,7 +189,7 @@ export function ExportDataScreen() {
             <ScrollView contentContainerClassName="p-6 gap-6">
                 <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Human-readable CSV export</Text><Text className="text-sm text-m3-on-surface-variant">Eatlog creates a ZIP containing UTF-8 CSV files for your profile, meals, food components, weights, targets, and adaptive reviews.</Text></View>
                 <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">What is excluded</Text><Text className="text-sm text-m3-on-surface-variant">Meal photos, caches, service credentials, and Health Connect sync metadata are not exported.</Text></Card>
-                <Text className="text-sm text-m3-on-surface-variant">CSV exports are for reading and analysis. They cannot be imported back into Eatlog; use a .marco-backup for restore.</Text>
+                <Text className="text-sm text-m3-on-surface-variant">CSV exports are for reading and analysis. They cannot be imported back into Eatlog; use an .eatlog-backup for restore. Legacy .marco-backup files are also supported.</Text>
                 <PrimaryButton title="Create CSV export" icon="file-download" onPress={() => void run()} disabled={progress != null} />
                 {progress ? <ProgressCard progress={progress} /> : null}
                 {message ? <Message text={message} /> : null}

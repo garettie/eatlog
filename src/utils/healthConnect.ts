@@ -14,7 +14,7 @@ export interface SelectedExternalWeight extends ExternalWeightCandidate {
 
 export interface LocalWeightForReconciliation {
   logDate: string;
-  origin: 'marco' | 'health_connect';
+  origin: 'eatlog' | 'health_connect';
   recordId: string | null;
   dataOrigin: string | null;
   measuredAt: string | null;
@@ -25,7 +25,7 @@ export function externalWeightAction(
   existing: LocalWeightForReconciliation | null,
   candidate: SelectedExternalWeight,
 ): 'skip_manual' | 'unchanged' | 'upsert' {
-  if (existing?.origin === 'marco') return 'skip_manual';
+  if (existing?.origin === 'eatlog') return 'skip_manual';
   if (existing?.recordId === candidate.recordId
     && existing.dataOrigin === candidate.dataOrigin
     && existing.measuredAt === candidate.measuredAt
@@ -64,12 +64,13 @@ export function healthConnectWindow(today: string): { startDate: string; endDate
 
 export function selectLatestExternalWeights(
   records: ExternalWeightCandidate[],
-  ownDataOrigin: string | null,
+  ownDataOrigins: readonly string[],
 ): SelectedExternalWeight[] {
+  const ownOrigins = new Set(ownDataOrigins);
   const selected = new Map<string, SelectedExternalWeight>();
   for (const record of records) {
     if (!record.recordId || !Number.isFinite(record.weightKg) || record.weightKg <= 0) continue;
-    if (ownDataOrigin && record.dataOrigin === ownDataOrigin) continue;
+    if (record.dataOrigin && ownOrigins.has(record.dataOrigin)) continue;
     const candidate: SelectedExternalWeight = { ...record, logDate: localDateForHealthInstant(record.measuredAt) };
     const existing = selected.get(candidate.logDate);
     if (!existing) {

@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 
 import { parseLocalISO } from '../utils/calendar';
 import { computeWeightTrend } from '../utils/weightTrend';
+import { WEIGHT_ORIGIN_MIGRATION_SQL } from './weightOriginMigration';
 
 export type Sex = 'male' | 'female';
 export type ActivityLevel =
@@ -15,7 +16,7 @@ export type CalculationMethod = 'initial_estimate' | 'profile_recalculation' | '
 export type ProteinPreference = 'low' | 'moderate' | 'high' | 'extra_high';
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type WeightUnit = 'kg' | 'lb';
-export type WeightOrigin = 'marco' | 'health_connect';
+export type WeightOrigin = 'eatlog' | 'health_connect';
 export type AdaptiveReviewStatus = 'pending' | 'accepted' | 'kept' | 'superseded';
 export type IntakeDayConfirmationStatus = 'complete' | 'partial' | 'intentional_fast';
 export type IntakeDayConfirmationSource = 'adaptive_review';
@@ -113,7 +114,9 @@ export interface IntakeDayConfirmation {
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-const DATABASE_VERSION = 7;
+export const DATABASE_NAME = 'eatlog.db';
+export const LEGACY_DATABASE_NAME = 'marco.db';
+const DATABASE_VERSION = 8;
 
 export function getDatabaseVersion(): number {
   return DATABASE_VERSION;
@@ -122,7 +125,7 @@ export function getDatabaseVersion(): number {
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
   if (!_dbPromise) {
-    _dbPromise = SQLite.openDatabaseAsync('marco.db').catch((error) => {
+    _dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME).catch((error) => {
       _dbPromise = null;
       throw error;
     });
@@ -414,8 +417,8 @@ export async function initDatabase(): Promise<void> {
   if (currentVersion === 5) {
     await db.withExclusiveTransactionAsync(async (txn) => {
       await txn.execAsync(`
-        ALTER TABLE weight_logs ADD COLUMN origin TEXT NOT NULL DEFAULT 'marco'
-          CHECK (origin IN ('marco', 'health_connect'));
+        ALTER TABLE weight_logs ADD COLUMN origin TEXT NOT NULL DEFAULT 'eatlog'
+          CHECK (origin IN ('eatlog', 'health_connect'));
         ALTER TABLE weight_logs ADD COLUMN origin_record_id TEXT;
         ALTER TABLE weight_logs ADD COLUMN origin_data_source TEXT;
         ALTER TABLE weight_logs ADD COLUMN origin_last_modified_at TEXT;
@@ -455,6 +458,11 @@ export async function initDatabase(): Promise<void> {
         PRAGMA user_version = 7;
       `);
     });
+    currentVersion = 7;
+  }
+
+  if (currentVersion === 7) {
+    await db.withExclusiveTransactionAsync((txn) => txn.execAsync(WEIGHT_ORIGIN_MIGRATION_SQL));
   }
 }
 
@@ -626,10 +634,10 @@ export async function saveWeightLog(params: {
     await txn.runAsync(
       `INSERT INTO weight_logs
         (log_date, scale_weight_kg, trend_weight_kg, origin, origin_record_id, origin_data_source, origin_last_modified_at, measured_at, revision)
-       VALUES (?, ?, ?, 'marco', NULL, NULL, NULL, ?, ?)
+       VALUES (?, ?, ?, 'eatlog', NULL, NULL, NULL, ?, ?)
        ON CONFLICT(log_date) DO UPDATE SET
          scale_weight_kg = excluded.scale_weight_kg,
-         origin = 'marco',
+         origin = 'eatlog',
          origin_record_id = NULL,
          origin_data_source = NULL,
          origin_last_modified_at = NULL,
@@ -642,7 +650,7 @@ export async function saveWeightLog(params: {
         (log_date, client_record_id, record_id, exported_revision, pending_delete)
        VALUES (?, ?, NULL, NULL, 0)
        ON CONFLICT(log_date) DO UPDATE SET pending_delete = 0`,
-      [params.logDate, `marco-weight:${params.logDate}`],
+      [params.logDate, `eatlog-weight:${params.logDate}`],
     );
     await recomputeWeightTrendWithDb(txn);
     const saved = await txn.getFirstAsync<WeightLog>(
@@ -781,7 +789,7 @@ export async function reconcileHealthConnectWeights(
       const existing = await txn.getFirstAsync<WeightLog>(
         'SELECT * FROM weight_logs WHERE log_date = ?', [record.logDate],
       );
-      if (existing?.origin === 'marco') {
+      if (existing?.origin === 'eatlog') {
         result.skippedManual += 1;
         continue;
       }
@@ -854,14 +862,14 @@ export async function getPendingHealthConnectExports(): Promise<PendingHealthCon
   await db.runAsync(
     `INSERT OR IGNORE INTO health_connect_weight_exports
       (log_date, client_record_id, record_id, exported_revision, pending_delete)
-     SELECT log_date, 'marco-weight:' || log_date, NULL, NULL, 0
-     FROM weight_logs WHERE origin = 'marco'`,
+     SELECT log_date, 'eatlog-weight:' || log_date, NULL, NULL, 0
+     FROM weight_logs WHERE origin = 'eatlog'`,
   );
   const rows = await db.getAllAsync<WeightLog & HealthConnectWeightExport>(
     `SELECT w.*, e.client_record_id, e.record_id, e.exported_revision, e.pending_delete
      FROM weight_logs w
      JOIN health_connect_weight_exports e ON e.log_date = w.log_date
-     WHERE w.origin = 'marco' AND e.pending_delete = 0
+     WHERE w.origin = 'eatlog' AND e.pending_delete = 0
        AND (e.exported_revision IS NULL OR e.exported_revision < w.revision)
      ORDER BY w.log_date`,
   );

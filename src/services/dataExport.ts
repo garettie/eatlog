@@ -27,8 +27,8 @@ function writeCsv(directory: Directory, name: string, rows: Array<Array<string |
 
 export async function exportData(onProgress?: OwnershipProgressListener): Promise<OwnershipResult> {
   const stamp = Date.now();
-  const stage = new Directory(Paths.cache, `marco-export-${stamp}`);
-  const archive = new File(Paths.cache, `marco-export-${stamp}.zip`);
+  const stage = new Directory(Paths.cache, `eatlog-export-${stamp}`);
+  const archive = new File(Paths.cache, `eatlog-export-${stamp}.zip`);
   stage.create({ intermediates: true });
   try {
     onProgress?.({ operation: 'export', phase: 'query', completed: 0, total: 3, message: 'Collecting your data', cancellable: true });
@@ -104,7 +104,7 @@ export async function exportData(onProgress?: OwnershipProgressListener): Promis
 
     const application = getApplicationInfo();
     new File(stage, 'manifest.json').write(JSON.stringify({
-      format: 'marco-csv-export',
+      format: 'eatlog-csv-export',
       formatVersion: 1,
       createdAt: new Date().toISOString(),
       appVersion: application.appVersion,

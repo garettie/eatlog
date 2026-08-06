@@ -2,7 +2,7 @@
 
 ## Status and objective
 
-Marco's traditional food search currently combines the user's scan/describe cache with USDA Foundation, USDA SR Legacy, USDA Branded, and Open Food Facts results. It does not query USDA Survey foods (FNDDS), and it sends Open Food Facts requests while the user is typing.
+Eatlog's traditional food search currently combines the user's scan/describe cache with USDA Foundation, USDA SR Legacy, USDA Branded, and Open Food Facts results. It does not query USDA Survey foods (FNDDS), and it sends Open Food Facts requests while the user is typing.
 
 The objective is a useful common-food search experience: ordinary queries should return recognizable foods, practical preparations, and usable portions before noisy branded products. This phase will validate that experience using provider APIs and deterministic code. It will not add an offline food catalog and will not use AI for query rewriting or ranking.
 
@@ -51,9 +51,9 @@ Run when the user presses the keyboard search action. Merge:
 3. Up to 12 USDA Branded candidates.
 4. Up to 15 Open Food Facts candidates.
 
-Use Open Food Facts' supported full-text search endpoint rather than passing `search_terms` to API v2. Identify Marco in request headers where React Native permits it, request only the fields already consumed by the app, and treat HTTP 429/503 as a failed optional source.
+Use Open Food Facts' supported full-text search endpoint rather than passing `search_terms` to API v2. Identify Eatlog in request headers where React Native permits it, request only the fields already consumed by the app, and treat HTTP 429/503 as a failed optional source.
 
-Verify request identification on an Android build before relying on Open Food Facts. React Native may not honor a custom `User-Agent` consistently. Inspect the emitted request with Android network tooling or a temporary controlled echo endpoint; do not add a native networking dependency solely to force this header. If Marco cannot provide a custom identifier, record the limitation and keep Open Food Facts optional and explicit-submit-only.
+Verify request identification on an Android build before relying on Open Food Facts. React Native may not honor a custom `User-Agent` consistently. Inspect the emitted request with Android network tooling or a temporary controlled echo endpoint; do not add a native networking dependency solely to force this header. If Eatlog cannot provide a custom identifier, record the limitation and keep Open Food Facts optional and explicit-submit-only.
 
 This split is required because Open Food Facts limits search to 10 requests per minute per IP and explicitly disallows search-as-you-type use.
 

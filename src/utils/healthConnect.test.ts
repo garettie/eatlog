@@ -37,21 +37,29 @@ test('measurement instants map through the device local calendar date', () => {
   assert.equal(localDateForHealthInstant(instant), expected);
 });
 
-test('same-day selection uses latest measurement then latest modification and excludes Marco origin', () => {
+test('same-day selection uses latest measurement and excludes current and legacy Eatlog origins', () => {
   const records = [
     candidate({ recordId: 'old', measuredAt: '2026-08-01T06:00:00.000Z', weightKg: 81 }),
     candidate({ recordId: 'latest-old-mod', measuredAt: '2026-08-01T08:00:00.000Z', lastModifiedAt: '2026-08-01T08:01:00.000Z' }),
     candidate({ recordId: 'latest-new-mod', measuredAt: '2026-08-01T08:00:00.000Z', lastModifiedAt: '2026-08-01T09:00:00.000Z', weightKg: 79.5 }),
-    candidate({ recordId: 'own', dataOrigin: 'com.marco.tracker', measuredAt: '2026-08-01T10:00:00.000Z' }),
+    candidate({ recordId: 'own-production', dataOrigin: 'com.sgaret.eatlog', measuredAt: '2026-08-01T10:00:00.000Z' }),
+    candidate({ recordId: 'own-development', dataOrigin: 'com.sgaret.eatlog.dev', measuredAt: '2026-08-01T10:00:00.000Z' }),
+    candidate({ recordId: 'legacy-production', dataOrigin: 'com.marco.tracker', measuredAt: '2026-08-01T10:00:00.000Z' }),
+    candidate({ recordId: 'legacy-development', dataOrigin: 'com.marco.tracker.dev', measuredAt: '2026-08-01T10:00:00.000Z' }),
   ];
-  const selected = selectLatestExternalWeights(records, 'com.marco.tracker');
+  const selected = selectLatestExternalWeights(records, [
+    'com.sgaret.eatlog',
+    'com.sgaret.eatlog.dev',
+    'com.marco.tracker',
+    'com.marco.tracker.dev',
+  ]);
   assert.equal(selected.length, 1);
   assert.equal(selected[0].recordId, 'latest-new-mod');
 });
 
 test('manual precedence, external updates, and idempotent external reads are explicit', () => {
   const selected = { ...candidate(), logDate: localDateForHealthInstant(candidate().measuredAt) };
-  const manual: LocalWeightForReconciliation = { logDate: selected.logDate, origin: 'marco', recordId: null, dataOrigin: null, measuredAt: null, weightKg: 80 };
+  const manual: LocalWeightForReconciliation = { logDate: selected.logDate, origin: 'eatlog', recordId: null, dataOrigin: null, measuredAt: null, weightKg: 80 };
   const imported: LocalWeightForReconciliation = { logDate: selected.logDate, origin: 'health_connect', recordId: selected.recordId, dataOrigin: selected.dataOrigin, measuredAt: selected.measuredAt, weightKg: selected.weightKg };
   assert.equal(externalWeightAction(manual, selected), 'skip_manual');
   assert.equal(externalWeightAction(imported, selected), 'unchanged');

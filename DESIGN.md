@@ -1,5 +1,5 @@
 ---
-name: Marco
+name: Eatlog
 description: Local-first adaptive macro tracking with scanner-first food logging.
 phase_3_status: Implemented (2026-07-29)
 colors:
@@ -100,13 +100,13 @@ components:
     minHeight: "64px"
 ---
 
-# Design System: Marco
+# Design System: Eatlog
 
 ## Overview
 
 **Creative North Star: "The Adaptive Training Instrument"**
 
-Marco is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.
+Eatlog is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.
 
 The system is scanner-first. The most delightful visual moment is a real meal photo when one exists; otherwise food-relevant Material Community icons preserve semantic recognition. Motion confirms state, navigation, selection, and calculation. It never exists as ambient decoration.
 
@@ -124,7 +124,7 @@ Profile completes the product shell. It gives occasional, high-consequence work 
 
 ## Colors
 
-Marco uses a near-black neutral stack for structure and reserves named macro colors for nutritional meaning only.
+Eatlog uses a near-black neutral stack for structure and reserves named macro colors for nutritional meaning only.
 
 ### Primary
 - **White Action**: primary actions, selected dashboard state, and the active FAB.
@@ -167,7 +167,7 @@ Marco uses a near-black neutral stack for structure and reserves named macro col
 
 ## Elevation
 
-Marco is flat by default. Depth comes from the surface stack, hairline outline-variant borders, and nesting discipline; it does not use drop shadows on cards. A real meal photo may occupy a flush edge rail inside its clipped entry card, but it does not float above the interface.
+Eatlog is flat by default. Depth comes from the surface stack, hairline outline-variant borders, and nesting discipline; it does not use drop shadows on cards. A real meal photo may occupy a flush edge rail inside its clipped entry card, but it does not float above the interface.
 
 **The Tonal Elevation Rule.** Use a higher surface token to distinguish an active or selected element. Never add a shadow to compensate for weak hierarchy.
 
@@ -206,7 +206,7 @@ Marco is flat by default. Depth comes from the surface stack, hairline outline-v
 
 ## Profile and Settings
 
-Profile uses the same Operate mode as the rest of Marco. It should feel like an instrument panel for the owner, not an account center. There is no account avatar upload, subscription card, gamification summary, or generic preference dump.
+Profile uses the same Operate mode as the rest of Eatlog. It should feel like an instrument panel for the owner, not an account center. There is no account avatar upload, subscription card, gamification summary, or generic preference dump.
 
 ### Profile home
 
@@ -281,7 +281,7 @@ Profile uses the same Operate mode as the rest of Marco. It should feel like an 
 - **Don't** add confetti, streaks, badges, mascot language, or gamification noise.
 - **Don't** use cream/sand backgrounds, warm-tinted generic SaaS neutrals, or generic dashboard gradients.
 - **Don't** add drop shadows, glassmorphism, gradient text, colored side-stripe borders, or hero-metric SaaS templates.
-- **Don't** hide complexity behind a mascot or casual coach-bot copy; Marco is precise and transparent.
+- **Don't** hide complexity behind a mascot or casual coach-bot copy; Eatlog is precise and transparent.
 - **Don't** make barcode camera scanning the primary interaction.
 - **Don't** create per-screen component styles. Reuse Card, PrimaryButton, segmented controls, macro pills, and sheet vocabulary.
 - **Don't** expose API credentials or credential entry in the app.

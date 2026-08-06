@@ -22,6 +22,7 @@ import {
   validateBackupCounts,
   validateBackupFileIntegrity,
   validateBackupManifest,
+  isSupportedBackupFileName,
 } from '../utils/backupManifest';
 import { getMealPhotoDirectory } from '../utils/mealPhotos';
 import { getApplicationInfo } from '../utils/applicationInfo';
@@ -74,9 +75,9 @@ export async function createBackup(
   signal?: AbortSignal,
 ): Promise<File> {
   const stamp = Date.now();
-  const stage = new Directory(Paths.cache, `marco-backup-stage-${stamp}`);
+  const stage = new Directory(Paths.cache, `eatlog-backup-stage-${stamp}`);
   const photoStage = new Directory(stage, 'photos');
-  const archive = new File(Paths.cache, `marco-${stamp}.marco-backup`);
+  const archive = new File(Paths.cache, `eatlog-${stamp}.eatlog-backup`);
   stage.create({ intermediates: true });
   photoStage.create();
   const snapshot = await SQLite.openDatabaseAsync('database.sqlite', undefined, stage.uri);
@@ -185,12 +186,14 @@ async function validateStagedDatabase(databaseFile: File, manifest: BackupManife
 }
 
 export async function validateBackupFile(file: File, onProgress?: OwnershipProgressListener, originalName?: string): Promise<RestorePreview> {
-  if (!(originalName ?? file.uri).toLowerCase().endsWith('.marco-backup')) throw new Error('Choose a .marco-backup file.');
+  if (!isSupportedBackupFileName(originalName ?? file.uri)) {
+    throw new Error('Choose an .eatlog-backup or legacy .marco-backup file.');
+  }
   if (!file.exists || file.size <= 0 || file.size > MAX_ARCHIVE_BYTES) throw new Error('This backup file is empty or too large.');
   const uncompressedSize = await getUncompressedSize(nativePath(file.uri));
   if (uncompressedSize <= 0 || uncompressedSize > MAX_UNCOMPRESSED_BYTES) throw new Error('This backup expands beyond the supported size limit.');
 
-  const stage = new Directory(Paths.cache, `marco-restore-stage-${Date.now()}`);
+  const stage = new Directory(Paths.cache, `eatlog-restore-stage-${Date.now()}`);
   stage.create({ intermediates: true });
   try {
     onProgress?.({ operation: 'inspect', phase: 'extract', completed: 0, total: 3, message: 'Opening backup safely', cancellable: false });
@@ -261,7 +264,7 @@ async function copyRestoredPhotos(
 }
 
 export async function restoreBackup(preview: RestorePreview, onProgress?: OwnershipProgressListener): Promise<OwnershipResult> {
-  const safetyDirectory = new Directory(Paths.cache, `marco-restore-safety-${Date.now()}`);
+  const safetyDirectory = new Directory(Paths.cache, `eatlog-restore-safety-${Date.now()}`);
   const safetyPhotos = new Directory(safetyDirectory, 'meal-photos');
   safetyDirectory.create({ intermediates: true });
   const safetyDb = await SQLite.openDatabaseAsync('database.sqlite', undefined, safetyDirectory.uri);

@@ -21,6 +21,13 @@ const WEIGHT_PERMISSIONS: Permission[] = [
   { accessType: 'write', recordType: 'Weight' },
 ];
 
+const EATLOG_APPLICATION_IDS = [
+  'com.sgaret.eatlog',
+  'com.sgaret.eatlog.dev',
+  'com.marco.tracker',
+  'com.marco.tracker.dev',
+] as const;
+
 let syncPromise: Promise<HealthSyncResult> | null = null;
 let healthConnectModule: typeof import('react-native-health-connect') | null | undefined;
 
@@ -147,7 +154,8 @@ async function performSync(force: boolean): Promise<HealthSyncResult> {
     const window = healthConnectWindow(todayISO());
     const selected = selectLatestExternalWeights(
       await readAllWeights(window.startTime, window.endTime),
-      getApplicationInfo().applicationId,
+      [...EATLOG_APPLICATION_IDS, getApplicationInfo().applicationId]
+        .filter((applicationId): applicationId is string => applicationId != null),
     );
     const reconciled = await reconcileHealthConnectWeights(
       selected.map((record) => ({
@@ -230,7 +238,7 @@ export function manageHealthConnectAccess(): void {
   healthConnect.openHealthConnectSettings();
 }
 
-export async function deleteMarcoHealthConnectWeights(): Promise<HealthConnectResetResult> {
+export async function deleteEatlogHealthConnectWeights(): Promise<HealthConnectResetResult> {
   if (await availability() !== 'available') return {
     attempted: false, deleted: false, warning: 'Health Connect is unavailable, so Eatlog-written weight records may remain there.',
   };

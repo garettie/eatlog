@@ -2,11 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  isSupportedBackupFileName,
   isSafeArchivePath,
   validateBackupCounts,
   validateBackupFileIntegrity,
   validateBackupManifest,
 } from './backupManifest';
+
+test('accepts Eatlog backups and legacy Marco backups', () => {
+  assert.equal(isSupportedBackupFileName('eatlog-123.eatlog-backup'), true);
+  assert.equal(isSupportedBackupFileName('marco-123.marco-backup'), true);
+  assert.equal(isSupportedBackupFileName('backup.zip'), false);
+});
 
 const v1 = {
   formatVersion: 1,

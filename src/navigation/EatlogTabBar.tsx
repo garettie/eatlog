@@ -15,11 +15,11 @@ const tabIcons = {
   Profile: 'person',
 } as const;
 
-interface MarcoTabBarProps extends BottomTabBarProps {
+interface EatlogTabBarProps extends BottomTabBarProps {
   onAddEntry: () => void;
 }
 
-function MarcoTabBar({ state, descriptors, navigation, onAddEntry }: MarcoTabBarProps) {
+function EatlogTabBar({ state, descriptors, navigation, onAddEntry }: EatlogTabBarProps) {
   const insets = useSafeAreaInsets();
   const { isMedium } = useResponsiveLayout();
   const bottomPadding = Math.max(insets.bottom, 12);
@@ -127,10 +127,10 @@ function MarcoTabBar({ state, descriptors, navigation, onAddEntry }: MarcoTabBar
   );
 }
 
-type TabControlProps = Pick<MarcoTabBarProps, 'navigation'> & {
-  route: MarcoTabBarProps['state']['routes'][number];
+type TabControlProps = Pick<EatlogTabBarProps, 'navigation'> & {
+  route: EatlogTabBarProps['state']['routes'][number];
   focused: boolean;
-  descriptor: MarcoTabBarProps['descriptors'][string];
+  descriptor: EatlogTabBarProps['descriptors'][string];
   rail?: boolean;
 };
 
@@ -170,4 +170,4 @@ const TabControl = React.memo(function TabControl({ route, focused, descriptor, 
   );
 });
 
-export default React.memo(MarcoTabBar);
+export default React.memo(EatlogTabBar);

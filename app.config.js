@@ -13,6 +13,6 @@ module.exports = {
 	},
 	android: {
 		...expo.android,
-		package: isDevelopment ? "com.marco.tracker.dev" : expo.android.package,
+		package: isDevelopment ? "com.sgaret.eatlog.dev" : expo.android.package,
 	},
 };

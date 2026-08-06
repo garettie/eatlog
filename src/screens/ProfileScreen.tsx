@@ -13,7 +13,7 @@ import { M3 } from '../theme/tokens';
 import { parseLocalISO, todayISO } from '../utils/calendar';
 import { fromKilograms } from '../utils/weightUnits';
 import { useDataMaintenance } from '../context/DataMaintenanceContext';
-import { deleteMarcoHealthConnectWeights } from '../services/healthConnect';
+import { deleteEatlogHealthConnectWeights } from '../services/healthConnect';
 import { resetLocalData } from '../services/dataReset';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
@@ -124,7 +124,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Continue', style: 'destructive', onPress: () => {
-                        void deleteMarcoHealthConnectWeights().then((healthResult) => {
+                        void deleteEatlogHealthConnectWeights().then((healthResult) => {
                             const detail = healthResult.warning
                                 ? `${healthResult.warning}\n\nDelete all local Eatlog data anyway? This cannot be undone.`
                                 : 'Eatlog-owned Health Connect weights were removed. Delete all local Eatlog data now? This cannot be undone.';

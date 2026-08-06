@@ -14,7 +14,7 @@ The app owner and a small group of friends who sideload the APK. Personal use: o
 
 ## Product Purpose
 
-Marco is a local-first calorie and macro tracker built around adaptive truth: targets can move from the starting calculator estimate to evidence-based weekly recommendations from logged intake and trend weight. The implemented product delivers the starting plan, scanner-first meal logging, diary review, daily weight check-ins, Analytics, and Accept/Keep adaptive reviews.
+Eatlog is a local-first calorie and macro tracker built around adaptive truth: targets can move from the starting calculator estimate to evidence-based weekly recommendations from logged intake and trend weight. The implemented product delivers the starting plan, scanner-first meal logging, diary review, daily weight check-ins, Analytics, and Accept/Keep adaptive reviews.
 
 The MVP is complete when users can also maintain the plan after onboarding, recover or export owned data, understand remote service use, and finish the daily loop on a verified Android APK. Profile is the fourth tab; backup, restore, export, and future sync live under Profile > Data & Sync. The center Add control remains a FAB trigger, not a tab.
 
@@ -133,7 +133,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 
 ## Brand Commitments
 
-**Name:** Internal codename "Marco"; no committed user-facing product name.
+**Name:** Eatlog.
 
 **Voice:** Precise, premium, confident. The product speaks like a serious training instrument, not a coach-bot. Copy is concise, direct, and transparent about estimates and adaptation.
 
