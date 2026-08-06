@@ -11,6 +11,7 @@ export interface LoggingHeatmapCell {
 export interface LoggingHeatmapModel {
   rows: LoggingHeatmapCell[][];
   currentWeekCount: number;
+  windowCount: number;
   windowStart: string;
   windowEnd: string;
 }
@@ -52,6 +53,7 @@ export function buildLoggingHeatmap(
   return {
     rows,
     currentWeekCount,
+    windowCount: cells.filter((cell) => cell.logged).length,
     windowStart,
     windowEnd: endDate,
   };

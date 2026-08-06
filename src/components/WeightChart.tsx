@@ -31,6 +31,9 @@ interface WeightChartProps {
   height: number;
   showXAxisLabels?: boolean;
   targetWeightKg?: number | null;
+  plannedRateKgPerWeek?: number;
+  planEffectiveDate?: string | null;
+  targetChangeDates?: string[];
   unit?: WeightUnit;
 }
 
@@ -41,9 +44,11 @@ interface ChartPoint {
 }
 
 const DAY_MS = 86_400_000;
-const POINT_RADIUS = 3.25;
+const POINT_RADIUS = 2.75;
+const EMPTY_TARGET_CHANGE_DATES: string[] = [];
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
 
 function dayNumber(dateISO: string): number {
   const [year, month, day] = dateISO.split('-').map(Number);
@@ -73,10 +78,10 @@ function chartY(
 }
 
 interface ChartPaths {
-  scale: string;
   trend: string;
   points: string;
   trendEndpoint: string;
+  targetChanges: string;
 }
 
 function chartPaths(
@@ -89,29 +94,43 @@ function chartPaths(
   top: number,
   width: number,
   height: number,
+  targetChangeDays: number[],
 ): ChartPaths {
   'worklet';
-  let scale = '';
   let trend = '';
   let pointMarkers = '';
   let trendEndpoint = '';
+  let targetChanges = '';
+  let visibleCount = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    if (points[index].day >= startDay && points[index].day <= endDay) visibleCount += 1;
+  }
+  const markerStep = Math.max(1, Math.ceil(visibleCount / 48));
+  let visibleIndex = 0;
   for (let index = 0; index < points.length; index += 1) {
     const point = points[index];
     const x = chartX(point.day, startDay, endDay, left, width);
     const scaleY = chartY(point.scale, min, max, top, height);
     const trendY = chartY(point.trend, min, max, top, height);
     const command = index === 0 ? 'M' : 'L';
-    scale += `${command} ${x} ${scaleY} `;
     trend += `${command} ${x} ${trendY} `;
     if (point.day < startDay || point.day > endDay) continue;
-    pointMarkers += `M ${x - POINT_RADIUS} ${scaleY} `
-      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
-      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
+    if (visibleIndex % markerStep === 0 || visibleIndex === visibleCount - 1) {
+      pointMarkers += `M ${x - POINT_RADIUS} ${scaleY} `
+        + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
+        + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
+    }
+    visibleIndex += 1;
     trendEndpoint = `M ${x - POINT_RADIUS} ${trendY} `
       + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
       + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
   }
-  return { scale, trend, points: pointMarkers, trendEndpoint };
+  for (const changeDay of targetChangeDays) {
+    if (changeDay < startDay || changeDay > endDay) continue;
+    const x = chartX(changeDay, startDay, endDay, left, width);
+    targetChanges += `M ${x} ${top} L ${x} ${top + height} `;
+  }
+  return { trend, points: pointMarkers, trendEndpoint, targetChanges };
 }
 
 function nearestPointIndex(
@@ -178,6 +197,9 @@ function WeightChart({
   height,
   showXAxisLabels = false,
   targetWeightKg = null,
+  plannedRateKgPerWeek = 0,
+  planEffectiveDate = null,
+  targetChangeDates = EMPTY_TARGET_CHANGE_DATES,
   unit = 'kg',
 }: WeightChartProps) {
   const reduced = useReducedMotion();
@@ -210,6 +232,7 @@ function WeightChart({
     })),
     [visible],
   );
+  const latest = visible[visible.length - 1];
 
   const xLabelHeight = showXAxisLabels ? 22 : 4;
   const topPadding = 8;
@@ -222,12 +245,31 @@ function WeightChart({
   const dataWidth = Math.max(1, plotWidth - plotGutter * 2);
   const nextStartDay = dayNumber(startDate);
   const nextEndDay = dayNumber(endDate);
+  const planStartDay = Math.max(
+    nextStartDay,
+    dayNumber(planEffectiveDate ?? startDate),
+    nextEndDay - 28,
+  );
+  const planEndWeight = planEffectiveDate && planStartDay < nextEndDay
+    ? latest?.trend_weight_kg ?? null
+    : null;
+  const planStartWeight = planEndWeight == null
+    ? null
+    : planEndWeight - plannedRateKgPerWeek * (nextEndDay - planStartDay) / 7;
+  const targetChangeDays = useMemo(
+    () => targetChangeDates.map(dayNumber),
+    [targetChangeDates],
+  );
   const { nextYMin, nextYMax, yTicks } = useMemo(() => {
-    let minValue = targetWeightKg ?? Number.POSITIVE_INFINITY;
-    let maxValue = targetWeightKg ?? Number.NEGATIVE_INFINITY;
+    let minValue = Number.POSITIVE_INFINITY;
+    let maxValue = Number.NEGATIVE_INFINITY;
     for (const log of visible) {
       minValue = Math.min(minValue, log.scale_weight_kg, log.trend_weight_kg);
       maxValue = Math.max(maxValue, log.scale_weight_kg, log.trend_weight_kg);
+    }
+    if (planStartWeight != null && planEndWeight != null) {
+      minValue = Math.min(minValue, planStartWeight, planEndWeight);
+      maxValue = Math.max(maxValue, planStartWeight, planEndWeight);
     }
     if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
       minValue = 0;
@@ -242,7 +284,7 @@ function WeightChart({
       nextYMax: yMax,
       yTicks: [yMax, (yMax + yMin) / 2, yMin],
     };
-  }, [targetWeightKg, visible]);
+  }, [planEndWeight, planStartWeight, visible]);
 
   const animatedStartDay = useSharedValue(nextStartDay);
   const animatedEndDay = useSharedValue(nextEndDay);
@@ -294,9 +336,9 @@ function WeightChart({
       topPadding,
       animatedDataWidth.value,
       plotHeight,
+      targetChangeDays,
     )
   ));
-  const scalePathProps = useAnimatedProps(() => ({ d: paths.value.scale }));
   const trendPathProps = useAnimatedProps(() => ({
     d: paths.value.trend,
   }));
@@ -305,6 +347,9 @@ function WeightChart({
   }));
   const trendEndpointProps = useAnimatedProps(() => ({
     d: paths.value.trendEndpoint,
+  }));
+  const targetChangesProps = useAnimatedProps(() => ({
+    d: paths.value.targetChanges,
   }));
   const targetLineProps = useAnimatedProps(() => {
     const y = chartY(
@@ -316,6 +361,76 @@ function WeightChart({
     );
     return { y1: y, y2: y };
   });
+  const goalLabelProps = useAnimatedProps(() => {
+    const y = chartY(
+      targetWeightKg ?? 0,
+      animatedYMin.value,
+      animatedYMax.value,
+      topPadding,
+      plotHeight,
+    );
+    return { y: Math.max(topPadding + 10, Math.min(y - 4, topPadding + plotHeight - 4)) };
+  });
+  const planLineProps = useAnimatedProps(() => ({
+    x1: chartX(
+      planStartDay,
+      animatedStartDay.value,
+      animatedEndDay.value,
+      dataLeft,
+      animatedDataWidth.value,
+    ),
+    x2: chartX(
+      nextEndDay,
+      animatedStartDay.value,
+      animatedEndDay.value,
+      dataLeft,
+      animatedDataWidth.value,
+    ),
+    y1: chartY(
+      planStartWeight ?? 0,
+      animatedYMin.value,
+      animatedYMax.value,
+      topPadding,
+      plotHeight,
+    ),
+    y2: chartY(
+      planEndWeight ?? 0,
+      animatedYMin.value,
+      animatedYMax.value,
+      topPadding,
+      plotHeight,
+    ),
+  }));
+  const trendLabelProps = useAnimatedProps(() => ({
+    y: Math.max(
+      topPadding + 10,
+      Math.min(
+        chartY(
+          latest?.trend_weight_kg ?? 0,
+          animatedYMin.value,
+          animatedYMax.value,
+          topPadding,
+          plotHeight,
+        ) - 7,
+        topPadding + plotHeight - 4,
+      ),
+    ),
+  }));
+  const scaleLabelProps = useAnimatedProps(() => ({
+    y: Math.max(
+      topPadding + 10,
+      Math.min(
+        chartY(
+          latest?.scale_weight_kg ?? 0,
+          animatedYMin.value,
+          animatedYMax.value,
+          topPadding,
+          plotHeight,
+        ) + 13,
+        topPadding + plotHeight - 4,
+      ),
+    ),
+  }));
 
   const selectPoint = useCallback((index: number) => {
     const nextIndex = index < 0 || selectedIndexRef.current === index ? null : index;
@@ -405,7 +520,6 @@ function WeightChart({
     [panGesture, tapGesture],
   );
 
-  const latest = visible[visible.length - 1];
   const rangeChange = visible.length > 1
     ? latest.trend_weight_kg - visible[0].trend_weight_kg
     : 0;
@@ -434,6 +548,14 @@ function WeightChart({
     Math.min(selectedX - tooltipWidth / 2, width - rightPadding - tooltipWidth),
   );
   const tooltipTop = selectedY > 70 ? selectedY - 64 : selectedY + 12;
+  const selectedAccessibilityText = selectedLog
+    ? `${dateLabel(selectedLog.log_date)}. Scale ${fromKilograms(selectedLog.scale_weight_kg, unit).toFixed(1)} ${unitName}. Trend ${fromKilograms(selectedLog.trend_weight_kg, unit).toFixed(1)} ${unitName}.`
+    : accessibilityLabel;
+  const goalDirection = targetWeightKg == null
+    ? ''
+    : targetWeightKg < nextYMin ? '↓ '
+      : targetWeightKg > nextYMax ? '↑ '
+        : '';
 
   return (
     <GestureDetector gesture={chartGesture}>
@@ -447,8 +569,23 @@ function WeightChart({
         }}
         style={{ height }}
         accessible
-        accessibilityRole="image"
-        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="adjustable"
+        accessibilityLabel="Weight history chart"
+        accessibilityValue={{ text: selectedAccessibilityText }}
+        accessibilityHint="Swipe up or down to move through weight readings."
+        accessibilityActions={[
+          { name: 'increment', label: 'Next weight reading' },
+          { name: 'decrement', label: 'Previous weight reading' },
+        ]}
+        onAccessibilityAction={(event) => {
+          if (visible.length === 0) return;
+          const current = selectedIndexRef.current;
+          const next = event.nativeEvent.actionName === 'increment'
+            ? Math.min((current ?? -1) + 1, visible.length - 1)
+            : Math.max((current ?? visible.length) - 1, 0);
+          selectedIndexRef.current = next;
+          setSelectedIndex(next);
+        }}
       >
         {layoutReady && (
           <Svg width={width} height={height} accessible={false}>
@@ -497,12 +634,42 @@ function WeightChart({
             strokeDasharray="5 5"
             clipPath={`url(#${clipId})`}
           />
+          {targetWeightKg != null ? (
+            <AnimatedSvgText
+              x={leftPadding + 6}
+              animatedProps={goalLabelProps}
+              fill={M3.onSurfaceVariant}
+              fontSize={TYPE.compact.fontSize}
+              fontFamily={TYPE.family.semibold}
+              textAnchor="start"
+            >
+              Goal {goalDirection}{fromKilograms(targetWeightKg, unit).toFixed(1)} {unit}
+            </AnimatedSvgText>
+          ) : null}
+          <AnimatedPath
+            animatedProps={targetChangesProps}
+            fill="none"
+            stroke={M3.onSurfaceVariant}
+            strokeWidth={1}
+            strokeDasharray="2 5"
+            strokeOpacity={0.55}
+            clipPath={`url(#${clipId})`}
+          />
+          {planStartWeight != null && planEndWeight != null ? (
+            <AnimatedLine
+              animatedProps={planLineProps}
+              stroke={M3.goalRateSafe}
+              strokeOpacity={0.75}
+              strokeWidth={1.5}
+              strokeDasharray="6 4"
+              clipPath={`url(#${clipId})`}
+            />
+          ) : null}
           <AnimatedPath
             animatedProps={trendPathProps}
             fill="none"
             stroke={M3.expenditure}
-            strokeOpacity={0.8}
-            strokeWidth={1.75}
+            strokeWidth={2.75}
             strokeLinecap="round"
             strokeLinejoin="round"
             clipPath={`url(#${clipId})`}
@@ -515,21 +682,35 @@ function WeightChart({
             clipPath={`url(#${clipId})`}
           />
           <AnimatedPath
-            animatedProps={scalePathProps}
-            fill="none"
-            stroke={M3.onSurface}
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            clipPath={`url(#${clipId})`}
-          />
-          <AnimatedPath
             animatedProps={pointPathProps}
-            fill={M3.onSurface}
-            stroke={M3.surfaceContainer}
-            strokeWidth={1.5}
+            fill={M3.onSurfaceVariant}
+            fillOpacity={0.7}
             clipPath={`url(#${clipId})`}
           />
+          {latest ? (
+            <>
+              <AnimatedSvgText
+                x={width - rightPadding - 4}
+                animatedProps={trendLabelProps}
+                fill={M3.expenditure}
+                fontSize={TYPE.compact.fontSize}
+                fontFamily={TYPE.family.semibold}
+                textAnchor="end"
+              >
+                Trend {fromKilograms(latest.trend_weight_kg, unit).toFixed(1)} {unit}
+              </AnimatedSvgText>
+              <AnimatedSvgText
+                x={width - rightPadding - 4}
+                animatedProps={scaleLabelProps}
+                fill={M3.onSurfaceVariant}
+                fontSize={TYPE.compact.fontSize}
+                fontFamily={TYPE.family.medium}
+                textAnchor="end"
+              >
+                Scale {fromKilograms(latest.scale_weight_kg, unit).toFixed(1)} {unit}
+              </AnimatedSvgText>
+            </>
+          ) : null}
           {selectedPoint && (
             <>
               <Circle

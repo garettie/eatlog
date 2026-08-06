@@ -6,6 +6,7 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Card from '../components/Card';
+import EnergyChart from '../components/EnergyChart';
 import LoggingHeatmap from '../components/LoggingHeatmap';
 import SegmentedControl from '../components/SegmentedControl';
 import WeightChart from '../components/WeightChart';
@@ -16,6 +17,7 @@ import {
   WeightLog,
   getDailyCaloriesByDateRange,
   getDailyTargetForDate,
+  getDailyTargetsByDateRange,
   getProfile,
   getWeightLogsByDateRange,
   setAnalyticsIntroDismissed,
@@ -52,6 +54,7 @@ interface AnalyticsData {
   profile: Profile;
   chartWeights: WeightLog[];
   dailyCalories: Array<{ log_date: string; calories: number }>;
+  targetHistory: DailyTarget[];
   target: DailyTarget;
   endDate: string;
 }
@@ -65,10 +68,10 @@ type ProgressKind =
   | 'outside-maintenance';
 
 const RANGE_OPTIONS = [
-  { value: '1M' as const, label: '1M' },
-  { value: '3M' as const, label: '3M' },
-  { value: '6M' as const, label: '6M' },
-  { value: '1Y' as const, label: '1Y' },
+  { value: '1M' as const, label: '1M', accessibilityLabel: '1 month' },
+  { value: '3M' as const, label: '3M', accessibilityLabel: '3 months' },
+  { value: '6M' as const, label: '6M', accessibilityLabel: '6 months' },
+  { value: '1Y' as const, label: '1Y', accessibilityLabel: '1 year' },
 ];
 
 function rangeDates(range: RangeKey, endDate: string) {
@@ -91,6 +94,23 @@ function signedWeight(valueKg: number, unit: Profile['weight_unit']): string {
 
 function signedRate(valueKg: number, unit: Profile['weight_unit']): string {
   return `${signedWeight(valueKg, unit)}/wk`;
+}
+
+function goalDistanceCopy(profile: Profile, latestWeight: WeightLog | undefined) {
+  if (profile.target_weight_kg == null || !latestWeight) {
+    return { value: '—', detail: 'No goal weight set' };
+  }
+  const difference = latestWeight.trend_weight_kg - profile.target_weight_kg;
+  const distance = formatWeight(Math.abs(difference), profile.weight_unit);
+  const reached = profile.goal_type === 'cut' ? difference <= 0
+    : profile.goal_type === 'bulk' ? difference >= 0
+      : Math.abs(difference) <= 0.1;
+  return {
+    value: `${distance} ${profile.weight_unit}`,
+    detail: reached
+      ? 'At or beyond goal'
+      : `Goal ${formatWeight(profile.target_weight_kg, profile.weight_unit)} ${profile.weight_unit}`,
+  };
 }
 
 function classifyProgress(
@@ -119,6 +139,8 @@ function progressCopy(kind: ProgressKind, goal: Profile['goal_type']) {
       return {
         title: 'More data needed',
         body: 'Two check-ins spanning at least seven days are needed to compare your trend.',
+        icon: 'hourglass-empty' as const,
+        color: M3.onSurfaceVariant,
       };
     case 'on-pace':
       return {
@@ -126,26 +148,36 @@ function progressCopy(kind: ProgressKind, goal: Profile['goal_type']) {
         body: goal === 'maintain'
           ? 'Your trend is within the maintenance range.'
           : `Your trend is close to your planned ${goal === 'cut' ? 'loss' : 'gain'} rate.`,
+        icon: 'check-circle-outline' as const,
+        color: M3.goalRateSafe,
       };
     case 'moving-away':
       return {
         title: 'Moving away from plan',
         body: 'Your measured trend is moving in the opposite direction from your planned rate.',
+        icon: 'warning-amber' as const,
+        color: M3.goalRateCaution,
       };
     case 'faster':
       return {
         title: 'Faster than planned',
         body: 'Your measured trend is changing faster than your planned rate.',
+        icon: 'speed' as const,
+        color: M3.goalRateCaution,
       };
     case 'outside-maintenance':
       return {
         title: 'Outside maintenance range',
         body: 'Your measured trend is changing by more than 0.10 kg per week.',
+        icon: 'swap-vert' as const,
+        color: M3.goalRateCaution,
       };
     default:
       return {
         title: 'Slower than planned',
         body: 'Your measured trend is changing more slowly than your planned rate.',
+        icon: 'trending-flat' as const,
+        color: M3.goalRateCaution,
       };
   }
 }
@@ -158,6 +190,16 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
       {detail ? (
         <Text className="text-m3-on-surface-variant text-compact font-medium">{detail}</Text>
       ) : null}
+    </View>
+  );
+}
+
+function InlineMetric({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  return (
+    <View className="flex-1 min-w-[112px] gap-0.5">
+      <Text className="text-m3-on-surface-variant text-compact font-semibold">{label}</Text>
+      <Text className="text-m3-on-surface text-base font-bold tabular-nums">{value}</Text>
+      {detail ? <Text className="text-m3-on-surface-variant text-compact">{detail}</Text> : null}
     </View>
   );
 }
@@ -187,7 +229,7 @@ function AnalyticsScreen({
   onDataChanged,
 }: AnalyticsScreenProps) {
   const reduced = useReducedMotion();
-  const { isTwoPane, horizontalPadding } = useResponsiveLayout();
+  const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
   const [selectedRange, setSelectedRange] = useState<RangeKey>('1M');
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [recommendation, setRecommendation] = useState<AdaptiveReviewState | null>(null);
@@ -199,6 +241,7 @@ function AnalyticsScreen({
   const [confirmingIntakeDate, setConfirmingIntakeDate] = useState<string | null>(null);
   const [staleMessage, setStaleMessage] = useState(false);
   const [introDismissed, setIntroDismissed] = useState(false);
+  const [helpExpanded, setHelpExpanded] = useState(false);
 
   const mountedRef = useRef(true);
   const initialLoadDoneRef = useRef(false);
@@ -237,6 +280,11 @@ function AnalyticsScreen({
         const chartWeights = await getWeightLogsByDateRange(chartStartDate, endDate);
         const calorieHistoryStart = rangeDates('1Y', endDate).startDate;
         const dailyCalories = await getDailyCaloriesByDateRange(calorieHistoryStart, endDate);
+        const targetAtHistoryStart = await getDailyTargetForDate(chartStartDate);
+        const targetsInHistory = await getDailyTargetsByDateRange(chartStartDate, endDate);
+        const targetHistory = targetAtHistoryStart
+          ? [targetAtHistoryStart, ...targetsInHistory.filter((item) => item.id !== targetAtHistoryStart.id)]
+          : targetsInHistory;
         const target = await getDailyTargetForDate(endDate);
         if (!target) throw new Error('Daily target is required');
 
@@ -250,7 +298,7 @@ function AnalyticsScreen({
         }
 
         if (!mountedRef.current || requestId !== requestRef.current) return;
-        setData({ profile, chartWeights, dailyCalories, target, endDate });
+        setData({ profile, chartWeights, dailyCalories, targetHistory, target, endDate });
         hasDataRef.current = true;
         loadedDateRef.current = endDate;
         setRecommendation(nextRecommendation);
@@ -306,6 +354,11 @@ function AnalyticsScreen({
     const averageCalories = dailyCalories.length
       ? dailyCalories.reduce((sum, day) => sum + day.calories, 0) / dailyCalories.length
       : null;
+    const rangeDayCount = calendarDaysBetween(chartDates.startDate, chartDates.endDate) + 1;
+    const energyCoverage = dailyCalories.length / rangeDayCount;
+    const targetChangeDates = data.targetHistory
+      .filter((item) => item.effective_date >= chartDates.startDate && item.effective_date <= chartDates.endDate)
+      .map((item) => item.effective_date);
     const progressKind = classifyProgress(data.profile, weeklyRate, rangeWeights.length, endpointSpanDays);
     return {
       chartDates,
@@ -315,6 +368,9 @@ function AnalyticsScreen({
       trendChange,
       weeklyRate,
       averageCalories,
+      rangeDayCount,
+      energyCoverage,
+      targetChangeDates,
       progress: progressCopy(progressKind, data.profile.goal_type),
       sufficientProgress: progressKind !== 'insufficient',
     };
@@ -332,6 +388,17 @@ function AnalyticsScreen({
       console.error('[Analytics] intro dismiss persist failed', e),
     );
   }, []);
+
+  const toggleHelp = useCallback(() => {
+    const firstVisitGuide = data?.profile.analytics_intro_dismissed === 0 && !introDismissed;
+    const visible = firstVisitGuide || helpExpanded;
+    if (visible) {
+      if (firstVisitGuide) dismissIntro();
+      setHelpExpanded(false);
+      return;
+    }
+    setHelpExpanded(true);
+  }, [data?.profile.analytics_intro_dismissed, dismissIntro, helpExpanded, introDismissed]);
 
   const retryRecommendation = useCallback(async () => {
     if (recommendationLoading) return;
@@ -453,11 +520,224 @@ function AnalyticsScreen({
     trendChange,
     weeklyRate,
     averageCalories,
+    rangeDayCount,
+    energyCoverage,
+    targetChangeDates,
     progress,
     sufficientProgress,
   } = analyticsDerived!;
   const foodLoggedDates = data.dailyCalories.map((day) => day.log_date);
   const weightLoggedDates = chartWeights.map((log) => log.log_date);
+  const helpVisible = (profile.analytics_intro_dismissed === 0 && !introDismissed) || helpExpanded;
+  const goalDistance = goalDistanceCopy(profile, latestWeight);
+  const coveragePercent = Math.round(energyCoverage * 100);
+  const recommendationDelta = recommendation?.kind === 'ready'
+    ? Math.round(recommendation.review.proposed_target_calories - recommendation.review.previous_target_calories)
+    : null;
+  const recommendationCard = (
+    <Card className="p-5 gap-4">
+      <View>
+        <Text className="text-m3-on-surface font-bold text-base">Adaptive status</Text>
+        <Text className="text-m3-on-surface-variant text-xs mt-0.5">Weekly review of logged evidence</Text>
+      </View>
+
+      {recommendationError ? (
+        <View className="py-3 items-center gap-3">
+          <MaterialIcons name="error-outline" size={28} color={M3.error} />
+          <Text className="text-m3-on-surface-variant text-sm text-center">
+            Couldn't load the adaptive review. Your other analytics are still available.
+          </Text>
+          <Pressable
+            onPress={() => void retryRecommendation()}
+            disabled={recommendationLoading}
+            className={`min-h-[48px] rounded-full px-6 items-center justify-center ${recommendationLoading ? 'bg-m3-surface-container-high opacity-60' : 'bg-white active:opacity-80'}`}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading adaptive review"
+            accessibilityState={{ disabled: recommendationLoading, busy: recommendationLoading }}
+          >
+            {recommendationLoading ? (
+              <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+            ) : (
+              <Text className="text-m3-on-primary font-semibold text-sm">Retry</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : recommendation?.kind === 'holding' ? (
+        <View className="gap-3">
+          <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+            <Text className="text-m3-on-surface font-bold text-sm">Current targets stay active</Text>
+            <Text className="text-m3-on-surface-variant text-xs tabular-nums">
+              {recommendation.reason === 'intake_confirmation_required'
+                ? `${Math.round(recommendation.currentTarget.target_calories).toLocaleString()} kcal remains active while you classify unusual days`
+                : `${recommendation.eligibility.intakeDayCount} / ${recommendation.eligibility.requiredIntakeDayCount} intake days · ${recommendation.eligibility.weightLogCount} / ${recommendation.eligibility.requiredWeightLogCount} weights`}
+            </Text>
+          </View>
+          {recommendation.reason === 'intake_confirmation_required' ? (
+            <View className="gap-3">
+              <Text className="text-m3-on-surface-variant text-sm">
+                These days differ from your recent intake pattern. Classify each one so the review does not treat an incomplete log like a full day.
+              </Text>
+              {recommendation.confirmationDays.map((day) => (
+                <View key={day.date} className="bg-m3-surface-container-high rounded-2xl p-4 gap-3">
+                  <View className="gap-0.5">
+                    <Text className="text-m3-on-surface font-semibold text-sm">
+                      {displayDate(day.date)} · {Math.round(day.calories).toLocaleString()} kcal logged
+                    </Text>
+                    <Text className="text-m3-on-surface-variant text-xs">
+                      Recent logged-day median: {Math.round(day.recentMedianCalories).toLocaleString()} kcal
+                    </Text>
+                  </View>
+                  <View className="gap-2">
+                    {([
+                      ['complete', 'Complete log'],
+                      ['partial', 'Partially logged'],
+                      ['intentional_fast', 'Intentional fast'],
+                    ] as const).map(([status, label]) => {
+                      const busy = confirmingIntakeDate === day.date;
+                      return (
+                        <Pressable
+                          key={status}
+                          onPress={() => void confirmIntakeDay(day.date, status)}
+                          disabled={confirmingIntakeDate !== null}
+                          className={`min-h-[48px] rounded-full px-4 items-center justify-center ${confirmingIntakeDate !== null ? 'bg-m3-surface-container opacity-60' : 'bg-white active:opacity-80'}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${label} for ${displayDate(day.date)}`}
+                          accessibilityState={{ disabled: confirmingIntakeDate !== null, busy }}
+                        >
+                          {busy ? (
+                            <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+                          ) : (
+                            <Text className="text-m3-on-primary font-semibold text-sm">{label}</Text>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : recommendation.eligibility.intakeDayCount < recommendation.eligibility.requiredIntakeDayCount ? (
+            <Text className="text-m3-on-surface-variant text-xs">
+              • {recommendation.eligibility.requiredIntakeDayCount - recommendation.eligibility.intakeDayCount} more food-logged days needed
+            </Text>
+          ) : null}
+          {recommendation.reason === 'insufficient_evidence' && recommendation.eligibility.weightLogCount < recommendation.eligibility.requiredWeightLogCount ? (
+            <Text className="text-m3-on-surface-variant text-xs">
+              • {recommendation.eligibility.requiredWeightLogCount - recommendation.eligibility.weightLogCount} more weight check-ins needed
+            </Text>
+          ) : null}
+          {recommendation.reason === 'insufficient_evidence' && !recommendation.eligibility.hasRecentWeight ? (
+            <Text className="text-m3-on-surface-variant text-xs tabular-nums">
+              • {recommendation.eligibility.daysSinceLastWeight === null
+                ? 'A recent weight check-in is needed'
+                : `Latest check-in is ${recommendation.eligibility.daysSinceLastWeight} days old; the review needs one within ${recommendation.eligibility.maximumDaysSinceLastWeight} days`}
+            </Text>
+          ) : null}
+          {recommendation.reason === 'insufficient_evidence' && recommendation.eligibility.endpointSpanDays < recommendation.eligibility.requiredEndpointSpanDays ? (
+            <Text className="text-m3-on-surface-variant text-xs tabular-nums">
+              • Check-ins span {recommendation.eligibility.endpointSpanDays} of the required {recommendation.eligibility.requiredEndpointSpanDays} days
+            </Text>
+          ) : null}
+        </View>
+      ) : recommendation?.kind === 'paused' ? (
+        <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
+          <Text className="text-m3-on-surface font-bold text-sm">No safe target update available</Text>
+          <Text className="text-m3-on-surface-variant text-sm">
+            {recommendation.reason === 'tdee_floor_conflict'
+              ? 'The calculated energy floor sits outside the permitted adjustment range. Your current targets remain active.'
+              : 'The minimum nutrition targets do not fit the calculated calorie level. Your current targets remain active.'}
+          </Text>
+        </View>
+      ) : recommendation?.kind === 'ready' ? (
+        <View className="gap-4">
+          <View className="gap-1">
+            <Text className="text-m3-expenditure font-bold text-sm">
+              Review a {recommendationDelta != null && recommendationDelta >= 0 ? '+' : ''}{recommendationDelta} kcal/day change
+            </Text>
+            <Text className="text-m3-on-surface-variant text-xs">
+              Based on logged intake and trend weight from {displayDate(recommendation.review.window_start)} to {displayDate(recommendation.review.window_end)}.
+            </Text>
+          </View>
+          {staleMessage ? (
+            <View className="bg-m3-expenditure/10 border border-m3-expenditure/30 rounded-2xl p-3">
+              <Text className="text-m3-expenditure text-xs font-semibold">
+                Your data changed. Review the updated recommendation, then choose again.
+              </Text>
+            </View>
+          ) : null}
+          <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-3">
+            <View className="flex-row justify-between items-baseline gap-3">
+              <Text className="text-m3-on-surface-variant text-xs font-semibold">Current</Text>
+              <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
+                {Math.round(recommendation.review.previous_target_calories).toLocaleString()} kcal
+              </Text>
+            </View>
+            <MacroRow
+              protein={recommendation.review.previous_target_protein_g}
+              carbs={recommendation.review.previous_target_carbs_g}
+              fat={recommendation.review.previous_target_fat_g}
+            />
+          </View>
+          <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-3 border border-m3-expenditure/40">
+            <View className="flex-row justify-between items-baseline gap-3">
+              <Text className="text-m3-expenditure text-xs font-semibold">Proposed</Text>
+              <Text className="text-m3-expenditure text-xl font-bold tabular-nums">
+                {Math.round(recommendation.review.proposed_target_calories).toLocaleString()} kcal
+              </Text>
+            </View>
+            <MacroRow
+              protein={recommendation.review.proposed_target_protein_g}
+              carbs={recommendation.review.proposed_target_carbs_g}
+              fat={recommendation.review.proposed_target_fat_g}
+            />
+          </View>
+          <Text className="text-m3-on-surface-variant text-xs">
+            Accept New Targets updates the active plan. Earlier diary entries stay unchanged.
+          </Text>
+          <View className={isNarrow ? 'gap-2' : 'flex-row gap-3'}>
+            <Pressable
+              onPress={() => void resolveRecommendation('keep')}
+              disabled={resolving !== null}
+              className={`${isNarrow ? 'w-full' : 'flex-1'} min-h-[48px] rounded-full border border-m3-outline-variant/60 px-3 items-center justify-center ${resolving !== null ? 'opacity-50' : 'active:opacity-70'}`}
+              accessibilityRole="button"
+              accessibilityLabel="Keep current targets"
+              accessibilityState={{ disabled: resolving !== null, busy: resolving === 'keep' }}
+            >
+              <Text className="text-m3-on-surface font-semibold text-sm text-center">
+                {resolving === 'keep' ? 'Keeping…' : 'Keep Current'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void resolveRecommendation('accept')}
+              disabled={resolving !== null}
+              className={`${isNarrow ? 'w-full' : 'flex-1'} min-h-[48px] rounded-full px-3 items-center justify-center ${resolving !== null ? 'bg-m3-surface-container-high opacity-50' : 'bg-white active:opacity-80'}`}
+              accessibilityRole="button"
+              accessibilityLabel="Accept new targets"
+              accessibilityState={{ disabled: resolving !== null, busy: resolving === 'accept' }}
+            >
+              <Text className={`${resolving !== null ? 'text-m3-on-surface-variant' : 'text-m3-on-primary'} font-semibold text-sm text-center`}>
+                {resolving === 'accept' ? 'Accepting…' : 'Accept New Targets'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : recommendation?.kind === 'next-review' ? (
+        <View className={`${isNarrow ? 'gap-2' : 'flex-row items-center justify-between gap-4'} bg-m3-surface-container-high rounded-2xl p-4`}>
+          <View className="flex-1 min-w-0 gap-0.5">
+            <Text className="text-m3-on-surface font-bold text-sm">Next review</Text>
+            <Text className="text-m3-on-surface-variant text-xs">
+              Latest decision: {recommendation.latestDecision.status === 'accepted' ? 'new targets accepted' : 'current targets kept'} on {displayDate(recommendation.latestDecision.review_date)}.
+            </Text>
+          </View>
+          <Text className="text-m3-expenditure text-base font-bold tabular-nums">
+            {displayDate(recommendation.nextReviewDate)}
+          </Text>
+        </View>
+      ) : (
+        <ActivityIndicator color={M3.onSurfaceVariant} accessibilityLabel="Loading adaptive review" />
+      )}
+    </Card>
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
@@ -469,37 +749,59 @@ function AnalyticsScreen({
       >
         <ResponsiveContent maxWidth={APP_MAX_WIDTH}>
         <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} className="gap-4">
-          <View className="gap-1">
-            <Text className="text-m3-on-surface text-2xl font-bold">Analytics</Text>
-            <Text className="text-m3-on-surface-variant text-sm">
-              Weight, consistency, and target calibration
-            </Text>
+          <View className={isNarrow ? 'gap-2' : 'flex-row items-start justify-between gap-4'}>
+            <View className="flex-1 min-w-0 gap-1">
+              <Text className="text-m3-on-surface text-2xl font-bold">Analytics</Text>
+              <Text className="text-m3-on-surface-variant text-sm">
+                Progress, evidence, and target calibration
+              </Text>
+            </View>
+            <Pressable
+              onPress={toggleHelp}
+              className="min-h-[48px] px-3 rounded-full flex-row items-center justify-center gap-1.5 active:bg-m3-surface-container-high"
+              accessibilityRole="button"
+              accessibilityLabel={helpVisible ? 'Hide analytics guide' : 'How analytics works'}
+              accessibilityState={{ expanded: helpVisible }}
+            >
+              <MaterialIcons name="info-outline" size={18} color={M3.onSurfaceVariant} />
+              <Text className="text-m3-on-surface-variant text-xs font-semibold">
+                {helpVisible ? 'Hide guide' : 'How it works'}
+              </Text>
+            </Pressable>
           </View>
 
-          <View>
+          {helpVisible ? (
+            <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container-high px-4 py-3 border border-m3-outline-variant/30">
+              <MaterialIcons name="info-outline" size={16} color={M3.onSurfaceVariant} style={{ marginTop: 2 }} />
+              <Text className="flex-1 text-m3-on-surface-variant text-sm">
+                Trend weight filters daily water swings; scale dots are individual check-ins. The plan pace line uses your current weekly goal as a reference. Energy averages use logged days, so coverage shows how much evidence supports them. Only Accept New Targets changes the active plan.
+              </Text>
+              <Pressable
+                onPress={toggleHelp}
+                accessibilityRole="button"
+                accessibilityLabel="Hide analytics guide"
+                className="w-12 h-12 -m-3 items-center justify-center active:opacity-60"
+              >
+                <MaterialIcons name="close" size={16} color={M3.onSurfaceVariant} />
+              </Pressable>
+            </View>
+          ) : null}
+
+          {recommendationCard}
+
+          <View className="gap-3 pt-2">
+            <View className="gap-0.5">
+              <Text className="text-m3-on-surface text-lg font-bold">History</Text>
+              <Text className="text-m3-on-surface-variant text-xs">
+                This range controls Weight and Energy. Logging consistency stays at 30 days.
+              </Text>
+            </View>
             <SegmentedControl
               options={RANGE_OPTIONS}
               value={selectedRange}
               onChange={handleRangeChange}
             />
           </View>
-
-          {!profile.analytics_intro_dismissed && !introDismissed && (
-            <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container-high px-4 py-3 border border-m3-outline-variant/30">
-              <MaterialIcons name="info-outline" size={16} color={M3.onSurfaceVariant} style={{ marginTop: 2 }} />
-              <Text className="flex-1 text-m3-on-surface-variant text-sm">
-                Trend weight smooths daily water swings; scale weight is the raw number. Weekly reviews compare your intake with that trend and propose targets — only Accept changes them.
-              </Text>
-              <Pressable
-                onPress={dismissIntro}
-                accessibilityRole="button"
-                accessibilityLabel="Dismiss explanation"
-                className="w-12 h-12 -m-3 items-center justify-center active:opacity-60"
-              >
-                <MaterialIcons name="close" size={16} color={M3.onSurfaceVariant} />
-              </Pressable>
-            </View>
-          )}
 
           <View className={isTwoPane ? 'flex-row items-start gap-4' : 'gap-4'}>
           <View className={isTwoPane ? 'flex-[3] min-w-0 gap-4' : 'gap-4'}>
@@ -540,9 +842,16 @@ function AnalyticsScreen({
                   height={176}
                   showXAxisLabels
                   targetWeightKg={profile.target_weight_kg}
+                  plannedRateKgPerWeek={profile.goal_rate_kg_per_week}
+                  planEffectiveDate={target.effective_date}
+                  targetChangeDates={targetChangeDates}
                   unit={profile.weight_unit}
                 />
-                <WeightChartLegend showGoal={profile.target_weight_kg != null} />
+                <WeightChartLegend
+                  showGoal={profile.target_weight_kg != null}
+                  showPlan={target.effective_date < chartDates.endDate && latestWeight != null}
+                  showPlanUpdates={targetChangeDates.length > 0}
+                />
                 {latestWeight ? (
                   <View className="gap-3">
                     <View className="flex-row flex-wrap gap-3">
@@ -560,11 +869,11 @@ function AnalyticsScreen({
 
                     <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-3">
                       <View className="flex-row items-start gap-3">
-                        <View className="w-8 h-8 rounded-full bg-m3-expenditure/15 items-center justify-center">
-                          <MaterialIcons name="trending-up" size={18} color={M3.expenditure} />
+                        <View className="w-8 h-8 rounded-full bg-m3-surface-container-highest items-center justify-center">
+                          <MaterialIcons name={progress.icon} size={18} color={progress.color} />
                         </View>
                         <View className="flex-1 min-w-0 gap-0.5">
-                          <Text className="text-m3-expenditure font-semibold text-sm">{progress.title}</Text>
+                          <Text className="font-semibold text-sm" style={{ color: progress.color }}>{progress.title}</Text>
                           <Text className="text-m3-on-surface-variant text-xs">{progress.body}</Text>
                         </View>
                       </View>
@@ -586,6 +895,15 @@ function AnalyticsScreen({
                           </Text>
                           <Text className="text-m3-on-surface-variant text-compact font-medium">
                             {profile.goal_type === 'maintain' ? 'Maintenance' : profile.goal_type === 'cut' ? 'Weight loss' : 'Weight gain'}
+                          </Text>
+                        </View>
+                        <View className="flex-1 min-w-[88px] gap-1">
+                          <Text className="text-m3-on-surface-variant text-compact font-semibold">Distance to goal</Text>
+                          <Text className="text-m3-on-surface text-sm font-bold tabular-nums">
+                            {goalDistance.value}
+                          </Text>
+                          <Text className="text-m3-on-surface-variant text-compact font-medium">
+                            {goalDistance.detail}
                           </Text>
                         </View>
                       </View>
@@ -635,224 +953,59 @@ function AnalyticsScreen({
           <View className={isTwoPane ? 'flex-[2] min-w-0 gap-4' : 'gap-4'}>
 
           <Card className="p-5 gap-4">
-            <View>
-              <Text className="text-m3-on-surface font-bold text-base">Energy</Text>
-              <Text className="text-m3-on-surface-variant text-xs mt-0.5">
-                Logged-day average for the selected range
-              </Text>
-            </View>
-            <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-              <Text className="text-m3-on-surface-variant text-xs font-semibold">Average intake</Text>
-              <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
-                {averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
-              </Text>
-              <Text className="text-m3-on-surface-variant text-compact font-medium">
-                {averageCalories == null ? 'No food-logged days' : `${dailyCalories.length} food-logged days`}
-              </Text>
-            </View>
-            <View className="flex-row flex-wrap gap-3">
-              <Metric label="Current target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
-              <Metric label="TDEE estimate" value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`} />
-            </View>
-          </Card>
-
-          <Card className="p-5 gap-4">
-            <View>
-              <Text className="text-m3-on-surface font-bold text-base">Recommendation</Text>
-              <Text className="text-m3-on-surface-variant text-xs mt-0.5">Weekly review of logged evidence</Text>
-            </View>
-
-            {recommendationError ? (
-              <View className="py-3 items-center gap-3">
-                <MaterialIcons name="error-outline" size={28} color={M3.error} />
-                <Text className="text-m3-on-surface-variant text-sm text-center">
-                  Couldn't load your recommendation. Other analytics are still available.
-                </Text>
-                <Pressable
-                  onPress={() => void retryRecommendation()}
-                  disabled={recommendationLoading}
-                  className={`min-h-[48px] rounded-full px-6 items-center justify-center ${recommendationLoading ? 'bg-m3-surface-container-high opacity-60' : 'bg-white active:opacity-80'}`}
-                  accessibilityRole="button"
-                  accessibilityLabel="Retry loading recommendation"
-                  accessibilityState={{ disabled: recommendationLoading, busy: recommendationLoading }}
-                >
-                  {recommendationLoading ? (
-                    <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
-                  ) : (
-                    <Text className="text-m3-on-primary font-semibold text-sm">Retry</Text>
-                  )}
-                </Pressable>
-              </View>
-            ) : recommendation?.kind === 'holding' ? (
-              <View className="gap-3">
-                <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                  <Text className="text-m3-on-surface font-bold text-sm">Holding current targets</Text>
-                  <Text className="text-m3-on-surface-variant text-xs tabular-nums">
-                    {recommendation.reason === 'intake_confirmation_required'
-                      ? `${Math.round(recommendation.currentTarget.target_calories).toLocaleString()} kcal remains active while you confirm`
-                      : `${recommendation.eligibility.intakeDayCount} / ${recommendation.eligibility.requiredIntakeDayCount} intake days · ${recommendation.eligibility.weightLogCount} / ${recommendation.eligibility.requiredWeightLogCount} weights`}
-                  </Text>
-                </View>
-                {recommendation.reason === 'intake_confirmation_required' ? (
-                  <View className="gap-3">
-                    <Text className="text-m3-on-surface-variant text-xs">
-                      These logged days differ from your recent intake pattern. Confirm how each day should be used in this review.
-                    </Text>
-                    {recommendation.confirmationDays.map((day) => (
-                      <View key={day.date} className="bg-m3-surface-container-high rounded-2xl p-4 gap-3">
-                        <View className="gap-0.5">
-                          <Text className="text-m3-on-surface font-semibold text-sm">
-                            {displayDate(day.date)} · {Math.round(day.calories).toLocaleString()} kcal logged
-                          </Text>
-                          <Text className="text-m3-on-surface-variant text-xs">
-                            Recent logged-day median: {Math.round(day.recentMedianCalories).toLocaleString()} kcal
-                          </Text>
-                        </View>
-                        <View className="gap-2">
-                          {([
-                            ['complete', 'Complete log'],
-                            ['partial', 'Partially logged'],
-                            ['intentional_fast', 'Intentional fast'],
-                          ] as const).map(([status, label]) => {
-                            const busy = confirmingIntakeDate === day.date;
-                            return (
-                              <Pressable
-                                key={status}
-                                onPress={() => void confirmIntakeDay(day.date, status)}
-                                disabled={confirmingIntakeDate !== null}
-                                className={`min-h-[44px] rounded-full px-4 items-center justify-center ${confirmingIntakeDate !== null ? 'bg-m3-surface-container opacity-60' : 'bg-white active:opacity-80'}`}
-                                accessibilityRole="button"
-                                accessibilityLabel={`${label} for ${displayDate(day.date)}`}
-                                accessibilityState={{ disabled: confirmingIntakeDate !== null, busy }}
-                              >
-                                {busy ? (
-                                  <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
-                                ) : (
-                                  <Text className="text-m3-on-primary font-semibold text-xs">{label}</Text>
-                                )}
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ) : recommendation.eligibility.intakeDayCount < recommendation.eligibility.requiredIntakeDayCount ? (
-                  <Text className="text-m3-on-surface-variant text-xs">
-                    • {recommendation.eligibility.requiredIntakeDayCount - recommendation.eligibility.intakeDayCount} more food-logged days needed
-                  </Text>
-                ) : null}
-                {recommendation.reason === 'insufficient_evidence' && recommendation.eligibility.weightLogCount < recommendation.eligibility.requiredWeightLogCount ? (
-                  <Text className="text-m3-on-surface-variant text-xs">
-                    • {recommendation.eligibility.requiredWeightLogCount - recommendation.eligibility.weightLogCount} more weight check-ins needed
-                  </Text>
-                ) : null}
-                {recommendation.reason === 'insufficient_evidence' && !recommendation.eligibility.hasRecentWeight ? (
-                  <Text className="text-m3-on-surface-variant text-xs tabular-nums">
-                    • {recommendation.eligibility.daysSinceLastWeight === null
-                      ? 'A recent weight check-in is needed'
-                      : `Latest check-in is ${recommendation.eligibility.daysSinceLastWeight} days old; maximum is ${recommendation.eligibility.maximumDaysSinceLastWeight}`}
-                  </Text>
-                ) : null}
-                {recommendation.reason === 'insufficient_evidence' && recommendation.eligibility.endpointSpanDays < recommendation.eligibility.requiredEndpointSpanDays ? (
-                  <Text className="text-m3-on-surface-variant text-xs tabular-nums">
-                    • Check-ins span {recommendation.eligibility.endpointSpanDays} of the required {recommendation.eligibility.requiredEndpointSpanDays} days
-                  </Text>
-                ) : null}
-              </View>
-            ) : recommendation?.kind === 'paused' ? (
-              <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                <Text className="text-m3-on-surface font-bold text-sm">Recommendation paused</Text>
-                <Text className="text-m3-on-surface-variant text-xs">
-                  {recommendation.reason === 'tdee_floor_conflict'
-                    ? 'The BMR-derived floor conflicts with the permitted TDEE update range.'
-                    : 'The current macro rules cannot fit the calculated calorie target.'}
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="flex-1 min-w-0">
+                <Text className="text-m3-on-surface font-bold text-base">Energy history</Text>
+                <Text className="text-m3-on-surface-variant text-xs mt-0.5">
+                  {selectedRange === '1M' ? 'Daily intake with a 7-day average' : 'Weekly logged-day averages'}
                 </Text>
               </View>
-            ) : recommendation?.kind === 'ready' ? (
-              <View className="gap-4">
-                <View className="gap-1">
-                  <Text className="text-m3-on-surface font-bold text-sm">Ready for review</Text>
-                  <Text className="text-m3-on-surface-variant text-xs">
-                    Analysis window {displayDate(recommendation.review.window_start)} – {displayDate(recommendation.review.window_end)}
-                  </Text>
-                </View>
-                {staleMessage ? (
-                  <View className="bg-m3-expenditure/10 border border-m3-expenditure/30 rounded-2xl p-3">
-                    <Text className="text-m3-expenditure text-xs font-semibold">
-                      Your data changed. Review the updated recommendation, then choose again.
-                    </Text>
-                  </View>
-                ) : null}
-                <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-3">
-                  <View className="flex-row justify-between items-baseline gap-3">
-                    <Text className="text-m3-on-surface-variant text-xs font-semibold">Current</Text>
-                    <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
-                      {Math.round(recommendation.review.previous_target_calories).toLocaleString()} kcal
-                    </Text>
-                  </View>
-                  <MacroRow
-                    protein={recommendation.review.previous_target_protein_g}
-                    carbs={recommendation.review.previous_target_carbs_g}
-                    fat={recommendation.review.previous_target_fat_g}
-                  />
-                </View>
-                <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-3 border border-m3-expenditure/40">
-                  <View className="flex-row justify-between items-baseline gap-3">
-                    <Text className="text-m3-expenditure text-xs font-semibold">Proposed</Text>
-                    <Text className="text-m3-expenditure text-xl font-bold tabular-nums">
-                      {Math.round(recommendation.review.proposed_target_calories).toLocaleString()} kcal
-                    </Text>
-                  </View>
-                  <MacroRow
-                    protein={recommendation.review.proposed_target_protein_g}
-                    carbs={recommendation.review.proposed_target_carbs_g}
-                    fat={recommendation.review.proposed_target_fat_g}
-                  />
-                </View>
-                <View className="flex-row gap-3">
-                  <Pressable
-                    onPress={() => void resolveRecommendation('keep')}
-                    disabled={resolving !== null}
-                    className={`flex-1 min-h-[48px] rounded-full border border-m3-outline-variant/60 items-center justify-center ${resolving !== null ? 'opacity-50' : 'active:opacity-70'}`}
-                    accessibilityRole="button"
-                    accessibilityLabel="Keep current targets"
-                    accessibilityState={{ disabled: resolving !== null, busy: resolving === 'keep' }}
-                  >
-                    <Text className="text-m3-on-surface font-semibold text-sm">
-                      {resolving === 'keep' ? 'Keeping…' : 'Keep Current'}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => void resolveRecommendation('accept')}
-                    disabled={resolving !== null}
-                    className={`flex-1 min-h-[48px] rounded-full items-center justify-center ${resolving !== null ? 'bg-m3-surface-container-high opacity-50' : 'bg-white active:opacity-80'}`}
-                    accessibilityRole="button"
-                    accessibilityLabel="Accept proposed targets"
-                    accessibilityState={{ disabled: resolving !== null, busy: resolving === 'accept' }}
-                  >
-                    <Text className={resolving !== null ? 'text-m3-on-surface-variant font-semibold text-sm' : 'text-m3-on-primary font-semibold text-sm'}>
-                      {resolving === 'accept' ? 'Accepting…' : 'Accept'}
-                    </Text>
-                  </Pressable>
-                </View>
+              <View className="rounded-full bg-m3-surface-container-high px-3 py-1.5">
+                <Text className="text-m3-on-surface text-compact font-semibold tabular-nums">
+                  {dailyCalories.length}/{rangeDayCount} days
+                </Text>
               </View>
-            ) : recommendation?.kind === 'next-review' ? (
-              <View className="gap-3">
-                <View className="bg-m3-surface-container-high rounded-2xl p-4 gap-1">
-                  <Text className="text-m3-on-surface font-bold text-sm">Next review</Text>
-                  <Text className="text-m3-expenditure text-xl font-bold tabular-nums">
-                    {displayDate(recommendation.nextReviewDate)}
-                  </Text>
-                </View>
-                <Text className="text-m3-on-surface-variant text-xs">
-                  Latest decision: {recommendation.latestDecision.status === 'accepted' ? 'New targets accepted' : 'Current targets kept'} on {displayDate(recommendation.latestDecision.review_date)}.
+            </View>
+            <EnergyChart
+              range={selectedRange}
+              startDate={chartDates.startDate}
+              endDate={chartDates.endDate}
+              dailyCalories={data.dailyCalories}
+              targetHistory={data.targetHistory}
+              height={176}
+            />
+            {energyCoverage < 0.6 ? (
+              <View className="flex-row items-start gap-2 rounded-xl bg-m3-surface-container-high px-3 py-2.5">
+                <MaterialIcons name="info-outline" size={16} color={M3.onSurfaceVariant} style={{ marginTop: 1 }} />
+                <Text className="flex-1 text-m3-on-surface-variant text-xs">
+                  {coveragePercent}% coverage. Treat the intake average cautiously until more days are logged; missing days are not counted as zero.
                 </Text>
               </View>
             ) : (
-              <ActivityIndicator color={M3.onSurfaceVariant} accessibilityLabel="Loading recommendation" />
+              <Text className="text-m3-on-surface-variant text-xs">
+                {coveragePercent}% coverage. Averages include logged days only; incomplete days can lower them.
+              </Text>
             )}
+            <View className="h-px bg-m3-outline-variant/50" />
+            <View className="flex-row flex-wrap gap-x-5 gap-y-3">
+              <InlineMetric
+                label="Average intake"
+                value={averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
+                detail={averageCalories == null ? 'No food-logged days' : `${dailyCalories.length} logged days`}
+              />
+              <InlineMetric
+                label="Current target"
+                value={`${Math.round(target.target_calories).toLocaleString()} kcal`}
+                detail={`Active since ${displayDate(target.effective_date)}`}
+              />
+              <InlineMetric
+                label="Estimated daily expenditure"
+                value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`}
+                detail="Current plan estimate"
+              />
+            </View>
           </Card>
+
           </View>
           </View>
         </Animated.View>

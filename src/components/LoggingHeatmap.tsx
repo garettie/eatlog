@@ -32,7 +32,8 @@ function LoggingHeatmap({
         [endDate, loggedDates],
     );
     const copy = CHART_COPY[kind];
-    const accessibilityLabel = `${copy.title}, last 30 days. ${model.currentWeekCount} of 7 days logged this week.`;
+    const coverage = Math.round(model.windowCount / 30 * 100);
+    const accessibilityLabel = `${copy.title}, last 30 days. ${model.windowCount} of 30 days logged, ${coverage} percent coverage. ${model.currentWeekCount} of 7 days logged this week.`;
 
     return (
         <View
@@ -67,13 +68,15 @@ function LoggingHeatmap({
 
             <View className="h-px bg-m3-outline-variant/50" />
 
-            <View>
+            <View className="gap-0.5">
                 <Text
                     className={`${compact ? 'text-base' : 'text-lg'} text-m3-on-surface font-bold tabular-nums`}
                     numberOfLines={1}
                 >
-                    {model.currentWeekCount}/7
-                    <Text className="text-m3-on-surface-variant text-compact font-medium"> this week</Text>
+                    {model.windowCount}/30
+                </Text>
+                <Text className="text-m3-on-surface-variant text-compact font-medium tabular-nums">
+                    {coverage}% logged · {model.currentWeekCount}/7 this week
                 </Text>
             </View>
         </View>

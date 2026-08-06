@@ -14,6 +14,7 @@ import { M3 } from '../theme/tokens';
 interface SegmentedOption<T extends string> {
   value: T;
   label: string;
+  accessibilityLabel?: string;
   icon?: keyof typeof MaterialIcons.glyphMap;
 }
 
@@ -111,7 +112,7 @@ export default function SegmentedControl<T extends string>({
                 startTransition(() => onChange(opt.value));
               }}
               accessibilityRole="radio"
-              accessibilityLabel={opt.label}
+              accessibilityLabel={opt.accessibilityLabel ?? opt.label}
               accessibilityState={{ selected }}
               className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
             >

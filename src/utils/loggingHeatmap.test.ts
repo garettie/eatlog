@@ -14,6 +14,7 @@ test('builds a rolling 30-day block with three rows of ten days', () => {
   assert.equal(result.rows[0][9].date, '2026-07-12');
   assert.equal(result.rows[1][0].date, '2026-07-13');
   assert.equal(result.rows[2][9].date, '2026-08-01');
+  assert.equal(result.windowCount, 0);
 });
 
 test('deduplicates logged dates and counts only the current Monday-based week', () => {
@@ -25,6 +26,7 @@ test('deduplicates logged dates and counts only the current Monday-based week', 
   ]);
 
   assert.equal(result.currentWeekCount, 2);
+  assert.equal(result.windowCount, 3);
   assert.equal(result.rows.flat().filter((cell) => cell.logged).length, 3);
 });
 
