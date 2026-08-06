@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { searchFood, FoodResult, DataType } from '../services/foodSearch';
+import { searchFood, FoodResult, DataType, type FoodSearchMode, type FoodSearchOutcome } from '../services/foodSearch';
 import { describeMeal } from '../services/foodScan';
 import { M3 } from '../theme/tokens';
 import PrimaryButton from './PrimaryButton';
@@ -21,8 +21,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [searchResults, setSearchResults] = useState<FoodResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchOutcome, setSearchOutcome] = useState<FoodSearchOutcome['kind']>('success');
   const [searchRetry, setSearchRetry] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const searchSeq = useRef(0);
 
   const [describeText, setDescribeText] = useState('');
@@ -44,21 +46,56 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualNutrients.some((value) => value > 0);
 
   const reset = useCallback(() => {
+    abortRef.current?.abort();
+    searchSeq.current += 1;
     setMode(null);
     setSearchQuery('');
     setSearchResults([]);
     setSearchError(null);
+    setSearchOutcome('success');
     setDescribeText('');
     setDescribeError(null);
   }, []);
 
+  const runSearch = useCallback(async (query: string, searchMode: FoodSearchMode) => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return;
+    const seq = ++searchSeq.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const result = await searchFood(trimmed, searchMode, controller.signal);
+      if (seq !== searchSeq.current) return;
+      setSearchResults(result.items);
+      setSearchOutcome(result.kind);
+      setSearchError(result.kind === 'unavailable'
+        ? "Couldn't search foods. Check your connection and try again."
+        : null);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      console.error('[AddComponent] search failed', error);
+      if (seq === searchSeq.current) {
+        setSearchResults([]);
+        setSearchOutcome('unavailable');
+        setSearchError("Couldn't search foods. Check your connection and try again.");
+      }
+    } finally {
+      if (seq === searchSeq.current) setIsSearching(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const seq = ++searchSeq.current;
+    abortRef.current?.abort();
+    searchSeq.current += 1;
 
-    if (!searchQuery.trim()) {
+    if (mode !== 'search' || searchQuery.trim().length < 2) {
       setSearchResults([]);
       setSearchError(null);
+      setSearchOutcome('success');
       setIsSearching(false);
       return;
     }
@@ -66,25 +103,20 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     setIsSearching(true);
     setSearchError(null);
     debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await searchFood(searchQuery);
-        if (seq !== searchSeq.current) return;
-        setSearchResults(res.items);
-      } catch (e) {
-        console.error('[AddComponent] search failed', e);
-        if (seq === searchSeq.current) {
-          setSearchResults([]);
-          setSearchError("Couldn't search foods. Check your connection and try again.");
-        }
-      } finally {
-        if (seq === searchSeq.current) setIsSearching(false);
-      }
-    }, 300);
+      await runSearch(searchQuery, 'common');
+    }, 500);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [searchQuery, searchRetry]);
+  }, [mode, searchQuery, searchRetry, runSearch]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const handleSearchSubmit = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    void runSearch(searchQuery, 'full');
+  }, [runSearch, searchQuery]);
 
   const handleSearchSelect = useCallback((food: FoodResult) => {
     onAdd([food]);
@@ -224,6 +256,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               className="flex-1 text-m3-on-surface text-sm ml-2"
               autoFocus
               autoCorrect={false}
+              returnKeyType="search"
+              onSubmitEditing={handleSearchSubmit}
             />
             {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} style={{ marginLeft: 4 }} />}
             {searchQuery.length > 0 && (
@@ -256,6 +290,11 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               </Text>
             </Pressable>
           ))}
+          {searchOutcome === 'partial' && searchResults.length > 0 && (
+            <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-xs">
+              Some sources are unavailable. Showing available results.
+            </Text>
+          )}
           {searchError && (
             <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-3">
               <Text className="text-m3-on-error-container text-xs font-medium">{searchError}</Text>
@@ -394,6 +433,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
 
 function dataTypeShort(dt: DataType): string {
   switch (dt) {
+    case 'Survey (FNDDS)': return 'USDA Survey (FNDDS)';
     case 'Foundation':
     case 'SR Legacy':
     case 'Branded': return 'USDA';

@@ -5,6 +5,7 @@
   "version": "1.1.0",
   "main": "index.ts",
   "dependencies": {
+    "@babel/runtime": "^7.29.7",
     "@expo-google-fonts/onest": "^0.4.1",
     "@expo/vector-icons": "^15.0.0",
     "@gorhom/bottom-sheet": "^5.2.14",
@@ -47,7 +48,8 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "test": "tsx --test src/utils/*.test.ts src/db/*.test.ts",
+    "test": "tsx --test src/utils/*.test.ts src/db/*.test.ts src/services/*.test.ts",
+    "evaluate:food-search": "tsx scripts/evaluate-food-search.ts",
     "typecheck": "tsc --noEmit",
     "start": "APP_VARIANT=development expo start",
     "android": "APP_VARIANT=development expo run:android",

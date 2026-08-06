@@ -13,6 +13,8 @@ import SheetBackButton from './SheetBackButton';
 
 function dataTypeLabel(dt: DataType): string {
   switch (dt) {
+    case 'Survey (FNDDS)':
+      return 'USDA Survey (FNDDS)';
     case 'Foundation':
       return 'USDA Foundation Database';
     case 'SR Legacy':

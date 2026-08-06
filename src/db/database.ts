@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 
 import { parseLocalISO } from '../utils/calendar';
 import { computeWeightTrend } from '../utils/weightTrend';
+import { FOOD_LOG_DATA_TYPE_MIGRATION_SQL } from './foodLogDataTypeMigration';
 import { WEIGHT_ORIGIN_MIGRATION_SQL } from './weightOriginMigration';
 
 export type Sex = 'male' | 'female';
@@ -116,7 +117,7 @@ let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 export const DATABASE_NAME = 'eatlog.db';
 export const LEGACY_DATABASE_NAME = 'marco.db';
-const DATABASE_VERSION = 8;
+const DATABASE_VERSION = 9;
 
 export function getDatabaseVersion(): number {
   return DATABASE_VERSION;
@@ -205,7 +206,7 @@ export async function initDatabase(): Promise<void> {
       meal TEXT NOT NULL DEFAULT 'snack' CHECK (meal IN ('breakfast','lunch','dinner','snack')),
       meal_id INTEGER REFERENCES meals(id),
       brand TEXT,
-      data_type TEXT CHECK (data_type IN ('Foundation','SR Legacy','Branded','off','manual','scan','describe','')),
+      data_type TEXT CHECK (data_type IN ('Survey (FNDDS)','Foundation','SR Legacy','Branded','off','manual','scan','describe','')),
       preparation TEXT,
       grams_logged REAL,
       serving_size_g REAL,
@@ -463,6 +464,11 @@ export async function initDatabase(): Promise<void> {
 
   if (currentVersion === 7) {
     await db.withExclusiveTransactionAsync((txn) => txn.execAsync(WEIGHT_ORIGIN_MIGRATION_SQL));
+    currentVersion = 8;
+  }
+
+  if (currentVersion === 8) {
+    await db.withExclusiveTransactionAsync((txn) => txn.execAsync(FOOD_LOG_DATA_TYPE_MIGRATION_SQL));
   }
 }
 

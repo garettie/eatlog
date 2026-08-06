@@ -3,13 +3,14 @@ import { ActivityIndicator, Keyboard, Pressable, Text, View } from 'react-native
 import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { searchFood, FoodResult, DataType, type FoodSearchOutcome } from '../../services/foodSearch';
+import { searchFood, FoodResult, DataType, type FoodSearchMode, type FoodSearchOutcome } from '../../services/foodSearch';
 import { getRecentFoodLogs, RecentFood } from '../../db/database';
 import { M3 } from '../../theme/tokens';
 import SheetBackButton from './SheetBackButton';
 
 function dataTypeBadge(dt: DataType): string {
   switch (dt) {
+    case 'Survey (FNDDS)': return 'USDA Survey (FNDDS)';
     case 'Foundation': return 'USDA Foundation';
     case 'SR Legacy': return 'USDA SR Legacy';
     case 'Branded': return 'USDA Branded';
@@ -73,17 +74,46 @@ export default function SearchInputState({ onSelectFood, onManualEntry, onBack }
   const [recents, setRecents] = useState<RecentFood[]>([]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const searchSeq = useRef(0);
 
   useEffect(() => {
     getRecentFoodLogs(10).then(setRecents);
   }, []);
 
+  const runSearch = useCallback(async (searchQuery: string, mode: FoodSearchMode) => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 2) return;
+    const seq = ++searchSeq.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setIsSearching(true);
+    try {
+      const result = await searchFood(trimmed, mode, controller.signal);
+      if (seq !== searchSeq.current) return;
+      setResults(result.items);
+      setOutcome(result.kind);
+      setHasSearched(true);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      console.error('[FoodSearch] search failed', error);
+      if (seq === searchSeq.current) {
+        setResults([]);
+        setOutcome('unavailable');
+        setHasSearched(true);
+      }
+    } finally {
+      if (seq === searchSeq.current) setIsSearching(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const seq = ++searchSeq.current;
+    abortRef.current?.abort();
+    searchSeq.current += 1;
 
-    if (!query.trim()) {
+    if (query.trim().length < 2) {
       setResults([]);
       setOutcome('success');
       setHasSearched(false);
@@ -93,28 +123,21 @@ export default function SearchInputState({ onSelectFood, onManualEntry, onBack }
 
     setIsSearching(true);
     debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await searchFood(query);
-        if (seq !== searchSeq.current) return;
-        setResults(res.items);
-        setOutcome(res.kind);
-        setHasSearched(true);
-      } catch (e) {
-        console.error('[FoodSearch] search failed', e);
-        if (seq === searchSeq.current) {
-          setResults([]);
-          setOutcome('unavailable');
-          setHasSearched(true);
-        }
-      } finally {
-        if (seq === searchSeq.current) setIsSearching(false);
-      }
-    }, 400);
+      await runSearch(query, 'common');
+    }, 500);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, retryCount]);
+  }, [query, retryCount, runSearch]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const handleSubmit = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    void runSearch(query, 'full');
+    Keyboard.dismiss();
+  }, [query, runSearch]);
 
   const handleResultPress = useCallback((food: FoodResult) => {
     Keyboard.dismiss();
@@ -219,7 +242,7 @@ export default function SearchInputState({ onSelectFood, onManualEntry, onBack }
             autoFocus
             autoCorrect={false}
             returnKeyType="search"
-            onSubmitEditing={Keyboard.dismiss}
+            onSubmitEditing={handleSubmit}
           />
           {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} />}
           {query.length > 0 && (

@@ -37,9 +37,9 @@ const v2 = {
   counts: { ...v1.counts, profile: 1, adaptiveReviews: 0 },
 } as const;
 
-test('accepts structural v1 and hashed v2 manifests', () => {
-  assert.equal(validateBackupManifest(v1, 6).formatVersion, 1);
-  assert.equal(validateBackupManifest(v2, 6).formatVersion, 2);
+test('accepts structural v1 and hashed v2 manifests, including v6 backups on v9', () => {
+  assert.equal(validateBackupManifest(v1, 9).formatVersion, 1);
+  assert.equal(validateBackupManifest(v2, 9).formatVersion, 2);
 });
 
 test('rejects unsafe, absolute, duplicate, and backslash archive paths', () => {
