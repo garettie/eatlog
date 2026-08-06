@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { ClipPath, Defs, G, Path } from 'react-native-svg';
 import * as SplashScreen from 'expo-splash-screen';
 import Reanimated, {
   Easing,
@@ -9,10 +9,18 @@ import Reanimated, {
   useReducedMotion,
   useSharedValue,
   withDelay,
+  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 
-const AnimatedPath = Reanimated.createAnimatedComponent(Path);
+const AnimatedG = Reanimated.createAnimatedComponent(G);
+
+const BACKGROUND = '#111318';
+const EGG = '#FFFFFF';
+const INK = '#111318';
+const ACCENT_RED = '#F04438';
+const EGG_LOWER_PATH = 'M18 53C28 56 39 57 50 57C61 57 72 56 82 53C82 76 69 92 50 92C31 92 18 76 18 53Z';
+const TICK_POSITIONS = Array.from({ length: 16 }, (_, index) => index * 8 - 24);
 
 interface Props {
   onAnimationFinish: () => void;
@@ -20,41 +28,36 @@ interface Props {
 
 export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => {
   const reduced = useReducedMotion();
-  const drawAnim = useSharedValue(300);
+  const tickTravel = useSharedValue(0);
   const fadeAnim = useSharedValue(1);
 
   useEffect(() => {
     async function prepare() {
-      // Hide native static splash screen once component mounts
+      // Hide native static splash screen once the animated version is ready.
       await SplashScreen.hideAsync();
 
       if (reduced) {
-        drawAnim.value = 0;
+        tickTravel.value = 0;
         fadeAnim.value = 0;
         onAnimationFinish();
         return;
       }
 
-      drawAnim.value = withTiming(0, {
-        duration: 800,
-        easing: Easing.bezier(0.4, 0, 0.2, 1),
-      }, (finished) => {
-        if (!finished) return;
-        fadeAnim.value = withDelay(120, withTiming(0, { duration: 250 }, (faded) => {
-          if (faded) runOnJS(onAnimationFinish)();
-        }));
-      });
+      tickTravel.value = withRepeat(
+        withTiming(8, { duration: 900, easing: Easing.linear }),
+        -1,
+        false,
+      );
+      fadeAnim.value = withDelay(900, withTiming(0, { duration: 250 }, (finished) => {
+        if (finished) runOnJS(onAnimationFinish)();
+      }));
     }
 
-    prepare();
-  }, [reduced]);
+    void prepare();
+  }, [fadeAnim, onAnimationFinish, reduced, tickTravel]);
 
-  const continuousArrowPath = "M14 74 L38 50 L54 62 L82 26 L68 26 L82 26 L82 40";
-  const darkPathProps = useAnimatedProps(() => ({
-    strokeDashoffset: drawAnim.value,
-  }));
-  const lightPathProps = useAnimatedProps(() => ({
-    strokeDashoffset: drawAnim.value,
+  const tickTrackProps = useAnimatedProps(() => ({
+    transform: `translate(${tickTravel.value} 0)`,
   }));
   const containerStyle = useAnimatedStyle(() => ({
     opacity: fadeAnim.value,
@@ -66,7 +69,7 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
         {
           position: 'absolute',
           inset: 0,
-          backgroundColor: '#111318',
+          backgroundColor: BACKGROUND,
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 999,
@@ -74,40 +77,35 @@ export const AnimatedSplashScreen: React.FC<Props> = ({ onAnimationFinish }) => 
         containerStyle,
       ]}
     >
-      <Svg width={140} height={140} viewBox="0 0 100 100" fill="none">
-        {/* Scale Base */}
-        <Path
-          d="M22 28C22 22.4772 26.4772 18 32 18H68C73.5228 18 78 22.4772 78 28V72C78 77.5228 73.5228 82 68 82H32C26.4772 82 22 77.5228 22 72V28Z"
-          fill="#FFFFFF"
-        />
-        {/* Dial Cutout */}
-        <Path
-          d="M36 28C36 26.8954 36.8954 26 38 26H62C63.1046 26 64 26.8954 64 28V36C64 37.1046 63.1046 38 62 38H38C36.8954 38 36 37.1046 36 36V28Z"
-          fill="#111318"
-        />
-        <Path d="M50 35L46 29" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" />
+      <Svg width={150} height={150} viewBox="0 0 100 100" fill="none">
+        <Defs>
+          <ClipPath id="egg-lower-clip">
+            <Path d={EGG_LOWER_PATH} />
+          </ClipPath>
+        </Defs>
 
-        {/* Animated Dark Gap Underlay */}
-        <AnimatedPath
-          animatedProps={darkPathProps}
-          d={continuousArrowPath}
-          stroke="#111318"
-          strokeWidth={12}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={300}
+        {/* Egg timer body */}
+        <Path
+          d="M18 53C18 27 31 8 50 8C69 8 82 27 82 53C82 76 69 92 50 92C31 92 18 76 18 53Z"
+          fill={EGG}
         />
 
-        {/* Animated White Stroke Overlay */}
-        <AnimatedPath
-          animatedProps={lightPathProps}
-          d={continuousArrowPath}
-          stroke="#FFFFFF"
-          strokeWidth={7}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={300}
-        />
+        {/* The scale ticks roll beneath the fixed red indicator. */}
+        <AnimatedG animatedProps={tickTrackProps} clipPath="url(#egg-lower-clip)">
+          {TICK_POSITIONS.map((x, index) => (
+            <Path
+              key={x}
+              d={`M${x} 54V${index % 5 === 0 ? 68 : 63}`}
+              stroke={INK}
+              strokeWidth={index % 5 === 0 ? 2.5 : 1.8}
+              strokeLinecap="round"
+            />
+          ))}
+        </AnimatedG>
+
+        {/* Fixed seam and indicator */}
+        <Path d="M18 53C28 56 39 57 50 57C61 57 72 56 82 53" stroke={INK} strokeWidth={3.2} />
+        <Path d="M45.5 43.5H54.5L50 51.5L45.5 43.5Z" fill={ACCENT_RED} />
       </Svg>
     </Reanimated.View>
   );
