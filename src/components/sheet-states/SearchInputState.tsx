@@ -244,7 +244,6 @@ export default function SearchInputState({ onSelectFood, onManualEntry, onBack }
             returnKeyType="search"
             onSubmitEditing={handleSubmit}
           />
-          {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} />}
           {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-12 h-12 items-center justify-center -mr-3 -my-3">
               <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
