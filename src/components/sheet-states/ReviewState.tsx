@@ -132,6 +132,11 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   const today = useToday();
   const logDateOverrideRef = useRef(false);
   const effectiveLogDate = logDateOverrideRef.current ? logDate : logDateProp ?? today;
+  const lowConfidenceComponents = components.filter((component) => component.food.confidence === 'low');
+  const lowConfidenceNames = lowConfidenceComponents.slice(0, 3).map((component) => component.food.name).join(', ');
+  const lowConfidenceSummary = lowConfidenceComponents.length > 3
+    ? `${lowConfidenceNames}, and ${lowConfidenceComponents.length - 3} more items`
+    : lowConfidenceNames;
 
   useEffect(() => {
     logDateOverrideRef.current = false;
@@ -511,6 +516,22 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
           disabled={logging}
         />
 
+        {lowConfidenceComponents.length > 0 ? (
+          <View
+            className="mt-4 bg-m3-secondary-container rounded-2xl px-4 py-3 flex-row gap-3 border border-m3-outline-variant/50"
+            accessible
+            accessibilityLiveRegion="polite"
+          >
+            <MaterialIcons name="help-outline" size={20} color={M3.onSecondaryContainer} />
+            <View className="flex-1 gap-1">
+              <Text className="text-m3-on-secondary-container text-sm font-semibold">Does this look right?</Text>
+              <Text className="text-m3-on-secondary-container text-sm">
+                We had to estimate {lowConfidenceSummary}. Check the portions and preparation additions before logging.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         <View className="pt-4 pb-6 items-center gap-2">
           <View className="items-center">
             <Text className="text-m3-on-surface text-4xl font-bold tabular-nums">
@@ -668,7 +689,14 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                       className="flex-1 flex-row items-center mr-2 active:opacity-60 min-h-[48px]"
                     >
                       <View className="flex-1">
-                        <Text className="text-m3-on-surface font-medium text-base" numberOfLines={1}>{comp.food.name}</Text>
+                        <View className="flex-row items-center gap-2">
+                          <Text className="flex-1 text-m3-on-surface font-medium text-base" numberOfLines={1}>{comp.food.name}</Text>
+                          {comp.food.confidence === 'low' ? (
+                            <View className="bg-m3-secondary-container rounded-full px-2 py-0.5">
+                              <Text className="text-m3-on-secondary-container text-xs font-semibold">Estimate</Text>
+                            </View>
+                          ) : null}
+                        </View>
                         <View className="flex-row items-center gap-1 mt-0.5">
                           <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>
                             {showMl

@@ -55,6 +55,7 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     timeout: 'The estimate took too long. Try again.',
     provider: 'The estimation service could not complete this request.',
     'invalid-response': 'This photo did not produce a usable food estimate.',
+    unrecognized: 'No usable food was recognized. Try a clearer food photo or another logging method.',
     'camera-unavailable': 'The camera could not open. Try again or choose another logging method.',
     'gallery-unavailable': 'The photo library could not open. Try again or choose another logging method.',
     'photo-unreadable': 'The selected photo could not be read. Choose another photo or logging method.',
@@ -676,6 +677,8 @@ function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onM
                 ? 'Gallery unavailable'
                 : kind === 'photo-unreadable'
                     ? 'Photo couldn’t be read'
+                    : kind === 'unrecognized'
+                        ? 'Food not recognized'
                     : `${source} estimate unavailable`;
 
     return (

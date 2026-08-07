@@ -1,4 +1,5 @@
 export type FoodSource = 'usda' | 'off' | 'scan' | 'describe' | 'manual';
+export type FoodEstimateConfidence = 'high' | 'medium' | 'low';
 
 export type DataType =
   | 'Survey (FNDDS)'
@@ -26,6 +27,8 @@ export interface FoodResult {
   servingSizeGrams: number | null;
   servingLabel: string | null;
   estimatedGrams?: number | null;
+  confidence?: FoodEstimateConfidence;
+  confidenceReason?: string | null;
   alternateSourceIds: { source: FoodSource; id: string }[];
   searchText?: string;
   providerOrder?: number;
