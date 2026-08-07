@@ -1,263 +1,375 @@
-# API-First Curated Food Search Implementation Plan
+# History-First Food Search Implementation Plan
 
 ## Status and objective
 
-Eatlog's traditional food search currently combines the user's scan/describe cache with USDA Foundation, USDA SR Legacy, USDA Branded, and Open Food Facts results. It does not query USDA Survey foods (FNDDS), and it sends Open Food Facts requests while the user is typing.
+This plan replaces the previous API-first plan. Eatlog will not bundle or download a food catalog. It will not use FatSecret or add barcode search.
 
-The objective is a useful common-food search experience: ordinary queries should return recognizable foods, practical preparations, and usable portions before noisy branded products. This phase will validate that experience using provider APIs and deterministic code. It will not add an offline food catalog and will not use AI for query rewriting or ranking.
+The search experience will use the user's own logging history first, including individual components created by image and description scans. Remote USDA and Open Food Facts results will cover foods the user has not logged. An explicit Gemini estimate will cover gaps. Once the user logs a result, the existing `food_logs` rows make it available offline.
 
 Success means:
 
-- The intended common food appears in the first three results for at least 85% of the evaluation queries.
-- No top ten contains more than three near-duplicate entries.
-- At least 80% of the first five common-food results have a usable household portion or gram serving.
-- An explicitly submitted brand/product query returns the intended branded result in the first three when either provider contains it.
-- Failure of one provider still returns results from the remaining sources with the existing partial/unavailable behavior.
+- A search finds matching standalone foods and meal components without waiting for the network.
+- Empty-query results show pinned and recent foods and meals.
+- Personal matches rank above equivalent provider matches and keep the user's last portion.
+- Search remains useful offline for prior foods, meal components, meals, and manual entry.
+- Online failures do not hide personal results.
+- Quick-log reproduces the latest quantity and nutrition and supports undo.
+- The APK contains no bundled food database, JSON dataset, or CSV dataset.
+- The Expo bundle contains no USDA or Gemini secret.
+- The Worker rejects undocumented routes, malformed or oversized input, and requests over its layered abuse limits before contacting an upstream provider.
+- Worker logs contain operational metadata without food queries, descriptions, images, device identifiers, prompts, responses, or secrets.
 
-## Architecture decision
+## Product behavior
 
-Use two search modes behind the existing search interface:
+### One search surface
+
+Replace the separate Recent and Search screens with one food-search screen.
+
+- The existing Recent menu action opens it with an empty query and no autofocus.
+- The existing Search menu action opens it with the input focused.
+- Keep the entry-method menu and the current whole-meal review flow.
+- Reuse the same search controller and food rows in the meal component editor.
+
+With an empty query, show pinned entries first and then recent entries. Mix individual foods and whole meals by pin state and recency, but label whole meals and keep them as a distinct result type.
+
+With a query, render these sections:
+
+1. **From your history**: standalone logs and individual meal components.
+2. **Meals**: complete logged meals whose names match.
+3. **Online results**: USDA and Open Food Facts candidates.
+
+Do not block the first two sections while online search runs. Show online loading and failure states inside the online section.
+
+### Result rows and actions
+
+Each food row shows:
+
+- Food name.
+- Brand or personal-history context.
+- Calories for the default portion.
+- Portion label and grams when known.
+- A pin control for personal entries.
+- A quick-log control for personal food and component entries.
+
+Hide provider terminology such as `Survey (FNDDS)` from the main row. Use short provenance labels such as `Your history`, `USDA`, and `Open Food Facts` where provenance helps the user.
+
+Tapping any food opens portion review. Quick-log copies the representative log's grams and absolute calories, protein, carbohydrates, and fat to the active diary date. It uses the entry flow's initial meal when provided, otherwise `defaultMealForNow()`. The new row must have `meal_id = NULL`, even when the source item came from a meal component. Use the existing completion toast and delete-by-ID undo pattern.
+
+Whole-meal rows continue to open meal review. They do not receive the individual-food quick-log control.
+
+### No-result behavior
+
+When personal and online searches return no useful food, show:
+
+- `Estimate "<query>" with AI`.
+- `Enter manually`.
+
+The AI action must remain explicit. Send the query through the existing description-estimation contract, open component review, and require confirmation before logging. The saved meal and its component rows then join personal search history.
+
+When the device is offline, keep personal results visible and show a short online-unavailable message. Manual entry remains available. A user with no history and no connection will not receive generic food results.
+
+## Personal history search
+
+### Database query
+
+Replace the search runtime's dependency on `food_cache` with a history query over the existing `food_logs`, `meals`, and `pinned_foods` tables. Do not add a catalog table or persist remote result pages.
+
+The history query must include:
+
+- Standalone rows where `meal_id IS NULL`.
+- Component rows where `meal_id IS NOT NULL`, including `scan` and `describe` sources.
+- Manual and provider-backed logs.
+- The parent meal name and photo for a component when present.
+- The latest row, last-used time, usage count, and all legacy pin keys needed to determine pin state.
+
+Keep complete-meal matching in the existing meal query. Do not return a component as a complete meal.
+
+### Nutrition normalization and clustering
+
+Create personal candidates from actual log rows before combining them with remote results.
+
+- Use `source + source_food_id` as the identity when a provider ID exists.
+- Otherwise group candidates by normalized name, brand, and preparation.
+- Within a name group, merge candidates when all four per-100 g macro differences are at or below the existing 20% threshold.
+- Keep candidates separate when any macro exceeds that threshold.
+- Do not merge candidates with missing macro data unless their provider identity matches.
+- Choose the newest row as the cluster representative.
+- Sum usage counts and retain the newest `logged_at`, photo, parent-meal context, and portion.
+- Treat a cluster as pinned when any member's legacy `food_key` is pinned. Use a stable history key based on normalized name, brand, and preparation for future pin toggles. Keep existing whole-meal pin keys unchanged.
+
+If a representative lacks per-100 g values, derive them from its absolute macros and positive `grams_logged`. Exclude the row from reusable food results when neither stored nor derivable macro values exist.
+
+### Matching and ranking
+
+Keep normalization and ranking in the pure search-core module. Apply matching in this order:
+
+1. Exact normalized name or alias.
+2. Name prefix.
+3. Every query token matching a candidate token or token prefix.
+4. One Damerau-Levenshtein edit for tokens containing at least five characters.
+
+Reject multi-token candidates that match only one query token. Keep singular/plural handling and existing preparation extraction.
+
+Add a small bidirectional Filipino-English alias map for provider rewriting and matching. Initial groups:
+
+- talong / eggplant
+- kamote / sweet potato
+- sayote / chayote
+- pechay / bok choy
+- kangkong / water spinach
+- bangus / milkfish
+- galunggong / round scad
+- calamansi / calamondin
+- malunggay / moringa
+- togue / mung bean sprouts
+- tokwa / tofu
+- lugaw / rice porridge
+
+Within each lexical tier, rank candidates in this order:
+
+1. Personal history before remote providers.
+2. Pinned before unpinned.
+3. Higher usage count.
+4. Newer use date.
+5. Better preparation agreement and complete nutrition.
+6. Stable provider order and source ID.
+
+When a personal result and remote result represent the same provider ID or pass the existing name, preparation, brand, and macro deduplication rule, keep the personal result as canonical so its last portion survives.
+
+## Portion and result model
+
+Replace the app-level single-serving fields with a portion list:
 
 ```ts
-export type FoodSearchMode = 'common' | 'full';
+export interface FoodPortion {
+  id: string;
+  label: string;
+  grams: number;
+}
 
-export async function searchFood(
-  query: string,
-  mode?: FoodSearchMode,
-  signal?: AbortSignal,
-): Promise<FoodSearchOutcome>;
+export interface FoodHistoryMetadata {
+  representativeLogId: number;
+  lastLoggedAt: string;
+  timesLogged: number;
+  lastGrams: number;
+  pinKey: string;
+  parentMealName: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
 ```
 
-`mode` defaults to `common` for compatibility.
+Add `portions`, `defaultPortionId`, and optional `history` metadata to `FoodResult`. Keep per-100 g macros and provider provenance. Update all search parsers, fixtures, review code, and component-add code to use the new portion model. The database schema and backup format remain unchanged.
 
-### Common mode: typeahead
+Build portions as follows:
 
-Run after a 500 ms debounce once the trimmed query contains at least two characters. Search:
+- History: the latest logged amount first, then its provider/serving size when different, then 100 g.
+- USDA: every valid household portion from selected-item details, then 100 g.
+- Open Food Facts: its valid serving, then 100 g.
+- AI/manual: the reviewed amount, then 100 g when gram-based nutrition supports it.
 
-1. The local scan/describe cache.
-2. One USDA `/foods/search` request with:
-   - `dataType`: `Survey (FNDDS)`, `SR Legacy`, and `Foundation`
-   - `pageSize`: 50
-   - `pageNumber`: 1
+Deduplicate equal gram weights and invalid or non-positive portions. History defaults to the last logged amount. A remote food defaults to its first valid household serving, then 100 g. Remove the arbitrary 150 g fallback from review; use 100 g only when no valid portion exists.
 
-Do not call USDA Branded or Open Food Facts in common mode.
+The review screen must let the user select a named portion or grams. Store the selected portion's grams, label, and absolute nutrition in the existing log columns.
 
-### Full mode: explicit submission
+## Search lifecycle and remote providers
 
-Run when the user presses the keyboard search action. Merge:
+Create one shared controller or hook used by standalone search and component search.
 
-1. Fresh local cache results.
-2. Common-mode USDA candidates, reusing the session cache when available.
-3. Up to 12 USDA Branded candidates.
-4. Up to 15 Open Food Facts candidates.
+- Load and rank personal history for every query change, including a one-character query.
+- Start common USDA search after a 350 ms debounce when the trimmed query contains at least two characters.
+- Cancel the previous remote request when the query changes or the screen unmounts.
+- Ignore stale responses with the existing sequence-guard pattern.
+- Keep the bounded 50-entry, five-minute in-memory remote cache.
+- Never persist remote search result pages on-device.
+- Preserve partial and unavailable provider states without clearing local sections.
 
-Use Open Food Facts' supported full-text search endpoint rather than passing `search_terms` to API v2. Identify Eatlog in request headers where React Native permits it, request only the fields already consumed by the app, and treat HTTP 429/503 as a failed optional source.
+Common typeahead requests search USDA Survey, Foundation, and SR Legacy foods. Keyboard submission performs full search by adding USDA Branded and Open Food Facts.
 
-Verify request identification on an Android build before relying on Open Food Facts. React Native may not honor a custom `User-Agent` consistently. Inspect the emitted request with Android network tooling or a temporary controlled echo endpoint; do not add a native networking dependency solely to force this header. If Eatlog cannot provide a custom identifier, record the limitation and keep Open Food Facts optional and explicit-submit-only.
+Do not send Open Food Facts requests per keystroke. Call its full-text endpoint only after explicit submission and keep it optional when its rate limit or service fails.
 
-This split is required because Open Food Facts limits search to 10 requests per minute per IP and explicitly disallows search-as-you-type use.
+Remove the eager USDA batch-detail request for the top search results. Search responses provide enough nutrition for rows. Fetch full USDA details and portions only after the user selects a result. A detail failure must leave a 100 g review option usable.
 
-### Request lifecycle and caching
+## Cloudflare Worker
 
-- Both search surfaces must abort their previous in-flight request when the query changes or the component unmounts.
-- Maintain a remote-only in-memory LRU cache keyed by normalized query and search mode.
-- Cache at most 50 entries for five minutes. A cached full result may satisfy a common request; a common result must not satisfy a full request.
-- Always query the local scan/describe cache afresh so newly saved personal foods appear immediately.
-- Preserve the existing 8-second search timeout and 5-second detail timeout.
-- Do not retry automatically. A later user action or expired cache entry is the retry boundary.
-- Treat USDA's default 1,000-request-per-hour, per-IP limit as an observable budget. The live evaluator must measure actual request usage rather than assuming debounce and cancellation are sufficient.
+Add a standalone `worker/` project with its own package manifest, Wrangler configuration, source, tests, and deployment instructions. It will expose:
 
-## Provider parsing and data model
+```text
+GET  /healthz
+POST /v1/usda/search
+GET  /v1/usda/foods/:fdcId
+POST /v1/estimate
+```
 
-Extend `FoodResult.dataType` and the `food_logs.data_type` constraint with the exact provider value:
+`POST /v1/usda/search` accepts `{ "query": string, "mode": "common" | "full" }`. Keeping the query in the body prevents Worker invocation logs from recording food-search text in a URL.
+
+`POST /v1/estimate` accepts one fixed operation:
 
 ```ts
-'Survey (FNDDS)'
+type EstimateOperation = 'scan' | 'describe' | 'clarify-meal' | 'clarify-component';
+
+interface EstimateRequest {
+  operation: EstimateOperation;
+  text?: string;
+  imageBase64?: string;
+}
 ```
 
-`FoodResult.source` remains `usda`; no new logging source is introduced.
+The client sends user input, not a Gemini prompt. The Worker owns the prompts, response schemas, model allowlist, and fallback order.
 
-Update USDA parsing so unknown USDA types are rejected instead of silently becoming `Branded`. Recognize only Foundation, SR Legacy, Survey (FNDDS), and Branded.
+### Wrangler configuration and secrets
 
-Keep provider-specific parsing separate from ranking. Provider parsing must:
+Use Wrangler 4.36 or newer and declare these required Worker secrets:
 
-- Preserve the original description for matching while producing a cleaner display name.
-- Include USDA `additionalDescriptions` in internal search text when present.
-- Normalize brand separately instead of deleting brand evidence needed for branded-query matching.
-- Accept nutrient IDs 1008, 1003, 1005, and 1004 for calories, protein, carbohydrate, and fat.
-- Reject candidates missing any of the four required macro values or containing non-finite/negative values.
-- Use `portionDescription`, then `modifier`, then a gram label when selecting a USDA portion label.
-- Continue converting Open Food Facts kilojoules to kilocalories only when `energy-kcal_100g` is absent.
+- `USDA_API_KEY`
+- `GEMINI_API_KEY`
+- `RATE_LIMIT_SALT`, generated as a random 32-byte value
 
-After preliminary ranking, request full USDA details in one `/foods` batch call for up to the ten highest-ranked common-food candidates. Merge household portion weights into those candidates without changing their nutrient values. A failed detail request must leave the ranked search results usable in grams.
+Configure `wrangler.jsonc` with:
 
-## Deterministic query normalization
+- `secrets.required` containing all three names so deployment fails when a binding is missing.
+- Workers Logs with invocation logging enabled and a production head-sampling rate of `0.1`.
+- A `10` ms CPU limit and at most `4` subrequests per invocation.
+- Separate rate-limit bindings with unique namespace IDs.
+- `workers.dev` deployment. Do not require a custom domain for this release.
 
-Move normalization, alias expansion, matching, deduplication, and ranking into a pure module with no database or network imports.
+Store local Worker secrets in `worker/.dev.vars`, add `.dev.vars*` to `.gitignore`, and commit only `worker/.dev.vars.example` with empty values. Production setup uses interactive `wrangler secret put` commands so shell history and repository files do not contain secret values.
 
-Normalization must:
+Move the mobile app from `EXPO_PUBLIC_USDA_API_KEY` and `EXPO_PUBLIC_GEMINI_API_KEY` to `EXPO_PUBLIC_FOOD_WORKER_URL`. The Worker URL is public configuration. Route scan, describe, clarification, and USDA calls through the Worker. Open Food Facts remains a direct, explicit-submit request because it needs no secret.
 
-- Lowercase, trim, collapse whitespace, and remove punctuation without discarding meaningful food qualifiers.
-- Match straightforward singular/plural forms.
-- Extract preparation terms such as raw, cooked, grilled, baked, fried, roasted, steamed, boiled, scrambled, poached, toasted, dried, smoked, canned, and frozen.
-- Use a small, bidirectional alias table for established vocabulary differences. Initial groups:
-  - aubergine / eggplant
-  - garbanzo / chickpea
-  - minced beef / ground beef
-  - minced pork / ground pork
-  - capsicum / bell pepper
-  - courgette / zucchini
-  - coriander / cilantro
-  - rocket / arugula
-  - prawn / shrimp
-  - scallion / spring onion / green onion
-  - maize / corn
-  - icing sugar / powdered sugar
-- Expand aliases for matching and provider-query rewriting only; never change the displayed food name or nutrition.
+After the deployed Worker passes smoke tests, the owner must rotate the USDA and Gemini keys used by previous APK builds and remove both old `EXPO_PUBLIC_*_API_KEY` variables from EAS.
 
-Do not add fuzzy spelling, stemming libraries, embeddings, or AI in this phase. Failed real queries should first become regression cases; add a deterministic alias only when it represents a genuine equivalent.
+### Request boundary
 
-## Ranking and deduplication
+Treat the Worker URL as public. Do not embed a shared bearer token, Cloudflare Access service token, signing secret, or HMAC key in the APK. CORS and application-name headers do not authenticate a native app.
 
-Use a stable lexicographic ranking rather than provider response order alone. Compare candidates in this order:
+Enforce these rules before any upstream request:
 
-1. Match class: exact normalized name or alias, prefix phrase, all query tokens, then partial token match.
-2. Explicit product match: a full submitted query matching both brand and product terms may outrank common foods.
-3. Personal relevance: a strong matching scan/describe cache item outranks an equivalent provider item.
-4. Common-food source priority: Survey (FNDDS), SR Legacy, Foundation, USDA Branded, then Open Food Facts.
-5. Preparation agreement: a requested preparation outranks other preparations; do not automatically prefer raw food.
-6. Data usability: complete macros and a usable portion outrank records lacking a portion.
-7. Stable tie-breakers: provider order followed by source food ID.
+- Allow only the four documented paths and their exact methods. Return `404` for unknown paths and `405` for wrong methods.
+- Accept `application/json` only for both POST routes.
+- Require a normalized USDA query between 2 and 100 characters and `mode` equal to `common` or `full`.
+- Require a positive decimal FDC ID that fits a JavaScript safe integer.
+- Require an estimate operation from the fixed enum. Accept text between 1 and 2,000 Unicode characters only for operations that use text.
+- Accept JPEG image data only for operations that use an image. Reject decoded image data over 4 MiB and reject a complete estimate request over 6 MiB. Check `Content-Length` when present and verify the number of bytes read when it is absent or false.
+- Require `scan` to contain an image and no text. Require `describe` to contain text and no image. Require both clarification operations to contain text and allow one optional image.
+- Verify the decoded JPEG magic bytes instead of trusting the client-provided operation or filename.
+- Normalize camera and gallery images in the app before upload: JPEG, maximum 1,600 px on the longest edge, quality `0.65`. Reject an image that still exceeds the Worker limit.
+- Reject unknown JSON properties, invalid field combinations, non-finite numbers, malformed base64, and empty values.
+- Hard-code the USDA and Gemini origins, USDA page sizes, Gemini model IDs, prompts, and response schemas. Do not accept an upstream URL, API key, model, prompt, page size, or response schema from the client.
 
-A query is an explicit product match only when its normalized terms include the candidate's brand plus at least one product-name term, or when it exactly matches the candidate's full branded product name. Merely returning a branded candidate does not establish product intent.
+Set an 8-second USDA timeout and a 20-second total Gemini timeout. Return stable error objects with a request ID and an application error code. Do not return upstream bodies, stack traces, provider URLs containing credentials, or secret-binding names.
 
-Deduplicate using normalized name, preparation, normalized brand, and macro similarity:
+Validate and normalize every upstream response before returning it. Cap the displayed USDA result count at 25 and cap AI components at 20. Reject a malformed provider response instead of forwarding it.
 
-- Merge candidates only when all four macros are within 20% of one another.
-- Keep distinct preparations and nutritionally different variants separate.
-- Prefer the higher-ranked candidate as canonical and retain the other source IDs in `alternateSourceIds`.
-- Return no more than 25 displayed results.
+### Layered abuse controls
 
-## User-interface integration
+Send `X-Eatlog-Install-ID` on `/v1/*` Worker requests using Android's existing `expo-application.getAndroidId()`. The Worker validates the identifier, combines it with `RATE_LIMIT_SALT`, hashes it with Web Crypto, and uses the digest as the install rate-limit key. Do not log the raw identifier or digest. This identifier groups requests for throttling; it does not prove that Eatlog sent them. Exempt `/healthz` from the install-ID requirement and upstream rate-limit counters.
 
-Keep the current responsive list and result-row design.
+Configure these rate-limit bindings:
 
-Update both search surfaces:
+| Route group | Per install | Loose per-IP ceiling | Per-location emergency ceiling |
+| --- | ---: | ---: | ---: |
+| USDA search/detail | 30 requests per 60 seconds | 300 per 60 seconds | 1,000 per 60 seconds |
+| Gemini estimate/clarification | 5 requests per 60 seconds | 30 per 60 seconds | 100 per 60 seconds |
 
-- `SearchInputState`: run common mode during debounce; set `returnKeyType="search"`; run full mode from `onSubmitEditing` without merely dismissing the keyboard.
-- `AddComponentSection`: add the same keyboard search action and common/full behavior.
-- Continue using sequence guards so late responses cannot replace a newer query.
-- Keep existing recents, loading, empty, manual-entry, partial, and unavailable states.
-- Add `USDA Survey (FNDDS)` to result and review source labels.
-- Update the privacy/service description to mention USDA Survey foods.
+Use `CF-Connecting-IP` only for the loose ceiling because mobile carrier addresses can represent many users. Use a constant route-group key for each emergency ceiling. Return `429` with `Retry-After: 60` when any binding rejects the request.
 
-Submitting a full search should retain current common results while optional branded sources load, then atomically replace them with the merged ranked result. Do not clear the list or flash an empty state between modes.
+Cloudflare rate-limit counters are local and eventually consistent, so they serve as abuse throttles rather than billing or usage accounting. If a rate-limit binding throws or becomes unavailable, fail closed with `503`; do not call the upstream provider.
 
-## Database migration and backup compatibility
+The owner will use a billing-enabled Gemini project, leave optional prompt/response logging and data sharing disabled, and configure project rate limits and spending caps in Google AI Studio. The implementation must retain Worker-side Gemini throttles because account controls can lag and apply at a different boundary.
 
-Raise `DATABASE_VERSION` from 6 to 7.
+### Caching, logging, and operational behavior
 
-For fresh databases, add `Survey (FNDDS)` to the `food_logs.data_type` check constraint.
+Cache only successful normalized USDA responses:
 
-For version 6 databases, rebuild `food_logs` inside one exclusive transaction because SQLite cannot widen its check constraint in place:
+- Common search: 6 hours.
+- Full search: 1 hour.
+- Food details: 24 hours.
 
-1. Rename the current table to `food_logs_v6`.
-2. Create the version 7 table with the same columns, foreign key, defaults, and the widened data-type constraint.
-3. Copy every column explicitly, preserving IDs and timestamps.
-4. Drop `food_logs_v6`.
-5. Recreate `idx_food_logs_date`.
-6. Set `PRAGMA user_version = 7` only after the copy and index creation succeed.
+Build cache keys from the validated FDC ID or a SHA-256 digest of the normalized query and mode. For search POSTs, use a synthetic internal GET request containing the digest as the Cache API key; do not place the query text in that key. Do not cache provider errors, rate-limit responses, health responses, Gemini requests, or Gemini responses.
 
-Do not change the backup manifest format. Current restore validation already accepts older database versions, restores the staged database, and calls `initDatabase`; therefore a restored version 6 backup should migrate through the same version 7 path.
+Emit one structured log for errors and rejected requests. Record request ID, route name, method, status, duration, upstream name, cache outcome, and rejection category. Exclude URL query strings, request and response bodies, food descriptions, images, Android IDs, rate-limit digests, headers, and secrets. `/healthz` returns only `{ "ok": true }` and performs no upstream request.
 
-Verification must cover:
+Review Worker metrics and logs after deployment for 429s, 5xx responses, CPU-limit errors, request spikes, and provider latency. The deployment guide must show where to inspect each signal in the Cloudflare dashboard.
 
-- Existing version 6 food logs survive migration with identical IDs, macros, sources, meal links, and timestamps.
-- A Survey food can be inserted after migration.
-- A version 6 backup can be restored by version 7 and then backed up again.
-- A failed migration leaves the original version 6 database intact through transaction rollback.
+Do not add Worker KV, Durable Objects, a server-side food database, authentication, or FatSecret code.
 
-## Test and evaluation plan
+If deployment credentials are unavailable during implementation, finish and test the Worker locally. Document `wrangler login`, `wrangler deploy --dry-run`, `wrangler secret put`, deployment, smoke-test, rollback, and key-rotation commands. Report deployment and owner-managed Gemini account limits as external steps.
 
-Update the test script so service tests are included:
-
-```json
-"test": "tsx --test src/utils/*.test.ts src/services/*.test.ts"
-```
+## Testing and acceptance cases
 
 Add deterministic tests for:
 
-- USDA Survey, SR, Foundation, and Branded fixture parsing.
-- Open Food Facts parsing and incomplete-record rejection.
-- Alias expansion and provider-query rewriting.
-- Singular/plural and preparation matching.
-- Common-food priority for generic queries.
-- Brand promotion only after an explicit full product query.
-- A common and branded candidate tying on match class, with the branded candidate winning only when the submitted query contains both its brand and a product-name term.
-- Personal-food priority for equivalent matches.
-- Nutritionally different variants remaining separate.
-- Similar cross-source records collapsing with alternate IDs retained.
-- Stable ordering regardless of provider completion order.
-- Common, full, partial, unavailable, cancellation, and cache-expiry behavior.
+- History retrieval that includes standalone foods, manual entries, and AI meal components.
+- Parent meal context and photos on component results.
+- Exact provider identity grouping.
+- The 20% history clustering boundary and latest-row selection.
+- Per-100 g derivation from absolute macros and grams.
+- Exact, prefix, all-token, singular/plural, alias, and one-edit matching.
+- Rejection of unrelated any-token matches.
+- Personal, pin, frequency, and recency ranking.
+- Cross-source deduplication that keeps the personal portion.
+- Portion creation, deduplication, defaults, and the removal of the 150 g fallback.
+- Immediate local results followed by remote results.
+- Cancellation, stale-response protection, cache expiry, partial results, and offline behavior.
+- Common USDA search, full USDA search, submit-only Open Food Facts, and selected-item detail loading.
+- Worker route and method allowlists, content-type enforcement, field combinations, length limits, byte limits, malformed base64, and upstream error mapping with mocked fetches.
+- Fixed upstream origins, model IDs, prompts, page sizes, response schemas, result caps, and component caps.
+- Required secret validation and checks that errors, logs, dry-run output, and response payloads do not expose keys or secret-binding names.
+- Separate install, IP-ceiling, and emergency rate limits for USDA and Gemini, including `429`, `Retry-After`, and fail-closed limiter errors.
+- Android install-ID validation and salted hashing without logging the source identifier or digest.
+- USDA cache keys and TTLs, plus proof that errors and Gemini traffic bypass caching.
+- Worker timeout, request-ID, stable error, health, log-redaction, and malformed-upstream behavior.
+- Quick-log insertion, active date and meal selection, component detachment from its old meal, and undo deletion.
 
-Add a developer-only live evaluation command. It must read the existing build-time USDA key, run sequentially to respect provider limits, print the first five results for every query, and produce the aggregate acceptance metrics. It must not run as part of `npm test`.
+Add an integration case that saves a described or scanned meal containing rice, searches for `rice`, opens the individual component, and quick-logs the same grams and macros.
 
-The evaluator must also report:
+Verify the UI on Android for:
 
-- Total USDA requests and requests per evaluated query.
-- Remote cache hits and misses.
-- The first and last observed USDA `X-RateLimit-Remaining` values when the header is available.
-- Deduplication near misses: for candidate pairs whose largest macro difference is between 15% and 25%, print both candidates, all four percentage differences, and whether the 20% rule merged them.
+- Recent entry without keyboard autofocus.
+- Search entry with autofocus.
+- Personal results appearing before online results.
+- Result rows, portion selection, pinning, quick-log, and undo.
+- Empty, loading, partial-provider, offline, and AI/manual fallback states.
+- Component search inside meal review.
 
-Seed it with at least 50 queries spanning:
+Before handoff:
 
-- Staples: rice, white rice, brown rice, bread, pasta, oatmeal.
-- Proteins: egg, chicken breast, fried chicken, ground beef, pork chop, tuna, tofu.
-- Produce: banana, apple, potato, tomato, broccoli, avocado.
-- Dairy and fats: milk, cheddar cheese, yogurt, butter, peanut butter.
-- Prepared foods: hamburger, pizza, pancakes, sandwich, fried rice, chicken soup.
-- Beverages and snacks: coffee, orange juice, soda, potato chips, granola bar.
-- Preparation distinctions: raw chicken breast, grilled chicken breast, boiled egg, scrambled egg, poached egg, toasted bread, baked potato.
-- At least five explicit branded queries chosen from products confirmed to exist in the current USDA/OFF responses.
+1. Record the baseline working-tree state and preserve unrelated changes.
+2. Run `npm test`.
+3. Run `npm run typecheck`.
+4. Run `npx expo export --platform android --dev`.
+5. Run the Worker tests and local contract checks.
+6. Run `npx wrangler deploy --dry-run` and inspect its resolved bindings and bundle contents.
+7. Confirm the Expo and Worker outputs contain no USDA key, Gemini key, rate-limit salt, food database, dataset JSON, or dataset CSV.
+8. Against the deployed preview Worker, test health, valid USDA search, wrong methods, malformed JSON, oversized input, rate limiting, upstream timeout, and redacted errors.
+9. Confirm Workers Logs contain no query text, prompts, images, Android IDs, request bodies, response bodies, or secrets.
+10. Record the deployed URL, Worker version, rollback command, secret-rotation status, and the owner's confirmation that Gemini account limits are configured.
 
-Every failed real-world query discovered during testing becomes a permanent evaluation case.
+## Fixed decisions
 
-Required verification before handoff:
-
-1. Install dependencies from the committed lockfile so the current expanded dependency set is available.
-2. Run all automated tests.
-3. Run `npm run typecheck` and distinguish any pre-existing unrelated failure from search changes.
-4. Run the live search evaluation and record its metrics.
-5. Run an Android Expo export.
-6. Manually verify both standalone food search and add-component search on Android.
-
-## Decision gate after the API trial
-
-Do not build a catalog merely because search is network-backed.
-
-Classify evaluation failures:
-
-- Candidate exists in the fetched pool but ranks poorly: fix deterministic ranking.
-- Candidate appears only under a known equivalent term: extend the alias table.
-- Candidate is repeatedly absent from the 50-record common pool: a generated FNDDS/SR catalog becomes justified.
-- Search quality passes but provider latency or rate limits make interaction unreliable: consider a generated catalog or a small compliant proxy.
-- Search quality passes but the shipped USDA key cannot meet the provider's key-protection requirement: choose a proxy or generated catalog before public production.
-
-USDA's per-IP request accounting reduces the chance that different users consume one shared request budget, but it does not make an embedded client key private or remove USDA's key-protection requirement.
-
-If a catalog becomes necessary, reuse the parsing, normalization, alias, ranking, fixtures, and evaluation suite from this phase. Its purpose will be control over the candidate pool and production API compliance, not offline support.
-
-## Explicit exclusions
-
-- No changes to camera scanning, gallery scanning, meal description, or Gemini prompts.
-- No AI calls for traditional food search.
-- No new backend, authentication system, or paid nutrition provider.
-- No full Open Food Facts download in this phase.
-- No frontend redesign beyond the search submission behavior and FNDDS labels.
+- No bundled or downloadable food catalog.
+- No FatSecret integration.
+- No barcode search in this implementation.
+- No automatic AI result mixed into deterministic search results.
+- Offline discovery covers the user's history and manual entry only.
+- Whole meals keep their review flow; quick-log applies to individual foods and components.
+- Android remains the verification target.
+- The Worker URL is public. Worker controls bound anonymous abuse but do not authenticate the APK.
+- The owner configures Gemini account rate and spending limits before release; the Worker still enforces endpoint throttles.
+- A larger public rollout that needs caller authenticity requires a later Play Integrity or user-authentication design.
 
 ## References
 
 - [USDA FoodData Central API guide](https://fdc.nal.usda.gov/api-guide/)
 - [USDA FoodData Central API specification](https://fdc.nal.usda.gov/api-spec/fdc_api.html)
-- [USDA data type documentation](https://fdc.nal.usda.gov/data-documentation/)
 - [Open Food Facts API guidance and rate limits](https://openfoodfacts.github.io/openfoodfacts-server/api/)
+- [Cloudflare Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+- [Cloudflare Workers caching](https://developers.cloudflare.com/workers/runtime-apis/cache/)
+- [Cloudflare Workers Rate Limiting API](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
+- [Cloudflare Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+- [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/)
+- [Gemini API billing and spend caps](https://ai.google.dev/gemini-api/docs/billing)
+- [Gemini API data-use terms](https://ai.google.dev/gemini-api/terms)
