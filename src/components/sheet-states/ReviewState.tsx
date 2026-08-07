@@ -64,6 +64,19 @@ function toEditable(food: FoodResult): EditableComponent {
   };
 }
 
+function formatCollapsedPortion(component: EditableComponent, hasServing: boolean, showMl: boolean): string {
+  if (showMl) return `${component.grams}ml`;
+  if (!hasServing || component.unitMode !== 'servings') return `${component.grams}g`;
+
+  const servings = component.servings % 1 === 0
+    ? component.servings.toFixed(0)
+    : component.servings.toFixed(1);
+  const servingLabel = component.servingLabel ?? `${component.servingSizeGrams}g`;
+  const hasGramAmount = /\d+(?:\.\d+)?\s*(?:g|grams?)\b/i.test(servingLabel);
+
+  return `${servings} × ${servingLabel}${hasGramAmount ? '' : ` · ${component.grams}g`}`;
+}
+
 interface ReviewStateProps {
   result: DescribeResult | null;
   /** Existing or captured meal photo to persist with the meal. */
@@ -555,12 +568,13 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
           const cal = Math.round(comp.per100g.calories * ratio);
           const hasServing = !!(comp.servingSizeGrams && comp.servingSizeGrams > 0);
           const showMl = !!(comp.servingLabel && /ml\b/i.test(comp.servingLabel));
+          const portionSummary = formatCollapsedPortion(comp, hasServing, showMl);
 
           return (
             <View key={comp.food.id} className="border-b border-m3-outline-variant/20">
               <Animated.View
                 layout={reducedMotion ? undefined : LinearTransition.duration(200).easing(EASING.emphasized)}
-                className={isExpanded ? 'py-4 gap-4 overflow-hidden' : 'flex-row items-center py-3.5 overflow-hidden'}
+                className={isExpanded ? 'py-4 gap-4 overflow-hidden' : 'flex-row items-start py-3.5 overflow-hidden'}
               >
                 {isExpanded ? (
                   <>
@@ -686,29 +700,21 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                       accessibilityRole="button"
                       accessibilityLabel={`Edit ${comp.food.name}, ${cal} calories`}
                       accessibilityHint="Opens food details and portion controls"
-                      className="flex-1 flex-row items-center mr-2 active:opacity-60 min-h-[48px]"
+                      className="flex-1 flex-row items-start mr-2 active:opacity-60 min-h-[48px]"
                     >
-                      <View className="flex-1">
-                        <View className="flex-row items-center gap-2">
-                          <Text className="flex-1 text-m3-on-surface font-medium text-base" numberOfLines={1}>{comp.food.name}</Text>
+                      <View className="flex-1 min-w-0">
+                        <Text className="text-m3-on-surface font-medium text-base">{comp.food.name}</Text>
+                        <View className="flex-row flex-wrap items-center gap-x-1.5 gap-y-1 mt-1">
                           {comp.food.confidence === 'low' ? (
-                            <View className="bg-m3-secondary-container rounded-full px-2 py-0.5">
-                              <Text className="text-m3-on-secondary-container text-xs font-semibold">Estimate</Text>
+                            <View className="bg-m3-secondary-container rounded-full px-1.5 py-0.5">
+                              <Text className="text-m3-on-secondary-container text-compact font-semibold">Estimate</Text>
                             </View>
                           ) : null}
-                        </View>
-                        <View className="flex-row items-center gap-1 mt-0.5">
-                          <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>
-                            {showMl
-                              ? `${comp.grams}ml`
-                              : hasServing && comp.unitMode === 'servings'
-                                ? `${comp.servings % 1 === 0 ? comp.servings.toFixed(0) : comp.servings.toFixed(1)} × ${comp.servingLabel ?? `${comp.servingSizeGrams}g`} (${comp.grams}g)`
-                                : `${comp.grams}g`}
-                          </Text>
-                          {comp.food.brand ? <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>· {comp.food.brand}</Text> : null}
+                          <Text className="text-m3-on-surface-variant text-xs">{portionSummary}</Text>
+                          {comp.food.brand ? <Text className="text-m3-on-surface-variant text-xs">· {comp.food.brand}</Text> : null}
                         </View>
                       </View>
-                      <Text className="text-m3-on-surface font-semibold text-sm tabular-nums mr-1">{cal} kcal</Text>
+                      <Text className="text-m3-on-surface font-semibold text-sm tabular-nums ml-3 mt-0.5 mr-1 flex-shrink-0">{cal} kcal</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => removeComponent(idx)}
