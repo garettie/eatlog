@@ -130,8 +130,13 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const today = useToday();
-  const logDateExplicitRef = useRef<boolean>(logDateProp != null);
-  const effectiveLogDate = logDateExplicitRef.current ? logDate : today;
+  const logDateOverrideRef = useRef(false);
+  const effectiveLogDate = logDateOverrideRef.current ? logDate : logDateProp ?? today;
+
+  useEffect(() => {
+    logDateOverrideRef.current = false;
+    setLogDate(logDateProp ?? today);
+  }, [logDateProp]);
 
   useEffect(() => {
     if (previousResultRef.current === result) return;
@@ -772,7 +777,7 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         onConfirm={(date) => {
           setDateSelectorVisible(false);
           const nextDate = isoFromDate(date);
-          logDateExplicitRef.current = true;
+          logDateOverrideRef.current = true;
           if (nextDate === logDate) return;
           dirtyRef.current = true;
           setLogDate(nextDate);
