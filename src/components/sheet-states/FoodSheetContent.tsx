@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type React from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -10,11 +11,11 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 
-import { scanFood, clarifyComponent, clarifyMeal, DescribeResult, FoodEstimationFailureKind } from '../../services/foodScan';
+import { scanFood, clarifyComponent, clarifyMeal, type DescribeResult, type FoodEstimationFailureKind } from '../../services/foodScan';
 import { serviceConfig } from '../../config/services';
-import { type DataType, type FoodResult } from '../../services/foodSearch';
+import type { DataType, FoodResult } from '../../services/foodSearch';
 import { buildFoodPortions } from '../../services/foodSearchCore';
-import { HealthConnectWeightExport, LoggedMeal, MealType, SaveWeightResult, WeightLog, getMealComponents } from '../../db/database';
+import { type HealthConnectWeightExport, type LoggedMeal, type MealType, type SaveWeightResult, type WeightLog, getMealComponents } from '../../db/database';
 import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos';
 import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { EASING } from '../../theme/motion';
@@ -25,6 +26,7 @@ import DescribeInputState from './DescribeInputState';
 import ScanningState from './ScanningState';
 import ReviewState from './ReviewState';
 import SearchInputState from './SearchInputState';
+import RecentMealsState from './RecentMealsState';
 import SingleFoodReviewState from './SingleFoodReviewState';
 import ManualInputState from './ManualInputState';
 import WeightInputState from './WeightInputState';
@@ -598,7 +600,6 @@ export default function FoodSheetContent({
                     <SearchInputState
                         autoFocus
                         onSelectFood={handleSelectFood}
-                        onSelectMeal={handleSelectLoggedMeal}
                         onManualEntry={handleManualEntry}
                         onEstimateResult={handleDescribeResult}
                         onQuickLogComplete={handleSingleLogComplete}
@@ -608,15 +609,8 @@ export default function FoodSheetContent({
                     />
                 )}
                 {renderedStateKey === 'recent-foods' && (
-                    <SearchInputState
-                        autoFocus={false}
-                        onSelectFood={handleSelectFood}
+                    <RecentMealsState
                         onSelectMeal={handleSelectLoggedMeal}
-                        onManualEntry={handleManualEntry}
-                        onEstimateResult={handleDescribeResult}
-                        onQuickLogComplete={handleSingleLogComplete}
-                        initialMeal={state.pendingMeal}
-                        logDate={state.logDate ?? null}
                         onBack={onGoBack}
                     />
                 )}

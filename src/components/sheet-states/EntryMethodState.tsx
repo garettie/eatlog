@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -48,7 +48,7 @@ export default function EntryMethodState({
 }: EntryMethodStateProps) {
   return (
     <BottomSheetScrollView contentContainerClassName="px-2 pt-1 pb-6" showsVerticalScrollIndicator={false}>
-      <ActionRow icon="history" label="Recent" subtitle="Search foods from your log" onPress={onRecentFoods} />
+      <ActionRow icon="history" label="Recent meals" subtitle="Search meals from your log" onPress={onRecentFoods} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
       <ActionRow icon="photo-camera" label="Scan with camera" subtitle={estimatesAvailable ? 'Take a photo of food or a nutrition label' : 'Food estimates are unavailable in this build'} onPress={onCamera} disabled={!estimatesAvailable} />
       <View className="h-px bg-m3-outline-variant/30 mx-4" />
