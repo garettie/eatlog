@@ -217,10 +217,10 @@ function EnergyChart({
   const tooltipLeft = Math.max(left, Math.min(selectedX - tooltipWidth / 2, width - right - tooltipWidth));
   const tooltipTop = selectedY > 82 ? selectedY - 76 : selectedY + 12;
   const selectedAccessibilityText = selectedPoint
-    ? `${periodLabel(selectedPoint)}. ${selectedPoint.averageCalories == null ? 'No intake logged' : `Average intake ${Math.round(selectedPoint.averageCalories)} calories`}. Target ${Math.round(selectedPoint.targetCalories ?? 0)} calories. Burn estimate ${Math.round(selectedPoint.expenditureCalories ?? 0)} calories.`
+    ? `${periodLabel(selectedPoint)}. ${selectedPoint.averageCalories == null ? 'No intake logged' : `Average intake ${Math.round(selectedPoint.averageCalories)} calories`}. Target ${Math.round(selectedPoint.targetCalories ?? 0)} calories. Total daily energy expenditure ${Math.round(selectedPoint.expenditureCalories ?? 0)} calories.`
     : model.loggedDayCount === 0
       ? 'No food logged in this range.'
-      : `${model.loggedDayCount} of ${model.totalDayCount} days logged. Average intake ${Math.round(model.averageCalories ?? 0)} calories. Target ${Math.round(currentTarget?.target_calories ?? 0)} calories. Burn estimate ${Math.round(currentTarget?.tdee_estimate ?? 0)} calories.`;
+      : `${model.loggedDayCount} of ${model.totalDayCount} days logged. Average intake ${Math.round(model.averageCalories ?? 0)} calories. Target ${Math.round(currentTarget?.target_calories ?? 0)} calories. Total daily energy expenditure ${Math.round(currentTarget?.tdee_estimate ?? 0)} calories.`;
 
   return (
     <View className="gap-3">
@@ -331,7 +331,7 @@ function EnergyChart({
                 Target {calorieValue(selectedPoint.targetCalories)} kcal
               </Text>
               <Text className="text-m3-expenditure text-compact font-semibold tabular-nums">
-                Burn {calorieValue(selectedPoint.expenditureCalories)} kcal
+                TDEE {calorieValue(selectedPoint.expenditureCalories)} kcal
               </Text>
             </View>
           ) : null}
@@ -352,7 +352,7 @@ function EnergyChart({
         </View>
         <View className="flex-row items-center gap-1.5">
           <View className="w-3.5 border-t border-dashed border-m3-expenditure" />
-          <Text className="text-m3-on-surface-variant text-compact font-medium">Burn estimate</Text>
+          <Text className="text-m3-on-surface-variant text-compact font-medium">TDEE</Text>
         </View>
       </View>
     </View>

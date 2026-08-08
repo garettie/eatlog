@@ -112,6 +112,33 @@ function goalDistanceCopy(profile: Profile, latestWeight: WeightLog | undefined)
   };
 }
 
+function expectedGoalDateCopy(profile: Profile, latestWeight: WeightLog | undefined) {
+  if (profile.target_weight_kg == null || !latestWeight) {
+    return { value: '—', detail: 'No goal weight set' };
+  }
+  if (profile.goal_type === 'maintain') {
+    return { value: '—', detail: 'Maintenance goal' };
+  }
+
+  const remainingKg = profile.goal_type === 'cut'
+    ? latestWeight.trend_weight_kg - profile.target_weight_kg
+    : profile.target_weight_kg - latestWeight.trend_weight_kg;
+  if (remainingKg <= 0) {
+    return { value: 'Reached', detail: 'Goal weight' };
+  }
+
+  const weeklyRate = Math.abs(profile.goal_rate_kg_per_week);
+  if (weeklyRate === 0) {
+    return { value: '—', detail: 'No plan pace' };
+  }
+
+  const daysRemaining = Math.ceil(remainingKg / weeklyRate * 7);
+  return {
+    value: displayDate(addCalendarDays(latestWeight.log_date, daysRemaining)),
+    detail: 'At plan pace',
+  };
+}
+
 function classifyProgress(
   profile: Profile,
   actualRate: number | null,
@@ -186,7 +213,7 @@ function InlineMetric({ label, value, detail }: { label: string; value: string; 
 function EvidenceTile({ label, value, total }: { label: string; value: number; total: number }) {
   const percent = total > 0 ? Math.min(100, value / total * 100) : 0;
   return (
-    <View className="flex-1 min-w-[96px] gap-2">
+    <View className="flex-1 min-w-0 gap-2">
       <View className="flex-row items-baseline justify-between gap-2">
         <Text className="text-m3-on-surface-variant text-xs font-semibold">{label}</Text>
         <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{value}/{total}</Text>
@@ -346,8 +373,6 @@ function AnalyticsScreen({
     const averageCalories = dailyCalories.length
       ? dailyCalories.reduce((sum, day) => sum + day.calories, 0) / dailyCalories.length
       : null;
-    const rangeDayCount = calendarDaysBetween(chartDates.startDate, chartDates.endDate) + 1;
-    const energyCoverage = dailyCalories.length / rangeDayCount;
     const progressKind = classifyProgress(data.profile, weeklyRate, rangeWeights.length, endpointSpanDays);
     return {
       chartDates,
@@ -357,8 +382,6 @@ function AnalyticsScreen({
       trendChange,
       weeklyRate,
       averageCalories,
-      rangeDayCount,
-      energyCoverage,
       progress: progressCopy(progressKind),
       sufficientProgress: progressKind !== 'insufficient',
     };
@@ -490,15 +513,21 @@ function AnalyticsScreen({
     trendChange,
     weeklyRate,
     averageCalories,
-    rangeDayCount,
-    energyCoverage,
     progress,
     sufficientProgress,
   } = analyticsDerived!;
   const foodLoggedDates = data.dailyCalories.map((day) => day.log_date);
   const weightLoggedDates = chartWeights.map((log) => log.log_date);
   const goalDistance = goalDistanceCopy(profile, latestWeight);
-  const coveragePercent = Math.round(energyCoverage * 100);
+  const expectedGoalDate = expectedGoalDateCopy(profile, latestWeight);
+  const averageTargetDelta = averageCalories == null
+    ? null
+    : Math.round(averageCalories - target.target_calories);
+  const averageTargetDeltaCopy = averageTargetDelta == null
+    ? null
+    : averageTargetDelta === 0
+      ? 'On target'
+      : `${averageTargetDelta > 0 ? '+' : ''}${averageTargetDelta.toLocaleString()} kcal vs target`;
   const recommendationDelta = recommendation?.kind === 'ready'
     ? Math.round(recommendation.review.proposed_target_calories - recommendation.review.previous_target_calories)
     : null;
@@ -584,17 +613,19 @@ function AnalyticsScreen({
                 <Text className="text-m3-on-surface font-bold text-base">Plan update</Text>
                 <Text className="text-m3-on-surface-variant text-xs font-semibold">Not ready yet</Text>
               </View>
-              <View className="flex-row flex-wrap gap-4">
-                <EvidenceTile
-                  label="Food days"
-                  value={recommendation.eligibility.intakeDayCount}
-                  total={recommendation.eligibility.requiredIntakeDayCount}
-                />
-                <EvidenceTile
-                  label="Weigh-ins"
-                  value={recommendation.eligibility.weightLogCount}
-                  total={recommendation.eligibility.requiredWeightLogCount}
-                />
+              <View className="gap-4">
+                <View className="flex-row gap-4">
+                  <EvidenceTile
+                    label="Food days"
+                    value={recommendation.eligibility.intakeDayCount}
+                    total={recommendation.eligibility.requiredIntakeDayCount}
+                  />
+                  <EvidenceTile
+                    label="Weigh-ins"
+                    value={recommendation.eligibility.weightLogCount}
+                    total={recommendation.eligibility.requiredWeightLogCount}
+                  />
+                </View>
                 <EvidenceTile
                   label="Days covered"
                   value={recommendation.eligibility.endpointSpanDays}
@@ -795,6 +826,7 @@ function AnalyticsScreen({
                         detail={profile.goal_type === 'maintain' ? 'Maintain' : profile.goal_type === 'cut' ? 'Loss' : 'Gain'}
                       />
                       <InlineMetric label="To goal" value={goalDistance.value} detail={goalDistance.detail} />
+                      <InlineMetric label="Expected date" value={expectedGoalDate.value} detail={expectedGoalDate.detail} />
                     </View>
                   </>
                 ) : (
@@ -818,20 +850,13 @@ function AnalyticsScreen({
           <Card className="p-5 gap-4">
             <View className="flex-row items-center justify-between gap-3">
               <Text className="text-m3-on-surface font-bold text-base">Calories</Text>
-              <View className="rounded-full bg-m3-surface-container-high px-3 py-1.5">
-                <Text className="text-m3-on-surface text-xs font-semibold tabular-nums">
-                  {dailyCalories.length}/{rangeDayCount} logged
-                </Text>
-              </View>
-            </View>
-            <View
-              className="h-1 rounded-full bg-m3-surface-container-highest overflow-hidden"
-              accessible
-              accessibilityRole="progressbar"
-              accessibilityLabel="Food logging coverage"
-              accessibilityValue={{ min: 0, max: rangeDayCount, now: dailyCalories.length }}
-            >
-              <View className="h-full rounded-full bg-m3-calories" style={{ width: `${coveragePercent}%` }} />
+              {averageTargetDeltaCopy ? (
+                <View className="rounded-full bg-m3-calories/10 px-3 py-1.5">
+                  <Text className="text-m3-calories text-xs font-semibold tabular-nums" numberOfLines={1}>
+                    {averageTargetDeltaCopy}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <View className="flex-row flex-wrap gap-5">
               <InlineMetric
@@ -839,8 +864,11 @@ function AnalyticsScreen({
                 value={averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
                 detail="Logged days only"
               />
-              <InlineMetric label="Target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
-              <InlineMetric label="Burn estimate" value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`} />
+              <InlineMetric label="Current target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
+              <InlineMetric
+                label="Total Daily Energy Expenditure (TDEE)"
+                value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`}
+              />
             </View>
             {dailyCalories.length === 0 ? (
               <View className="py-6 items-center gap-2">
