@@ -19,16 +19,12 @@ import Animated, {
 	Easing,
 	runOnJS,
 	useAnimatedProps,
-	useAnimatedStyle,
 	useReducedMotion,
 	useSharedValue,
-	withDelay,
 	withRepeat,
 	withSequence,
 	withTiming,
 } from "react-native-reanimated";
-
-import { TYPE } from "../theme/tokens";
 
 type SvgMatrix = [number, number, number, number, number, number];
 type AnimatedGProps = GProps & { matrix?: SvgMatrix };
@@ -58,8 +54,6 @@ const WAVE_D =
 
 const TILE_WIDTH = 1420;
 const SCROLL_LOOP = 12000;
-const HOLD_DURATION = 900;
-const WORDMARK_DURATION = 500;
 
 type AnimatedSplashProps = {
 	onFinish: () => void;
@@ -74,16 +68,12 @@ export default function AnimatedSplash({
 	const reducedMotion = useReducedMotion();
 	const riseY = useSharedValue(840);
 	const scrollX = useSharedValue(0);
-	const wordmarkOpacity = useSharedValue(0);
-	const wordmarkTranslateY = useSharedValue(8);
 
 	useEffect(() => {
 		if (reducedMotion) {
-			riseY.value = withTiming(-70, { duration: 0 });
-			wordmarkOpacity.value = withTiming(1, { duration: 0 }, (finished) => {
+			riseY.value = withTiming(-70, { duration: 0 }, (finished) => {
 				if (finished) runOnJS(onFinish)();
 			});
-			wordmarkTranslateY.value = withTiming(0, { duration: 0 });
 		} else {
 			scrollX.value = withRepeat(
 				withTiming(-TILE_WIDTH, {
@@ -105,21 +95,7 @@ export default function AnimatedSplash({
 				}),
 				withTiming(-80, { duration: 540 }),
 				withTiming(-70, { duration: 360 }, (finished) => {
-					if (!finished) return;
-					wordmarkOpacity.value = withDelay(
-						HOLD_DURATION,
-						withTiming(
-							1,
-							{ duration: WORDMARK_DURATION },
-							(wordmarkFinished) => {
-								if (wordmarkFinished) runOnJS(onFinish)();
-							},
-						),
-					);
-					wordmarkTranslateY.value = withDelay(
-						HOLD_DURATION,
-						withTiming(0, { duration: WORDMARK_DURATION }),
-					);
+					if (finished) runOnJS(onFinish)();
 				}),
 			);
 		}
@@ -127,17 +103,8 @@ export default function AnimatedSplash({
 		return () => {
 			cancelAnimation(riseY);
 			cancelAnimation(scrollX);
-			cancelAnimation(wordmarkOpacity);
-			cancelAnimation(wordmarkTranslateY);
 		};
-	}, [
-		onFinish,
-		reducedMotion,
-		riseY,
-		scrollX,
-		wordmarkOpacity,
-		wordmarkTranslateY,
-	]);
+	}, [onFinish, reducedMotion, riseY, scrollX]);
 
 	const riseProps = useAnimatedProps<AnimatedGProps>(() => ({
 		matrix: [1, 0, 0, 1, 0, riseY.value],
@@ -145,15 +112,11 @@ export default function AnimatedSplash({
 	const scrollProps = useAnimatedProps<AnimatedGProps>(() => ({
 		matrix: [1, 0, 0, 1, scrollX.value, 0],
 	}));
-	const wordmarkStyle = useAnimatedStyle(() => ({
-		opacity: wordmarkOpacity.value,
-		transform: [{ translateY: wordmarkTranslateY.value }],
-	}));
 
 	const logoWidth = Math.min(
-		width * 0.56,
-		height * 0.58 * (MARK_WIDTH / MARK_HEIGHT),
-		320,
+		width * 0.5,
+		height * 0.52 * (MARK_WIDTH / MARK_HEIGHT),
+		280,
 	);
 	const logoHeight = logoWidth * (MARK_HEIGHT / MARK_WIDTH);
 
@@ -166,7 +129,6 @@ export default function AnimatedSplash({
 				flex: 1,
 				alignItems: "center",
 				justifyContent: "center",
-				gap: 28,
 				backgroundColor: BACKGROUND,
 			}}
 		>
@@ -212,23 +174,6 @@ export default function AnimatedSplash({
 					/>
 				</G>
 			</Svg>
-
-			<Animated.Text
-				accessible={false}
-				style={[
-					{
-						color: "#f2f2f2",
-						fontFamily: TYPE.family.medium,
-						fontSize: 22,
-						fontWeight: "400",
-						letterSpacing: 3,
-						lineHeight: 28,
-					},
-					wordmarkStyle,
-				]}
-			>
-				eatlog
-			</Animated.Text>
 		</View>
 	);
 }
