@@ -254,6 +254,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Never treat a human-readable CSV export as a restorable backup; only `.eatlog-backup` and legacy `.marco-backup` archives containing `manifest.json` and `database.sqlite` can be restored.
 - Cloudflare Workers Free plan cannot deploy a custom `limits` block; rely on its built-in CPU/subrequest limits unless the account is upgraded to Workers Paid.
 - Worker tests must exercise at least one request without injected runtime dependencies; call Web API methods such as `crypto.randomUUID()` through their owning object, never as unbound function references.
+- Gemini Flash-Lite rejects `maxItems` in Eatlog's `responseSchema`; omit it from the provider schema and enforce `MAX_COMPONENTS` after response normalization.
 
 ---
 

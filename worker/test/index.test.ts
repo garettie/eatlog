@@ -290,9 +290,22 @@ test('owns Gemini models, prompts, schema, fallback order, and bypasses cache', 
   assert.ok(urls.every((url) => url.startsWith(contract.GEMINI_ORIGIN)));
   assert.match(bodies[0].contents[0].parts[0].text, /User description: "one cup rice"/);
   assert.equal(bodies[0].generationConfig.responseMimeType, 'application/json');
-  assert.equal(bodies[0].generationConfig.responseSchema.properties.components.maxItems, 20);
+  assert.equal(bodies[0].generationConfig.responseSchema.properties.components.maxItems, undefined);
   assert.deepEqual(cache.reads, []);
   assert.deepEqual(cache.writes, []);
+});
+
+test('enforces the Gemini component cap after provider normalization', async () => {
+  const tooManyComponents = {
+    ...recognized,
+    components: Array.from({ length: 21 }, () => recognized.components[0]),
+  };
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'buffet plate' }),
+    { fetchImpl: (async () => geminiResponse(tooManyComponents)) as typeof fetch },
+  );
+  assert.equal(response.status, 502);
+  assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
 });
 
 test('caps USDA results and rejects malformed provider responses instead of forwarding them', async () => {

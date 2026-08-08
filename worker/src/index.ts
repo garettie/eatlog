@@ -91,7 +91,8 @@ const FOOD_ESTIMATE_SCHEMA = {
     status: { type: 'string', enum: ['recognized', 'unrecognized'] },
     unrecognizedReason: { type: 'string', nullable: true },
     mealName: { type: 'string', nullable: true },
-    components: { type: 'array', maxItems: MAX_COMPONENTS, items: FOOD_COMPONENT_SCHEMA },
+    // Gemini rejects maxItems for these models; normalizeGeminiResponse enforces the cap.
+    components: { type: 'array', items: FOOD_COMPONENT_SCHEMA },
   },
   required: ['status', 'unrecognizedReason', 'mealName', 'components'],
 } as const;
