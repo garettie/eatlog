@@ -123,6 +123,7 @@ export default function RecentMealsState({ onSelectMeal, onBack }: RecentMealsSt
         </View>
       </View>
       <BottomSheetFlatList
+        className="flex-1"
         data={loading || error ? [] : meals}
         renderItem={renderMeal}
         keyExtractor={(meal) => String(meal.meal_id)}

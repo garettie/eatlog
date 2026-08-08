@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import type { FoodResult } from '../services/foodSearch';
 import { M3 } from '../theme/tokens';
+import { formatPortionLabel } from '../utils/portionLabels';
 
 function provenance(food: FoodResult): string {
   if (food.history) return 'Your history';
@@ -35,7 +36,9 @@ export default function FoodSearchResultRow({
   const context = food.history?.parentMealName
     ? `Your history · ${food.history.parentMealName}`
     : [provenance(food), food.brand].filter(Boolean).join(' · ');
-  const portionText = portion ? `${portion.label} · ${Math.round(portion.grams)}g` : null;
+  const portionText = portion
+    ? formatPortionLabel(portion.label, portion.grams, /ml\b/i.test(portion.label) ? 'ml' : 'g')
+    : null;
 
   return (
     <View className="min-h-[72px] flex-row items-center rounded-2xl bg-m3-surface-container border border-m3-outline-variant/30 overflow-hidden">
@@ -43,7 +46,7 @@ export default function FoodSearchResultRow({
         onPress={onPress}
         disabled={quickLogging}
         accessibilityRole="button"
-        accessibilityLabel={`${food.name}, ${calories == null ? 'nutrition unavailable' : `${Math.round(calories)} calories`}`}
+        accessibilityLabel={`${food.name}, ${portionText ? `${portionText}, ` : ''}${calories == null ? 'nutrition unavailable' : `${Math.round(calories)} calories`}`}
         accessibilityHint={accessibilityHint}
         className="flex-1 min-h-[72px] justify-center px-4 py-3 active:opacity-60 disabled:opacity-50"
       >

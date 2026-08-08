@@ -158,7 +158,7 @@ export default function SearchInputState({
         </View>
       </View>
 
-      <BottomSheetScrollView contentContainerClassName="px-5 pb-6 gap-2" keyboardShouldPersistTaps="handled">
+      <BottomSheetScrollView className="flex-1" contentContainerClassName="px-5 pb-6 gap-2" keyboardShouldPersistTaps="handled">
         {!trimmedQuery ? (
           <>
             <SectionTitle>Pinned and recent</SectionTitle>
