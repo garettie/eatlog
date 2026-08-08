@@ -13,8 +13,9 @@ import Animated, {
 import { scanFood, clarifyComponent, clarifyMeal, DescribeResult, FoodEstimationFailureKind } from '../../services/foodScan';
 import { serviceConfig } from '../../config/services';
 import { type DataType, type FoodResult } from '../../services/foodSearch';
+import { buildFoodPortions } from '../../services/foodSearchCore';
 import { HealthConnectWeightExport, LoggedMeal, MealType, SaveWeightResult, WeightLog, getMealComponents } from '../../db/database';
-import { saveMealPhoto } from '../../utils/mealPhotos';
+import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos';
 import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
@@ -24,7 +25,6 @@ import DescribeInputState from './DescribeInputState';
 import ScanningState from './ScanningState';
 import ReviewState from './ReviewState';
 import SearchInputState from './SearchInputState';
-import RecentFoodsState from './RecentFoodsState';
 import SingleFoodReviewState from './SingleFoodReviewState';
 import ManualInputState from './ManualInputState';
 import WeightInputState from './WeightInputState';
@@ -244,8 +244,7 @@ export default function FoodSheetContent({
             transitionTo('scanning');
             const result = await ImagePicker.launchCameraAsync({
                 mediaTypes: ['images'],
-                base64: true,
-                quality: 0.5,
+                quality: 1,
             }).catch((error) => {
                 console.error('[FoodSheet] camera launch failed', error);
                 if (requestId === scanRequestRef.current) showScanError('camera-unavailable', 'camera');
@@ -257,7 +256,11 @@ export default function FoodSheetContent({
                 transitionTo('entry', { pushHistory: false });
                 return;
             }
-            const base64 = result.assets[0]?.base64;
+            const asset = result.assets[0];
+            const base64 = await prepareFoodEstimateImage(asset.uri, asset.width, asset.height).catch((error) => {
+                console.error('[FoodSheet] camera photo normalization failed', error);
+                return null;
+            });
             if (!base64) {
                 showScanError('photo-unreadable', 'camera');
                 return;
@@ -273,7 +276,6 @@ export default function FoodSheetContent({
                 showScanError(scanResult.kind, 'camera');
                 return;
             }
-            const asset = result.assets[0];
             const photoUri = await saveMealPhoto(asset.uri, asset.width, asset.height).catch((e) => {
                 console.error('[FoodSheet] camera photo save failed', e);
                 return null;
@@ -300,8 +302,7 @@ export default function FoodSheetContent({
             transitionTo('scanning');
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
-                base64: true,
-                quality: 0.5,
+                quality: 1,
             }).catch((error) => {
                 console.error('[FoodSheet] gallery launch failed', error);
                 if (requestId === scanRequestRef.current) showScanError('gallery-unavailable', 'gallery');
@@ -313,7 +314,11 @@ export default function FoodSheetContent({
                 transitionTo('entry', { pushHistory: false });
                 return;
             }
-            const base64 = result.assets[0]?.base64;
+            const asset = result.assets[0];
+            const base64 = await prepareFoodEstimateImage(asset.uri, asset.width, asset.height).catch((error) => {
+                console.error('[FoodSheet] gallery photo normalization failed', error);
+                return null;
+            });
             if (!base64) {
                 showScanError('photo-unreadable', 'gallery');
                 return;
@@ -329,7 +334,6 @@ export default function FoodSheetContent({
                 showScanError(scanResult.kind, 'gallery');
                 return;
             }
-            const asset = result.assets[0];
             const photoUri = await saveMealPhoto(asset.uri, asset.width, asset.height).catch((e) => {
                 console.error('[FoodSheet] gallery photo save failed', e);
                 return null;
@@ -384,6 +388,10 @@ export default function FoodSheetContent({
             const components: FoodResult[] = logs.map((log, index) => {
                 const grams = log.grams_logged && log.grams_logged > 0 ? log.grams_logged : 100;
                 const ratio = 100 / grams;
+                const portions = buildFoodPortions([
+                    { id: 'history-last', label: 'Last logged', grams },
+                    { id: 'history-serving', label: log.serving_label ?? `${log.serving_size_g ?? 0} g`, grams: log.serving_size_g },
+                ]);
                 return {
                     id: `recent-meal-${meal.meal_id}-${index}`,
                     name: log.name,
@@ -397,8 +405,8 @@ export default function FoodSheetContent({
                     proteinPer100g: log.protein_g_per_100g ?? log.protein_g * ratio,
                     carbsPer100g: log.carbs_g_per_100g ?? log.carbs_g * ratio,
                     fatPer100g: log.fat_g_per_100g ?? log.fat_g * ratio,
-                    servingSizeGrams: log.serving_size_g,
-                    servingLabel: log.serving_label,
+                    portions,
+                    defaultPortionId: portions[0].id,
                     estimatedGrams: log.grams_logged,
                     alternateSourceIds: [],
                 };
@@ -587,9 +595,31 @@ export default function FoodSheetContent({
                     />
                 )}
                 {renderedStateKey === 'search' && (
-                    <SearchInputState onSelectFood={handleSelectFood} onManualEntry={handleManualEntry} onBack={onGoBack} />
+                    <SearchInputState
+                        autoFocus
+                        onSelectFood={handleSelectFood}
+                        onSelectMeal={handleSelectLoggedMeal}
+                        onManualEntry={handleManualEntry}
+                        onEstimateResult={handleDescribeResult}
+                        onQuickLogComplete={handleSingleLogComplete}
+                        initialMeal={state.pendingMeal}
+                        logDate={state.logDate ?? null}
+                        onBack={onGoBack}
+                    />
                 )}
-                {renderedStateKey === 'recent-foods' && <RecentFoodsState onSelectFood={handleSelectFood} onSelectMeal={handleSelectLoggedMeal} onBack={onGoBack} />}
+                {renderedStateKey === 'recent-foods' && (
+                    <SearchInputState
+                        autoFocus={false}
+                        onSelectFood={handleSelectFood}
+                        onSelectMeal={handleSelectLoggedMeal}
+                        onManualEntry={handleManualEntry}
+                        onEstimateResult={handleDescribeResult}
+                        onQuickLogComplete={handleSingleLogComplete}
+                        initialMeal={state.pendingMeal}
+                        logDate={state.logDate ?? null}
+                        onBack={onGoBack}
+                    />
+                )}
                 {renderedStateKey === 'weight-input' && <WeightInputState onLogComplete={handleWeightLogComplete} onBack={onGoBack} />}
                 {renderedStateKey === 'single-food-review' && (
                     <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} onBack={onGoBack} />

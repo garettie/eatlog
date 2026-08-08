@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import SegmentedControl from './SegmentedControl';
 import { M3 } from '../theme/tokens';
+import type { FoodPortion } from '../services/foodSearchTypes';
 
 interface PortionStepperProps {
   unitMode: 'servings' | 'grams' | 'ml';
@@ -14,6 +15,9 @@ interface PortionStepperProps {
   servingLabel: string | null;
   hasServing: boolean;
   showMl: boolean;
+  portions?: FoodPortion[];
+  selectedPortionId?: string;
+  onPortionChange?: (portion: FoodPortion) => void;
   onModeChange: (mode: 'servings' | 'grams' | 'ml') => void;
   onServingsDelta: (delta: number) => void;
   onServingsSet: (value: string) => void;
@@ -32,6 +36,9 @@ export default function PortionStepper({
   servingLabel,
   hasServing,
   showMl,
+  portions = [],
+  selectedPortionId,
+  onPortionChange,
   onModeChange,
   onServingsDelta,
   onServingsSet,
@@ -70,6 +77,27 @@ export default function PortionStepper({
 
   return (
     <View className="gap-3">
+      {portions.length > 1 && onPortionChange ? (
+        <View className="flex-row flex-wrap gap-2">
+          {portions.map((portion) => {
+            const selected = portion.id === selectedPortionId;
+            return (
+              <Pressable
+                key={portion.id}
+                onPress={() => onPortionChange(portion)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`${portion.label}, ${Math.round(portion.grams)} grams`}
+                className={`min-h-[48px] justify-center rounded-full px-4 border border-m3-outline-variant/40 active:opacity-60 ${selected ? 'bg-m3-surface-container-highest' : 'bg-m3-surface-container'}`}
+              >
+                <Text className={`text-xs font-semibold ${selected ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+                  {portion.label} · {Math.round(portion.grams)}g
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
       {(hasServing || showMl) && (
         <SegmentedControl
           options={[

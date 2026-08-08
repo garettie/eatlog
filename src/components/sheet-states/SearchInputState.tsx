@@ -1,267 +1,312 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, Text, View } from 'react-native';
-import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { searchFood, FoodResult, DataType, type FoodSearchMode, type FoodSearchOutcome } from '../../services/foodSearch';
-import { getRecentFoodLogs, RecentFood } from '../../db/database';
+import {
+  getLoggedMeals,
+  insertFoodLog,
+  type LoggedMeal,
+  type MealType,
+  setFoodPinned,
+} from '../../db/database';
+import { describeMeal, type DescribeResult } from '../../services/foodScan';
+import { loadFoodDetails, type FoodResult } from '../../services/foodSearch';
+import { createQuickLogInput } from '../../services/foodSearchCore';
+import { useFoodSearchController } from '../../hooks/useFoodSearchController';
+import { defaultMealForNow, todayISO } from '../../utils/calculations';
 import { M3 } from '../../theme/tokens';
+import FoodSearchResultRow from '../FoodSearchResultRow';
+import NutritionCard from '../NutritionCard';
 import SheetBackButton from './SheetBackButton';
 
-function dataTypeBadge(dt: DataType): string {
-  switch (dt) {
-    case 'Survey (FNDDS)': return 'USDA Survey (FNDDS)';
-    case 'Foundation': return 'USDA Foundation';
-    case 'SR Legacy': return 'USDA SR Legacy';
-    case 'Branded': return 'USDA Branded';
-    case 'off': return 'Open Food Facts';
-    case 'scan': return 'Scan';
-    case 'describe': return 'Estimate';
-    case 'manual': return '';
-    default: return '';
-  }
-}
-
-interface ResultRowProps {
-  item: FoodResult;
-  onPress: () => void;
-}
-
-function ResultRow({ item, onPress }: ResultRowProps) {
-  const badge = item.dataType !== 'manual' ? dataTypeBadge(item.dataType) : '';
-  const meta = [badge, item.brand, item.preparation, item.servingLabel]
-    .filter(Boolean)
-    .join(' · ');
-
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} calories per 100 grams` : 'nutrition unavailable'}`}
-      accessibilityHint="Opens food review"
-      className="min-h-[52px] px-4 py-3 bg-m3-surface-container rounded-2xl border border-m3-outline-variant/30 active:opacity-70"
-    >
-      <View className="flex-row justify-between items-start">
-        <View className="flex-1 mr-3">
-          <Text className="text-m3-on-surface font-medium text-sm" numberOfLines={1}>{item.name}</Text>
-          {meta.length > 0 && (
-            <Text className="text-m3-on-surface-variant text-compact font-medium mt-0.5" numberOfLines={1}>
-              {meta}
-            </Text>
-          )}
-        </View>
-        <Text className="tabular-nums font-semibold text-xs text-m3-primary">
-          {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal/100g` : '---'}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
 interface SearchInputStateProps {
+  autoFocus: boolean;
   onSelectFood: (food: FoodResult) => void;
+  onSelectMeal: (meal: LoggedMeal) => void;
   onManualEntry: () => void;
+  onEstimateResult: (result: DescribeResult) => void;
+  onQuickLogComplete: (info: { logId: number; meal: MealType; name: string; calories: number; logDate: string }) => void;
+  initialMeal?: MealType | null;
+  logDate?: string | null;
   onBack: () => void;
 }
 
-export default function SearchInputState({ onSelectFood, onManualEntry, onBack }: SearchInputStateProps) {
-  const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [results, setResults] = useState<FoodResult[]>([]);
-  const [outcome, setOutcome] = useState<FoodSearchOutcome['kind']>('success');
-  const [retryCount, setRetryCount] = useState(0);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [recents, setRecents] = useState<RecentFood[]>([]);
+type MixedEntry =
+  | { kind: 'food'; key: string; pinned: number; loggedAt: string; food: FoodResult }
+  | { kind: 'meal'; key: string; pinned: number; loggedAt: string; meal: LoggedMeal };
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const searchSeq = useRef(0);
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 pt-2">{children}</Text>;
+}
+
+export default function SearchInputState({
+  autoFocus,
+  onSelectFood,
+  onSelectMeal,
+  onManualEntry,
+  onEstimateResult,
+  onQuickLogComplete,
+  initialMeal,
+  logDate,
+  onBack,
+}: SearchInputStateProps) {
+  const search = useFoodSearchController();
+  const [meals, setMeals] = useState<LoggedMeal[]>([]);
+  const [mealLoading, setMealLoading] = useState(true);
+  const [mealError, setMealError] = useState(false);
+  const [quickLoggingId, setQuickLoggingId] = useState<string | null>(null);
+  const [quickLogError, setQuickLogError] = useState<string | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [estimating, setEstimating] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
+  const mealSequence = useRef(0);
 
   useEffect(() => {
-    getRecentFoodLogs(10).then(setRecents);
-  }, []);
-
-  const runSearch = useCallback(async (searchQuery: string, mode: FoodSearchMode) => {
-    const trimmed = searchQuery.trim();
-    if (trimmed.length < 2) return;
-    const seq = ++searchSeq.current;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setIsSearching(true);
-    try {
-      const result = await searchFood(trimmed, mode, controller.signal);
-      if (seq !== searchSeq.current) return;
-      setResults(result.items);
-      setOutcome(result.kind);
-      setHasSearched(true);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      console.error('[FoodSearch] search failed', error);
-      if (seq === searchSeq.current) {
-        setResults([]);
-        setOutcome('unavailable');
-        setHasSearched(true);
+    const sequence = ++mealSequence.current;
+    setMealLoading(true);
+    setMealError(false);
+    void getLoggedMeals(search.query).then((items) => {
+      if (sequence === mealSequence.current) setMeals(items);
+    }).catch((error) => {
+      console.error('[FoodSearch] meals failed', error);
+      if (sequence === mealSequence.current) {
+        setMeals([]);
+        setMealError(true);
       }
-    } finally {
-      if (seq === searchSeq.current) setIsSearching(false);
-    }
-  }, []);
+    }).finally(() => {
+      if (sequence === mealSequence.current) setMealLoading(false);
+    });
+  }, [search.query]);
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    abortRef.current?.abort();
-    searchSeq.current += 1;
-
-    if (query.trim().length < 2) {
-      setResults([]);
-      setOutcome('success');
-      setHasSearched(false);
-      setIsSearching(false);
+  const handleFoodPress = useCallback(async (food: FoodResult) => {
+    Keyboard.dismiss();
+    if (food.source !== 'usda' || food.history) {
+      onSelectFood(food);
       return;
     }
-
-    setIsSearching(true);
-    debounceRef.current = setTimeout(async () => {
-      await runSearch(query, 'common');
-    }, 500);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, retryCount, runSearch]);
-
-  useEffect(() => () => abortRef.current?.abort(), []);
-
-  const handleSubmit = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    void runSearch(query, 'full');
-    Keyboard.dismiss();
-  }, [query, runSearch]);
-
-  const handleResultPress = useCallback((food: FoodResult) => {
-    Keyboard.dismiss();
-    onSelectFood(food);
+    setDetailLoadingId(food.id);
+    try {
+      onSelectFood(await loadFoodDetails(food));
+    } catch {
+      onSelectFood(food);
+    } finally {
+      setDetailLoadingId(null);
+    }
   }, [onSelectFood]);
 
-  const recentToFood = useCallback((item: RecentFood): FoodResult => {
-    return {
-      id: `recent-${item.source}-${item.source_food_id ?? item.name.toLowerCase()}-${item.logged_at}`,
-      name: item.name,
-      source: item.source as 'usda' | 'off',
-      sourceFoodId: item.source_food_id ?? '',
-      dataType: (item.data_type as DataType) || (item.source === 'usda' ? 'Branded' : 'off'),
-      brand: item.brand,
-      preparation: item.preparation,
-      normalizedName: '',
-      caloriesPer100g: item.calories_per_100g,
-      proteinPer100g: item.protein_g_per_100g,
-      carbsPer100g: item.carbs_g_per_100g,
-      fatPer100g: item.fat_g_per_100g,
-      servingSizeGrams: item.serving_size_g ?? null,
-      servingLabel: item.serving_label ?? null,
-      alternateSourceIds: [],
-    };
+  const handleToggleFoodPin = useCallback(async (food: FoodResult) => {
+    if (!food.history) return;
+    const nextPinned = !food.isPinned;
+    const keys = nextPinned
+      ? [food.history.pinKey]
+      : [food.history.pinKey, ...food.history.legacyPinKeys];
+    await Promise.all([...new Set(keys)].map((key) => setFoodPinned(key, nextPinned))).catch((error) => {
+      console.error('[FoodSearch] food pin failed', error);
+    });
+    search.refreshLocal();
+  }, [search]);
+
+  const handleToggleMealPin = useCallback(async (meal: LoggedMeal) => {
+    const nextPinned = meal.is_pinned !== 1;
+    setMeals((current) => current.map((item) => item.food_key === meal.food_key
+      ? { ...item, is_pinned: nextPinned ? 1 : 0 }
+      : item));
+    try {
+      await setFoodPinned(meal.food_key, nextPinned);
+    } catch (error) {
+      console.error('[FoodSearch] meal pin failed', error);
+      setMeals((current) => current.map((item) => item.food_key === meal.food_key
+        ? { ...item, is_pinned: meal.is_pinned }
+        : item));
+    }
   }, []);
 
-  const listData = React.useMemo(() => {
-    if (hasSearched) return results.map((item) => ({ kind: 'result' as const, key: item.id, food: item }));
-    return recents.flatMap((item) => {
-      if ([item.calories_per_100g, item.protein_g_per_100g, item.carbs_g_per_100g, item.fat_g_per_100g].every((value) => value == null)) return [];
-      const food = recentToFood(item);
-      return [{ kind: 'recent' as const, key: food.id, food }];
-    });
-  }, [hasSearched, recentToFood, recents, results]);
+  const handleQuickLog = useCallback(async (food: FoodResult) => {
+    if (!food.history || quickLoggingId) return;
+    setQuickLoggingId(food.id);
+    setQuickLogError(null);
+    try {
+      const targetLogDate = logDate ?? todayISO();
+      const meal = initialMeal ?? defaultMealForNow();
+      const input = createQuickLogInput(food, targetLogDate, meal);
+      const logId = await insertFoodLog(input);
+      onQuickLogComplete({ logId, meal, name: food.name, calories: food.history.calories, logDate: targetLogDate });
+    } catch (error) {
+      console.error('[FoodSearch] quick log failed', error);
+      setQuickLogError("Couldn't quick log this food. Try again.");
+    } finally {
+      setQuickLoggingId(null);
+    }
+  }, [initialMeal, logDate, onQuickLogComplete, quickLoggingId]);
 
-  const renderResult = useCallback(({ item }: { item: { kind: 'result' | 'recent'; key: string; food: FoodResult } }) => (
-    <ResultRow item={item.food} onPress={() => handleResultPress(item.food)} />
-  ), [handleResultPress]);
+  const handleEstimate = useCallback(async () => {
+    const query = search.query.trim();
+    if (!query || estimating) return;
+    setEstimating(true);
+    setEstimateError(null);
+    const result = await describeMeal(query);
+    setEstimating(false);
+    if (!result.ok) {
+      setEstimateError(result.message);
+      return;
+    }
+    Keyboard.dismiss();
+    onEstimateResult(result.result);
+  }, [estimating, onEstimateResult, search.query]);
 
-  const listHeader = hasSearched && outcome === 'partial' ? (
-    <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm mb-2">Some sources are unavailable. Showing available results.</Text>
-  ) : listData.length > 0 ? (
-    <Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 mb-2">
-      {hasSearched ? 'Results' : 'Recents'}
-    </Text>
-  ) : null;
+  const mixedEntries = useMemo<MixedEntry[]>(() => [
+    ...search.personalResults.map((food) => ({
+      kind: 'food' as const,
+      key: `food:${food.id}`,
+      pinned: food.isPinned ? 1 : 0,
+      loggedAt: food.history?.lastLoggedAt ?? '',
+      food,
+    })),
+    ...meals.map((meal) => ({
+      kind: 'meal' as const,
+      key: `meal:${meal.meal_id}`,
+      pinned: meal.is_pinned,
+      loggedAt: meal.last_logged_at,
+      meal,
+    })),
+  ].sort((first, second) => second.pinned - first.pinned || second.loggedAt.localeCompare(first.loggedAt)), [meals, search.personalResults]);
 
-  const listEmpty = !query.trim() && !isSearching && recents.length === 0 ? (
-    <View className="py-12 items-center">
-      <MaterialIcons name="restaurant" size={36} color={M3.outline} />
-      <Text className="text-m3-on-surface-variant text-sm mt-3 font-medium">Search for a food to get started</Text>
-    </View>
-  ) : hasSearched && !isSearching && outcome === 'success' ? (
-    <View className="py-10 items-center gap-4">
-      <View className="items-center">
-        <MaterialIcons name="search-off" size={32} color={M3.outline} />
-        <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">No results found</Text>
-        <Text className="text-m3-on-surface-variant text-sm mt-1">Try a different search term</Text>
-      </View>
-      <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" accessibilityHint="Opens manual food entry" className="min-h-[48px] flex-row items-center gap-2 bg-m3-surface-container-high px-5 rounded-full">
-        <MaterialIcons name="edit-note" size={18} color={M3.onSurface} />
-        <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
-      </Pressable>
-    </View>
-  ) : hasSearched && !isSearching && outcome === 'unavailable' ? (
-    <View className="py-10 items-center gap-4">
-      <View className="items-center">
-        <MaterialIcons name="cloud-off" size={32} color={M3.onSurfaceVariant} />
-        <Text className="text-m3-on-surface-variant text-sm mt-2 font-medium">Search is unavailable</Text>
-        <Text className="text-m3-on-surface-variant text-sm mt-1">Check your connection, then try again.</Text>
-      </View>
-      <View className="flex-row gap-3">
-        <Pressable onPress={() => setRetryCount((count) => count + 1)} accessibilityRole="button" accessibilityLabel="Retry food search" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Retry</Text></Pressable>
-        <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-5"><Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text></Pressable>
-      </View>
-    </View>
-  ) : isSearching ? <View className="py-12 items-center"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View> : null;
+  const foodRow = (food: FoodResult) => (
+    <FoodSearchResultRow
+      key={food.id}
+      food={food}
+      onPress={() => void handleFoodPress(food)}
+      onTogglePin={food.history ? () => void handleToggleFoodPin(food) : undefined}
+      onQuickLog={food.history ? () => void handleQuickLog(food) : undefined}
+      quickLogging={quickLoggingId === food.id || detailLoadingId === food.id}
+    />
+  );
 
-  const listFooter = hasSearched && results.length > 0 ? (
-    <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] flex-row items-center justify-center gap-2 mt-1">
-      <MaterialIcons name="add-circle-outline" size={18} color={M3.onSurfaceVariant} />
-      <Text className="text-m3-on-surface-variant text-xs font-medium">Enter manually</Text>
-    </Pressable>
-  ) : null;
+  const mealRow = (meal: LoggedMeal) => (
+    <NutritionCard
+      key={meal.meal_id}
+      name={meal.meal_name}
+      photoUri={meal.photo_uri}
+      secondaryText={`Meal · ${meal.component_count} ${meal.component_count === 1 ? 'item' : 'items'}`}
+      calories={meal.total_calories}
+      protein={meal.total_protein}
+      carbs={meal.total_carbs}
+      fat={meal.total_fat}
+      onPress={() => onSelectMeal(meal)}
+      accessibilityHint="Opens meal review"
+      action={(
+        <Pressable
+          onPress={() => void handleToggleMealPin(meal)}
+          accessibilityRole="button"
+          accessibilityLabel={meal.is_pinned ? `Unpin ${meal.meal_name}` : `Pin ${meal.meal_name}`}
+          className="absolute right-2 top-2 w-12 h-12 items-center justify-center active:opacity-60"
+        >
+          <MaterialIcons name={meal.is_pinned ? 'favorite' : 'favorite-border'} size={20} color={meal.is_pinned ? M3.error : M3.onSurfaceVariant} />
+        </Pressable>
+      )}
+    />
+  );
+
+  const trimmedQuery = search.query.trim();
+  const noResults = trimmedQuery.length > 0
+    && !search.localLoading
+    && !mealLoading
+    && search.personalResults.length === 0
+    && meals.length === 0
+    && search.remoteResults.length === 0
+    && search.remoteState !== 'loading';
 
   return (
     <View className="flex-1">
       <View className="bg-m3-surface-container px-5 pt-2 pb-3">
         <View className="flex-row items-center gap-1 mb-1">
           <SheetBackButton onPress={onBack} />
-          <Text className="text-m3-on-surface font-bold text-base">Search foods</Text>
+          <Text className="text-m3-on-surface font-bold text-base">Food search</Text>
         </View>
         <View className="flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
           <MaterialIcons name="search" size={18} color={M3.onSurfaceVariant} />
           <BottomSheetTextInput
-            value={query}
-            onChangeText={setQuery}
+            value={search.query}
+            onChangeText={(value) => { search.setQuery(value); setEstimateError(null); }}
             accessibilityLabel="Search foods"
             placeholder="Search foods…"
             placeholderTextColor={M3.placeholder}
             className="flex-1 text-m3-on-surface text-sm ml-2 font-medium"
-            autoFocus
+            autoFocus={autoFocus}
             autoCorrect={false}
             returnKeyType="search"
-            onSubmitEditing={handleSubmit}
+            onSubmitEditing={() => { search.submit(); Keyboard.dismiss(); }}
           />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-12 h-12 items-center justify-center -mr-3 -my-3">
+          {search.query.length > 0 ? (
+            <Pressable onPress={() => search.setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" className="w-12 h-12 items-center justify-center -mr-3 -my-3">
               <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
             </Pressable>
-          )}
+          ) : null}
         </View>
       </View>
 
-      <BottomSheetFlatList
-        data={listData}
-        renderItem={renderResult}
-        keyExtractor={(item) => item.key}
-        contentContainerClassName="px-5 gap-1.5 pb-6"
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={listEmpty}
-        ListFooterComponent={listFooter}
-      />
+      <BottomSheetScrollView contentContainerClassName="px-5 pb-6 gap-2" keyboardShouldPersistTaps="handled">
+        {!trimmedQuery ? (
+          <>
+            <SectionTitle>Pinned and recent</SectionTitle>
+            {mixedEntries.map((entry) => entry.kind === 'food' ? foodRow(entry.food) : mealRow(entry.meal))}
+            {((search.localLoading || mealLoading) && mixedEntries.length === 0) ? <View className="py-10"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View> : null}
+            {!search.localLoading && !mealLoading && mixedEntries.length === 0 ? (
+              <View className="py-10 items-center gap-2">
+                <MaterialIcons name="restaurant" size={36} color={M3.onSurfaceVariant} />
+                <Text className="text-m3-on-surface-variant text-sm font-medium">No foods logged yet</Text>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <SectionTitle>From your history</SectionTitle>
+            {search.personalResults.map(foodRow)}
+            {search.localLoading ? <ActivityIndicator size="small" color={M3.onSurfaceVariant} /> : null}
+            {!search.localLoading && search.personalResults.length === 0 ? <Text className="text-m3-on-surface-variant text-sm px-1">No personal matches</Text> : null}
+
+            <SectionTitle>Meals</SectionTitle>
+            {meals.map(mealRow)}
+            {mealLoading ? <ActivityIndicator size="small" color={M3.onSurfaceVariant} /> : null}
+            {!mealLoading && meals.length === 0 && !mealError ? <Text className="text-m3-on-surface-variant text-sm px-1">No matching meals</Text> : null}
+            {mealError ? <Text className="text-m3-error text-sm px-1">Couldn't load matching meals.</Text> : null}
+
+            <SectionTitle>Online results</SectionTitle>
+            {search.remoteResults.map(foodRow)}
+            {search.remoteState === 'loading' ? <View className="py-4"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View> : null}
+            {search.remoteState === 'partial' ? <Text className="text-m3-on-surface-variant text-sm px-1">Some online sources are unavailable.</Text> : null}
+            {search.remoteState === 'unavailable' ? (
+              <View className="gap-2 px-1">
+                <Text className="text-m3-on-surface-variant text-sm">Online foods unavailable. Your history still works.</Text>
+                <Pressable onPress={search.retry} accessibilityRole="button" className="min-h-[48px] self-start justify-center rounded-full bg-m3-surface-container-high px-5 active:opacity-60">
+                  <Text className="text-m3-on-surface text-xs font-semibold">Retry online</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {search.remoteState === 'success' && search.remoteResults.length === 0 ? <Text className="text-m3-on-surface-variant text-sm px-1">No online matches</Text> : null}
+          </>
+        )}
+
+        {noResults ? (
+          <View className="pt-3 gap-2">
+            {search.remoteState !== 'unavailable' ? (
+              <Pressable onPress={() => void handleEstimate()} disabled={estimating} accessibilityRole="button" className="min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high active:opacity-60 disabled:opacity-50">
+                {estimating ? <ActivityIndicator size="small" color={M3.onSurfaceVariant} /> : <MaterialIcons name="auto-awesome" size={18} color={M3.onSurface} />}
+                <Text className="text-m3-on-surface text-xs font-semibold">Estimate “{trimmedQuery}” with AI</Text>
+              </Pressable>
+            ) : null}
+            {estimateError ? <Text className="text-m3-error text-sm" accessibilityLiveRegion="assertive">{estimateError}</Text> : null}
+          </View>
+        ) : null}
+
+        {quickLogError ? <Text className="text-m3-error text-sm px-1" accessibilityLiveRegion="assertive">{quickLogError}</Text> : null}
+
+        <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] flex-row items-center justify-center gap-2 mt-1">
+          <MaterialIcons name="edit-note" size={18} color={M3.onSurfaceVariant} />
+          <Text className="text-m3-on-surface-variant text-xs font-semibold">Enter manually</Text>
+        </Pressable>
+      </BottomSheetScrollView>
     </View>
   );
 }

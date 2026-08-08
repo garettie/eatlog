@@ -1,6 +1,27 @@
 export type FoodSource = 'usda' | 'off' | 'scan' | 'describe' | 'manual';
 export type FoodEstimateConfidence = 'high' | 'medium' | 'low';
 
+export interface FoodPortion {
+  id: string;
+  label: string;
+  grams: number;
+}
+
+export interface FoodHistoryMetadata {
+  representativeLogId: number;
+  lastLoggedAt: string;
+  timesLogged: number;
+  lastGrams: number;
+  pinKey: string;
+  legacyPinKeys: string[];
+  parentMealName: string | null;
+  parentMealPhotoUri: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 export type DataType =
   | 'Survey (FNDDS)'
   | 'Foundation'
@@ -24,8 +45,10 @@ export interface FoodResult {
   proteinPer100g: number | null;
   carbsPer100g: number | null;
   fatPer100g: number | null;
-  servingSizeGrams: number | null;
-  servingLabel: string | null;
+  portions: FoodPortion[];
+  defaultPortionId: string;
+  history?: FoodHistoryMetadata;
+  isPinned?: boolean;
   estimatedGrams?: number | null;
   confidence?: FoodEstimateConfidence;
   confidenceReason?: string | null;

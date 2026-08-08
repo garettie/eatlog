@@ -87,30 +87,32 @@ function printNearMiss(query: string, nearMiss: DedupNearMiss): void {
 }
 
 async function main(): Promise<void> {
-  let usdaApiKey = process.env.EXPO_PUBLIC_USDA_API_KEY?.trim() ?? '';
-  if (!usdaApiKey && existsSync('.env.local')) {
+  let workerUrl = process.env.EXPO_PUBLIC_FOOD_WORKER_URL?.trim() ?? '';
+  if (!workerUrl && existsSync('.env.local')) {
     const line = readFileSync('.env.local', 'utf8')
       .split(/\r?\n/)
-      .find((entry) => entry.trim().startsWith('EXPO_PUBLIC_USDA_API_KEY='));
-    usdaApiKey = line
+      .find((entry) => entry.trim().startsWith('EXPO_PUBLIC_FOOD_WORKER_URL='));
+    workerUrl = line
       ?.slice(line.indexOf('=') + 1)
       .trim()
       .replace(/^(['"])(.*)\1$/, '$2')
       ?? '';
   }
-  if (!usdaApiKey) throw new Error('EXPO_PUBLIC_USDA_API_KEY is required for the live food-search evaluation.');
+  if (!workerUrl) throw new Error('EXPO_PUBLIC_FOOD_WORKER_URL is required for the live food-search evaluation.');
   const requestedQueries = process.argv.slice(2).map((query) => normalizeFoodText(query));
   const evaluationCases = requestedQueries.length === 0
     ? cases
     : cases.filter((evaluation) => requestedQueries.includes(normalizeFoodText(evaluation.query)));
   if (evaluationCases.length === 0) throw new Error('No evaluation query matched the provided filter.');
-  const providers = createFoodSearchRemoteProviders({ usdaApiKey });
+  const providers = createFoodSearchRemoteProviders({
+    workerUrl: workerUrl.replace(/\/$/, ''),
+    getInstallId: () => '0000000000000000',
+  });
   let nearMisses: DedupNearMiss[] = [];
   let providerFailures: string[] = [];
   const engine = new FoodSearchEngine({
     searchLocal: async () => [],
-    searchCommon: providers.searchCommon,
-    searchBranded: providers.searchBranded,
+    searchUSDA: providers.searchUSDA,
     searchOpenFoodFacts: providers.searchOpenFoodFacts,
     onNearMisses: (current) => { nearMisses = current; },
     onProviderFailure: (provider, error) => {
@@ -133,7 +135,8 @@ async function main(): Promise<void> {
     const topFive = outcome.items.slice(0, 5);
     console.log(`\n[${evaluation.mode}] ${evaluation.query} (${outcome.kind})`);
     topFive.forEach((item, index) => {
-      console.log(`  ${index + 1}. ${item.name}${item.brand ? ` — ${item.brand}` : ''} [${item.dataType}]${item.servingLabel ? ` · ${item.servingLabel}` : ''}`);
+      const portion = item.portions.find((candidate) => candidate.id === item.defaultPortionId) ?? item.portions[0];
+      console.log(`  ${index + 1}. ${item.name}${item.brand ? ` — ${item.brand}` : ''} [${item.dataType}]${portion ? ` · ${portion.label}` : ''}`);
     });
     nearMisses.forEach((nearMiss) => printNearMiss(evaluation.query, nearMiss));
     providerFailures.forEach((failure) => console.log(`  provider failure: ${failure}`));
@@ -143,7 +146,7 @@ async function main(): Promise<void> {
       commonQueries += 1;
       if (outcome.items.slice(0, 3).some((item) => containsExpected(item, evaluation.expected))) commonTopThreeHits += 1;
       commonFirstFive += topFive.length;
-      commonPortioned += topFive.filter((item) => item.servingSizeGrams != null && item.servingSizeGrams > 0).length;
+      commonPortioned += topFive.filter((item) => item.portions.some((portion) => portion.grams > 0)).length;
     } else {
       brandQueries += 1;
       if (outcome.items.slice(0, 3).some((item) => containsExpected(item, evaluation.expected))) {
@@ -165,7 +168,7 @@ async function main(): Promise<void> {
   console.log(`  Explicit brands in top 3: ${brandTopThreeHits}/${brandQueries} (${(brandHitRate * 100).toFixed(1)}%; target 100%)`);
   console.log(`  USDA requests: ${remoteMetrics.usdaRequests} (${(remoteMetrics.usdaRequests / evaluationCases.length).toFixed(2)} per evaluated query)`);
   console.log(`  Remote cache: ${cacheMetrics.hits} hits, ${cacheMetrics.misses} misses`);
-  console.log(`  USDA X-RateLimit-Remaining: first=${remoteMetrics.firstRateLimitRemaining ?? 'unavailable'}, last=${remoteMetrics.lastRateLimitRemaining ?? 'unavailable'}`);
+  console.log(`  Worker failures: ${remoteMetrics.workerFailures}`);
 
   if (commonHitRate < 0.85 || duplicateRate < 1 || portionRate < 0.8 || brandHitRate < 1) process.exitCode = 1;
 }

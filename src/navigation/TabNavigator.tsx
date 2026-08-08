@@ -17,6 +17,7 @@ import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states
 import { deleteFoodLog, deleteMeal, restoreWeightSave, MealType } from '../db/database';
 import { formatDayHeader, todayISO } from '../utils/calendar';
 import { type FoodResult, type DataType } from '../services/foodSearch';
+import { buildFoodPortions } from '../services/foodSearchCore';
 import { type DescribeResult } from '../services/foodScan';
 import EatlogTabBar from './EatlogTabBar';
 import { syncHealthConnectWeights } from '../services/healthConnect';
@@ -156,6 +157,10 @@ export default function TabNavigator() {
             const components: FoodResult[] = mealGroup.components.map((log, i) => {
                 const grams = log.grams_logged && log.grams_logged > 0 ? log.grams_logged : 100;
                 const per100gRatio = 100 / grams;
+                const portions = buildFoodPortions([
+                    { id: 'history-last', label: 'Last logged', grams },
+                    { id: 'history-serving', label: log.serving_label ?? `${log.serving_size_g ?? 0} g`, grams: log.serving_size_g },
+                ]);
                 return {
                 id: `meal-edit-${mealGroup.id}-${i}`,
                 name: log.name,
@@ -169,8 +174,8 @@ export default function TabNavigator() {
                 proteinPer100g: log.protein_g_per_100g ?? log.protein_g * per100gRatio,
                 carbsPer100g: log.carbs_g_per_100g ?? log.carbs_g * per100gRatio,
                 fatPer100g: log.fat_g_per_100g ?? log.fat_g * per100gRatio,
-                servingSizeGrams: log.serving_size_g,
-                servingLabel: log.serving_label,
+                portions,
+                defaultPortionId: portions[0].id,
                 estimatedGrams: log.grams_logged ?? undefined,
                 alternateSourceIds: [],
                 };

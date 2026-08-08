@@ -1093,6 +1093,32 @@ export async function getRecentFoodLogs(limit: number): Promise<RecentFood[]> {
   );
 }
 
+export interface FoodHistoryRow extends FoodLog {
+  parent_meal_name: string | null;
+  parent_photo_uri: string | null;
+  legacy_food_key: string;
+}
+
+export async function getFoodHistoryRows(): Promise<FoodHistoryRow[]> {
+  const db = await getDb();
+  return db.getAllAsync<FoodHistoryRow>(
+    `SELECT
+       f.*,
+       m.name AS parent_meal_name,
+       m.photo_uri AS parent_photo_uri,
+       f.source || ':' || COALESCE(NULLIF(f.source_food_id, ''), lower(f.name) || ':' || COALESCE(lower(f.brand), '')) AS legacy_food_key
+     FROM food_logs f
+     LEFT JOIN meals m ON m.id = f.meal_id
+     ORDER BY f.logged_at DESC, f.id DESC`,
+  );
+}
+
+export async function getPinnedFoodKeys(): Promise<string[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ food_key: string }>('SELECT food_key FROM pinned_foods');
+  return rows.map((row) => row.food_key);
+}
+
 export interface LoggedFood extends FoodLog {
   photo_uri: string | null;
   food_key: string;

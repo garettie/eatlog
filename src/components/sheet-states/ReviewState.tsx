@@ -34,6 +34,7 @@ interface EditableComponent {
   servings: number;
   servingSizeGrams: number | null;
   servingLabel: string | null;
+  selectedPortionId: string;
   unitMode: 'servings' | 'grams' | 'ml';
   originalName: string;
 }
@@ -44,9 +45,10 @@ type UndoAction =
   | { kind: 'component-reestimate'; previous: EditableComponent; replacementId: string };
 
 function toEditable(food: FoodResult): EditableComponent {
-  const hasServing = !!(food.servingSizeGrams && food.servingSizeGrams > 0);
-  const defaultGrams = food.estimatedGrams ?? (hasServing ? food.servingSizeGrams! : 150);
-  const isBeverage = !!(food.servingLabel && /ml\b/i.test(food.servingLabel));
+  const portion = food.portions.find((candidate) => candidate.id === food.defaultPortionId) ?? food.portions[0];
+  const hasServing = !!portion;
+  const defaultGrams = food.estimatedGrams ?? portion?.grams ?? 100;
+  const isBeverage = !!(portion?.label && /ml\b/i.test(portion.label));
   return {
     food,
     per100g: {
@@ -56,9 +58,10 @@ function toEditable(food: FoodResult): EditableComponent {
       fat: Math.round((food.fatPer100g ?? 0) * 10) / 10,
     },
     grams: defaultGrams,
-    servings: hasServing ? Math.round((defaultGrams / food.servingSizeGrams!) * 10) / 10 : 1,
-    servingSizeGrams: food.servingSizeGrams ?? null,
-    servingLabel: food.servingLabel ?? null,
+    servings: hasServing ? Math.round((defaultGrams / portion!.grams) * 10) / 10 : 1,
+    servingSizeGrams: portion?.grams ?? null,
+    servingLabel: portion?.label ?? null,
+    selectedPortionId: portion?.id ?? '100-g',
     unitMode: isBeverage ? 'ml' : hasServing ? 'servings' : 'grams',
     originalName: food.name,
   };
@@ -288,6 +291,19 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
         return { ...c, unitMode: mode, grams: newGrams };
       }),
     );
+  }, []);
+
+  const updatePortion = useCallback((idx: number, portion: FoodResult['portions'][number]) => {
+    dirtyRef.current = true;
+    setComponents((previous) => previous.map((component, index) => index === idx ? {
+      ...component,
+      grams: portion.grams,
+      servings: 1,
+      servingSizeGrams: portion.grams,
+      servingLabel: portion.label,
+      selectedPortionId: portion.id,
+      unitMode: /ml\b/i.test(portion.label) ? 'ml' : 'servings',
+    } : component));
   }, []);
 
   const updatePer100g = useCallback(
@@ -637,6 +653,9 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
                         servingLabel={comp.servingLabel}
                         hasServing={hasServing}
                         showMl={showMl}
+                        portions={comp.food.portions}
+                        selectedPortionId={comp.selectedPortionId}
+                        onPortionChange={(portion) => updatePortion(idx, portion)}
                         onModeChange={(m) => updateUnitMode(idx, m)}
                         onServingsDelta={(d) => updateServings(idx, d)}
                         onServingsSet={(t) => updateServingsFromText(idx, t, comp)}

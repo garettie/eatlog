@@ -1,48 +1,31 @@
 import { serviceConfig } from '../config/services';
-import { searchFoodCache } from '../db/database';
-import { normalizeFoodText } from './foodSearchCore';
+import { getFoodHistoryRows, getPinnedFoodKeys } from '../db/database';
+import { buildPersonalFoodResults, rankAndDeduplicateFoodResults } from './foodSearchCore';
 import { FoodSearchEngine } from './foodSearchEngine';
 import { createFoodSearchRemoteProviders } from './foodSearchRemote';
 import type { DedupNearMiss, FoodResult, FoodSearchMode, FoodSearchOutcome } from './foodSearchTypes';
 
 export type {
   DataType,
+  FoodHistoryMetadata,
+  FoodPortion,
   FoodResult,
   FoodSearchMode,
   FoodSearchOutcome,
 } from './foodSearchTypes';
 
 let latestNearMisses: DedupNearMiss[] = [];
-const remote = createFoodSearchRemoteProviders({ usdaApiKey: serviceConfig.usdaApiKey });
+const remote = createFoodSearchRemoteProviders({ workerUrl: serviceConfig.foodWorkerUrl });
 
-async function searchLocalCache(query: string): Promise<FoodResult[]> {
-  const normalizedQuery = normalizeFoodText(query);
-  const rows = await searchFoodCache(normalizedQuery);
-  return rows.map((row, providerOrder) => ({
-    id: `cache-${row.id}`,
-    name: row.name,
-    source: row.source,
-    sourceFoodId: String(row.id),
-    dataType: row.source,
-    brand: row.brand,
-    preparation: row.preparation,
-    normalizedName: row.normalizedName,
-    searchText: [row.name, row.normalizedName, row.brand].filter(Boolean).join(' '),
-    providerOrder,
-    caloriesPer100g: row.calories_per_100g,
-    proteinPer100g: row.protein_g_per_100g,
-    carbsPer100g: row.carbs_g_per_100g,
-    fatPer100g: row.fat_g_per_100g,
-    servingSizeGrams: row.serving_size_g,
-    servingLabel: row.serving_label,
-    alternateSourceIds: [],
-  }));
+export async function searchPersonalFoods(query: string): Promise<FoodResult[]> {
+  const [rows, pinnedKeys] = await Promise.all([getFoodHistoryRows(), getPinnedFoodKeys()]);
+  const personal = buildPersonalFoodResults(rows, pinnedKeys);
+  return rankAndDeduplicateFoodResults(personal, query, 'common').items;
 }
 
 const engine = new FoodSearchEngine({
-  searchLocal: searchLocalCache,
-  searchCommon: remote.searchCommon,
-  searchBranded: remote.searchBranded,
+  searchLocal: searchPersonalFoods,
+  searchUSDA: remote.searchUSDA,
   searchOpenFoodFacts: serviceConfig.availability.openFoodFacts ? remote.searchOpenFoodFacts : undefined,
   onNearMisses: (nearMisses) => { latestNearMisses = nearMisses; },
 });
@@ -53,6 +36,29 @@ export async function searchFood(
   signal?: AbortSignal,
 ): Promise<FoodSearchOutcome> {
   return engine.search(query, mode, signal);
+}
+
+export async function searchRemoteFood(
+  query: string,
+  mode: FoodSearchMode = 'common',
+  signal?: AbortSignal,
+): Promise<FoodSearchOutcome> {
+  return engine.searchRemote(query, mode, signal);
+}
+
+export function combineFoodSearchResults(
+  personal: FoodResult[],
+  remoteItems: FoodResult[],
+  query: string,
+  mode: FoodSearchMode,
+): FoodResult[] {
+  return rankAndDeduplicateFoodResults([...personal, ...remoteItems], query, mode).items;
+}
+
+export async function loadFoodDetails(food: FoodResult, signal?: AbortSignal): Promise<FoodResult> {
+  if (food.source !== 'usda' || food.history || !remote.loadUSDAFood) return food;
+  const detail = await remote.loadUSDAFood(food.sourceFoodId, signal);
+  return detail ? { ...food, ...detail, id: food.id, providerOrder: food.providerOrder } : food;
 }
 
 export function getFoodSearchDiagnostics() {

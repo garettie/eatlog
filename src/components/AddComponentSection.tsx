@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { searchFood, FoodResult, DataType, type FoodSearchMode, type FoodSearchOutcome } from '../services/foodSearch';
+import { loadFoodDetails, type FoodResult } from '../services/foodSearch';
+import { buildFoodPortions } from '../services/foodSearchCore';
 import { describeMeal } from '../services/foodScan';
+import { useFoodSearchController } from '../hooks/useFoodSearchController';
 import { M3 } from '../theme/tokens';
 import PrimaryButton from './PrimaryButton';
+import FoodSearchResultRow from './FoodSearchResultRow';
 
 type AddMode = 'search' | 'describe' | 'manual' | null;
 
@@ -16,16 +19,8 @@ interface AddComponentSectionProps {
 
 export default function AddComponentSection({ onAdd }: AddComponentSectionProps) {
   const [mode, setMode] = useState<AddMode>(null);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<FoodResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [searchOutcome, setSearchOutcome] = useState<FoodSearchOutcome['kind']>('success');
-  const [searchRetry, setSearchRetry] = useState(0);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const searchSeq = useRef(0);
+  const search = useFoodSearchController();
+  const [selectingId, setSelectingId] = useState<string | null>(null);
 
   const [describeText, setDescribeText] = useState('');
   const [isEstimating, setIsEstimating] = useState(false);
@@ -36,7 +31,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [manualPro, setManualPro] = useState('');
   const [manualCarb, setManualCarb] = useState('');
   const [manualFat, setManualFat] = useState('');
-  const [manualGrams, setManualGrams] = useState('150');
+  const [manualGrams, setManualGrams] = useState('100');
   const manualNutrients = [manualCal, manualPro, manualCarb, manualFat].map(Number);
   const manualGramsValue = Number(manualGrams);
   const manualCanAdd = manualName.trim().length > 0
@@ -46,82 +41,26 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualNutrients.some((value) => value > 0);
 
   const reset = useCallback(() => {
-    abortRef.current?.abort();
-    searchSeq.current += 1;
     setMode(null);
-    setSearchQuery('');
-    setSearchResults([]);
-    setSearchError(null);
-    setSearchOutcome('success');
+    search.setQuery('');
     setDescribeText('');
     setDescribeError(null);
-  }, []);
+  }, [search]);
 
-  const runSearch = useCallback(async (query: string, searchMode: FoodSearchMode) => {
-    const trimmed = query.trim();
-    if (trimmed.length < 2) return;
-    const seq = ++searchSeq.current;
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setIsSearching(true);
-    setSearchError(null);
+  const handleSearchSelect = useCallback(async (food: FoodResult) => {
+    if (selectingId) return;
+    setSelectingId(food.id);
     try {
-      const result = await searchFood(trimmed, searchMode, controller.signal);
-      if (seq !== searchSeq.current) return;
-      setSearchResults(result.items);
-      setSearchOutcome(result.kind);
-      setSearchError(result.kind === 'unavailable'
-        ? "Couldn't search foods. Check your connection and try again."
-        : null);
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
-      console.error('[AddComponent] search failed', error);
-      if (seq === searchSeq.current) {
-        setSearchResults([]);
-        setSearchOutcome('unavailable');
-        setSearchError("Couldn't search foods. Check your connection and try again.");
+      let selected = food;
+      if (food.source === 'usda' && !food.history) {
+        selected = await loadFoodDetails(food).catch(() => food);
       }
+      onAdd([selected]);
+      reset();
     } finally {
-      if (seq === searchSeq.current) setIsSearching(false);
+      setSelectingId(null);
     }
-  }, []);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    abortRef.current?.abort();
-    searchSeq.current += 1;
-
-    if (mode !== 'search' || searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      setSearchError(null);
-      setSearchOutcome('success');
-      setIsSearching(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setSearchError(null);
-    debounceRef.current = setTimeout(async () => {
-      await runSearch(searchQuery, 'common');
-    }, 500);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [mode, searchQuery, searchRetry, runSearch]);
-
-  useEffect(() => () => abortRef.current?.abort(), []);
-
-  const handleSearchSubmit = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    void runSearch(searchQuery, 'full');
-  }, [runSearch, searchQuery]);
-
-  const handleSearchSelect = useCallback((food: FoodResult) => {
-    onAdd([food]);
-    reset();
-  }, [onAdd, reset]);
+  }, [onAdd, reset, selectingId]);
 
   const handleDescribe = useCallback(async () => {
     const text = describeText.trim();
@@ -149,6 +88,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const grams = manualGramsValue;
 
     const name = manualName.trim();
+    const portions = buildFoodPortions([{ id: 'reviewed', label: 'Reviewed amount', grams }]);
     const food: FoodResult = {
       id: `manual-${Date.now()}`,
       name,
@@ -162,8 +102,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       proteinPer100g: pro > 0 ? pro : null,
       carbsPer100g: carb > 0 ? carb : null,
       fatPer100g: fat > 0 ? fat : null,
-      servingSizeGrams: grams,
-      servingLabel: null,
+      portions,
+      defaultPortionId: portions[0].id,
       estimatedGrams: grams,
       alternateSourceIds: [],
     };
@@ -173,7 +113,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     setManualPro('');
     setManualCarb('');
     setManualFat('');
-    setManualGrams('150');
+    setManualGrams('100');
     reset();
   }, [manualName, manualCanAdd, manualNutrients, manualGramsValue, onAdd, reset]);
 
@@ -242,14 +182,13 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         </Pressable>
       </View>
 
-      {/* ── Search Mode ── */}
       {mode === 'search' && (
         <View className="gap-3">
           <View className="flex-row items-center bg-m3-surface-container rounded-xl px-4 py-3 border border-m3-outline-variant/50">
             <MaterialIcons name="search" size={16} color={M3.onSurfaceVariant} />
             <BottomSheetTextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+              value={search.query}
+              onChangeText={search.setQuery}
               accessibilityLabel="Search foods"
               placeholder="Search foods…"
               placeholderTextColor={M3.placeholder}
@@ -257,67 +196,56 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
               autoFocus
               autoCorrect={false}
               returnKeyType="search"
-              onSubmitEditing={handleSearchSubmit}
+              onSubmitEditing={search.submit}
             />
-            {isSearching && <ActivityIndicator size="small" color={M3.onSurfaceVariant} style={{ marginLeft: 4 }} />}
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear component search" className="w-12 h-12 items-center justify-center -mr-3">
+            {search.remoteState === 'loading' && <View className="ml-1"><ActivityIndicator size="small" color={M3.onSurfaceVariant} /></View>}
+            {search.query.length > 0 && (
+              <Pressable onPress={() => search.setQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear component search" className="w-12 h-12 items-center justify-center -mr-3">
                 <MaterialIcons name="close" size={16} color={M3.onSurfaceVariant} />
               </Pressable>
             )}
           </View>
-          {searchResults.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => handleSearchSelect(item)}
-              accessibilityRole="button"
-              accessibilityLabel={`${item.name}, ${item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} calories per 100 grams` : 'nutrition unavailable'}`}
-              accessibilityHint="Adds this component to the meal"
-              className="min-h-[56px] bg-m3-surface-container rounded-xl px-4 py-3 flex-row justify-between items-center active:opacity-60"
-            >
-              <View className="flex-1 mr-2">
-                <Text className="text-m3-on-surface text-sm font-medium" numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>
-                  {dataTypeShort(item.dataType)}
-                  {item.brand ? ` · ${item.brand}` : ''}
-                  {item.servingLabel ? ` · ${item.servingLabel}` : ''}
-                </Text>
-              </View>
-              <Text className="text-xs text-m3-primary font-semibold tabular-nums">
-                {item.caloriesPer100g != null ? `${Math.round(item.caloriesPer100g)} kcal/100g` : '---'}
-              </Text>
-            </Pressable>
+          {search.personalResults.map((item) => (
+            <FoodSearchResultRow key={item.id} food={item} onPress={() => void handleSearchSelect(item)} quickLogging={selectingId === item.id} accessibilityHint="Adds this component to the meal" />
           ))}
-          {searchOutcome === 'partial' && searchResults.length > 0 && (
+          {search.remoteResults.map((item) => (
+            <FoodSearchResultRow key={item.id} food={item} onPress={() => void handleSearchSelect(item)} quickLogging={selectingId === item.id} accessibilityHint="Adds this component to the meal" />
+          ))}
+          {search.remoteState === 'partial' && (
             <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-xs">
               Some sources are unavailable. Showing available results.
             </Text>
           )}
-          {searchError && (
+          {search.remoteState === 'unavailable' && (
             <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-3">
-              <Text className="text-m3-on-error-container text-xs font-medium">{searchError}</Text>
+              <Text className="text-m3-on-error-container text-xs font-medium">Online foods unavailable. Personal history still works.</Text>
               <View className="flex-row flex-wrap gap-2">
-                <Pressable onPress={() => setSearchRetry((count) => count + 1)} accessibilityRole="button" accessibilityLabel="Retry component search" className="min-h-[40px] justify-center rounded-full bg-m3-surface-container-high px-4 active:opacity-60">
+                <Pressable onPress={search.retry} accessibilityRole="button" accessibilityLabel="Retry component search" className="min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-4 active:opacity-60">
                   <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
                 </Pressable>
-                <Pressable onPress={() => setMode('describe')} accessibilityRole="button" accessibilityLabel="Describe component instead" className="min-h-[40px] justify-center px-2 active:opacity-60">
+                <Pressable onPress={() => { setDescribeText(search.query); setMode('describe'); }} accessibilityRole="button" accessibilityLabel="Describe component instead" className="min-h-[48px] justify-center px-2 active:opacity-60">
                   <Text className="text-m3-on-error-container text-xs font-semibold">Describe instead</Text>
                 </Pressable>
-                <Pressable onPress={() => setMode('manual')} accessibilityRole="button" accessibilityLabel="Enter component manually" className="min-h-[40px] justify-center px-2 active:opacity-60">
+                <Pressable onPress={() => setMode('manual')} accessibilityRole="button" accessibilityLabel="Enter component manually" className="min-h-[48px] justify-center px-2 active:opacity-60">
                   <Text className="text-m3-on-error-container text-xs font-semibold">Enter manually</Text>
                 </Pressable>
               </View>
             </View>
           )}
-          {!isSearching && !searchError && searchQuery.trim().length > 0 && searchResults.length === 0 && (
-            <Text className="text-m3-on-surface-variant text-xs text-center py-2">No results</Text>
+          {!search.localLoading && search.remoteState !== 'loading' && search.query.trim().length > 0 && search.personalResults.length === 0 && search.remoteResults.length === 0 && (
+            <View className="gap-2">
+              <Text className="text-m3-on-surface-variant text-xs text-center py-2">No results</Text>
+              <Pressable onPress={() => { setDescribeText(search.query); setMode('describe'); }} accessibilityRole="button" className="min-h-[48px] justify-center items-center rounded-full bg-m3-surface-container px-4 active:opacity-60">
+                <Text className="text-m3-on-surface text-xs font-semibold">Estimate “{search.query.trim()}” with AI</Text>
+              </Pressable>
+              <Pressable onPress={() => setMode('manual')} accessibilityRole="button" className="min-h-[48px] justify-center items-center px-4 active:opacity-60">
+                <Text className="text-m3-on-surface-variant text-xs font-semibold">Enter manually</Text>
+              </Pressable>
+            </View>
           )}
         </View>
       )}
 
-      {/* ── Describe Mode ── */}
       {mode === 'describe' && (
         <View className="gap-3">
           <BottomSheetTextInput
@@ -345,7 +273,6 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         </View>
       )}
 
-      {/* ── Manual Mode ── */}
       {mode === 'manual' && (
         <View className="gap-4">
           <BottomSheetTextInput
@@ -429,18 +356,4 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       )}
     </View>
   );
-}
-
-function dataTypeShort(dt: DataType): string {
-  switch (dt) {
-    case 'Survey (FNDDS)': return 'USDA Survey (FNDDS)';
-    case 'Foundation':
-    case 'SR Legacy':
-    case 'Branded': return 'USDA';
-    case 'off': return 'Open Food Facts';
-    case 'describe': return 'Estimate';
-    case 'scan': return 'Scan';
-    case 'manual': return 'Manual';
-    default: return '';
-  }
 }

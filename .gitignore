@@ -32,6 +32,9 @@ yarn-error.*
 
 # local env files
 .env*.local
+worker/.dev.vars*
+!worker/.dev.vars.example
+worker/.wrangler/
 
 # typescript
 *.tsbuildinfo

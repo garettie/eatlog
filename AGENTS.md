@@ -4,9 +4,12 @@ ijfw_schema: 1
 type: software
 primary_type: software
 secondary_types: []
-confidence: 0.907
-detected_at: 2026-07-29T01:14:49.485Z
+confidence: 0.943
+detected_at: 2026-08-01T06:44:21.319Z
 signals:
+  - kind: agents_md_frontmatter
+    weight: 0.9
+    value: software
   - kind: manifest
     weight: 0.9
     manifests: [package.json]
@@ -17,7 +20,7 @@ signals:
     weight: 0.7
     domain: software
     ratio: 1
-    count: 70
+    count: 87
 ---
 # AGENTS.md
 
@@ -249,6 +252,8 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Eatlog raster branding must derive from one canonical 1024×1024 flat-white egg mask; vary only platform-required padding/background, and update every legacy PNG alias with the same branding change.
 - Direct pushes to GitHub SSH remotes do not require authenticated `gh`; use `git commit` and `git push` when explicitly requested, and reserve `gh` authentication for API or PR operations.
 - Never treat a human-readable CSV export as a restorable backup; only `.eatlog-backup` and legacy `.marco-backup` archives containing `manifest.json` and `database.sqlite` can be restored.
+- Cloudflare Workers Free plan cannot deploy a custom `limits` block; rely on its built-in CPU/subrequest limits unless the account is upgraded to Workers Paid.
+- Worker tests must exercise at least one request without injected runtime dependencies; call Web API methods such as `crypto.randomUUID()` through their owning object, never as unbound function references.
 
 ---
 

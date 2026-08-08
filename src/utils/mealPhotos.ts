@@ -4,9 +4,37 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 const PHOTO_DIR = `${FileSystem.documentDirectory}meal-photos/`;
 const MAX_PHOTO_DIMENSION = 1600;
 const PHOTO_QUALITY = 0.75;
+const ESTIMATE_QUALITY = 0.65;
+const MAX_ESTIMATE_BYTES = 4 * 1024 * 1024;
 
 export function getMealPhotoDirectory(): string {
   return PHOTO_DIR;
+}
+
+export async function prepareFoodEstimateImage(
+  sourceUri: string,
+  width: number,
+  height: number,
+): Promise<string> {
+  const resize = Math.max(width, height) > MAX_PHOTO_DIMENSION
+    ? width >= height
+      ? [{ resize: { width: MAX_PHOTO_DIMENSION } }]
+      : [{ resize: { height: MAX_PHOTO_DIMENSION } }]
+    : [];
+  const optimized = await manipulateAsync(sourceUri, resize, {
+    base64: true,
+    compress: ESTIMATE_QUALITY,
+    format: SaveFormat.JPEG,
+  });
+  try {
+    if (!optimized.base64) throw new Error('Image conversion did not produce JPEG data');
+    const padding = optimized.base64.endsWith('==') ? 2 : optimized.base64.endsWith('=') ? 1 : 0;
+    const decodedBytes = Math.floor((optimized.base64.length * 3) / 4) - padding;
+    if (decodedBytes > MAX_ESTIMATE_BYTES) throw new Error('Image remains larger than 4 MiB after compression');
+    return optimized.base64;
+  } finally {
+    await FileSystem.deleteAsync(optimized.uri, { idempotent: true }).catch(() => {});
+  }
 }
 
 export async function deleteAllMealPhotos(): Promise<void> {

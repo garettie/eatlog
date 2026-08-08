@@ -18,12 +18,11 @@ interface CacheEntry extends RemoteSearchResult {
 
 export interface FoodSearchEngineDependencies {
   searchLocal: (query: string) => Promise<FoodResult[]>;
-  searchCommon?: (query: string, signal?: AbortSignal) => Promise<FoodResult[]>;
-  searchBranded?: (query: string, signal?: AbortSignal) => Promise<FoodResult[]>;
+  searchUSDA?: (query: string, mode: FoodSearchMode, signal?: AbortSignal) => Promise<FoodResult[]>;
   searchOpenFoodFacts?: (query: string, signal?: AbortSignal) => Promise<FoodResult[]>;
   now?: () => number;
   onNearMisses?: (nearMisses: DedupNearMiss[]) => void;
-  onProviderFailure?: (provider: 'common' | 'branded' | 'open-food-facts', error: unknown) => void;
+  onProviderFailure?: (provider: 'usda' | 'open-food-facts', error: unknown) => void;
 }
 
 export interface FoodSearchCacheMetrics {
@@ -97,19 +96,6 @@ export class FoodSearchEngine {
     return null;
   }
 
-  private readExactCommonCache(query: string): RemoteSearchResult | null {
-    const key = this.key(query, 'common');
-    const entry = this.cache.get(key);
-    if (!entry || this.now() - entry.createdAt >= CACHE_TTL_MS) {
-      if (entry) this.cache.delete(key);
-      return null;
-    }
-    this.cache.delete(key);
-    this.cache.set(key, entry);
-    this.cacheHits += 1;
-    return { items: entry.items, attempts: entry.attempts, failures: entry.failures };
-  }
-
   private writeCache(query: string, mode: FoodSearchMode, result: RemoteSearchResult): void {
     const key = this.key(query, mode);
     this.cache.delete(key);
@@ -122,14 +108,13 @@ export class FoodSearchEngine {
   }
 
   private async settleProvider(
-    name: 'common' | 'branded' | 'open-food-facts',
-    provider: ((query: string, signal?: AbortSignal) => Promise<FoodResult[]>) | undefined,
-    query: string,
+    name: 'usda' | 'open-food-facts',
+    provider: (() => Promise<FoodResult[]>) | undefined,
     signal?: AbortSignal,
   ): Promise<RemoteSearchResult> {
     if (!provider) return { items: [], attempts: 0, failures: 0 };
     try {
-      return { items: await provider(query, signal), attempts: 1, failures: 0 };
+      return { items: await provider(), attempts: 1, failures: 0 };
     } catch (error) {
       throwIfAborted(signal);
       this.dependencies.onProviderFailure?.(name, error);
@@ -143,29 +128,51 @@ export class FoodSearchEngine {
     throwIfAborted(signal);
 
     if (mode === 'common') {
-      const common = await this.settleProvider('common', this.dependencies.searchCommon, query, signal);
+      const common = await this.settleProvider(
+        'usda',
+        this.dependencies.searchUSDA ? () => this.dependencies.searchUSDA!(query, 'common', signal) : undefined,
+        signal,
+      );
       throwIfAborted(signal);
-      this.writeCache(query, mode, common);
+      if (common.attempts > 0 && common.failures === 0) this.writeCache(query, mode, common);
       return common;
     }
 
-    let common = this.readExactCommonCache(query);
-    if (!common) {
-      common = await this.settleProvider('common', this.dependencies.searchCommon, query, signal);
-      this.writeCache(query, 'common', common);
-    }
-    const [branded, openFoodFacts] = await Promise.all([
-      this.settleProvider('branded', this.dependencies.searchBranded, query, signal),
-      this.settleProvider('open-food-facts', this.dependencies.searchOpenFoodFacts, query, signal),
+    const [usda, openFoodFacts] = await Promise.all([
+      this.settleProvider(
+        'usda',
+        this.dependencies.searchUSDA ? () => this.dependencies.searchUSDA!(query, 'full', signal) : undefined,
+        signal,
+      ),
+      this.settleProvider(
+        'open-food-facts',
+        this.dependencies.searchOpenFoodFacts ? () => this.dependencies.searchOpenFoodFacts!(query, signal) : undefined,
+        signal,
+      ),
     ]);
     throwIfAborted(signal);
     const result = {
-      items: [...common.items, ...branded.items, ...openFoodFacts.items],
-      attempts: common.attempts + branded.attempts + openFoodFacts.attempts,
-      failures: common.failures + branded.failures + openFoodFacts.failures,
+      items: [...usda.items, ...openFoodFacts.items],
+      attempts: usda.attempts + openFoodFacts.attempts,
+      failures: usda.failures + openFoodFacts.failures,
     };
-    this.writeCache(query, mode, result);
+    if (result.attempts > 0 && result.failures === 0) this.writeCache(query, mode, result);
     return result;
+  }
+
+  async searchRemote(query: string, mode: FoodSearchMode = 'common', signal?: AbortSignal): Promise<FoodSearchOutcome> {
+    const trimmed = query.trim();
+    if (!trimmed) return { kind: 'success', items: [] };
+    throwIfAborted(signal);
+    const remote = await this.loadRemote(trimmed, mode, signal);
+    throwIfAborted(signal);
+    const ranked = rankAndDeduplicateFoodResults(remote.items, trimmed, mode);
+    this.dependencies.onNearMisses?.(ranked.nearMisses);
+    if (remote.attempts === 0 || (remote.failures === remote.attempts && ranked.items.length === 0)) {
+      return { kind: 'unavailable', items: [] };
+    }
+    if (remote.failures > 0) return { kind: 'partial', items: ranked.items };
+    return { kind: 'success', items: ranked.items };
   }
 
   async search(query: string, mode: FoodSearchMode = 'common', signal?: AbortSignal): Promise<FoodSearchOutcome> {

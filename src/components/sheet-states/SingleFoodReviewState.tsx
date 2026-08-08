@@ -14,13 +14,13 @@ import SheetBackButton from './SheetBackButton';
 function dataTypeLabel(dt: DataType): string {
   switch (dt) {
     case 'Survey (FNDDS)':
-      return 'USDA Survey (FNDDS)';
+      return 'USDA';
     case 'Foundation':
-      return 'USDA Foundation Database';
+      return 'USDA';
     case 'SR Legacy':
-      return 'USDA SR Legacy';
+      return 'USDA';
     case 'Branded':
-      return 'USDA Branded';
+      return 'USDA';
     case 'off':
       return 'Open Food Facts';
     case 'manual':
@@ -52,22 +52,18 @@ export default function SingleFoodReviewState({
   logDate,
   onBack,
 }: SingleFoodReviewStateProps) {
-  const hasServing = useMemo(
-    () => !!(food?.servingSizeGrams && food.servingSizeGrams > 0),
-    [food],
-  );
+  const defaultPortion = useMemo(() => food?.portions.find((portion) => portion.id === food.defaultPortionId)
+    ?? food?.portions[0] ?? null, [food]);
+  const [selectedPortionId, setSelectedPortionId] = useState(defaultPortion?.id ?? '100-g');
+  const selectedPortion = useMemo(() => food?.portions.find((portion) => portion.id === selectedPortionId)
+    ?? defaultPortion, [defaultPortion, food, selectedPortionId]);
+  const hasServing = !!selectedPortion;
   const showMl = useMemo(
-    () => !!(food?.servingLabel && /ml\b/i.test(food.servingLabel)),
-    [food],
+    () => !!(selectedPortion?.label && /ml\b/i.test(selectedPortion.label)),
+    [selectedPortion],
   );
 
-  const defaultMode: UnitMode = useMemo(() => {
-    if (showMl) return 'ml';
-    if (hasServing) return 'servings';
-    return 'grams';
-  }, [hasServing, showMl]);
-
-  const [mode, setMode] = useState<UnitMode>(defaultMode);
+  const [mode, setMode] = useState<UnitMode>(() => showMl ? 'ml' : hasServing ? 'servings' : 'grams');
   const [servings, setServings] = useState(1);
   const [gramsInput, setGramsInput] = useState('');
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
@@ -78,23 +74,25 @@ export default function SingleFoodReviewState({
 
   useEffect(() => {
     if (!food) return;
-    setMode(defaultMode);
-    if (food.servingSizeGrams && food.servingSizeGrams > 0) {
+    const portion = food.portions.find((candidate) => candidate.id === food.defaultPortionId) ?? food.portions[0];
+    setSelectedPortionId(portion?.id ?? '100-g');
+    setMode(portion?.label && /ml\b/i.test(portion.label) ? 'ml' : portion ? 'servings' : 'grams');
+    if (portion) {
       setServings(1);
-      setGramsInput(String(Math.round(food.servingSizeGrams)));
+      setGramsInput(String(Math.round(portion.grams)));
     } else {
       setServings(1);
-      setGramsInput(String(Math.round(food.estimatedGrams ?? 150)));
+      setGramsInput('100');
     }
     setMeal(initialMeal ?? defaultMealForNow());
-  }, [food, defaultMode, initialMeal]);
+  }, [food, initialMeal]);
 
   const gramsNum = useMemo(() => {
-    if (mode === 'servings' && food?.servingSizeGrams)
-      return Math.round(servings * food.servingSizeGrams);
+    if (mode === 'servings' && selectedPortion)
+      return Math.round(servings * selectedPortion.grams);
     const n = parseFloat(gramsInput);
     return isNaN(n) || n <= 0 ? 0 : n;
-  }, [mode, servings, gramsInput, food]);
+  }, [mode, servings, gramsInput, selectedPortion]);
 
   const macros = useMemo(() => {
     if (!food || gramsNum <= 0) return null;
@@ -122,16 +120,16 @@ export default function SingleFoodReviewState({
   const handleModeChange = useCallback(
     (newMode: UnitMode) => {
       if (newMode === mode) return;
-      if (newMode === 'servings' && food?.servingSizeGrams) {
+      if (newMode === 'servings' && selectedPortion) {
         setServings(
-          Math.round((gramsNum / food.servingSizeGrams) * 10) / 10 || 1,
+          Math.round((gramsNum / selectedPortion.grams) * 10) / 10 || 1,
         );
       } else {
-        setGramsInput(String(Math.round(gramsNum) || 150));
+        setGramsInput(String(Math.round(gramsNum) || 100));
       }
       setMode(newMode);
     },
-    [mode, gramsNum, food],
+    [mode, gramsNum, selectedPortion],
   );
 
   const handleServingsDelta = useCallback((delta: number) => {
@@ -165,8 +163,8 @@ export default function SingleFoodReviewState({
         data_type: food.dataType,
         preparation: food.preparation,
         grams_logged: gramsNum,
-        serving_size_g: food.servingSizeGrams,
-        serving_label: food.servingLabel,
+        serving_size_g: selectedPortion?.grams ?? null,
+        serving_label: selectedPortion?.label ?? null,
         calories_per_100g: food.caloriesPer100g,
         protein_g_per_100g: food.proteinPer100g,
         carbs_g_per_100g: food.carbsPer100g,
@@ -183,7 +181,7 @@ export default function SingleFoodReviewState({
     } finally {
       setLogging(false);
     }
-  }, [food, macros, gramsNum, meal, onLogComplete, logDate]);
+  }, [food, macros, gramsNum, meal, onLogComplete, logDate, selectedPortion]);
 
   if (!food) return null;
 
@@ -211,8 +209,8 @@ export default function SingleFoodReviewState({
                   {food.brand}
                 </Text>
               ) : null}
-               <Text className="text-m3-on-surface-variant text-xs mt-0.5">
-                 {dataTypeLabel(food.dataType)}
+              <Text className="text-m3-on-surface-variant text-xs mt-0.5">
+                {food.history ? 'Your history' : dataTypeLabel(food.dataType)}
                 {food.preparation ? ` · ${food.preparation}` : ''}
               </Text>
             </View>
@@ -229,10 +227,18 @@ export default function SingleFoodReviewState({
             unitMode={mode}
             servings={servings}
             grams={gramsNum}
-            servingSizeGrams={food.servingSizeGrams ?? null}
-            servingLabel={food.servingLabel ?? null}
+            servingSizeGrams={selectedPortion?.grams ?? null}
+            servingLabel={selectedPortion?.label ?? null}
             hasServing={hasServing}
             showMl={showMl}
+            portions={food.portions}
+            selectedPortionId={selectedPortion?.id}
+            onPortionChange={(portion) => {
+              setSelectedPortionId(portion.id);
+              setServings(1);
+              setGramsInput(String(Math.round(portion.grams)));
+              setMode(/ml\b/i.test(portion.label) ? 'ml' : 'servings');
+            }}
             onModeChange={handleModeChange}
             onServingsDelta={handleServingsDelta}
             onServingsSet={handleServingsSet}

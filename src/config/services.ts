@@ -1,18 +1,16 @@
 /**
- * Build-time provider configuration. Values are intentionally absent by
- * default; developers inject them through the Expo build environment.
+ * Build-time service configuration. URL is public and intentionally absent by
+ * default; developers inject it through the Expo build environment.
  *
  * Expo requires static dot-notation references to inline EXPO_PUBLIC values.
  */
-const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() ?? '';
-const usdaApiKey = process.env.EXPO_PUBLIC_USDA_API_KEY?.trim() ?? '';
+const foodWorkerUrl = process.env.EXPO_PUBLIC_FOOD_WORKER_URL?.trim().replace(/\/$/, '') ?? '';
 
 export const serviceConfig = {
-  geminiApiKey,
-  usdaApiKey,
+  foodWorkerUrl,
   availability: {
-    gemini: geminiApiKey.length > 0,
-    usda: usdaApiKey.length > 0,
+    gemini: foodWorkerUrl.length > 0,
+    usda: foodWorkerUrl.length > 0,
     openFoodFacts: true,
   },
 } as const;

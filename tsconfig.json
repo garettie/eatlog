@@ -10,5 +10,8 @@
     ".expo/types/**/*.d.ts",
     "nativewind-env.d.ts",
     "global.css"
+  ],
+  "exclude": [
+    "worker"
   ]
 }
