@@ -33,7 +33,6 @@ interface WeightChartProps {
   targetWeightKg?: number | null;
   plannedRateKgPerWeek?: number;
   planEffectiveDate?: string | null;
-  targetChangeDates?: string[];
   unit?: WeightUnit;
 }
 
@@ -45,7 +44,6 @@ interface ChartPoint {
 
 const DAY_MS = 86_400_000;
 const POINT_RADIUS = 2.75;
-const EMPTY_TARGET_CHANGE_DATES: string[] = [];
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
@@ -81,7 +79,6 @@ interface ChartPaths {
   trend: string;
   points: string;
   trendEndpoint: string;
-  targetChanges: string;
 }
 
 function chartPaths(
@@ -94,13 +91,11 @@ function chartPaths(
   top: number,
   width: number,
   height: number,
-  targetChangeDays: number[],
 ): ChartPaths {
   'worklet';
   let trend = '';
   let pointMarkers = '';
   let trendEndpoint = '';
-  let targetChanges = '';
   let visibleCount = 0;
   for (let index = 0; index < points.length; index += 1) {
     if (points[index].day >= startDay && points[index].day <= endDay) visibleCount += 1;
@@ -125,12 +120,7 @@ function chartPaths(
       + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
       + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
   }
-  for (const changeDay of targetChangeDays) {
-    if (changeDay < startDay || changeDay > endDay) continue;
-    const x = chartX(changeDay, startDay, endDay, left, width);
-    targetChanges += `M ${x} ${top} L ${x} ${top + height} `;
-  }
-  return { trend, points: pointMarkers, trendEndpoint, targetChanges };
+  return { trend, points: pointMarkers, trendEndpoint };
 }
 
 function nearestPointIndex(
@@ -199,7 +189,6 @@ function WeightChart({
   targetWeightKg = null,
   plannedRateKgPerWeek = 0,
   planEffectiveDate = null,
-  targetChangeDates = EMPTY_TARGET_CHANGE_DATES,
   unit = 'kg',
 }: WeightChartProps) {
   const reduced = useReducedMotion();
@@ -256,10 +245,6 @@ function WeightChart({
   const planStartWeight = planEndWeight == null
     ? null
     : planEndWeight - plannedRateKgPerWeek * (nextEndDay - planStartDay) / 7;
-  const targetChangeDays = useMemo(
-    () => targetChangeDates.map(dayNumber),
-    [targetChangeDates],
-  );
   const { nextYMin, nextYMax, yTicks } = useMemo(() => {
     let minValue = Number.POSITIVE_INFINITY;
     let maxValue = Number.NEGATIVE_INFINITY;
@@ -336,7 +321,6 @@ function WeightChart({
       topPadding,
       animatedDataWidth.value,
       plotHeight,
-      targetChangeDays,
     )
   ));
   const trendPathProps = useAnimatedProps(() => ({
@@ -347,9 +331,6 @@ function WeightChart({
   }));
   const trendEndpointProps = useAnimatedProps(() => ({
     d: paths.value.trendEndpoint,
-  }));
-  const targetChangesProps = useAnimatedProps(() => ({
-    d: paths.value.targetChanges,
   }));
   const targetLineProps = useAnimatedProps(() => {
     const y = chartY(
@@ -401,37 +382,6 @@ function WeightChart({
       plotHeight,
     ),
   }));
-  const trendLabelProps = useAnimatedProps(() => ({
-    y: Math.max(
-      topPadding + 10,
-      Math.min(
-        chartY(
-          latest?.trend_weight_kg ?? 0,
-          animatedYMin.value,
-          animatedYMax.value,
-          topPadding,
-          plotHeight,
-        ) - 7,
-        topPadding + plotHeight - 4,
-      ),
-    ),
-  }));
-  const scaleLabelProps = useAnimatedProps(() => ({
-    y: Math.max(
-      topPadding + 10,
-      Math.min(
-        chartY(
-          latest?.scale_weight_kg ?? 0,
-          animatedYMin.value,
-          animatedYMax.value,
-          topPadding,
-          plotHeight,
-        ) + 13,
-        topPadding + plotHeight - 4,
-      ),
-    ),
-  }));
-
   const selectPoint = useCallback((index: number) => {
     const nextIndex = index < 0 || selectedIndexRef.current === index ? null : index;
     selectedIndexRef.current = nextIndex;
@@ -529,7 +479,7 @@ function WeightChart({
     : 'No weight readings in this range.';
   const midpoint = new Date((new Date(`${startDate}T00:00:00`).getTime() + new Date(`${endDate}T00:00:00`).getTime()) / 2);
   const dateLabel = (date: string | Date) => new Date(typeof date === 'string' ? `${date}T00:00:00` : date)
-    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    .toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   const clipId = 'weight-chart-plot';
   const selectedLog = selectedIndex == null ? null : visible[selectedIndex] ?? null;
   const selectedPoint = selectedIndex == null ? null : visiblePoints[selectedIndex] ?? null;
@@ -646,15 +596,6 @@ function WeightChart({
               Goal {goalDirection}{fromKilograms(targetWeightKg, unit).toFixed(1)} {unit}
             </AnimatedSvgText>
           ) : null}
-          <AnimatedPath
-            animatedProps={targetChangesProps}
-            fill="none"
-            stroke={M3.onSurfaceVariant}
-            strokeWidth={1}
-            strokeDasharray="2 5"
-            strokeOpacity={0.55}
-            clipPath={`url(#${clipId})`}
-          />
           {planStartWeight != null && planEndWeight != null ? (
             <AnimatedLine
               animatedProps={planLineProps}
@@ -687,30 +628,6 @@ function WeightChart({
             fillOpacity={0.7}
             clipPath={`url(#${clipId})`}
           />
-          {latest ? (
-            <>
-              <AnimatedSvgText
-                x={width - rightPadding - 4}
-                animatedProps={trendLabelProps}
-                fill={M3.expenditure}
-                fontSize={TYPE.compact.fontSize}
-                fontFamily={TYPE.family.semibold}
-                textAnchor="end"
-              >
-                Trend {fromKilograms(latest.trend_weight_kg, unit).toFixed(1)} {unit}
-              </AnimatedSvgText>
-              <AnimatedSvgText
-                x={width - rightPadding - 4}
-                animatedProps={scaleLabelProps}
-                fill={M3.onSurfaceVariant}
-                fontSize={TYPE.compact.fontSize}
-                fontFamily={TYPE.family.medium}
-                textAnchor="end"
-              >
-                Scale {fromKilograms(latest.scale_weight_kg, unit).toFixed(1)} {unit}
-              </AnimatedSvgText>
-            </>
-          ) : null}
           {selectedPoint && (
             <>
               <Circle

@@ -7,13 +7,11 @@ interface WeightChartLegendProps {
   /** Show the dashed goal-line entry when a target weight is set. */
   showGoal?: boolean;
   showPlan?: boolean;
-  showPlanUpdates?: boolean;
 }
 
 export default function WeightChartLegend({
   showGoal = false,
   showPlan = false,
-  showPlanUpdates = false,
 }: WeightChartLegendProps) {
   return (
     <View className="flex-row flex-wrap gap-x-4 gap-y-2">
@@ -31,7 +29,7 @@ export default function WeightChartLegend({
             className="w-3.5 border-t border-dashed"
             style={{ borderTopColor: M3.goalRateSafe }}
           />
-          <Text className="text-m3-on-surface-variant text-compact font-medium">Current plan pace</Text>
+          <Text className="text-m3-on-surface-variant text-compact font-medium">Plan pace</Text>
         </View>
       ) : null}
       {showGoal && (
@@ -43,12 +41,6 @@ export default function WeightChartLegend({
           <Text className="text-m3-on-surface-variant text-compact font-medium">Goal</Text>
         </View>
       )}
-      {showPlanUpdates ? (
-        <View className="flex-row items-center gap-1.5">
-          <View className="h-3 border-l border-dashed border-m3-on-surface-variant" />
-          <Text className="text-m3-on-surface-variant text-compact font-medium">Plan update</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
