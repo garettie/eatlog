@@ -23,6 +23,7 @@ import { WeightLog, WeightUnit } from '../db/database';
 import { DURATION, EASING } from '../theme/motion';
 import { M3, TYPE } from '../theme/tokens';
 import { fromKilograms } from '../utils/weightUnits';
+import { getWeightChartDomain } from '../utils/weightChartDomain';
 
 interface WeightChartProps {
   logs: WeightLog[];
@@ -72,7 +73,7 @@ function chartY(
   height: number,
 ): number {
   'worklet';
-  return top + (max - value) / Math.max(1, max - min) * height;
+  return top + (max - value) / Math.max(0.001, max - min) * height;
 }
 
 interface ChartPaths {
@@ -246,30 +247,20 @@ function WeightChart({
     ? null
     : planEndWeight - plannedRateKgPerWeek * (nextEndDay - planStartDay) / 7;
   const { nextYMin, nextYMax, yTicks } = useMemo(() => {
-    let minValue = Number.POSITIVE_INFINITY;
-    let maxValue = Number.NEGATIVE_INFINITY;
+    const domainValues: number[] = [];
     for (const log of visible) {
-      minValue = Math.min(minValue, log.scale_weight_kg, log.trend_weight_kg);
-      maxValue = Math.max(maxValue, log.scale_weight_kg, log.trend_weight_kg);
+      domainValues.push(log.scale_weight_kg, log.trend_weight_kg);
     }
     if (planStartWeight != null && planEndWeight != null) {
-      minValue = Math.min(minValue, planStartWeight, planEndWeight);
-      maxValue = Math.max(maxValue, planStartWeight, planEndWeight);
+      domainValues.push(planStartWeight, planEndWeight);
     }
-    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue)) {
-      minValue = 0;
-      maxValue = 1;
-    }
-    const rawRange = Math.max(1, maxValue - minValue);
-    const padding = Math.max(0.25, rawRange * 0.1);
-    const yMin = minValue - padding;
-    const yMax = maxValue + padding;
+    const domain = getWeightChartDomain(domainValues, targetWeightKg);
     return {
-      nextYMin: yMin,
-      nextYMax: yMax,
-      yTicks: [yMax, (yMax + yMin) / 2, yMin],
+      nextYMin: domain.min,
+      nextYMax: domain.max,
+      yTicks: domain.ticks,
     };
-  }, [planEndWeight, planStartWeight, visible]);
+  }, [planEndWeight, planStartWeight, targetWeightKg, visible]);
 
   const animatedStartDay = useSharedValue(nextStartDay);
   const animatedEndDay = useSharedValue(nextEndDay);
@@ -501,12 +492,6 @@ function WeightChart({
   const selectedAccessibilityText = selectedLog
     ? `${dateLabel(selectedLog.log_date)}. Scale ${fromKilograms(selectedLog.scale_weight_kg, unit).toFixed(1)} ${unitName}. Trend ${fromKilograms(selectedLog.trend_weight_kg, unit).toFixed(1)} ${unitName}.`
     : accessibilityLabel;
-  const goalDirection = targetWeightKg == null
-    ? ''
-    : targetWeightKg < nextYMin ? '↓ '
-      : targetWeightKg > nextYMax ? '↑ '
-        : '';
-
   return (
     <GestureDetector gesture={chartGesture}>
       <View
@@ -593,7 +578,7 @@ function WeightChart({
               fontFamily={TYPE.family.semibold}
               textAnchor="start"
             >
-              Goal {goalDirection}{fromKilograms(targetWeightKg, unit).toFixed(1)} {unit}
+              Goal {fromKilograms(targetWeightKg, unit).toFixed(1)} {unit}
             </AnimatedSvgText>
           ) : null}
           {planStartWeight != null && planEndWeight != null ? (
