@@ -33,7 +33,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#151515"
+          "backgroundColor": "#151515",
+          "image": "./assets/splash-transparent.png",
+          "imageWidth": 1
         }
       ],
       "expo-sqlite",
