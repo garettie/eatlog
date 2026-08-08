@@ -18,10 +18,10 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { M3, TYPE } from './src/theme/tokens';
 import { DataMaintenanceContext, type MaintenanceTask } from './src/context/DataMaintenanceContext';
 import type { OwnershipProgressEvent, OwnershipResult } from './src/services/dataOwnership.types';
+import AnimatedSplash from './src/components/AnimatedSplash';
 import ResponsiveContent from './src/components/ResponsiveContent';
 
-// Keep the splash screen visible while we load fonts + DB
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 const navigationTheme: Theme = {
   ...DarkTheme,
@@ -38,8 +38,10 @@ const navigationTheme: Theme = {
 
 export default function App() {
   const [appReady, setAppReady] = useState(false);
+  const [splashFinished, setSplashFinished] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const databaseInitRef = useRef<Promise<void> | null>(null);
+  const nativeSplashHiddenRef = useRef(false);
   const [dataEpoch, setDataEpoch] = useState(0);
   const [maintenance, setMaintenance] = useState<{
     label: string;
@@ -90,11 +92,15 @@ export default function App() {
     void prepare();
   }, [prepare]);
 
-  useEffect(() => {
-    if (appReady && (fontsLoaded || fontError)) {
-      void SplashScreen.hideAsync();
-    }
-  }, [appReady, fontError, fontsLoaded]);
+  const finishSplash = useCallback(() => {
+    setSplashFinished(true);
+  }, []);
+
+  const hideNativeSplash = useCallback(() => {
+    if (nativeSplashHiddenRef.current) return;
+    nativeSplashHiddenRef.current = true;
+    void SplashScreen.hideAsync();
+  }, []);
 
   const runDataMaintenance = useCallback((label: string, task: MaintenanceTask) => (
     new Promise<OwnershipResult>((resolve, reject) => {
@@ -123,8 +129,10 @@ export default function App() {
 
   const maintenanceContext = useMemo(() => ({ runDataMaintenance }), [runDataMaintenance]);
 
-  if (!appReady || (!fontsLoaded && !fontError)) {
-    return null; // Native splash screen stays visible
+  const startupReady = appReady && (fontsLoaded || fontError);
+
+  if (!splashFinished || !startupReady) {
+    return <AnimatedSplash onFinish={finishSplash} onLayout={hideNativeSplash} />;
   }
 
   if (fontError || dbError) {

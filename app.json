@@ -6,7 +6,7 @@
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#111318",
+    "backgroundColor": "#151515",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false
@@ -33,10 +33,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#151515",
-          "image": "./assets/splash.png",
-          "imageWidth": 200,
-          "resizeMode": "contain"
+          "backgroundColor": "#151515"
         }
       ],
       "expo-sqlite",
