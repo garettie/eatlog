@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import type React from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
 	type LayoutChangeEvent,
 	useWindowDimensions,
@@ -54,30 +55,44 @@ const WAVE_D =
 
 const TILE_WIDTH = 1420;
 const SCROLL_LOOP = 12000;
+const FAST_PLAYBACK_SCALE = 0.28;
+const READY_FINISH_DURATION = 360;
 
 type AnimatedSplashProps = {
 	onFinish: () => void;
 	onLayout: (event: LayoutChangeEvent) => void;
+	ready: boolean;
 };
 
 export default function AnimatedSplash({
 	onFinish,
 	onLayout,
+	ready,
 }: AnimatedSplashProps) {
 	const { width, height } = useWindowDimensions();
 	const reducedMotion = useReducedMotion();
 	const riseY = useSharedValue(840);
 	const scrollX = useSharedValue(0);
+	const readyAtMountRef = useRef(ready);
+	const riseFinishedRef = useRef(false);
+
+	const finishSplash = useCallback(() => {
+		if (riseFinishedRef.current) return;
+		riseFinishedRef.current = true;
+		onFinish();
+	}, [onFinish]);
 
 	useEffect(() => {
 		if (reducedMotion) {
 			riseY.value = withTiming(-70, { duration: 0 }, (finished) => {
-				if (finished) runOnJS(onFinish)();
+				if (finished) runOnJS(finishSplash)();
 			});
 		} else {
+			const playbackScale = readyAtMountRef.current ? FAST_PLAYBACK_SCALE : 1;
+
 			scrollX.value = withRepeat(
 				withTiming(-TILE_WIDTH, {
-					duration: SCROLL_LOOP,
+					duration: SCROLL_LOOP * playbackScale,
 					easing: Easing.linear,
 				}),
 				-1,
@@ -86,16 +101,16 @@ export default function AnimatedSplash({
 
 			riseY.value = withSequence(
 				withTiming(10, {
-					duration: 3600,
+					duration: 3600 * playbackScale,
 					easing: Easing.bezier(0.22, 1, 0.36, 1),
 				}),
 				withTiming(-110, {
-					duration: 720,
+					duration: 720 * playbackScale,
 					easing: Easing.out(Easing.quad),
 				}),
-				withTiming(-80, { duration: 540 }),
-				withTiming(-70, { duration: 360 }, (finished) => {
-					if (finished) runOnJS(onFinish)();
+				withTiming(-80, { duration: 540 * playbackScale }),
+				withTiming(-70, { duration: 360 * playbackScale }, (finished) => {
+					if (finished) runOnJS(finishSplash)();
 				}),
 			);
 		}
@@ -104,7 +119,35 @@ export default function AnimatedSplash({
 			cancelAnimation(riseY);
 			cancelAnimation(scrollX);
 		};
-	}, [onFinish, reducedMotion, riseY, scrollX]);
+	}, [finishSplash, reducedMotion, riseY, scrollX]);
+
+	useEffect(() => {
+		if (
+			!ready ||
+			reducedMotion ||
+			readyAtMountRef.current ||
+			riseFinishedRef.current
+		) {
+			return;
+		}
+
+		cancelAnimation(riseY);
+		cancelAnimation(scrollX);
+		scrollX.value = withTiming(-TILE_WIDTH, {
+			duration: READY_FINISH_DURATION,
+			easing: Easing.linear,
+		});
+		riseY.value = withTiming(
+			-70,
+			{
+				duration: READY_FINISH_DURATION,
+				easing: Easing.out(Easing.quad),
+			},
+			(finished) => {
+				if (finished) runOnJS(finishSplash)();
+			},
+		);
+	}, [finishSplash, ready, reducedMotion, riseY, scrollX]);
 
 	const riseProps = useAnimatedProps<AnimatedGProps>(() => ({
 		matrix: [1, 0, 0, 1, 0, riseY.value],

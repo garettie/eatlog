@@ -169,7 +169,11 @@ export default function App() {
 
 	if (!splashFinished || !startupReady) {
 		return (
-			<AnimatedSplash onFinish={finishSplash} onLayout={hideNativeSplash} />
+			<AnimatedSplash
+				onFinish={finishSplash}
+				onLayout={hideNativeSplash}
+				ready={Boolean(startupReady)}
+			/>
 		);
 	}
 
