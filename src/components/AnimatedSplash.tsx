@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import Svg, {
 	Defs,
 	G,
+	type GProps,
 	Image as SvgImage,
 	Mask,
 	Path,
@@ -29,7 +30,12 @@ import Animated, {
 
 import { TYPE } from "../theme/tokens";
 
-const AnimatedG = Animated.createAnimatedComponent(G);
+type SvgMatrix = [number, number, number, number, number, number];
+type AnimatedGProps = GProps & { matrix?: SvgMatrix };
+
+// `matrix` is supported by G's native manager and setNativeProps but omitted from GProps.
+const MatrixG = G as unknown as React.ComponentClass<AnimatedGProps>;
+const AnimatedG = Animated.createAnimatedComponent(MatrixG);
 
 const LOGO = require("../../assets/splash.png");
 
@@ -133,11 +139,11 @@ export default function AnimatedSplash({
 		wordmarkTranslateY,
 	]);
 
-	const riseProps = useAnimatedProps(() => ({
-		transform: `translate(0, ${riseY.value})`,
+	const riseProps = useAnimatedProps<AnimatedGProps>(() => ({
+		matrix: [1, 0, 0, 1, 0, riseY.value],
 	}));
-	const scrollProps = useAnimatedProps(() => ({
-		transform: `translate(${scrollX.value}, 0)`,
+	const scrollProps = useAnimatedProps<AnimatedGProps>(() => ({
+		matrix: [1, 0, 0, 1, scrollX.value, 0],
 	}));
 	const wordmarkStyle = useAnimatedStyle(() => ({
 		opacity: wordmarkOpacity.value,
@@ -186,7 +192,10 @@ export default function AnimatedSplash({
 							height={MARK_HEIGHT}
 							fill="black"
 						/>
-						<AnimatedG animatedProps={riseProps}>
+						<AnimatedG
+							transform={[1, 0, 0, 1, 0, 840]}
+							animatedProps={riseProps}
+						>
 							<AnimatedG animatedProps={scrollProps}>
 								<Path d={WAVE_D} fill="white" />
 							</AnimatedG>
