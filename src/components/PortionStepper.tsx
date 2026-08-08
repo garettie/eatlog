@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import SegmentedControl from './SegmentedControl';
 import { M3 } from '../theme/tokens';
 import type { FoodPortion } from '../services/foodSearchTypes';
+import { formatPortionLabel, formatServingSummary, parsePositivePortionInput } from '../utils/portionLabels';
 
 interface PortionStepperProps {
   unitMode: 'servings' | 'grams' | 'ml';
@@ -58,8 +59,8 @@ export default function PortionStepper({
   const handleServingsChange = useCallback(
     (t: string) => {
       setServingsText(t);
-      const v = parseFloat(t);
-      if (!isNaN(v) && v > 0) onServingsSet(t);
+      const value = parsePositivePortionInput(t);
+      if (value != null) onServingsSet(String(value));
     },
     [onServingsSet],
   );
@@ -67,13 +68,18 @@ export default function PortionStepper({
   const handleGramsChange = useCallback(
     (t: string) => {
       setGramsText(t);
-      onGramsSet(t);
+      const value = parsePositivePortionInput(t);
+      if (value != null) onGramsSet(String(value));
     },
     [onGramsSet],
   );
 
-  const servingDesc = servingLabel ?? (servingSizeGrams ? `${servingSizeGrams}g` : '');
   const totalGrams = Math.round(servings * (servingSizeGrams ?? 0));
+  const servingDesc = servingSizeGrams
+    ? formatServingSummary(servingLabel, servingSizeGrams, totalGrams)
+    : '';
+  const servingsInvalid = servingsText !== '' && parsePositivePortionInput(servingsText) == null;
+  const gramsInvalid = gramsText !== '' && parsePositivePortionInput(gramsText) == null;
 
   return (
     <View className="gap-3">
@@ -81,17 +87,19 @@ export default function PortionStepper({
         <View className="flex-row flex-wrap gap-2">
           {portions.map((portion) => {
             const selected = portion.id === selectedPortionId;
+            const unit = /ml\b/i.test(portion.label) ? 'ml' : 'g';
+            const portionLabel = formatPortionLabel(portion.label, Math.round(portion.grams), unit);
             return (
               <Pressable
                 key={portion.id}
                 onPress={() => onPortionChange(portion)}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                accessibilityLabel={`${portion.label}, ${Math.round(portion.grams)} grams`}
-                className={`min-h-[48px] justify-center rounded-full px-4 border border-m3-outline-variant/40 active:opacity-60 ${selected ? 'bg-m3-surface-container-highest' : 'bg-m3-surface-container'}`}
+                accessibilityLabel={portionLabel.replace(' · ', ', ')}
+                className={`max-w-full min-h-[48px] justify-center rounded-full px-4 border border-m3-outline-variant/40 active:opacity-60 ${selected ? 'bg-m3-surface-container-highest' : 'bg-m3-surface-container'}`}
               >
-                <Text className={`text-xs font-semibold ${selected ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
-                  {portion.label} · {Math.round(portion.grams)}g
+                <Text numberOfLines={2} className={`text-xs font-semibold ${selected ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+                  {portionLabel}
                 </Text>
               </Pressable>
             );
@@ -125,10 +133,14 @@ export default function PortionStepper({
               <BottomSheetTextInput
                 value={servingsText}
                 onChangeText={handleServingsChange}
+                onBlur={() => {
+                  if (servingsText === '' || servingsInvalid) setServingsText(formatServings(servings));
+                }}
                 accessibilityLabel="Servings"
+                accessibilityHint={servingsInvalid ? 'Invalid serving amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
                 keyboardType="numeric"
                 returnKeyType="done"
-                className="w-16 text-center bg-transparent text-m3-on-surface text-2xl font-bold tabular-nums py-1"
+                className={`w-16 min-h-[48px] text-center bg-transparent text-2xl font-bold tabular-nums py-1 ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
               />
               <Pressable
                 onPress={() => onServingsDelta(0.5)}
@@ -140,8 +152,8 @@ export default function PortionStepper({
               </Pressable>
             </View>
             {servingDesc ? (
-              <Text className="text-m3-on-surface-variant text-xs" numberOfLines={1}>
-                {servingDesc} ({totalGrams}g)
+              <Text className="text-m3-on-surface-variant text-xs text-center">
+                {servingDesc}
               </Text>
             ) : null}
           </>
@@ -150,10 +162,14 @@ export default function PortionStepper({
             <BottomSheetTextInput
               value={gramsText}
               onChangeText={handleGramsChange}
+              onBlur={() => {
+                if (gramsText === '' || gramsInvalid) setGramsText(String(grams));
+              }}
               accessibilityLabel={unitMode === 'ml' ? 'Amount in milliliters' : 'Amount in grams'}
+              accessibilityHint={gramsInvalid ? 'Invalid amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
               keyboardType="numeric"
               returnKeyType="done"
-              className="w-28 text-center bg-m3-surface-container-high rounded-xl py-3 px-3 text-m3-on-surface text-lg font-bold tabular-nums border border-m3-outline-variant/50"
+              className={`w-28 min-h-[48px] text-center bg-m3-surface-container-high rounded-xl py-3 px-3 text-lg font-bold tabular-nums border ${gramsInvalid ? 'text-m3-error border-m3-error' : 'text-m3-on-surface border-m3-outline-variant/50'}`}
             />
             <Text className="text-m3-on-surface-variant text-sm font-semibold">
               {unitMode === 'ml' ? 'ml' : 'grams'}
