@@ -23,7 +23,7 @@ interface AliasGroup {
   providerTerm: string;
 }
 
-export const FOOD_ALIAS_GROUPS: readonly AliasGroup[] = [
+const FOOD_ALIAS_GROUPS: readonly AliasGroup[] = [
   { terms: ['aubergine', 'eggplant'], providerTerm: 'eggplant' },
   { terms: ['garbanzo', 'chickpea'], providerTerm: 'chickpea' },
   { terms: ['minced beef', 'ground beef'], providerTerm: 'ground beef' },
@@ -67,7 +67,7 @@ export function normalizeFoodText(value: string): string {
     .trim();
 }
 
-export function extractPreparation(value: string): string | null {
+function extractPreparation(value: string): string | null {
   return normalizeFoodText(value).match(PREPARATION_PATTERN)?.[0] ?? null;
 }
 
@@ -86,7 +86,7 @@ export function normalizeFoodName(
   return { normalizedName: result.replace(/\s+/g, ' ').trim(), preparation };
 }
 
-export function cleanFoodDisplayName(description: string): string {
+function cleanFoodDisplayName(description: string): string {
   let result = normalizeFoodText(description.replace(/\([^)]*\)/g, ' '));
   for (const token of NOISE_TOKENS) {
     result = replacePhrase(result, token, ' ');
@@ -285,7 +285,7 @@ const MACRO_KEYS = [
   ['fat', 'fatPer100g'],
 ] as const;
 
-export function macroPercentageDifferences(first: FoodResult, second: FoodResult): DedupNearMiss['differences'] | null {
+function macroPercentageDifferences(first: FoodResult, second: FoodResult): DedupNearMiss['differences'] | null {
   const differences = {} as DedupNearMiss['differences'];
   for (const [label, key] of MACRO_KEYS) {
     const firstValue = first[key];
@@ -489,7 +489,7 @@ export function parseUSDAFoods(foods: unknown): FoodResult[] {
   });
 }
 
-export function mergeUSDAFoodPortions(items: FoodResult[], details: unknown): FoodResult[] {
+function mergeUSDAFoodPortions(items: FoodResult[], details: unknown): FoodResult[] {
   if (!Array.isArray(details)) return items;
   const portions = new Map<string, ReturnType<typeof portionsFromUSDA>>();
   for (const rawDetail of details) {

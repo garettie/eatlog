@@ -20,7 +20,7 @@ import { ADAPTIVE_ALGORITHM_CONFIG } from '../utils/adaptiveAlgorithmConfig';
 import { gateAdaptiveReview } from '../utils/adaptiveReviewGate';
 import { addCalendarDays, calendarDaysBetween, parseLocalISO, todayISO } from '../utils/calendar';
 
-export interface AdaptiveEligibility {
+export interface AdaptiveReviewEligibility {
   intakeDayCount: number;
   requiredIntakeDayCount: number;
   weightLogCount: number;
@@ -37,7 +37,7 @@ export type AdaptiveReviewState =
       kind: 'holding';
       reviewDate: string;
       reason: 'insufficient_evidence' | 'intake_confirmation_required';
-      eligibility: AdaptiveEligibility;
+      eligibility: AdaptiveReviewEligibility;
       currentTarget: DailyTarget;
       confirmationDays: AdaptiveIntakeConfirmationDay[];
     }
@@ -45,7 +45,7 @@ export type AdaptiveReviewState =
       kind: 'paused';
       reviewDate: string;
       reason: AdaptivePauseReason;
-      eligibility: AdaptiveEligibility;
+      eligibility: AdaptiveReviewEligibility;
     }
   | { kind: 'ready'; review: AdaptiveReview }
   | { kind: 'next-review'; nextReviewDate: string; latestDecision: AdaptiveReview };
@@ -71,7 +71,7 @@ interface ReviewEvidence {
   confirmationDays: AdaptiveIntakeConfirmationDay[];
 }
 
-function toPublicEligibility(value: CalculatedEligibility): AdaptiveEligibility {
+function toPublicEligibility(value: CalculatedEligibility): AdaptiveReviewEligibility {
   return {
     intakeDayCount: value.intakeDayCount,
     requiredIntakeDayCount: value.requiredIntakeDayCount,

@@ -85,7 +85,7 @@ export function isoFromDate(d: Date): string {
   return formatLocalISO(d);
 }
 
-export function getWeekMonday(date: Date): Date {
+function getWeekMonday(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
@@ -94,7 +94,7 @@ export function getWeekMonday(date: Date): Date {
   return d;
 }
 
-export function getWeekDates(date: Date): Date[] {
+function getWeekDates(date: Date): Date[] {
   const monday = getWeekMonday(date);
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
@@ -125,7 +125,7 @@ export function formatMonthLabel(monthStart: Date): string {
   return `${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`;
 }
 
-export function isSameDay(a: Date, b: Date): boolean {
+function isSameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
 }
 
@@ -155,7 +155,7 @@ export function formatDayHeader(isoDate: string): string {
   return `${dayNames[d.getDay()]} ${monthNames[d.getMonth()]} ${d.getDate()}`;
 }
 
-export function formatWeekRange(weekDates: Date[]): string {
+function formatWeekRange(weekDates: Date[]): string {
   if (weekDates.length === 0) return '';
   const first = weekDates[0];
   const last = weekDates[weekDates.length - 1];

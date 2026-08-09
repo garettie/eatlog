@@ -42,6 +42,7 @@ import {
 } from '../db/database';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { M3 } from '../theme/tokens';
+import { todayISO } from '../utils/calendar';
 import { GOAL_RATE_RANGES } from '../utils/goalRate';
 import {
   ageFromBirthDate,
@@ -52,7 +53,6 @@ import {
   ftInToCm,
   kgToLbs,
   lbsToKg,
-  todayISO,
 } from '../utils/calculations';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { FORM_MAX_WIDTH } from '../theme/layout';

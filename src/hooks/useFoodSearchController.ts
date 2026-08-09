@@ -9,7 +9,7 @@ import {
   type FoodSearchOutcome,
 } from '../services/foodSearch';
 
-export type RemoteSearchState = 'idle' | 'loading' | FoodSearchOutcome['kind'];
+type RemoteSearchState = 'idle' | 'loading' | FoodSearchOutcome['kind'];
 
 export function useFoodSearchController(initialQuery = '') {
   const [query, setQuery] = useState(initialQuery);

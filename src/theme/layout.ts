@@ -1,6 +1,6 @@
 import { useWindowDimensions } from 'react-native';
 
-export const WINDOW_BREAKPOINTS = {
+const WINDOW_BREAKPOINTS = {
   medium: 600,
   twoPane: 1000,
 } as const;

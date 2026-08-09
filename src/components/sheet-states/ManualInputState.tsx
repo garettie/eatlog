@@ -3,7 +3,8 @@ import { Text, View } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 
 import { MealType, insertFoodLog } from '../../db/database';
-import { defaultMealForNow, todayISO } from '../../utils/calculations';
+import { todayISO } from '../../utils/calendar';
+import { defaultMealForNow } from '../../utils/calculations';
 import { M3 } from '../../theme/tokens';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import MealSelector from '../MealSelector';

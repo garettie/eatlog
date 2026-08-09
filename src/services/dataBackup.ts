@@ -70,7 +70,7 @@ function fileMetadata(file: File, archivePath: string): BackupFileEntry {
   return { archivePath, size: info.size, md5: info.md5 };
 }
 
-export async function createBackup(
+async function createBackup(
   onProgress?: OwnershipProgressListener,
   signal?: AbortSignal,
 ): Promise<File> {
@@ -185,7 +185,7 @@ async function validateStagedDatabase(databaseFile: File, manifest: BackupManife
   }
 }
 
-export async function validateBackupFile(file: File, onProgress?: OwnershipProgressListener, originalName?: string): Promise<RestorePreview> {
+async function validateBackupFile(file: File, onProgress?: OwnershipProgressListener, originalName?: string): Promise<RestorePreview> {
   if (!isSupportedBackupFileName(originalName ?? file.uri)) {
     throw new Error('Choose an .eatlog-backup or legacy .marco-backup file.');
   }

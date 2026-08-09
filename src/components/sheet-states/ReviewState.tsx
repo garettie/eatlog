@@ -23,7 +23,7 @@ import { type MealType, saveMealWithComponents } from "../../db/database";
 import type { FoodResult } from "../../services/foodSearch";
 import type { DescribeResult } from "../../services/foodScan";
 import { EASING } from "../../theme/motion";
-import { defaultMealForNow, todayISO } from "../../utils/calculations";
+import { defaultMealForNow } from "../../utils/calculations";
 import { useToday } from "../../hooks/useToday";
 import { useDiscardGuardContext } from "./useDiscardGuard";
 import AddComponentSection from "../AddComponentSection";
@@ -37,6 +37,7 @@ import {
 	formatDayHeader,
 	isoFromDate,
 	parseLocalISO,
+	todayISO,
 } from "../../utils/calendar";
 import { M3 } from "../../theme/tokens";
 import { formatPortionLabel } from "../../utils/portionLabels";

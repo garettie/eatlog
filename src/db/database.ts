@@ -509,12 +509,12 @@ export async function insertProfile(params: {
   );
 }
 
-export async function setAnalyticsIntroDismissed(): Promise<void> {
+async function setAnalyticsIntroDismissed(): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE profile SET analytics_intro_dismissed = 1 WHERE id = 1');
 }
 
-export async function updateProfileWeightUnit(unit: WeightUnit): Promise<void> {
+async function updateProfileWeightUnit(unit: WeightUnit): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE profile SET weight_unit = ? WHERE id = 1', [unit]);
 }
@@ -680,7 +680,7 @@ export async function saveWeightLog(params: {
   return result;
 }
 
-export async function deleteWeightLog(id: number): Promise<void> {
+async function deleteWeightLog(id: number): Promise<void> {
   const db = await getDb();
   await db.withExclusiveTransactionAsync(async (txn) => {
     const existing = await txn.getFirstAsync<WeightLog>(
@@ -966,7 +966,7 @@ export async function getLatestDailyTarget(): Promise<DailyTarget | null> {
   );
 }
 
-export async function getMostRecentFoodLog(): Promise<FoodLog | null> {
+async function getMostRecentFoodLog(): Promise<FoodLog | null> {
   const db = await getDb();
   return db.getFirstAsync<FoodLog>(
     'SELECT * FROM food_logs ORDER BY id DESC LIMIT 1'
@@ -1064,7 +1064,7 @@ export async function deleteMeal(id: number): Promise<void> {
   await db.runAsync('DELETE FROM meals WHERE id = ?', [id]);
 }
 
-export interface RecentFood {
+interface RecentFood {
   name: string;
   source: string;
   source_food_id: string | null;
@@ -1080,7 +1080,7 @@ export interface RecentFood {
   logged_at: string;
 }
 
-export async function getRecentFoodLogs(limit: number): Promise<RecentFood[]> {
+async function getRecentFoodLogs(limit: number): Promise<RecentFood[]> {
   const db = await getDb();
   return db.getAllAsync<RecentFood>(
     `SELECT name, source, source_food_id, brand, data_type, preparation, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, serving_size_g, serving_label, MAX(logged_at) as logged_at
@@ -1119,13 +1119,13 @@ export async function getPinnedFoodKeys(): Promise<string[]> {
   return rows.map((row) => row.food_key);
 }
 
-export interface LoggedFood extends FoodLog {
+interface LoggedFood extends FoodLog {
   photo_uri: string | null;
   food_key: string;
   is_pinned: number;
 }
 
-export async function getLoggedFoods(query: string): Promise<LoggedFood[]> {
+async function getLoggedFoods(query: string): Promise<LoggedFood[]> {
   const db = await getDb();
   const normalizedQuery = `%${query.trim().toLowerCase()}%`;
   return db.getAllAsync<LoggedFood>(
@@ -1228,7 +1228,7 @@ export async function getTodayMacros(dateISO: string): Promise<{
   return row!;
 }
 
-export async function getDistinctLoggedDayCount(): Promise<number> {
+async function getDistinctLoggedDayCount(): Promise<number> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(DISTINCT log_date) AS count FROM food_logs`
@@ -1236,7 +1236,7 @@ export async function getDistinctLoggedDayCount(): Promise<number> {
   return row?.count ?? 0;
 }
 
-export async function getRecentWeightLogs(limit: number): Promise<WeightLog[]> {
+async function getRecentWeightLogs(limit: number): Promise<WeightLog[]> {
   const db = await getDb();
   return db.getAllAsync<WeightLog>(
     'SELECT * FROM weight_logs ORDER BY log_date DESC LIMIT ?',
@@ -1364,7 +1364,7 @@ export async function getMealPhotoReferences(): Promise<Array<{ mealId: number; 
   );
 }
 
-export interface DataCounts {
+interface DataCounts {
   profile: number;
   foodLogs: number;
   meals: number;
@@ -1374,7 +1374,7 @@ export interface DataCounts {
   photos: number;
 }
 
-export async function getDataCounts(): Promise<DataCounts> {
+async function getDataCounts(): Promise<DataCounts> {
   const db = await getDb();
   const [profile, foodLogs, meals, weightLogs, dailyTargets, adaptiveReviews, photos] = await Promise.all([
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM profile'),
@@ -1431,7 +1431,7 @@ export async function getExportAdaptiveReviews(): Promise<AdaptiveReview[]> {
   return db.getAllAsync<AdaptiveReview>('SELECT * FROM adaptive_reviews ORDER BY review_date, id');
 }
 
-export async function cacheFoodItem(params: {
+async function cacheFoodItem(params: {
   name: string;
   normalizedName: string;
   brand: string | null;
@@ -1495,7 +1495,7 @@ export async function cacheFoodItem(params: {
   }
 }
 
-export interface CachedFood {
+interface CachedFood {
   id: number;
   name: string;
   normalizedName: string;
@@ -1510,7 +1510,7 @@ export interface CachedFood {
   source: 'scan' | 'describe';
 }
 
-export async function getCachedFood(normalizedName: string): Promise<CachedFood | null> {
+async function getCachedFood(normalizedName: string): Promise<CachedFood | null> {
   const db = await getDb();
   return db.getFirstAsync<CachedFood>(
     'SELECT * FROM food_cache WHERE normalizedName = ?',
@@ -1518,7 +1518,7 @@ export async function getCachedFood(normalizedName: string): Promise<CachedFood 
   );
 }
 
-export async function searchFoodCache(query: string): Promise<CachedFood[]> {
+async function searchFoodCache(query: string): Promise<CachedFood[]> {
   const db = await getDb();
   return db.getAllAsync<CachedFood>(
     `SELECT * FROM food_cache WHERE normalizedName LIKE ?
@@ -1575,7 +1575,7 @@ export async function getMostRecentEntry(): Promise<LastEntry | null> {
   };
 }
 
-export interface RecentMeal {
+interface RecentMeal {
   meal_id: number;
   meal_name: string;
   meal_type: MealType;
@@ -1587,7 +1587,7 @@ export interface RecentMeal {
   last_logged_at: string;
 }
 
-export async function getRecentMeals(limit: number = 5): Promise<RecentMeal[]> {
+async function getRecentMeals(limit: number = 5): Promise<RecentMeal[]> {
   const db = await getDb();
   return db.getAllAsync<RecentMeal>(
     `SELECT m.id AS meal_id, m.name AS meal_name, m.meal_type,
@@ -1630,7 +1630,7 @@ export interface DayMacros {
   fat_g: number;
 }
 
-export async function getMacrosByDateRange(startISO: string, endISO: string): Promise<DayMacros[]> {
+async function getMacrosByDateRange(startISO: string, endISO: string): Promise<DayMacros[]> {
   const db = await getDb();
   return db.getAllAsync<DayMacros>(
     `SELECT log_date,
@@ -1677,14 +1677,14 @@ export async function getDailyTargetsByDateRange(
   );
 }
 
-export async function getLatestAdaptiveReview(): Promise<AdaptiveReview | null> {
+async function getLatestAdaptiveReview(): Promise<AdaptiveReview | null> {
   const db = await getDb();
   return db.getFirstAsync<AdaptiveReview>(
     'SELECT * FROM adaptive_reviews ORDER BY review_date DESC, id DESC LIMIT 1',
   );
 }
 
-export async function getPendingAdaptiveReview(): Promise<AdaptiveReview | null> {
+async function getPendingAdaptiveReview(): Promise<AdaptiveReview | null> {
   const db = await getDb();
   return db.getFirstAsync<AdaptiveReview>(
     "SELECT * FROM adaptive_reviews WHERE status = 'pending' ORDER BY review_date DESC, id DESC LIMIT 1",

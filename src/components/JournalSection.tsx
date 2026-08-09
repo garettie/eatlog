@@ -1,9 +1,6 @@
-import React, { useEffect, useLayoutEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import Reanimated, {
-  FadeIn,
-  FadeOut,
-  LinearTransition,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -13,7 +10,6 @@ import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { Swipeable, RectButton } from 'react-native-gesture-handler';
 
 import { FoodLog } from '../db/database';
-import { DURATION, EASING } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 import { foodIcon } from '../utils/foodIcons';
 import NutritionCard from './NutritionCard';
@@ -335,100 +331,3 @@ export function JournalSectionHeader({
     </>
   );
 }
-
-interface JournalSectionProps {
-  label: string;
-  entries: JournalEntryKind[];
-  totalCalories: number;
-  totalProtein: number;
-  totalCarbs: number;
-  totalFat: number;
-  /** Changing this (e.g. selected diary date) resets collapse to the default for content. */
-  resetKey?: string;
-  onEditFood: (food: FoodLog) => void;
-  onEditMeal: (meal: MealGroup) => void;
-  onDeleteFood: (food: FoodLog) => void;
-  onDeleteMeal: (mealId: number) => void;
-  onViewPhoto: (uri: string, mealName: string) => void;
-}
-
-function JournalSection({
-  label,
-  entries,
-  totalCalories,
-  totalProtein,
-  totalCarbs,
-  totalFat,
-  resetKey,
-  onEditFood,
-  onEditMeal,
-  onDeleteFood,
-  onDeleteMeal,
-  onViewPhoto,
-}: JournalSectionProps) {
-  const hasEntries = entries.length > 0;
-  const collapseKey = `${resetKey ?? ''}:${hasEntries ? 'filled' : 'empty'}`;
-  const collapseStateRef = React.useRef({
-    key: collapseKey,
-    collapsed: !hasEntries,
-    animateEntry: false,
-  });
-  const [, forceCollapseRender] = useState(0);
-  if (collapseStateRef.current.key !== collapseKey) {
-    collapseStateRef.current = { key: collapseKey, collapsed: !hasEntries, animateEntry: false };
-  }
-  const collapseState = collapseStateRef.current;
-  const collapsed = collapseState.collapsed;
-  const reducedMotion = useReducedMotion();
-
-  return (
-    <View className="mb-3">
-      <JournalSectionHeader
-        label={label}
-        hasEntries={hasEntries}
-        collapsed={collapsed}
-        totalCalories={totalCalories}
-        totalProtein={totalProtein}
-        totalCarbs={totalCarbs}
-        totalFat={totalFat}
-        onToggle={() => {
-          collapseStateRef.current = {
-            key: collapseKey,
-            collapsed: !collapsed,
-            animateEntry: collapsed,
-          };
-          forceCollapseRender((version) => version + 1);
-        }}
-      />
-
-      <Reanimated.View
-        layout={reducedMotion
-          ? undefined
-          : LinearTransition.duration(DURATION.short).easing(EASING.emphasized)}
-        className="overflow-hidden"
-      >
-        {hasEntries && !collapsed && (
-          <Reanimated.View
-            entering={!reducedMotion && collapseState.animateEntry ? FadeIn.duration(160) : undefined}
-            exiting={!reducedMotion ? FadeOut.duration(160) : undefined}
-            className="mt-2"
-          >
-            {entries.map((entry) => (
-              <JournalEntryRow
-                key={entry.type === 'food' ? `food-${entry.foodLog?.id}` : `meal-${entry.mealGroup?.id}`}
-                entry={entry}
-                onEditFood={onEditFood}
-                onEditMeal={onEditMeal}
-                onDeleteFood={onDeleteFood}
-                onDeleteMeal={onDeleteMeal}
-                onViewPhoto={onViewPhoto}
-              />
-            ))}
-          </Reanimated.View>
-        )}
-      </Reanimated.View>
-    </View>
-  );
-}
-
-export default React.memo(JournalSection);

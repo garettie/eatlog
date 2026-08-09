@@ -15,7 +15,7 @@ export const EASING = {
   standardDecelerate: Easing.bezier(0, 0, 0, 1),
 } as const;
 
-export const SPRING = {
+const SPRING = {
   gentle: { damping: 30, stiffness: 240, mass: 0.9 },
   snappy: { damping: 28, stiffness: 300, mass: 0.8 },
   emphasized: { damping: 30, stiffness: 260, mass: 0.9 },

@@ -7,8 +7,6 @@ import type { DedupNearMiss, FoodResult, FoodSearchMode, FoodSearchOutcome } fro
 
 export type {
   DataType,
-  FoodHistoryMetadata,
-  FoodPortion,
   FoodResult,
   FoodSearchMode,
   FoodSearchOutcome,
@@ -30,7 +28,7 @@ const engine = new FoodSearchEngine({
   onNearMisses: (nearMisses) => { latestNearMisses = nearMisses; },
 });
 
-export async function searchFood(
+async function searchFood(
   query: string,
   mode: FoodSearchMode = 'common',
   signal?: AbortSignal,
@@ -61,7 +59,7 @@ export async function loadFoodDetails(food: FoodResult, signal?: AbortSignal): P
   return detail ? { ...food, ...detail, id: food.id, providerOrder: food.providerOrder } : food;
 }
 
-export function getFoodSearchDiagnostics() {
+function getFoodSearchDiagnostics() {
   return {
     ...remote.getMetrics(),
     cache: engine.getCacheMetrics(),
@@ -69,7 +67,7 @@ export function getFoodSearchDiagnostics() {
   };
 }
 
-export function resetFoodSearchDiagnostics(): void {
+function resetFoodSearchDiagnostics(): void {
   remote.resetMetrics();
   engine.resetCache();
   latestNearMisses = [];

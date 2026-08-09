@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignoreDependencies": [
+    "@babel/runtime",
+    "@expo/ngrok",
+    "expo-build-properties",
+    "expo-dev-client",
+    "expo-health-connect",
+    "expo-updates",
+    "nativewind"
+  ]
+}

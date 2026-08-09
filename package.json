@@ -50,6 +50,7 @@
   "scripts": {
     "test": "tsx --test src/utils/*.test.ts src/db/*.test.ts src/services/*.test.ts",
     "evaluate:food-search": "tsx scripts/evaluate-food-search.ts",
+    "fallow:dead-code": "npx --yes fallow@3.14.0 dead-code --fail-on-regression --regression-baseline .fallow-regression.json",
     "typecheck": "tsc --noEmit",
     "start": "APP_VARIANT=development expo start",
     "android": "APP_VARIANT=development expo run:android",

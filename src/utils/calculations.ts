@@ -101,14 +101,6 @@ export function calculateTargets(input: {
   });
 }
 
-export function todayISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 /** Infer the most likely meal from the current time of day. */
 export function defaultMealForNow(now: Date = new Date()): MealType {
   const h = now.getHours();

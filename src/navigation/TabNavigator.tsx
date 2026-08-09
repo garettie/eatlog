@@ -27,7 +27,7 @@ function mealLabel(m: MealType): string {
     return m.charAt(0).toUpperCase() + m.slice(1);
 }
 
-export type TabParamList = {
+type TabParamList = {
     Today: undefined;
     Diary: undefined;
     Analytics: undefined;

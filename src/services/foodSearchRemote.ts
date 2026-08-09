@@ -8,7 +8,7 @@ import type { FoodResult, FoodSearchMode } from './foodSearchTypes';
 const OFF_BASE = 'https://world.openfoodfacts.org';
 const SEARCH_TIMEOUT_MS = 8000;
 
-export interface FoodSearchRemoteMetrics {
+interface FoodSearchRemoteMetrics {
   usdaRequests: number;
   workerFailures: number;
 }

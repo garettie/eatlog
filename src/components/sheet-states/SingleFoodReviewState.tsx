@@ -4,7 +4,8 @@ import Animated, { FadeInUp, useReducedMotion } from 'react-native-reanimated';
 
 import { MealType, insertFoodLog } from '../../db/database';
 import { DataType, FoodResult } from '../../services/foodSearch';
-import { defaultMealForNow, todayISO } from '../../utils/calculations';
+import { todayISO } from '../../utils/calendar';
+import { defaultMealForNow } from '../../utils/calculations';
 import MealSelector from '../MealSelector';
 import MacroChipGroup from '../MacroChipGroup';
 import PortionStepper from '../PortionStepper';
