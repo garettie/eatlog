@@ -28,7 +28,6 @@ import { ageFromBirthDate, calcBMR, calcTDEE, calculateTargets, type MacroTarget
 import { parseLocalISO, todayISO } from '../utils/calendar';
 import { MANUAL_TARGET_CALORIE_TOLERANCE, macroCalories, validateManualTargets } from '../utils/planValidation';
 import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilograms } from '../utils/weightUnits';
-import { serviceConfig } from '../config/services';
 import { M3 } from '../theme/tokens';
 import { GOAL_RATE_RANGES, isGoalRateValid } from '../utils/goalRate';
 import ResponsiveContent from '../components/ResponsiveContent';
@@ -168,16 +167,6 @@ export function UnitsScreen({ onDataChanged }: { onDataChanged: () => void }) {
     const save = useCallback(async () => { if (!profile || unit === profile.weight_unit) { navigation.goBack(); return; } setSaving(true); try { await updateProfilePresentation(toUpdate(profile, { weight_unit: unit })); onDataChanged(); navigation.goBack(); } finally { setSaving(false); } }, [navigation, onDataChanged, profile, unit]);
     if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{error}</Text></View></Screen>;
     return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><SegmentedControl options={[{ value: 'kg', label: 'Metric' }, { value: 'lb', label: 'Imperial' }]} value={unit} onChange={setUnit} /><Card className="p-5 gap-4"><Text className="text-m3-on-surface font-semibold">Preview</Text><View className="gap-3"><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Height</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{formatHeight(profile.height_cm, unit)}</Text></View><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Weight</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{weightKg == null ? 'Not logged' : `${fromKilograms(weightKg, unit).toFixed(1)} ${unit}`}</Text></View></View></Card><PrimaryButton title="Save units" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
-}
-
-export function PrivacyScreen() {
-    const estimateCopy = serviceConfig.availability.gemini
-        ? 'When you choose Scan or Describe, the selected photo or description is sent to Eatlog’s estimation service for a meal estimate.'
-        : 'Meal estimates are unavailable in this build.';
-    const searchCopy = serviceConfig.availability.usda
-        ? 'Search terms may be sent to USDA through Eatlog and to Open Food Facts. Results can be cached on this device.'
-        : 'Search terms may be sent to Open Food Facts. Results can be cached on this device.';
-    return <Screen><ScrollView contentContainerClassName="p-6 gap-6"><View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Your data stays on your device</Text><Text className="text-sm text-m3-on-surface-variant">Eatlog does not require an account or cloud sync. Your profile, food logs, weight history, targets, reviews, and meal photos are stored locally.</Text></View><View className="gap-3"><Text className="text-m3-on-surface-variant text-xs font-semibold">When Eatlog uses the network</Text><Card className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">Meal estimates</Text><Text className="text-m3-on-surface-variant text-sm">{estimateCopy}</Text></Card><Card className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">Food search</Text><Text className="text-m3-on-surface-variant text-sm">{searchCopy}</Text></Card></View><View className="gap-3"><Text className="text-m3-on-surface-variant text-xs font-semibold">Connected services</Text><Card className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">Health Connect</Text><Text className="text-m3-on-surface-variant text-sm">If you connect it, Eatlog can read body-weight records and write the weights you log, using the permissions you grant.</Text></Card></View><View className="gap-3"><Text className="text-m3-on-surface-variant text-xs font-semibold">Files and deletion</Text><Card className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">Files you create</Text><Text className="text-m3-on-surface-variant text-sm">Backups include your history and meal photos. CSV exports include readable history but not photos, caches, or Health Connect sync metadata.</Text></Card><Card className="p-5 gap-1"><Text className="text-m3-on-surface font-semibold">Delete all data</Text><Text className="text-m3-on-surface-variant text-sm">This removes Eatlog’s local profile, history, targets, reviews, and meal photos. Eatlog also tries to remove its Health Connect weight records.</Text></Card></View></ScrollView></Screen>;
 }
 
 export function GoalAndRateScreen() {

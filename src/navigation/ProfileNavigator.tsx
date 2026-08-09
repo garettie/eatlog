@@ -10,11 +10,10 @@ import {
   PersonalDetailsScreen,
   PlanPreviewScreen,
   UnitsScreen,
-  PrivacyScreen,
   type ProfileStackParamList,
 } from '../screens/ProfilePlanScreens';
 import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
-import { AboutScreen, HowEatlogWorksScreen } from '../screens/ProfileInfoScreens';
+import { AboutScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
