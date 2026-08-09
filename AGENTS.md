@@ -243,6 +243,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Diary day/month navigation must avoid artificial `requestAnimationFrame` delays: update selection/month and start cached or SQLite work in the same handler, reuse positional calendar/journal slots, synchronously reset reused Swipeables, and do not animate day/month transitions.
 - API credentials are developer-provisioned at build time; never ask users to enter, view, or manage API keys in the app.
 - The app has four tabs (Today, Diary, Analytics, Profile); the center Add control is a FAB trigger, not a fifth tab.
+- The FAB entry sheet uses a hybrid hierarchy: primary Scan pill, paired Photo/Describe tiles, grouped Quick log rows, and a separate Weight action; keep action labels at `text-base` (16/22) and never flatten it into one vertical list.
 - Treat source changes attributed to another active agent as out of scope for documentation-only audits; do not review, modify, or cite them.
 - When Settings must match onboarding, reuse the same interactive controls and bounds/default behavior; do not substitute plain fields that only preload the same values.
 - Bottom-sheet state changes use a 200ms shell, 90ms exit, and 150ms entrance; prevent Gorhom resize gaps by extending the background beneath its clipped container, never by delaying content.
