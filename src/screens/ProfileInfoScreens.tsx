@@ -126,12 +126,12 @@ function InfoRow({ icon, title, detail, iconColor = M3.onSurfaceVariant, last = 
             accessible
             accessibilityRole="text"
             accessibilityLabel={`${title}. ${detail}`}
-            className="min-h-[72px] flex-row items-start gap-3 px-4 py-4"
+            className="min-h-[72px] flex-row items-center gap-3 px-4 py-4"
         >
             <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
                 <MaterialIcons name={icon} size={20} color={iconColor} />
             </View>
-            <View className="min-w-0 flex-1 gap-1 pt-0.5">
+            <View className="min-w-0 flex-1 gap-1">
                 <Text className="text-sm font-semibold text-m3-on-surface">{title}</Text>
                 <Text className="text-sm text-m3-on-surface-variant">{detail}</Text>
             </View>
