@@ -97,45 +97,36 @@ function signedRate(valueKg: number, unit: Profile['weight_unit']): string {
 
 function goalDistanceCopy(profile: Profile, latestWeight: WeightLog | undefined) {
   if (profile.target_weight_kg == null || !latestWeight) {
-    return { value: '—', detail: 'No goal weight set' };
+    return { value: '—' };
   }
   const difference = latestWeight.trend_weight_kg - profile.target_weight_kg;
   const distance = formatWeight(Math.abs(difference), profile.weight_unit);
-  const reached = profile.goal_type === 'cut' ? difference <= 0
-    : profile.goal_type === 'bulk' ? difference >= 0
-      : Math.abs(difference) <= 0.1;
-  return {
-    value: `${distance} ${profile.weight_unit}`,
-    detail: reached
-      ? 'At or beyond goal'
-      : `Goal ${formatWeight(profile.target_weight_kg, profile.weight_unit)} ${profile.weight_unit}`,
-  };
+  return { value: `${distance} ${profile.weight_unit}` };
 }
 
 function expectedGoalDateCopy(profile: Profile, latestWeight: WeightLog | undefined) {
   if (profile.target_weight_kg == null || !latestWeight) {
-    return { value: '—', detail: 'No goal weight set' };
+    return { value: '—' };
   }
   if (profile.goal_type === 'maintain') {
-    return { value: '—', detail: 'Maintenance goal' };
+    return { value: '—' };
   }
 
   const remainingKg = profile.goal_type === 'cut'
     ? latestWeight.trend_weight_kg - profile.target_weight_kg
     : profile.target_weight_kg - latestWeight.trend_weight_kg;
   if (remainingKg <= 0) {
-    return { value: 'Reached', detail: 'Goal weight' };
+    return { value: 'Reached' };
   }
 
   const weeklyRate = Math.abs(profile.goal_rate_kg_per_week);
   if (weeklyRate === 0) {
-    return { value: '—', detail: 'No plan pace' };
+    return { value: '—' };
   }
 
   const daysRemaining = Math.ceil(remainingKg / weeklyRate * 7);
   return {
     value: displayDate(addCalendarDays(latestWeight.log_date, daysRemaining)),
-    detail: 'At plan pace',
   };
 }
 
@@ -783,7 +774,7 @@ function AnalyticsScreen({
                     <InlineMetric
                       label="Trend"
                       value={`${formatWeight(latestWeight.trend_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                      detail={trendChange == null ? undefined : `${signedWeight(trendChange, profile.weight_unit)} this range`}
+                      detail={trendChange == null ? undefined : signedWeight(trendChange, profile.weight_unit)}
                     />
                     <InlineMetric
                       label="Scale"
@@ -818,15 +809,13 @@ function AnalyticsScreen({
                       <InlineMetric
                         label="Actual"
                         value={sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : '—'}
-                        detail={sufficientProgress ? `${endpointSpanDays} days` : 'Needs 7+ days'}
                       />
                       <InlineMetric
                         label="Plan"
                         value={signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
-                        detail={profile.goal_type === 'maintain' ? 'Maintain' : profile.goal_type === 'cut' ? 'Loss' : 'Gain'}
                       />
-                      <InlineMetric label="To goal" value={goalDistance.value} detail={goalDistance.detail} />
-                      <InlineMetric label="Expected date" value={expectedGoalDate.value} detail={expectedGoalDate.detail} />
+                      <InlineMetric label="To goal" value={goalDistance.value} />
+                      <InlineMetric label="Expected date" value={expectedGoalDate.value} />
                     </View>
                   </>
                 ) : (
@@ -890,7 +879,7 @@ function AnalyticsScreen({
 
           </View>
           </View>
-          <Card className="p-5 gap-4">
+          <Card className="p-5 gap-3">
             <View>
               <Text className="text-m3-on-surface font-bold text-base">Logging consistency</Text>
               <Text className="text-m3-on-surface-variant text-xs mt-0.5">Last 30 days</Text>
