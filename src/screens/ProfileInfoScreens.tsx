@@ -176,8 +176,6 @@ function Callout({ icon, title, detail, iconColor = M3.onSurfaceVariant }: {
 }
 
 export function HowEatlogWorksScreen() {
-    const [sourcesExpanded, setSourcesExpanded] = React.useState(false);
-
     return (
         <Screen>
             <PageIntro
@@ -218,37 +216,17 @@ export function HowEatlogWorksScreen() {
             <View className="gap-3">
                 <SectionTitle title="Research sources" detail="Read the studies and technical references Eatlog uses." />
                 <Card className="overflow-hidden">
-                    <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={sourcesExpanded ? 'Hide six references' : 'View six references'}
-                        accessibilityState={{ expanded: sourcesExpanded }}
-                        android_ripple={{ color: M3.surfaceContainerHigh }}
-                        onPress={() => setSourcesExpanded((expanded) => !expanded)}
-                        className="min-h-[64px] flex-row items-center gap-3 px-4 py-3 active:opacity-70"
-                    >
-                        <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
-                            <MaterialIcons name="menu-book" size={20} color={M3.onSurfaceVariant} />
-                        </View>
-                        <Text className="min-w-0 flex-1 text-sm font-semibold text-m3-on-surface">
-                            {sourcesExpanded ? 'Hide references' : 'View six references'}
-                        </Text>
-                        <MaterialIcons name={sourcesExpanded ? 'expand-less' : 'expand-more'} size={22} color={M3.onSurfaceVariant} />
-                    </Pressable>
-                    {sourcesExpanded ? (
-                        <View className="border-t border-m3-outline-variant/50">
-                            {RESEARCH_LINKS.map((reference, index) => (
-                                <LinkRow
-                                    key={reference.url}
-                                    icon="menu-book"
-                                    title={reference.title}
-                                    detail={reference.detail}
-                                    external
-                                    last={index === RESEARCH_LINKS.length - 1}
-                                    onPress={() => openExternalLink(reference.title, reference.url)}
-                                />
-                            ))}
-                        </View>
-                    ) : null}
+                    {RESEARCH_LINKS.map((reference, index) => (
+                        <LinkRow
+                            key={reference.url}
+                            icon="menu-book"
+                            title={reference.title}
+                            detail={reference.detail}
+                            external
+                            last={index === RESEARCH_LINKS.length - 1}
+                            onPress={() => openExternalLink(reference.title, reference.url)}
+                        />
+                    ))}
                 </Card>
             </View>
         </Screen>
@@ -321,14 +299,16 @@ export function AboutScreen() {
     return (
         <Screen>
             <View className="items-center gap-3 py-1">
-                <Image
-                    accessible
-                    accessibilityLabel="Eatlog egg and ruler mark"
-                    fadeDuration={0}
-                    resizeMode="contain"
-                    source={require('../../assets/splash-scale-static.png')}
-                    className="h-24 w-24"
-                />
+                <View className="h-32 w-32 items-center justify-center rounded-3xl border border-m3-outline-variant/50 bg-m3-surface-container-high">
+                    <Image
+                        accessible
+                        accessibilityLabel="Eatlog logo"
+                        fadeDuration={0}
+                        resizeMode="contain"
+                        source={require('../../assets/icon.png')}
+                        className="h-28 w-28 rounded-2xl"
+                    />
+                </View>
                 <View className="items-center gap-1.5">
                     <Text accessibilityRole="header" className="text-2xl font-bold text-m3-on-surface">Eatlog</Text>
                     <Text className="text-center text-sm text-m3-on-surface-variant">Track nutrition and weight on your phone. Eatlog uses your history to suggest target changes.</Text>

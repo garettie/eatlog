@@ -258,6 +258,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Cloudflare Workers Free plan cannot deploy a custom `limits` block; rely on its built-in CPU/subrequest limits unless the account is upgraded to Workers Paid.
 - Worker tests must exercise at least one request without injected runtime dependencies; call Web API methods such as `crypto.randomUUID()` through their owning object, never as unbound function references.
 - Gemini Flash-Lite rejects `maxItems` in Eatlog's `responseSchema`; omit it from the provider schema and enforce `MAX_COMPONENTS` after response normalization.
+- How Eatlog Works must keep research references visible inline; do not hide them behind an accordion or disclosure.
 
 ---
 
