@@ -208,7 +208,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                 <ResponsiveContent maxWidth={APP_MAX_WIDTH} className="gap-6">
                 <View className="gap-1">
                     <Text className="text-m3-on-surface text-2xl font-bold">Profile</Text>
-                    <Text className="text-m3-on-surface-variant text-sm">Plan and data</Text>
+                    <Text className="text-m3-on-surface-variant text-sm">Plan, preferences, and data</Text>
                 </View>
 
                 <View className={isTwoPane ? 'flex-row items-start gap-6' : 'gap-6'}>
@@ -278,16 +278,16 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                     </Section>
 
                     <Section title="Data & Sync">
-                        <ProfileSettingRow icon="backup" title="Backup and restore" detail="Complete portable Eatlog backup" onPress={() => navigation.navigate('BackupRestore')} />
-                        <ProfileSettingRow icon="file-download" title="Export data" detail="Human-readable ZIP and CSV files" onPress={() => navigation.navigate('ExportData')} />
-                        <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync your weight logs" onPress={() => navigation.navigate('HealthConnect')} />
+                        <ProfileSettingRow icon="backup" title="Backup and restore" detail="Back up or restore your data" onPress={() => navigation.navigate('BackupRestore')} />
+                        <ProfileSettingRow icon="file-download" title="Export data" detail="Save readable CSV files" onPress={() => navigation.navigate('ExportData')} />
+                        <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync weight with Android" onPress={() => navigation.navigate('HealthConnect')} />
                         <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase Eatlog data from this device" onPress={deleteAllData} showDivider={false} />
                     </Section>
 
                     <Section title="Help & About">
-                        <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="No help article is available" disabled />
-                        <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="Your plan stays on this device" onPress={() => navigation.navigate('Privacy')} />
-                        <ProfileSettingRow icon="info-outline" title="About" detail="Eatlog for Android" showDivider={false} />
+                        <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="Targets, logging, and reviews" onPress={() => navigation.navigate('HowEatlogWorks')} />
+                        <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="Local storage and network use" onPress={() => navigation.navigate('Privacy')} />
+                        <ProfileSettingRow icon="info-outline" title="About" detail="Version, sources, and license" onPress={() => navigation.navigate('About')} showDivider={false} />
                     </Section>
                 </View>
                 </View>

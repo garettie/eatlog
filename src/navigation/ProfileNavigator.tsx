@@ -14,6 +14,7 @@ import {
   type ProfileStackParamList,
 } from '../screens/ProfilePlanScreens';
 import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
+import { AboutScreen, HowEatlogWorksScreen } from '../screens/ProfileInfoScreens';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
@@ -36,6 +37,8 @@ const PRIVACY_OPTIONS = { title: 'Privacy' } as const;
 const BACKUP_RESTORE_OPTIONS = { title: 'Backup & restore' } as const;
 const EXPORT_DATA_OPTIONS = { title: 'Export data' } as const;
 const HEALTH_CONNECT_OPTIONS = { title: 'Health Connect' } as const;
+const HOW_EATLOG_WORKS_OPTIONS = { title: 'How Eatlog works' } as const;
+const ABOUT_OPTIONS = { title: 'About' } as const;
 const PLAN_PREVIEW_OPTIONS = { title: 'Review changes' } as const;
 
 function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps) {
@@ -75,6 +78,8 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
       <Stack.Screen name="HealthConnect" options={HEALTH_CONNECT_OPTIONS}>
         {renderHealthConnect}
       </Stack.Screen>
+      <Stack.Screen name="HowEatlogWorks" component={HowEatlogWorksScreen} options={HOW_EATLOG_WORKS_OPTIONS} />
+      <Stack.Screen name="About" component={AboutScreen} options={ABOUT_OPTIONS} />
       <Stack.Screen name="PlanPreview" options={PLAN_PREVIEW_OPTIONS}>
         {renderPlanPreview}
       </Stack.Screen>

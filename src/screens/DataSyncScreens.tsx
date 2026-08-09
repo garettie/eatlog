@@ -135,13 +135,9 @@ export function BackupRestoreScreen() {
         <Screen>
             <ScrollView contentContainerClassName="p-6 gap-6">
                 <View className="gap-2">
-                    <Text className="text-lg font-bold text-m3-on-surface">Own a complete copy</Text>
-                    <Text className="text-sm text-m3-on-surface-variant">An Eatlog backup contains your profile, nutrition history, weights, targets, reviews, and meal photos.</Text>
+                    <Text className="text-lg font-bold text-m3-on-surface">Back up your Eatlog data</Text>
+                    <Text className="text-sm text-m3-on-surface-variant">Save a restorable copy of your profile, history, targets, reviews, and meal photos.</Text>
                 </View>
-                <Card className="border border-m3-error/30 bg-m3-error-container/20 p-5 gap-2">
-                    <View className="flex-row items-center gap-2"><MaterialIcons name="privacy-tip" size={20} color={M3.error} /><Text className="text-sm font-semibold text-m3-on-surface">Personal data warning</Text></View>
-                    <Text className="text-sm text-m3-on-surface-variant">Backups are not encrypted. Save them somewhere private and share them only with people you trust.</Text>
-                </Card>
                 <View className="gap-3">
                     <PrimaryButton title="Create and save backup" icon="backup" onPress={() => void backup()} disabled={progress != null} />
                     <SecondaryButton title="Choose backup to restore" onPress={() => void inspect()} disabled={progress != null} />
@@ -187,9 +183,8 @@ export function ExportDataScreen() {
     return (
         <Screen>
             <ScrollView contentContainerClassName="p-6 gap-6">
-                <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Human-readable CSV export</Text><Text className="text-sm text-m3-on-surface-variant">Eatlog creates a ZIP containing UTF-8 CSV files for your profile, meals, food components, weights, targets, and adaptive reviews.</Text></View>
-                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">What is excluded</Text><Text className="text-sm text-m3-on-surface-variant">Meal photos, caches, service credentials, and Health Connect sync metadata are not exported.</Text></Card>
-                <Text className="text-sm text-m3-on-surface-variant">CSV exports are for reading and analysis. They cannot be imported back into Eatlog; use an .eatlog-backup for restore. Legacy .marco-backup files are also supported.</Text>
+                <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Export your data</Text><Text className="text-sm text-m3-on-surface-variant">Save your food, weight, target, and review history as readable CSV files.</Text></View>
+                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For reading, not restoring</Text><Text className="text-sm text-m3-on-surface-variant">CSV exports include no meal photos, caches, or Health Connect sync metadata. Use Backup & restore when you need to restore Eatlog.</Text></Card>
                 <PrimaryButton title="Create CSV export" icon="file-download" onPress={() => void run()} disabled={progress != null} />
                 {progress ? <ProgressCard progress={progress} /> : null}
                 {message ? <Message text={message} /> : null}
@@ -203,11 +198,22 @@ const HEALTH_LABELS: Record<HealthConnectStatus['kind'], string> = {
     unavailable: 'Unavailable',
     provider_update_required: 'Update required',
     disconnected: 'Not connected',
-    partial: 'Partial access',
+    partial: 'Limited access',
     paused: 'Paused',
     syncing: 'Syncing',
     connected: 'Connected',
     error: 'Needs attention',
+};
+
+const HEALTH_STATUS_COPY: Record<HealthConnectStatus['kind'], string> = {
+    unavailable: 'Health Connect is not available on this device.',
+    provider_update_required: 'Update Health Connect to continue.',
+    disconnected: 'Connect Health Connect to sync weights.',
+    partial: 'Some permissions are missing.',
+    paused: 'Weight sync is paused.',
+    syncing: 'Syncing weight history.',
+    connected: 'Weight sync is on.',
+    error: 'Weight sync needs attention.',
 };
 
 export function HealthConnectScreen({ onDataChanged }: { onDataChanged: () => void }) {
@@ -239,21 +245,20 @@ export function HealthConnectScreen({ onDataChanged }: { onDataChanged: () => vo
     return (
         <Screen>
             <ScrollView contentContainerClassName="p-6 gap-6">
-                <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Health Connect weight sync</Text><Text className="text-sm text-m3-on-surface-variant">Eatlog reads the latest external weight per day from the last 30 days and publishes weights you enter in Eatlog.</Text></View>
+                <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Sync weight with Health Connect</Text><Text className="text-sm text-m3-on-surface-variant">Keep weight entries in sync between Eatlog and Android.</Text></View>
                 <Card className="p-5 gap-3">
-                    <View className="flex-row items-center gap-3" accessible accessibilityLiveRegion="polite"><View className="h-11 w-11 items-center justify-center rounded-full bg-m3-surface-container-high"><MaterialIcons name="health-and-safety" size={22} color={M3.primary} /></View><View className="flex-1 gap-0.5"><Text className="text-base font-bold text-m3-on-surface">{busyAction === 'sync' ? 'Syncing' : status ? HEALTH_LABELS[status.kind] : 'Checking access'}</Text><Text className="text-sm text-m3-on-surface-variant">{busyAction === 'sync' ? 'Reconciling the last 30 days' : status?.message ?? 'Reading device status'}</Text></View>{busyAction ? <ActivityIndicator color={M3.primary} /> : null}</View>
+                    <View className="flex-row items-center gap-3" accessible accessibilityLiveRegion="polite"><View className="h-11 w-11 items-center justify-center rounded-full bg-m3-surface-container-high"><MaterialIcons name="health-and-safety" size={22} color={M3.primary} /></View><View className="flex-1 gap-0.5"><Text className="text-base font-bold text-m3-on-surface">{busyAction === 'sync' ? 'Syncing weights' : status ? HEALTH_LABELS[status.kind] : 'Checking access'}</Text><Text className="text-sm text-m3-on-surface-variant">{busyAction === 'sync' ? 'Updating weight history' : status ? HEALTH_STATUS_COPY[status.kind] : 'Checking access'}</Text></View>{busyAction ? <ActivityIndicator color={M3.primary} /> : null}</View>
                     {status?.lastSyncAt ? <Text className="text-xs text-m3-on-surface-variant">Last sync {new Date(status.lastSyncAt).toLocaleString()}</Text> : null}
                 </Card>
-                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">Eatlog entries take priority</Text><Text className="text-sm text-m3-on-surface-variant">An external weight never replaces a date you entered in Eatlog. Editing an imported weight makes it an Eatlog entry.</Text></Card>
                 {status?.kind === 'disconnected' ? <PrimaryButton title="Connect Health Connect" onPress={() => void act('connect')} loading={busyAction === 'connect'} disabled={busyAction != null} /> : null}
                 {status?.kind === 'paused' ? <PrimaryButton title="Resume weight sync" onPress={() => void act('resume')} loading={busyAction === 'resume'} disabled={busyAction != null} /> : null}
                 {status?.enabled ? <PrimaryButton title="Sync now" onPress={() => void act('sync')} loading={busyAction === 'sync'} disabled={busyAction != null} /> : null}
                 {status?.enabled ? <SecondaryButton title="Pause sync" onPress={() => void act('pause')} disabled={busyAction != null} /> : null}
                 {status && status.kind !== 'unavailable' ? <SecondaryButton title="Manage access" onPress={manageHealthConnectAccess} disabled={busyAction != null} /> : null}
-                {status?.kind === 'partial' ? <Message text="Grant both Body weight read and write access in Health Connect for full two-way sync. Eatlog continues in the direction you allowed." /> : null}
-                {status?.kind === 'unavailable' ? <Message text="Health Connect requires a supported Google Play-enabled Android device and an Eatlog development or preview build. Expo Go is not supported." /> : null}
+                {status?.kind === 'partial' ? <Message text="Some weight access is missing. Update permissions in Health Connect for full sync." /> : null}
+                {status?.kind === 'unavailable' ? <Message text="Health Connect is unavailable on this device or build." /> : null}
                 {error ? <><Message text={error} error /><SecondaryButton title="Retry status check" onPress={() => void refresh()} disabled={busyAction != null} /></> : null}
-                <Text className="text-xs text-m3-on-surface-variant">Sync runs when you connect, return to Eatlog, change local data, or tap Sync now. Background and extended-history access are not requested.</Text>
+                <Text className="text-xs text-m3-on-surface-variant">Sync runs automatically. Use Sync now to refresh it.</Text>
             </ScrollView>
         </Screen>
     );
