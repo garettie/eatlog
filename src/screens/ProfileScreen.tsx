@@ -285,7 +285,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                     </Section>
 
                     <Section title="Help & About">
-                        <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="Calculations and research sources" onPress={() => navigation.navigate('HowEatlogWorks')} />
+                        <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="How targets adapt to your logs" onPress={() => navigation.navigate('HowEatlogWorks')} />
                         <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="On-device data and network use" onPress={() => navigation.navigate('Privacy')} />
                         <ProfileSettingRow icon="info-outline" title="About" detail="Build details and data sources" onPress={() => navigation.navigate('About')} showDivider={false} />
                     </Section>

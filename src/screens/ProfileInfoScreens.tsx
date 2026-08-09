@@ -34,32 +34,32 @@ interface InfoRowProps {
 
 const RESEARCH_LINKS = [
     {
-        title: 'Resting energy equation',
+        title: 'Starting calorie estimate',
         detail: 'Mifflin et al. · American Journal of Clinical Nutrition · 1990',
         url: 'https://pubmed.ncbi.nlm.nih.gov/2305711/',
     },
     {
-        title: 'Energy-to-weight convention',
+        title: 'Energy and weight change',
         detail: 'Wishnofsky · American Journal of Clinical Nutrition · 1958',
         url: 'https://pubmed.ncbi.nlm.nih.gov/13594881/',
     },
     {
-        title: 'Dynamic energy balance',
+        title: 'Energy balance over time',
         detail: 'Hall et al. · The Lancet · 2011',
         url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3880593/',
     },
     {
-        title: 'Protein and resistance training',
+        title: 'Protein targets',
         detail: 'Morton et al. · British Journal of Sports Medicine · 2018',
         url: 'https://pubmed.ncbi.nlm.nih.gov/28698222/',
     },
     {
-        title: 'Macronutrient reference ranges',
+        title: 'Macronutrient ranges',
         detail: 'National Academies · Dietary Reference Intakes · 2005',
         url: 'https://nap.nationalacademies.org/catalog/10490/dietary-reference-intakes-for-energy-carbohydrate-fiber-fat-fatty-acids-cholesterol-protein-and-amino-acids',
     },
     {
-        title: 'Exponential smoothing method',
+        title: 'Weight trend smoothing',
         detail: 'NIST/SEMATECH · Engineering Statistics Handbook',
         url: 'https://www.itl.nist.gov/div898/handbook/pmc/section4/pmc43.htm',
     },
@@ -140,48 +140,6 @@ function InfoRow({ icon, title, detail, iconColor = M3.onSurfaceVariant, last = 
     );
 }
 
-function ArticleHeading({ icon, title, iconColor = M3.expenditure }: { icon: MaterialIconName; title: string; iconColor?: string }) {
-    return (
-        <View className="flex-row items-center gap-3">
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
-                <MaterialIcons name={icon} size={21} color={iconColor} />
-            </View>
-            <Text accessibilityRole="header" className="min-w-0 flex-1 text-lg font-bold text-m3-on-surface">{title}</Text>
-        </View>
-    );
-}
-
-function FormulaRow({
-    label,
-    value,
-    detail,
-    labelClassName = 'text-m3-expenditure',
-    last = false,
-}: {
-    label: string;
-    value: string;
-    detail: string;
-    labelClassName?: string;
-    last?: boolean;
-}) {
-    return (
-        <View className={`gap-1 px-4 py-3.5 ${last ? '' : 'border-b border-m3-outline-variant/50'}`}>
-            <Text className={`text-xs font-semibold ${labelClassName}`}>{label}</Text>
-            <Text className="text-base font-semibold text-m3-on-surface tabular-nums">{value}</Text>
-            <Text className="text-sm text-m3-on-surface-variant">{detail}</Text>
-        </View>
-    );
-}
-
-function EvidenceStat({ value, label }: { value: string; label: string }) {
-    return (
-        <View className="min-w-[132px] flex-1 gap-0.5 rounded-2xl bg-m3-surface-container-high p-4">
-            <Text className="text-base font-bold text-m3-on-surface tabular-nums">{value}</Text>
-            <Text className="text-xs text-m3-on-surface-variant">{label}</Text>
-        </View>
-    );
-}
-
 function DetailRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
     return (
         <View className={`min-h-[52px] flex-row items-center justify-between gap-4 py-3 ${last ? '' : 'border-b border-m3-outline-variant/40'}`}>
@@ -218,90 +176,79 @@ function Callout({ icon, title, detail, iconColor = M3.onSurfaceVariant }: {
 }
 
 export function HowEatlogWorksScreen() {
+    const [sourcesExpanded, setSourcesExpanded] = React.useState(false);
+
     return (
         <Screen>
             <PageIntro
-                title="Plan calculations"
-                detail="Eatlog calculates a starting target from your profile. With enough food and weight history, it can suggest an update for you to accept or keep."
+                title="How Eatlog sets your targets"
+                detail="Eatlog starts with your profile, then uses the food and weight history you log to suggest adjustments. You decide whether to apply them."
             />
 
-            <View className="gap-5">
-                <ArticleHeading icon="calculate" title="Starting target" />
-                <Text className="text-sm text-m3-on-surface-variant">Use the result as a planning estimate.</Text>
-                <View className="overflow-hidden rounded-2xl bg-m3-surface-container-high">
-                    <FormulaRow label="Resting energy" value="Mifflin–St Jeor" detail="Eatlog applies the equation to sex, age, height, and weight. The app labels this value BMR." />
-                    <FormulaRow label="Daily expenditure" value="BMR × activity factor" detail="Eatlog uses your activity choice: 1.2, 1.375, 1.55, 1.725, or 1.9." />
-                    <FormulaRow label="Goal adjustment" labelClassName="text-m3-calories" value="TDEE + weekly rate × 7,700 ÷ 7" detail="Eatlog converts your weekly rate into a daily calorie adjustment." last />
-                </View>
-                <Callout
-                    icon="info-outline"
-                    title="Estimate limits"
-                    detail="Your expenditure varies with body composition and daily activity. Eatlog uses the activity factors and 7,700 kcal/kg value to set the first target."
-                />
-            </View>
-
-            <View className="h-px bg-m3-outline-variant/50" />
-
-            <View className="gap-5">
-                <ArticleHeading icon="restaurant-menu" title="Macro targets" iconColor={M3.onSurfaceVariant} />
-                <Text className="text-sm text-m3-on-surface-variant">Eatlog sets protein from your goal and body weight, assigns 25% of calories to fat, then gives the remaining calories to carbs. You can replace the result with custom targets.</Text>
-                <View className="overflow-hidden rounded-2xl bg-m3-surface-container-high">
-                    <FormulaRow label="Protein" labelClassName="text-m3-protein" value="Cut 2.1 · Maintain 1.8 · Bulk 1.7 g/kg" detail="Your preference adjusts the baseline by −0.2 to +0.4 g/kg." />
-                    <FormulaRow label="Fat" labelClassName="text-m3-fat" value="25% of target calories" detail="Each gram contributes 9 kcal." />
-                    <FormulaRow label="Carbohydrate" labelClassName="text-m3-carbs" value="Calories left after protein and fat" detail="Protein and carbs contribute 4 kcal per gram. Calculated plans keep at least 50 g of carbs." last />
-                </View>
-                <Text className="text-sm text-m3-on-surface-variant">Eatlog uses these protein presets, preference offsets, fat share, and carb floor as product rules. Read the linked research for broader reference ranges.</Text>
-            </View>
-
-            <View className="h-px bg-m3-outline-variant/50" />
-
-            <View className="gap-5">
-                <ArticleHeading icon="monitor-weight" title="Food estimates and trend weight" />
+            <View className="gap-3">
+                <SectionTitle title="From setup to review" />
                 <Card className="overflow-hidden">
-                    <InfoRow icon="photo-camera" title="Review food estimates" detail="Check components and portions from photos, descriptions, and search before you save. You can edit saved entries in Diary." />
-                    <InfoRow icon="show-chart" iconColor={M3.expenditure} title="Smooth scale noise" detail="Eatlog uses exponential smoothing with a seven-day half-life. Recent weigh-ins carry more weight than older ones." />
-                    <InfoRow icon="date-range" title="Align the evidence" detail="Eatlog uses intake logged between the first and last weight readings in a review window." last />
+                    <InfoRow
+                        icon="person-outline"
+                        iconColor={M3.calories}
+                        title="Start with a personal estimate"
+                        detail="Eatlog uses your profile, activity, and goal to set your first calorie and macro targets."
+                    />
+                    <InfoRow
+                        icon="restaurant-menu"
+                        title="Log food and weight"
+                        detail="Review food estimates before saving. Eatlog smooths day-to-day scale changes into a weight trend."
+                    />
+                    <InfoRow
+                        icon="insights"
+                        iconColor={M3.expenditure}
+                        title="Review a suggestion"
+                        detail="Once you have enough history, Eatlog compares your food logs with your weight trend and may suggest a new calorie target."
+                        last
+                    />
                 </Card>
             </View>
 
-            <View className="h-px bg-m3-outline-variant/50" />
-
-            <View className="gap-5">
-                <ArticleHeading icon="insights" title="Adaptive reviews" />
-                <Text className="text-sm text-m3-on-surface-variant">Eatlog waits for recent evidence before it calculates a recommendation.</Text>
-                <View className="flex-row flex-wrap gap-2">
-                    <EvidenceStat value="28 days" label="Evidence window" />
-                    <EvidenceStat value="10 days" label="Usable intake days" />
-                    <EvidenceStat value="4 weights" label="Minimum readings" />
-                    <EvidenceStat value="14 days" label="Minimum weight span" />
-                </View>
-                <View className="overflow-hidden rounded-2xl bg-m3-surface-container-high">
-                    <FormulaRow label="Observed expenditure" value="Average intake − weight-change energy" detail="Eatlog fits a linear slope to scale readings, then applies the 7,700 kcal/kg convention." />
-                    <FormulaRow label="Stability blend" value="70% new estimate + 30% previous TDEE" detail="Eatlog combines the new estimate with the previous TDEE." />
-                    <FormulaRow label="Guardrails" value="Maximum ±10% TDEE change" detail="Eatlog requires a weight from the past seven days and keeps the result above BMR × 1.2." last />
-                </View>
-                <Callout
-                    icon="verified-user"
-                    iconColor={M3.expenditure}
-                    title="You approve each change"
-                    detail="The evidence window, minimums, 70/30 blend, and ±10% cap are product safeguards. If a day looks incomplete, Eatlog asks you to confirm it."
-                />
-            </View>
+            <Callout
+                icon="verified-user"
+                title="You choose what changes"
+                detail="Eatlog waits for your approval before updating the plan. You can accept a suggestion or keep your current target."
+            />
 
             <View className="gap-3">
-                <SectionTitle title="Research and method links" detail="Open a study or technical reference in your browser." />
+                <SectionTitle title="Research sources" detail="Read the studies and technical references Eatlog uses." />
                 <Card className="overflow-hidden">
-                    {RESEARCH_LINKS.map((reference, index) => (
-                        <LinkRow
-                            key={reference.url}
-                            icon="menu-book"
-                            title={reference.title}
-                            detail={reference.detail}
-                            external
-                            last={index === RESEARCH_LINKS.length - 1}
-                            onPress={() => openExternalLink(reference.title, reference.url)}
-                        />
-                    ))}
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={sourcesExpanded ? 'Hide six references' : 'View six references'}
+                        accessibilityState={{ expanded: sourcesExpanded }}
+                        android_ripple={{ color: M3.surfaceContainerHigh }}
+                        onPress={() => setSourcesExpanded((expanded) => !expanded)}
+                        className="min-h-[64px] flex-row items-center gap-3 px-4 py-3 active:opacity-70"
+                    >
+                        <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
+                            <MaterialIcons name="menu-book" size={20} color={M3.onSurfaceVariant} />
+                        </View>
+                        <Text className="min-w-0 flex-1 text-sm font-semibold text-m3-on-surface">
+                            {sourcesExpanded ? 'Hide references' : 'View six references'}
+                        </Text>
+                        <MaterialIcons name={sourcesExpanded ? 'expand-less' : 'expand-more'} size={22} color={M3.onSurfaceVariant} />
+                    </Pressable>
+                    {sourcesExpanded ? (
+                        <View className="border-t border-m3-outline-variant/50">
+                            {RESEARCH_LINKS.map((reference, index) => (
+                                <LinkRow
+                                    key={reference.url}
+                                    icon="menu-book"
+                                    title={reference.title}
+                                    detail={reference.detail}
+                                    external
+                                    last={index === RESEARCH_LINKS.length - 1}
+                                    onPress={() => openExternalLink(reference.title, reference.url)}
+                                />
+                            ))}
+                        </View>
+                    ) : null}
                 </Card>
             </View>
         </Screen>
