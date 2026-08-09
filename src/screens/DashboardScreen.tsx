@@ -558,8 +558,9 @@ function DashboardScreen({
               accessibilityRole="button"
               accessibilityLabel="Open analytics"
             >
-              <View className="flex-1 min-w-0">
+              <View className="flex-1 min-w-0 gap-0.5">
                 <Text className="text-m3-on-surface font-semibold text-base">Analytics</Text>
+                <Text className="text-m3-on-surface-variant text-compact">Last 30 days</Text>
               </View>
               <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
             </Pressable>
