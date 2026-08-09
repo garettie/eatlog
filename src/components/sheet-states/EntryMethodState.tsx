@@ -33,9 +33,9 @@ function MethodTile({ icon, label, hint, onPress }: EntryActionProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
-      className="min-h-[72px] flex-1 flex-row items-center gap-3 px-3 active:opacity-60"
+      className="min-h-[72px] flex-1 flex-row items-center gap-3 px-4 active:opacity-60"
     >
-      <View className="h-9 w-9 items-center justify-center rounded-full bg-m3-surface-container-high">
+      <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
         <MaterialIcons name={icon} size={20} color={M3.onSurfaceVariant} />
       </View>
       <Text className="min-w-0 flex-1 text-base font-semibold text-m3-on-surface">{label}</Text>
@@ -125,7 +125,7 @@ export default function EntryMethodState({
           <Text accessibilityRole="header" className="px-1 text-sm font-semibold text-m3-on-surface-variant">Quick log</Text>
           <View>
             <CompactActionRow icon="history" label="Recent meals" hint="Search meals from your log" onPress={onRecentFoods} />
-            <View className="ml-16 mr-4 h-px bg-m3-outline-variant/50" />
+            <View className="ml-[68px] mr-4 h-px bg-m3-outline-variant/50" />
             <CompactActionRow icon="search" label="Search foods" hint="Look up a food" onPress={onSearch} />
           </View>
         </View>

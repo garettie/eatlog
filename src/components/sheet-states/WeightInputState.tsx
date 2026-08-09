@@ -184,10 +184,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
       <View className="flex-1 px-5 gap-5">
         <View className="flex-row items-center gap-1">
           <SheetBackButton onPress={onBack} />
-          <View className="gap-2">
-            <View className="h-6 w-28 rounded-full bg-m3-surface-container-highest" />
-            <View className="h-3 w-56 rounded-full bg-m3-surface-container-high" />
-          </View>
+          <View className="h-6 w-28 rounded-full bg-m3-surface-container-highest" />
         </View>
         <View className="h-[52px] rounded-2xl bg-m3-surface-container-high" />
         <View className="h-[112px] rounded-3xl bg-m3-surface-container-high" />
@@ -215,9 +212,8 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
     <BottomSheetScrollView className="flex-1" contentContainerClassName="px-5 pb-8 gap-5" keyboardShouldPersistTaps="handled">
       <View className="flex-row items-center gap-1">
         <SheetBackButton onPress={onBack} />
-        <View className="gap-1 flex-1">
+        <View className="flex-1">
           <Text className="text-m3-on-surface text-xl font-bold">Log weight</Text>
-          <Text className="text-m3-on-surface-variant text-sm">Add today's scale reading or a past check-in.</Text>
         </View>
       </View>
 

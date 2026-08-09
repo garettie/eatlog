@@ -1,6 +1,5 @@
 import React from 'react';
 import { Alert, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
-import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,7 +10,6 @@ import { getDatabaseVersion } from '../db/database';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 import { getApplicationInfo } from '../utils/applicationInfo';
-import type { ProfileStackParamList } from './ProfilePlanScreens';
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -182,7 +180,7 @@ export function HowEatlogWorksScreen() {
         <Screen>
             <PageIntro
                 title="How Eatlog sets your targets"
-                detail="Eatlog starts with your profile, then uses the food and weight history you log to suggest adjustments. You decide whether to apply them."
+                detail="Eatlog estimates your starting targets, then uses your logs to suggest updates. You choose whether to apply them."
             />
 
             <View className="gap-3">
@@ -192,18 +190,18 @@ export function HowEatlogWorksScreen() {
                         icon="person-outline"
                         iconColor={M3.calories}
                         title="Start with a personal estimate"
-                        detail="Eatlog uses your profile, activity, and goal to set your first calorie and macro targets."
+                        detail="Eatlog uses your profile, activity, and goal to estimate your first calorie and macro targets."
                     />
                     <InfoRow
                         icon="restaurant-menu"
                         title="Log food and weight"
-                        detail="Review food estimates before saving. Eatlog smooths day-to-day scale changes into a weight trend."
+                        detail="Check meal estimates before saving. Eatlog uses your weigh-ins to show a steadier trend."
                     />
                     <InfoRow
                         icon="insights"
                         iconColor={M3.expenditure}
                         title="Review a suggestion"
-                        detail="Once you have enough history, Eatlog compares your food logs with your weight trend and may suggest a new calorie target."
+                        detail="Eatlog may suggest a calorie change after you log enough food and weight data."
                         last
                     />
                 </Card>
@@ -212,7 +210,7 @@ export function HowEatlogWorksScreen() {
             <Callout
                 icon="verified-user"
                 title="You choose what changes"
-                detail="Eatlog waits for your approval before updating the plan. You can accept a suggestion or keep your current target."
+                detail="Eatlog updates your plan after you accept a suggestion."
             />
 
             <View className="gap-3">
@@ -237,27 +235,27 @@ export function HowEatlogWorksScreen() {
 
 export function PrivacyScreen() {
     const estimateCopy = serviceConfig.availability.gemini
-        ? 'When you choose Scan or Describe, Eatlog sends the selected photo or text through its service to Google Gemini.'
-        : 'This build cannot send photos or descriptions for meal estimates.';
+        ? 'Eatlog sends your photo or description to Google Gemini when you use Scan or Describe.'
+        : 'Meal estimates are unavailable in this build.';
     const searchCopy = serviceConfig.availability.usda
-        ? 'Eatlog sends search terms to USDA through its service and to Open Food Facts. It may cache results on this phone.'
-        : 'Eatlog sends search terms to Open Food Facts and may cache results on this phone.';
+        ? 'Eatlog sends your search to USDA and Open Food Facts. It may cache results on this phone.'
+        : 'Eatlog sends your search to Open Food Facts and may cache results on this phone.';
 
     return (
         <Screen>
             <PageIntro
                 title="Data storage and sharing"
-                detail="Eatlog stores your profile and history on this phone, along with meal photos. It works without an account or cloud sync."
+                detail="Eatlog stores your profile, logs, and meal photos on this phone. You don't need an account."
             />
 
             <Callout
                 icon="verified-user"
                 title="Local by default"
-                detail="Eatlog contacts remote services after you choose a network feature. You choose where backup and CSV files go and whether to connect Health Connect."
+                detail="Eatlog uses online services when you scan, describe, or search for food. You control exports and Health Connect."
             />
 
             <View className="gap-3">
-                <SectionTitle title="Network requests" detail="Eatlog contacts a service after you choose a feature that needs it." />
+                <SectionTitle title="Network requests" />
                 <Card className="overflow-hidden">
                     <InfoRow icon="photo-camera" title="Meal estimates" detail={estimateCopy} />
                     <InfoRow icon="search" title="Food search" detail={searchCopy} last />
@@ -270,7 +268,7 @@ export function PrivacyScreen() {
                     <InfoRow
                         icon="health-and-safety"
                         title="Health Connect"
-                        detail="After you connect Health Connect, Eatlog reads weight records and writes the weights you log. Android limits access to the permissions you grant."
+                        detail="When you connect Health Connect, Eatlog reads weight records and writes your weigh-ins using the permissions you grant."
                         last
                     />
                 </Card>
@@ -279,9 +277,9 @@ export function PrivacyScreen() {
             <View className="gap-3">
                 <SectionTitle title="Files and deletion" />
                 <Card className="overflow-hidden">
-                    <InfoRow icon="backup" title="Backups" detail="Eatlog puts your database and saved meal photos in a restorable backup." />
-                    <InfoRow icon="file-download" title="CSV exports" detail="Eatlog writes readable history to CSV and excludes photos, caches, and Health Connect sync metadata." />
-                    <InfoRow icon="delete-outline" title="Delete all data" detail="After you confirm deletion, Eatlog removes its local data and meal photos. It also attempts to remove the weights it wrote to Health Connect." last />
+                    <InfoRow icon="backup" title="Backups" detail="A backup includes your database and saved meal photos." />
+                    <InfoRow icon="file-download" title="CSV exports" detail="Eatlog exports readable history without photos or sync data." />
+                    <InfoRow icon="delete-outline" title="Delete all data" detail="When you confirm deletion, Eatlog removes local data and meal photos, then tries to remove its Health Connect entries." last />
                 </Card>
             </View>
         </Screen>
@@ -289,7 +287,6 @@ export function PrivacyScreen() {
 }
 
 export function AboutScreen() {
-    const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
     const application = getApplicationInfo();
     const geminiDetail = serviceConfig.availability.gemini
         ? 'Meal estimates · Available'
@@ -356,32 +353,6 @@ export function AboutScreen() {
                 </Card>
             </View>
 
-            <View className="gap-3">
-                <SectionTitle title="Project and privacy" />
-                <Card className="overflow-hidden">
-                    <LinkRow
-                        icon="privacy-tip"
-                        title="Privacy and data use"
-                        detail="Review on-device storage and data sharing"
-                        onPress={() => navigation.navigate('Privacy')}
-                    />
-                    <LinkRow
-                        icon="code"
-                        title="Source code"
-                        detail="github.com/garettie/eatlog"
-                        external
-                        onPress={() => openExternalLink('Eatlog source code', 'https://github.com/garettie/eatlog')}
-                    />
-                    <LinkRow
-                        icon="description"
-                        title="0BSD license"
-                        detail="Permission to use, copy, modify, and distribute"
-                        external
-                        last
-                        onPress={() => openExternalLink('0BSD license', 'https://opensource.org/license/0bsd')}
-                    />
-                </Card>
-            </View>
         </Screen>
     );
 }
