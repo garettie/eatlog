@@ -10,9 +10,10 @@ interface PrimaryButtonProps {
   loading?: boolean;
   icon?: keyof typeof MaterialIcons.glyphMap;
   iconPosition?: 'left' | 'right';
+  accessibilityHint?: string;
 }
 
-export default function PrimaryButton({ title, onPress, disabled, loading, icon, iconPosition = 'right' }: PrimaryButtonProps) {
+export default function PrimaryButton({ title, onPress, disabled, loading, icon, iconPosition = 'right', accessibilityHint }: PrimaryButtonProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -20,6 +21,7 @@ export default function PrimaryButton({ title, onPress, disabled, loading, icon,
       style={disabled || loading ? { opacity: 0.4 } : undefined}
       accessibilityRole="button"
       accessibilityLabel={title}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       className="w-full min-h-[52px] bg-m3-primary rounded-full px-5 py-3.5 flex-row items-center justify-center gap-2 active:opacity-90"
     >
