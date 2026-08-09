@@ -55,7 +55,7 @@ const WAVE_D =
 
 const TILE_WIDTH = 1420;
 const SCROLL_LOOP = 12000;
-const FAST_PLAYBACK_SCALE = 0.28;
+const FAST_PLAYBACK_SCALE = 0.4;
 const READY_FINISH_DURATION = 360;
 
 type AnimatedSplashProps = {
