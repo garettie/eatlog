@@ -33,10 +33,10 @@ function MethodTile({ icon, label, hint, onPress }: EntryActionProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
-      className="min-h-[72px] flex-1 flex-row items-center gap-3 rounded-2xl border border-m3-outline-variant bg-m3-surface-container-high px-3 active:opacity-60"
+      className="min-h-[72px] flex-1 flex-row items-center gap-3 px-3 active:opacity-60"
     >
-      <View className="h-9 w-9 items-center justify-center rounded-full bg-m3-surface-container-highest">
-        <MaterialIcons name={icon} size={20} color={M3.onSurface} />
+      <View className="h-9 w-9 items-center justify-center rounded-full bg-m3-surface-container-high">
+        <MaterialIcons name={icon} size={20} color={M3.onSurfaceVariant} />
       </View>
       <Text className="min-w-0 flex-1 text-base font-semibold text-m3-on-surface">{label}</Text>
     </Pressable>
@@ -52,8 +52,8 @@ function CompactActionRow({ icon, label, hint, onPress }: EntryActionProps) {
       accessibilityHint={hint}
       className="min-h-[56px] flex-row items-center gap-3 px-4 active:opacity-60"
     >
-      <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-highest">
-        <MaterialIcons name={icon} size={20} color={M3.onSurface} />
+      <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
+        <MaterialIcons name={icon} size={20} color={M3.onSurfaceVariant} />
       </View>
       <Text className="flex-1 text-base font-semibold text-m3-on-surface">{label}</Text>
       <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
@@ -123,17 +123,15 @@ export default function EntryMethodState({
 
         <View className="gap-2">
           <Text accessibilityRole="header" className="px-1 text-sm font-semibold text-m3-on-surface-variant">Quick log</Text>
-          <View className="overflow-hidden rounded-2xl border border-m3-outline-variant bg-m3-surface-container-high">
+          <View>
             <CompactActionRow icon="history" label="Recent meals" hint="Search meals from your log" onPress={onRecentFoods} />
-            <View className="mx-4 h-px bg-m3-outline-variant" />
+            <View className="ml-16 mr-4 h-px bg-m3-outline-variant/50" />
             <CompactActionRow icon="search" label="Search foods" hint="Look up a food" onPress={onSearch} />
           </View>
         </View>
 
-        <View className="border-t border-m3-outline-variant pt-4">
-          <View className="overflow-hidden rounded-2xl border border-m3-outline-variant bg-m3-surface-container-high">
-            <CompactActionRow icon="monitor-weight" label="Log weight" hint="Add a check-in separately" onPress={onWeight} />
-          </View>
+        <View className="border-t border-m3-outline-variant/50 pt-2">
+          <CompactActionRow icon="monitor-weight" label="Log weight" hint="Add a check-in separately" onPress={onWeight} />
         </View>
       </View>
     </BottomSheetScrollView>
