@@ -10,9 +10,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MealType, saveMealWithComponents } from '../../db/database';
-import { FoodResult } from '../../services/foodSearch';
-import { DescribeResult } from '../../services/foodScan';
+import { type MealType, saveMealWithComponents } from '../../db/database';
+import type { FoodResult } from '../../services/foodSearch';
+import type { DescribeResult } from '../../services/foodScan';
 import { EASING } from '../../theme/motion';
 import { defaultMealForNow, todayISO } from '../../utils/calculations';
 import { useToday } from '../../hooks/useToday';
@@ -169,7 +169,6 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
   const effectiveLogDate = logDateOverrideRef.current ? logDate : logDateProp ?? today;
   const hasAiEstimate = components.some((component) => component.food.source === 'scan' || component.food.source === 'describe');
   const hasInvalidComponentName = components.some((component) => !component.food.name.trim());
-  const mealLabel = `${meal.charAt(0).toUpperCase()}${meal.slice(1)}`;
   const lowConfidenceComponents = components.filter((component) => component.food.confidence === 'low');
   const lowConfidenceNames = lowConfidenceComponents
     .slice(0, 3)
@@ -933,16 +932,6 @@ export default function ReviewState({ result, photoUri, onLogComplete, onClarify
             </Pressable>
           </Animated.View>
         )}
-        <View
-          className="flex-row items-center gap-2 px-1"
-          accessible
-          accessibilityLabel={`Logging ${mealLabel} on ${formatDayHeader(effectiveLogDate)}`}
-        >
-          <MaterialIcons name="event" size={16} color={M3.onSurfaceVariant} />
-          <Text className="flex-1 text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>
-            {formatDayHeader(effectiveLogDate)} · {mealLabel}
-          </Text>
-        </View>
         <PrimaryButton
           title={editMealId ? 'Update Meal' : 'Log Meal'}
           icon="check"
