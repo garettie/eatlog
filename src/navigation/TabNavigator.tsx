@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type React from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,15 +11,14 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import ProfileNavigator from './ProfileNavigator';
 import LogToast, { type LogToastTone } from '../components/LogToast';
 import Sheet from '../components/Sheet';
-import AdaptiveInfoSheet from '../components/AdaptiveInfoSheet';
 import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo, type WeightLoggedInfo } from '../components/sheet-states/FoodSheetContent';
-import { type MealGroup } from '../components/JournalSection';
+import type { MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
-import { deleteFoodLog, deleteMeal, restoreWeightSave, MealType } from '../db/database';
+import { deleteFoodLog, deleteMeal, restoreWeightSave, type MealType } from '../db/database';
 import { formatDayHeader, todayISO } from '../utils/calendar';
-import { type FoodResult, type DataType } from '../services/foodSearch';
+import type { FoodResult, DataType } from '../services/foodSearch';
 import { buildFoodPortions } from '../services/foodSearchCore';
-import { type DescribeResult } from '../services/foodScan';
+import type { DescribeResult } from '../services/foodScan';
 import EatlogTabBar from './EatlogTabBar';
 import { syncHealthConnectWeights } from '../services/healthConnect';
 import { NAVIGATION_RAIL_WIDTH, useResponsiveLayout } from '../theme/layout';
@@ -52,7 +52,6 @@ const INITIAL: FoodSheetState = {
 
 export default function TabNavigator() {
     const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
-    const [adaptiveInfoVisible, setAdaptiveInfoVisible] = useState(false);
     const [toast, setToast] = useState<{ message: string; tone?: LogToastTone; undo?: () => void | Promise<void> } | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
     const insets = useSafeAreaInsets();
@@ -118,14 +117,6 @@ export default function TabNavigator() {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
         setSheet({ ...INITIAL, visible: true, stateKey: 'weight-input', fromBar: true });
-    }, []);
-
-    const openAdaptiveInfo = useCallback(() => {
-        setAdaptiveInfoVisible(true);
-    }, []);
-
-    const closeAdaptiveInfo = useCallback(() => {
-        setAdaptiveInfoVisible(false);
     }, []);
 
     const hideToast = useCallback(() => {
@@ -360,11 +351,10 @@ export default function TabNavigator() {
                 onOpenCamera={openCamera}
                 onOpenGallery={openGallery}
                 onOpenDescribe={openDescribe}
-                onOpenAdaptiveInfo={openAdaptiveInfo}
                 dataVersion={dataVersion}
             />
         ),
-        [dataVersion, openAdaptiveInfo, openCamera, openDescribe, openGallery],
+        [dataVersion, openCamera, openDescribe, openGallery],
     );
 
     const renderDiary = useCallback(
@@ -475,11 +465,6 @@ export default function TabNavigator() {
                     onGoBack={handleSheetGoBack}
                 />
             </Sheet>
-
-            <AdaptiveInfoSheet
-                visible={adaptiveInfoVisible}
-                onClosed={closeAdaptiveInfo}
-            />
 
             {toast && (
                 <View

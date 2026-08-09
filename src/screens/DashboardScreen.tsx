@@ -25,10 +25,9 @@ import {
   getTodayMacros,
   getWeightLogsByDateRange,
   getDailyCaloriesByDateRange,
-  getDistinctLoggedDayCount,
-  Profile,
-  DailyTarget,
-  LastEntry,
+  type Profile,
+  type DailyTarget,
+  type LastEntry,
 } from '../db/database';
 import { addCalendarDays, todayISO } from '../utils/calendar';
 import { useToday } from '../hooks/useToday';
@@ -171,7 +170,6 @@ interface DashboardScreenProps {
   onOpenCamera: () => void;
   onOpenGallery: () => void;
   onOpenDescribe: () => void;
-  onOpenAdaptiveInfo: () => void;
   dataVersion: number;
 }
 
@@ -179,7 +177,6 @@ function DashboardScreen({
   onOpenCamera,
   onOpenGallery,
   onOpenDescribe,
-  onOpenAdaptiveInfo,
   dataVersion,
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
@@ -197,7 +194,6 @@ function DashboardScreen({
   }>({ calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
   const [weightLoggedDates, setWeightLoggedDates] = useState<string[]>([]);
   const [foodLoggedDates, setFoodLoggedDates] = useState<string[]>([]);
-  const [distinctLoggedDays, setDistinctLoggedDays] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showRemaining, setShowRemaining] = useState(false);
   const [error, setError] = useState(false);
@@ -218,7 +214,6 @@ function DashboardScreen({
         const historyStart = addCalendarDays(today, -29);
         const wLogs = await getWeightLogsByDateRange(historyStart, today);
         const calorieDays = await getDailyCaloriesByDateRange(historyStart, today);
-        const ddCount = await getDistinctLoggedDayCount();
 
         setProfile(prof);
         setTarget(targ);
@@ -226,7 +221,6 @@ function DashboardScreen({
         setTodayMacros(tMacros);
         setWeightLoggedDates(wLogs.map((log) => log.log_date));
         setFoodLoggedDates(calorieDays.map((day) => day.log_date));
-        setDistinctLoggedDays(ddCount);
         setError(false);
       } catch (e) {
         console.error('[Dashboard] loadData failed', e);
@@ -334,16 +328,6 @@ function DashboardScreen({
 
   // ── Derived data ──
 
-  const hasRecentFood = !!recentFood;
-  let headerChip: { label: string; locked: boolean } | null;
-  if (!hasRecentFood) {
-    headerChip = null; // empty-state hero carries the activation focus, no clutter
-  } else if (distinctLoggedDays < 14) {
-    headerChip = { label: `${distinctLoggedDays}/14 days logged`, locked: true };
-  } else {
-    headerChip = { label: 'Reviews unlocked', locked: false };
-  }
-
   const {
     consumedCals,
     targetCals,
@@ -384,32 +368,6 @@ function DashboardScreen({
                 <Text className="text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>{formattedDate}</Text>
                 <Text className="text-m3-on-surface font-bold text-4xl tracking-tight">Dashboard</Text>
               </View>
-              {headerChip && (
-                <Pressable
-                  onPress={onOpenAdaptiveInfo}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${headerChip.label}. What are adaptive targets?`}
-                  className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 border active:opacity-70 ${
-                    headerChip.locked
-                      ? 'bg-m3-surface-container border-m3-outline-variant/30'
-                      : 'bg-m3-expenditure/15 border-m3-expenditure/40'
-                  }`}
-                >
-                  <MaterialIcons
-                    name={headerChip.locked ? 'lock' : 'auto-awesome'}
-                    size={11}
-                    color={headerChip.locked ? M3.onSurfaceVariant : M3.expenditure}
-                  />
-                  <Text
-                    className={`text-xs font-semibold ${
-                      headerChip.locked ? 'text-m3-on-surface-variant' : 'text-m3-expenditure'
-                    }`}
-                    numberOfLines={1}
-                  >
-                    {headerChip.label}
-                  </Text>
-                </Pressable>
-              )}
             </View>
           </View>
 
