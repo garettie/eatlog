@@ -2,9 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createBackupManifestV2,
   isSupportedBackupFileName,
   isSafeArchivePath,
+  MAX_BACKUP_ARCHIVE_BYTES,
+  MAX_BACKUP_UNCOMPRESSED_BYTES,
+  validateBackupArchiveSizes,
   validateBackupCounts,
+  validateExtractedBackupPaths,
   validateBackupFileIntegrity,
   validateBackupManifest,
 } from './backupManifest';
@@ -14,6 +19,8 @@ test('accepts Eatlog backups and legacy Marco backups', () => {
   assert.equal(isSupportedBackupFileName('eatlog-123.eatlog-backup'), true);
   assert.equal(isSupportedBackupFileName('marco-123.marco-backup'), true);
   assert.equal(isSupportedBackupFileName('backup.zip'), false);
+  assert.equal(isSupportedBackupFileName('eatlog-export.csv'), false);
+  assert.equal(isSupportedBackupFileName('eatlog-export.zip'), false);
 });
 
 const v1 = {
@@ -81,4 +88,77 @@ test('backup allowlist excludes the app-scoped installation identity', () => {
       { archivePath: INSTALLATION_TOKEN_FILE_NAME, size: 32, md5: 'c'.repeat(32) },
     ],
   }, 9), /unexpected file metadata/);
+});
+
+test('validates empty, compressed, and expanded archive size boundaries', () => {
+  assert.doesNotThrow(() => validateBackupArchiveSizes(1, 1));
+  assert.doesNotThrow(() => validateBackupArchiveSizes(MAX_BACKUP_ARCHIVE_BYTES, MAX_BACKUP_UNCOMPRESSED_BYTES));
+  for (const size of [0, -1, Number.NaN, MAX_BACKUP_ARCHIVE_BYTES + 1]) {
+    assert.throws(() => validateBackupArchiveSizes(size), /empty or too large/);
+  }
+  for (const size of [0, -1, Number.NaN, MAX_BACKUP_UNCOMPRESSED_BYTES + 1]) {
+    assert.throws(() => validateBackupArchiveSizes(1, size), /expands beyond/);
+  }
+});
+
+test('no-photo and multi-photo archive layouts support Unicode and exact allowlists', () => {
+  const noPhotos = createBackupManifestV2({
+    createdAt: '2026-08-10T00:00:00.000Z',
+    appVersion: '1.1.0',
+    appBuild: '1',
+    databaseVersion: 9,
+    databaseFile: 'database.sqlite',
+    files: [{ archivePath: 'database.sqlite', size: 4096, md5: 'a'.repeat(32) }],
+    photoFiles: [],
+    counts: { profile: 1, foodLogs: 0, meals: 0, weightLogs: 0, dailyTargets: 1, adaptiveReviews: 0, photos: 0 },
+  });
+  assert.doesNotThrow(() => validateBackupManifest(noPhotos, 9));
+  assert.doesNotThrow(() => validateExtractedBackupPaths(['manifest.json', 'database.sqlite'], noPhotos));
+
+  const photoFiles = [
+    { archivePath: 'photos/11-café.jpg', mealId: 11, originalFileName: 'café.jpg' },
+    { archivePath: 'photos/12-食事.jpg', mealId: 12, originalFileName: '食事.jpg' },
+  ];
+  const multiple = createBackupManifestV2({
+    ...noPhotos,
+    files: [
+      noPhotos.files[0],
+      { archivePath: photoFiles[0].archivePath, size: 128, md5: 'b'.repeat(32) },
+      { archivePath: photoFiles[1].archivePath, size: 256, md5: 'c'.repeat(32) },
+    ],
+    photoFiles,
+    counts: { ...noPhotos.counts, meals: 2, photos: 2 },
+  });
+  assert.doesNotThrow(() => validateBackupManifest(multiple, 9));
+  assert.doesNotThrow(() => validateExtractedBackupPaths([
+    'manifest.json', 'database.sqlite', photoFiles[0].archivePath, photoFiles[1].archivePath,
+  ], multiple));
+});
+
+test('rejects missing, unexpected, duplicate, and unsafe extracted paths', () => {
+  assert.throws(() => validateExtractedBackupPaths(['manifest.json'], v2), /do not match/);
+  assert.throws(() => validateExtractedBackupPaths([
+    'manifest.json', 'database.sqlite', 'photos/1-photo.jpg', INSTALLATION_TOKEN_FILE_NAME,
+  ], v2), /do not match/);
+  assert.throws(() => validateExtractedBackupPaths([
+    'manifest.json', 'database.sqlite', 'photos/1-photo.jpg', 'photos/1-photo.jpg',
+  ], v2), /duplicate/);
+  assert.throws(() => validateExtractedBackupPaths([
+    'manifest.json', 'database.sqlite', '../outside',
+  ], v2), /unsafe/);
+});
+
+test('rejects missing or invalid manifest fields and duplicate declared paths', () => {
+  assert.throws(() => validateBackupManifest(null, 9), /missing/);
+  assert.throws(() => validateBackupManifest({ ...v2, appVersion: '' }, 9), /incomplete/);
+  assert.throws(() => validateBackupManifest({ ...v2, databaseFile: 'missing.sqlite' }, 9), /incomplete/);
+  assert.throws(() => validateBackupManifest({
+    ...v2,
+    photoFiles: [v2.photoFiles[0], { ...v2.photoFiles[0], mealId: 2 }],
+    counts: { ...v2.counts, photos: 2 },
+  }, 9), /invalid photo path/);
+  assert.throws(() => validateBackupManifest({
+    ...v2,
+    files: [v2.files[0], v2.files[0], v2.files[1]],
+  }, 9), /file metadata/);
 });

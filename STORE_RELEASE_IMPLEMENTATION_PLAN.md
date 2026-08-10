@@ -629,15 +629,15 @@ Tasks:
 
 Add focused tests for:
 
-- [ ] Adult date boundaries and local-date parsing.
-- [ ] Shared target-safety validation across all target origins.
-- [ ] Goal/target direction.
-- [ ] Extreme calculations and invalid numbers.
-- [ ] Adaptive recommendation safety boundaries.
-- [ ] Installation-token creation, persistence, corruption, and concurrency.
-- [ ] Platform-specific Health Connect visibility and service guards.
-- [ ] Open Food Facts endpoint, User-Agent, parsing, errors, and cancellation.
-- [ ] Privacy disclosure version/acceptance state.
+- [x] Adult date boundaries and local-date parsing.
+- [x] Shared target-safety validation across all target origins.
+- [x] Goal/target direction.
+- [x] Extreme calculations and invalid numbers.
+- [x] Adaptive recommendation safety boundaries.
+- [x] Installation-token creation, persistence, corruption, and concurrency.
+- [x] Platform-specific Health Connect visibility and service guards.
+- [x] Open Food Facts endpoint, User-Agent, parsing, errors, and cancellation.
+- [x] Privacy disclosure version/acceptance state.
 
 ### M5.2 Add full supported migration evidence
 
@@ -648,13 +648,13 @@ Target files:
 
 Tasks:
 
-- [ ] Create a representative schema-v4 fixture with profile, targets, food logs, meals, weights, photos, pins, and caches where those tables exist.
-- [ ] Run the real sequential migration path to the current schema.
-- [ ] Verify row IDs, dates, relationships, target history, origins, indexes, and `PRAGMA user_version`.
-- [ ] Test a fresh empty database.
-- [ ] Test legacy Marco-origin Health Connect data handling.
-- [ ] Test rejection of a future/newer database version without modifying it.
-- [ ] Keep fixture contents synthetic and free of personal data.
+- [x] Create a representative schema-v4 fixture with profile, targets, food logs, meals, weights, photos, pins, and caches where those tables exist.
+- [x] Run the real sequential migration path to the current schema.
+- [x] Verify row IDs, dates, relationships, target history, origins, indexes, and `PRAGMA user_version`.
+- [x] Test a fresh empty database.
+- [x] Test legacy Marco-origin Health Connect data handling.
+- [x] Test rejection of a future/newer database version without modifying it.
+- [x] Keep fixture contents synthetic and free of personal data.
 
 ### M5.3 Prove backup and restore on devices
 
@@ -1328,3 +1328,14 @@ Recheck these before submission:
 - Artifact: `release/qa/IOS_SOURCE_AUDIT.md` maps each iOS-native surface to inspected source and the exact remaining physical check. Earlier branch artifacts already prove evaluated bundle IDs, iPhone-only configuration, camera/photo usage strings, absent microphone usage, and encryption configuration.
 - UX decision: the first-use Scan/Describe disclosure remains the only transmission gate. It is not repeated after acceptance, and no helper paragraph was added to the FAB, camera, gallery, Describe, search, review, or logging paths.
 - Remaining M4 blockers: **PHYSICAL DEVICE** Android/iPhone permission, camera, picker, Files, sharing, interruption, layout, accessibility, cross-platform archive, and remote-service checks; **ENVIRONMENT LIMITATION** no Xcode, iOS Simulator, CocoaPods native aggregation, or signed-binary inspection; **CREDENTIAL / STORE ACCOUNT** no distribution certificate, provisioning profile, App Store record, or TestFlight build; **PAID SERVICE** no EAS cloud build or simulator was used. A single post-change local iOS JavaScript export remains scheduled for the final account-free audit. M4 signed-build exit criteria remain unchecked.
+
+### Phase 4 / M5 account-free evidence: 2026-08-10
+
+- Changed migration source: the SQL formerly embedded in `src/db/database.ts` now runs through `src/db/databaseMigrations.ts` for both production and Node fixtures. `src/db/testFixtures/schemaV4.ts` deterministically creates a synthetic v4 database containing every table supported at v4, including profile, target history, adaptive review relationship, Unicode meal/food names, photo reference, standalone and meal-linked food rows, weights, cache, and pin.
+- Migration result: the real v4→v5→v6→v7→v8→v9 path preserves IDs, dates, target/review foreign keys, meal/food relationships, photo URI, weights, caches, and pins; creates the expected indexes and Health Connect/intake tables; maps pre-Health-Connect weights to `eatlog`; passes `foreign_key_check`; and finishes at `PRAGMA user_version = 9`. The same runner creates a complete empty v9 database from v0. Existing Marco-origin and v8 food-type migration rollback tests remain intact. A v10 sentinel database is rejected before journal-mode or schema mutation.
+- Changed recovery source: `src/services/dataBackup.ts`, `src/utils/backupManifest.ts`, `src/services/backupDatabaseValidation.ts`, `src/services/backupCancellation.ts`, and `src/services/restoreTransaction.ts`. Production restore now validates exact extracted file allowlists, compressed/expanded size boundaries, manifest/database counts, hashes, integrity, foreign keys, schema version, and photo relationships. Safety-copy failure no longer attempts rollback from an incomplete safety database.
+- Recovery tests: current v2 Eatlog and legacy v1 Marco structures; no-photo and two-photo Unicode layouts; supported v4 validation followed by real migration; wrong/CSV/export extensions; zero/oversized archives; unsafe, duplicate, missing, and unexpected paths; missing/invalid manifest/database metadata; size/hash/count/version/integrity/foreign-key/photo mismatches; cancellation checkpoints; installation-identity exclusion; and platform-neutral Android→Android, Android→iOS, iOS→iOS, and iOS→Android format/database acceptance. A forced failure after live replacement restores synthetic database and photo state; a forced rollback failure returns an `AggregateError` and cannot produce a success result.
+- Commands and results: focused sequential migration tests passed 6/6; focused migration/recovery tests passed 20/20; final `env TMPDIR=/tmp npm test` passed 5 config-plugin tests plus 219 TypeScript tests; `npm run typecheck` passed; `git diff --check` passed. All fixtures contain only labeled synthetic values.
+- QA artifacts: `release/qa/UI_SMOKE_SCRIPT.md` gives exact onboarding, manual logging, Today, Diary edit/delete/undo, weight, Analytics, Profile, privacy, export, restore, and reset steps with a synthetic seed and expected results. `release/qa/DEVICE_MATRIX.md` covers API 26, API 36/current Google Android, Samsung-class Android, constrained/small Android, minimum/current iOS, small/large iPhones, provider failures, accessibility, backup corruption, rollback, and release halt severity.
+- Automation decision: there is no existing UI harness, runnable emulator, or simulator in this environment. No unverified heavyweight framework was added. The UI automation and device boxes remain unchecked until a real binary runs the script with screenshots and a signed result record.
+- Remaining M5 blockers: **PHYSICAL DEVICE** native ZIP creation/extraction, duplicate raw ZIP-entry behavior, Files/share cancellation, real photo rollback, all four cross-device archive transfers, UI/accessibility smoke, and the complete device matrix; **ENVIRONMENT LIMITATION** no Android emulator/ADB daemon or iOS Simulator/Xcode; **CREDENTIAL** Play-equivalent and TestFlight signed candidates are unavailable; **PAID SERVICE / STORE ACCOUNT** no distribution build was requested. M5 device and exit criteria remain unchecked, and no cross-device success is claimed.
