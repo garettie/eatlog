@@ -22,26 +22,20 @@ export const storeMetadata = {
   },
   google: {
     title: 'Eatlog',
-    shortDescription: 'Log food and weight, review nutrition estimates, and keep data on your device',
-    fullDescription: `Eatlog is a local-first food and weight log for adults.
+    shortDescription: 'Log food and weight, review nutrition estimates, and keep records on your phone',
+    fullDescription: `Eatlog turns a meal photo or written description into an editable nutrition estimate.
 
-Log meals your way
-• Enter nutrition manually.
-• Search USDA FoodData Central and Open Food Facts.
-• Use a meal photo or written description to get an editable estimate.
-• Reuse recent and pinned foods.
+Log food
+Enter nutrition manually, reuse recent or pinned foods, search USDA FoodData Central and Open Food Facts, or use a meal photo or written description to get an editable estimate.
 
 Review your day and plan
-• See calories and macros on Today and Diary.
-• Edit or delete entries and undo a deletion.
-• Log weight and review trends, intake history, and logging consistency.
-• Review plan suggestions and choose whether to apply them.
+See daily calories and macros on Today and Diary. Edit or delete entries and undo a deletion. Log weight and review trends, intake history, and logging consistency. Review plan suggestions and choose whether to apply them.
 
-Own your data
-Your profile, targets, logs, weights, and saved meal photos stay in app-private storage on your device. Eatlog has no app account or cloud database. You can create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
+Keep your data on your phone
+Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
 
 Online services and estimates
-Manual logging, saved history, and local analytics work without a network connection. Scan and Describe send only the photo or text you choose through the Eatlog Cloudflare Worker to Google Gemini. USDA searches use the Worker. Open Food Facts is contacted directly only when you run a full search. These features require internet access.
+Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose through the Eatlog Cloudflare Worker to Google Gemini. USDA searches use the Worker. Open Food Facts is contacted directly only when you run a full search. These features require internet access.
 
 Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
 
@@ -51,28 +45,28 @@ Eatlog is for adult general wellness. Eatlog is not a medical device and does no
 On Android, optional Health Connect support reads and writes Weight only after you choose to connect it.
 
 Eatlog is a one-time paid download. It has no subscriptions, in-app purchases, ads, login, or third-party tracking.`,
-    releaseNotes: 'Initial release: log meals and weight, review daily totals and trends, choose whether to apply plan suggestions, and back up or export local data. Scan, Describe, USDA search, Open Food Facts search, and Android Health Connect Weight support are optional.',
+    releaseNotes: 'Initial release. Log food and weight, review daily calories and macros, and view weight trends, intake history, and logging consistency. Reuse saved foods, choose whether to apply plan suggestions, and create backups or CSV exports. Optional online tools include Scan, Describe, USDA search, and Open Food Facts search. Android can optionally read and write Weight through Health Connect.',
     category: 'Health & Fitness',
     healthAppsCategory: 'Nutrition and Weight Management',
     requiredHealthDisclaimer: 'Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.',
   },
   apple: {
     title: 'Eatlog',
-    subtitle: 'Food and weight log',
+    subtitle: 'Food, nutrition, and weight',
     keywords: 'nutrition,calories,macros,meals,diary,weight,tracker,food log,backup',
-    description: `Eatlog is a local-first food and weight log for adults.
+    description: `Eatlog turns a meal photo or written description into an editable nutrition estimate.
 
-LOG FOOD YOUR WAY
+LOG FOOD
 Enter nutrition manually, reuse recent or pinned foods, search USDA FoodData Central and Open Food Facts, or use a meal photo or written description to get an editable estimate.
 
 REVIEW YOUR DAY AND PLAN
-See calories and macros on Today and Diary. Edit or delete entries, log weight, and review trends, intake history, and logging consistency. When Eatlog has enough evidence to suggest a plan change, you choose whether to apply it.
+See daily calories and macros on Today and Diary. Edit or delete entries and undo a deletion. Log weight and review trends, intake history, and logging consistency. Review plan suggestions and choose whether to apply them.
 
-OWN YOUR DATA
-Your profile, targets, logs, weights, and saved meal photos stay in app-private storage on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
+KEEP YOUR DATA ON YOUR PHONE
+Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
 
 ONLINE SERVICES AND ESTIMATES
-Manual logging, saved history, and local analytics work without a network connection. Scan and Describe send only the photo or text you choose through the Eatlog Cloudflare Worker to Google Gemini. USDA searches use the Worker. Open Food Facts is contacted directly only when you run a full search. These features require internet access.
+Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose through the Eatlog Cloudflare Worker to Google Gemini. USDA searches use the Worker. Open Food Facts is contacted directly only when you run a full search. These features require internet access.
 
 Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
 
@@ -80,7 +74,7 @@ Eatlog is for adult general wellness. It is not a medical device and does not di
 
 Eatlog is a one-time paid download. It has no subscriptions, in-app purchases, ads, login, or third-party tracking.`,
     promotionalText: 'Food and weight logging with editable estimates, clear trends, local backup, and CSV export.',
-    releaseNotes: 'Initial release: log meals and weight, review daily totals and trends, choose whether to apply plan suggestions, and back up or export local data. Optional online tools include Scan, Describe, USDA search, and Open Food Facts search.',
+    releaseNotes: 'Initial release. Log food and weight, review daily calories and macros, and view weight trends, intake history, and logging consistency. Reuse saved foods, choose whether to apply plan suggestions, and create backups or CSV exports. Optional online tools include Scan, Describe, USDA search, and Open Food Facts search.',
     primaryCategory: 'Health & Fitness',
     secondaryCategory: 'Food & Drink',
     firstVersionReleaseNotesFieldAvailable: false,
