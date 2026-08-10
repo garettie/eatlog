@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
@@ -94,44 +94,54 @@ interface MacroProgressProps {
   label: string;
   consumed: number;
   target: number;
+  showRemaining: boolean;
   progressColorClass: string;
 }
 
-function MacroProgress({ label, consumed, target, progressColorClass }: MacroProgressProps) {
+function MacroProgress({ label, consumed, target, showRemaining, progressColorClass }: MacroProgressProps) {
   const reduced = useReducedMotion();
   const pct = target > 0 ? Math.min(1, Math.max(0, consumed / target)) : 0;
-  const overflowPct = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
+  const remaining = Math.max(0, target - consumed);
+  const over = Math.max(0, consumed - target);
   const barPctSV = useSharedValue(0);
-  const overflowPctSV = useSharedValue(0);
 
   useEffect(() => {
     barPctSV.value = withTiming(pct, { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-    overflowPctSV.value = withTiming(overflowPct, { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-  }, [pct, overflowPct, reduced]);
+  }, [pct, reduced]);
 
   const barStyle = useAnimatedStyle(() => ({
     transform: [{ scaleX: barPctSV.value }],
   }));
-  const overflowStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleX: overflowPctSV.value }],
-  }));
+  const roundedConsumed = Math.round(consumed);
+  const roundedTarget = Math.round(target);
+  const roundedRemaining = Math.round(remaining);
+  const roundedOver = Math.round(over);
+  const hasVisibleOverage = roundedOver > 0;
+  const accessibilityValue = hasVisibleOverage
+    ? `${label}, ${roundedConsumed} of ${roundedTarget} grams, ${roundedOver} grams over`
+    : showRemaining
+      ? `${label}, ${roundedRemaining} grams remaining, ${roundedConsumed} of ${roundedTarget} grams consumed`
+      : `${label}, ${roundedConsumed} of ${roundedTarget} grams consumed`;
 
   return (
-    <View className="flex-1 gap-2 min-w-0">
+    <View className="flex-1 gap-2 min-w-0" accessible accessibilityLabel={accessibilityValue}>
       <Text className="text-m3-on-surface-variant text-sm font-medium text-center" numberOfLines={1}>{label}</Text>
       <View className="h-1.5 bg-m3-surface-container-highest rounded-full overflow-hidden">
         <Animated.View
           className={`absolute inset-0 ${progressColorClass} rounded-full`}
           style={[{ transformOrigin: 'left' }, barStyle]}
         />
-        <Animated.View
-          className="absolute inset-0 bg-black/25"
-          style={[{ transformOrigin: 'right' }, overflowStyle]}
-        />
       </View>
       <Text className="text-m3-on-surface text-sm font-semibold tabular-nums text-center" numberOfLines={1}>
-        {Math.round(consumed)} / {Math.round(target)}g
+        {showRemaining ? `${roundedRemaining}g left` : `${roundedConsumed} / ${roundedTarget}g`}
       </Text>
+      <View className="min-h-[14px] items-center">
+        {hasVisibleOverage && (
+          <Text className="text-m3-error text-compact font-semibold tabular-nums" numberOfLines={1}>
+            +{roundedOver}g over
+          </Text>
+        )}
+      </View>
     </View>
   );
 }
@@ -170,6 +180,7 @@ interface DashboardScreenProps {
   onOpenCamera: () => void;
   onOpenGallery: () => void;
   onOpenDescribe: () => void;
+  onOpenDiaryDate: (date: string) => void;
   dataVersion: number;
 }
 
@@ -177,12 +188,15 @@ function DashboardScreen({
   onOpenCamera,
   onOpenGallery,
   onOpenDescribe,
+  onOpenDiaryDate,
   dataVersion,
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
   const reduced = useReducedMotion();
   const today = useToday();
   const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
+  const { width, fontScale } = useWindowDimensions();
+  const stackNutritionSummary = isNarrow || width < 400 || fontScale >= 1.2;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
   const [recentFood, setRecentFood] = useState<LastEntry | null>(null);
@@ -195,15 +209,23 @@ function DashboardScreen({
   const [weightLoggedDates, setWeightLoggedDates] = useState<string[]>([]);
   const [foodLoggedDates, setFoodLoggedDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showRemaining, setShowRemaining] = useState(false);
   const [error, setError] = useState(false);
   const initialLoadDone = useRef(false);
+  const previousDataVersionRef = useRef(dataVersion);
   const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const refreshRequestCountRef = useRef(0);
 
   // ── Data loading ──
 
   const loadData = useCallback((showLoading: boolean) => {
-    if (showLoading) setLoading(true);
+    if (showLoading) {
+      setLoading(true);
+    } else {
+      refreshRequestCountRef.current += 1;
+      setRefreshing(true);
+    }
     const queued = loadQueueRef.current.catch(() => {}).then(async () => {
       try {
         const today = todayISO();
@@ -226,7 +248,12 @@ function DashboardScreen({
         console.error('[Dashboard] loadData failed', e);
         setError(true);
       } finally {
-        if (showLoading) setLoading(false);
+        if (showLoading) {
+          setLoading(false);
+        } else {
+          refreshRequestCountRef.current = Math.max(0, refreshRequestCountRef.current - 1);
+          if (refreshRequestCountRef.current === 0) setRefreshing(false);
+        }
       }
     });
     loadQueueRef.current = queued;
@@ -243,7 +270,9 @@ function DashboardScreen({
 
   // The bottom sheet is an overlay, so focus does not change after a save.
   useEffect(() => {
-    if (!initialLoadDone.current) return; // skip mount, useFocusEffect handles it
+    if (previousDataVersionRef.current === dataVersion) return;
+    previousDataVersionRef.current = dataVersion;
+    if (!initialLoadDone.current) return;
     loadData(false);
   }, [dataVersion, loadData]);
 
@@ -265,9 +294,6 @@ function DashboardScreen({
       targetCals,
       calsRemaining,
       calsOver,
-      proteinRemaining: Math.max(0, (target?.target_protein_g ?? 0) - todayMacros.protein_g),
-      carbsRemaining: Math.max(0, (target?.target_carbs_g ?? 0) - todayMacros.carbs_g),
-      fatRemaining: Math.max(0, (target?.target_fat_g ?? 0) - todayMacros.fat_g),
       ringValue,
       ringProgress: targetCals > 0 ? Math.min(1, Math.max(0, ringValue / targetCals)) : 0,
       flankingLeft: showRemaining ? consumedCals : calsRemaining,
@@ -279,7 +305,10 @@ function DashboardScreen({
   if (loading && (!profile || !target)) {
     return (
       <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center" edges={['top', 'left', 'right']}>
-        <ActivityIndicator color={M3.onSurfaceVariant} />
+        <View className="items-center gap-3" accessibilityLiveRegion="polite">
+          <ActivityIndicator color={M3.onSurfaceVariant} />
+          <Text className="text-m3-on-surface-variant text-sm font-medium">Loading today's nutrition</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -289,14 +318,19 @@ function DashboardScreen({
       <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
         <View className="flex-1 items-center justify-center px-8 gap-4">
           <MaterialIcons name="error-outline" size={48} color={M3.onSurfaceVariant} />
-          <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
-            Couldn't load your dashboard. Check your data and try again.
-          </Text>
+          <View className="items-center gap-1" accessibilityRole="alert">
+            <Text className="text-m3-on-surface text-base font-semibold text-center">
+              Couldn't load today's totals
+            </Text>
+            <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
+              Try again to load data from your on-device diary.
+            </Text>
+          </View>
           <Pressable
             onPress={() => loadData(true)}
-            className="bg-white rounded-full px-6 py-3.5 active:opacity-80"
+            className="bg-white rounded-full px-6 min-h-[48px] items-center justify-center active:opacity-80"
             accessibilityRole="button"
-            accessibilityLabel="Retry loading dashboard"
+            accessibilityLabel="Retry loading today's totals"
           >
             <Text className="text-m3-on-primary font-semibold text-sm">Retry</Text>
           </Pressable>
@@ -333,9 +367,6 @@ function DashboardScreen({
     targetCals,
     calsRemaining,
     calsOver,
-    proteinRemaining,
-    carbsRemaining,
-    fatRemaining,
     ringValue,
     ringProgress,
     flankingLeft,
@@ -348,6 +379,7 @@ function DashboardScreen({
   });
 
   const consistencyEndDate = todayISO();
+  const profileInitial = profile.display_name.trim().charAt(0).toUpperCase() || 'P';
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
@@ -355,6 +387,15 @@ function DashboardScreen({
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingTop: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={(
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { void loadData(false); }}
+            colors={[M3.primary]}
+            progressBackgroundColor={M3.surfaceContainerHigh}
+            tintColor={M3.primary}
+          />
+        )}
       >
         <ResponsiveContent maxWidth={APP_MAX_WIDTH}>
         <Animated.View
@@ -363,13 +404,46 @@ function DashboardScreen({
         >
           {/* ── Header ── */}
           <View className="gap-3">
-            <View className={isNarrow ? 'gap-3' : 'flex-row justify-between items-start gap-3'}>
+            <View className="flex-row justify-between items-start gap-3">
               <View className="flex-1 min-w-0 gap-0.5">
-                <Text className="text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>{formattedDate}</Text>
-                <Text className="text-m3-on-surface font-bold text-4xl tracking-tight">Dashboard</Text>
+                <View className="flex-row items-center gap-2" accessibilityLiveRegion="polite">
+                  <Text className="text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>{formattedDate}</Text>
+                  {refreshing && <ActivityIndicator size="small" color={M3.onSurfaceVariant} accessibilityLabel="Refreshing today's totals" />}
+                </View>
+                <Text className="text-m3-on-surface font-bold text-4xl tracking-tight">Today</Text>
               </View>
+              <Pressable
+                onPress={() => navigation.navigate('Profile')}
+                className="h-12 w-12 rounded-full bg-m3-surface-container-high items-center justify-center active:opacity-70"
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
+              >
+                <Text className="text-m3-on-surface font-bold text-base">{profileInitial}</Text>
+              </Pressable>
             </View>
           </View>
+
+          {error && (
+            <View
+              className="bg-m3-error-container rounded-2xl px-4 py-3 flex-row items-center gap-3"
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+            >
+              <MaterialIcons name="sync-problem" size={22} color={M3.onErrorContainer} />
+              <Text className="text-m3-on-error-container text-sm font-medium flex-1">
+                Today's totals couldn't refresh. The values below may be out of date.
+              </Text>
+              <Pressable
+                onPress={() => { void loadData(false); }}
+                disabled={refreshing}
+                className="min-h-[48px] px-3 items-center justify-center rounded-full active:opacity-70 disabled:opacity-50"
+                accessibilityRole="button"
+                accessibilityLabel="Retry refreshing today's totals"
+              >
+                <Text className="text-m3-on-error-container text-sm font-semibold">Retry</Text>
+              </Pressable>
+            </View>
+          )}
 
           <View className={isTwoPane ? 'flex-row items-start gap-4' : 'gap-4'}>
           <View className={isTwoPane ? 'flex-[3] min-w-0' : 'w-full'}>
@@ -377,9 +451,9 @@ function DashboardScreen({
           <Card className="p-6 gap-5 items-center">
             <Text className="text-m3-on-surface text-2xl font-bold self-start">Daily nutrition</Text>
             {/* Ring + flanking numbers */}
-            <View className={`${isNarrow ? 'gap-3' : 'flex-row'} items-center justify-center w-full`}>
+            <View className={`${stackNutritionSummary ? 'gap-3' : 'flex-row'} items-center justify-center w-full`}>
               {/* Left: flanking number */}
-              {!isNarrow && <View className="items-center flex-1 min-w-0">
+              {!stackNutritionSummary && <View className="items-center flex-1 min-w-0">
                 <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                   {flankingLeft.toLocaleString()}
                 </Text>
@@ -402,14 +476,14 @@ function DashboardScreen({
               </View>
 
               {/* Right: target */}
-              {!isNarrow && <View className="items-center flex-1 min-w-0">
+              {!stackNutritionSummary && <View className="items-center flex-1 min-w-0">
                 <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                   {targetCals.toLocaleString()}
                 </Text>
                 <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
               </View>}
 
-              {isNarrow && (
+              {stackNutritionSummary && (
                 <View className="w-full flex-row gap-4">
                   <View className="items-center flex-1 min-w-0">
                     <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
@@ -431,7 +505,7 @@ function DashboardScreen({
             </View>
 
             {calsOver > 0 && (
-              <Text className="text-m3-error text-xs font-semibold tabular-nums">
+              <Text className="text-m3-error text-xs font-semibold tabular-nums" accessibilityLiveRegion="polite">
                 +{calsOver.toLocaleString()} kcal over target
               </Text>
             )}
@@ -440,20 +514,23 @@ function DashboardScreen({
             <View className="flex-row gap-3 w-full">
               <MacroProgress
                 label="Protein"
-                consumed={showRemaining ? proteinRemaining : todayMacros.protein_g}
+                consumed={todayMacros.protein_g}
                 target={target.target_protein_g}
+                showRemaining={showRemaining}
                 progressColorClass="bg-m3-protein"
               />
               <MacroProgress
                 label="Carbs"
-                consumed={showRemaining ? carbsRemaining : todayMacros.carbs_g}
+                consumed={todayMacros.carbs_g}
                 target={target.target_carbs_g}
+                showRemaining={showRemaining}
                 progressColorClass="bg-m3-carbs"
               />
               <MacroProgress
                 label="Fat"
-                consumed={showRemaining ? fatRemaining : todayMacros.fat_g}
+                consumed={todayMacros.fat_g}
                 target={target.target_fat_g}
+                showRemaining={showRemaining}
                 progressColorClass="bg-m3-fat"
               />
             </View>
@@ -480,22 +557,25 @@ function DashboardScreen({
           {/* ── Last Logged Card OR First-Use Hero ── */}
           {recentFood ? (
             <Pressable
-              onPress={() => navigation.navigate('Diary')}
+              onPress={() => {
+                onOpenDiaryDate(recentFood.logDate);
+                navigation.navigate('Diary', { date: recentFood.logDate, requestId: Date.now() });
+              }}
               className="active:opacity-80"
               accessibilityRole="button"
-              accessibilityLabel={`Open ${recentFood.name} in diary`}
+              accessibilityLabel={`Open ${recentFood.name} in diary on ${recentFood.logDate}`}
             >
               <Card className="p-4 flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3 flex-1">
-                  <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
+                <View className="flex-row items-center gap-3 flex-1 min-w-0">
+                  <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center shrink-0">
                     <MaterialCommunityIcons name={foodIcon(recentFood.name)} size={18} color={M3.onSurfaceVariant} />
                   </View>
-                  <View className="flex-1">
-                    <Text className="text-m3-on-surface font-bold text-sm" numberOfLines={1}>
+                  <View className="flex-1 min-w-0">
+                    <Text className="text-m3-on-surface font-bold text-sm" numberOfLines={2}>
                       {recentFood.name}
                     </Text>
-                    <Text className="text-m3-on-surface-variant text-xs mt-0.5">
-                      {Math.round(recentFood.calories)} kcal · {getRelativeTime(recentFood.logged_at)}
+                    <Text className="text-m3-on-surface-variant text-xs mt-0.5" numberOfLines={1}>
+                      Last logged · {Math.round(recentFood.calories)} kcal · {getRelativeTime(recentFood.logged_at)}
                     </Text>
                   </View>
                 </View>
@@ -529,7 +609,7 @@ function DashboardScreen({
               <View className="flex-row flex-wrap items-center justify-between gap-2">
                 <Pressable
                   onPress={onOpenGallery}
-                  className="flex-row items-center gap-1.5 py-2 active:opacity-60"
+                  className="min-h-[48px] px-2 flex-row items-center justify-center gap-1.5 active:opacity-60"
                   accessibilityRole="button"
                   accessibilityLabel="Upload a photo from gallery"
                 >
@@ -538,7 +618,7 @@ function DashboardScreen({
                 </Pressable>
                 <Pressable
                   onPress={onOpenDescribe}
-                  className="flex-row items-center gap-1.5 py-2 active:opacity-60"
+                  className="min-h-[48px] px-2 flex-row items-center justify-center gap-1.5 active:opacity-60"
                   accessibilityRole="button"
                   accessibilityLabel="Describe a meal in words"
                 >

@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
-import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, type BottomTabBarProps, type BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
@@ -29,7 +29,7 @@ function mealLabel(m: MealType): string {
 
 type TabParamList = {
     Today: undefined;
-    Diary: undefined;
+    Diary: { date: string; requestId: number } | undefined;
     Analytics: undefined;
     Profile: undefined;
 };
@@ -351,15 +351,17 @@ export default function TabNavigator() {
                 onOpenCamera={openCamera}
                 onOpenGallery={openGallery}
                 onOpenDescribe={openDescribe}
+                onOpenDiaryDate={handleDiaryDateChange}
                 dataVersion={dataVersion}
             />
         ),
-        [dataVersion, openCamera, openDescribe, openGallery],
+        [dataVersion, handleDiaryDateChange, openCamera, openDescribe, openGallery],
     );
 
     const renderDiary = useCallback(
-        () => (
+        ({ route }: BottomTabScreenProps<TabParamList, 'Diary'>) => (
             <DiaryScreen
+                requestedDate={route.params}
                 onOpenEntry={openEntry}
                 onEditMeal={openEditMeal}
                 onSelectedDateChange={handleDiaryDateChange}

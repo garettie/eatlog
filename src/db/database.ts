@@ -1536,6 +1536,7 @@ export interface LastEntry {
   name: string;
   calories: number;
   logged_at: string;
+  logDate: string;
   isMeal: boolean;
   mealId: number | null;
 }
@@ -1561,6 +1562,7 @@ export async function getMostRecentEntry(): Promise<LastEntry | null> {
       name: meal?.name ?? 'Meal',
       calories: totals?.calories ?? 0,
       logged_at: totals?.logged_at ?? recent.logged_at,
+      logDate: recent.log_date,
       isMeal: true,
       mealId: recent.meal_id,
     };
@@ -1570,6 +1572,7 @@ export async function getMostRecentEntry(): Promise<LastEntry | null> {
     name: recent.name,
     calories: recent.calories,
     logged_at: recent.logged_at,
+    logDate: recent.log_date,
     isMeal: false,
     mealId: null,
   };

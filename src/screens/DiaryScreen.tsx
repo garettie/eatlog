@@ -88,6 +88,7 @@ function getMonthRange(anchor: Date) {
 }
 
 interface DiaryScreenProps {
+  requestedDate?: { date: string; requestId: number };
   onOpenEntry: (logDate?: string) => void;
   onEditMeal: (meal: MealGroup) => void;
   onSelectedDateChange: (date: string) => void;
@@ -96,12 +97,13 @@ interface DiaryScreenProps {
   showToast: (message: string, undo?: () => void) => void;
 }
 
-function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast }: DiaryScreenProps) {
+function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast }: DiaryScreenProps) {
   const reduced = useReducedMotion();
   const today = useToday();
-  const [selectedDate, setSelectedDate] = useState(() => todayISO());
-  const [displayedDate, setDisplayedDate] = useState(() => todayISO());
-  const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date()));
+  const initialDateRef = useRef(requestedDate?.date ?? todayISO());
+  const [selectedDate, setSelectedDate] = useState(() => initialDateRef.current);
+  const [displayedDate, setDisplayedDate] = useState(() => initialDateRef.current);
+  const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date(`${initialDateRef.current}T12:00:00`)));
   const [loading, setLoading] = useState(true);
   const [dayLoadError, setDayLoadError] = useState(false);
   const [monthLoadError, setMonthLoadError] = useState(false);
@@ -128,6 +130,7 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
   const monthLoadPromiseRef = useRef(new Map<string, Promise<MonthSummary>>());
   const cacheGenerationRef = useRef(0);
   const previousDisplayedDateRef = useRef(displayedDate);
+  const handledDateRequestRef = useRef<number | null>(requestedDate?.requestId ?? null);
   const dayContentOpacity = useSharedValue(1);
   const dayContentOffset = useSharedValue(0);
 
@@ -430,6 +433,12 @@ function DiaryScreen({ onOpenEntry, onEditMeal, onSelectedDateChange, onDataChan
       }
     }
   }, [loadDay, loadMonth, onSelectedDateChange, prefetchAdjacentMonths]);
+
+  useEffect(() => {
+    if (!requestedDate || handledDateRequestRef.current === requestedDate.requestId) return;
+    handledDateRequestRef.current = requestedDate.requestId;
+    selectDate(requestedDate.date);
+  }, [requestedDate, selectDate]);
 
   const previousTodayRef = useRef(today);
   useEffect(() => {
