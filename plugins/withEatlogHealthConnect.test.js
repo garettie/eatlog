@@ -5,6 +5,7 @@ const releaseConfig = require('../app.json').expo;
 
 const {
   addHealthConnectPermissionDelegate,
+  buildPermissionsRationaleActivity,
   ensureHealthConnectManifest,
 } = require('./withEatlogHealthConnect');
 
@@ -23,6 +24,8 @@ function manifestFixture() {
           $: { 'android:name': '.MainActivity' },
           'intent-filter': [{
             action: [{ $: { 'android:name': 'android.intent.action.MAIN' } }],
+          }, {
+            action: [{ $: { 'android:name': 'androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE' } }],
           }],
         }],
       }],
@@ -51,11 +54,26 @@ test('Health Connect manifest setup is exact and idempotent', () => {
   ensureHealthConnectManifest(manifest);
   ensureHealthConnectManifest(manifest);
 
-  const activity = manifest.manifest.application[0].activity[0];
-  const rationaleFilters = activity['intent-filter'].filter((intentFilter) =>
+  const activities = manifest.manifest.application[0].activity;
+  const mainActivity = activities.find((activity) =>
+    activity.$?.['android:name'] === '.MainActivity');
+  const rationaleActivity = activities.find((activity) =>
+    activity.$?.['android:name'] === '.PermissionsRationaleActivity');
+  const mainRationaleFilters = mainActivity['intent-filter'].filter((intentFilter) =>
     intentFilter.action?.some((action) =>
       action.$?.['android:name'] === 'androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE'));
-  assert.equal(rationaleFilters.length, 1);
+  assert.equal(mainRationaleFilters.length, 0);
+  assert.deepEqual(rationaleActivity, {
+    $: {
+      'android:name': '.PermissionsRationaleActivity',
+      'android:exported': 'true',
+      'android:theme': '@style/AppTheme',
+    },
+    'intent-filter': [{
+      action: [{ $: { 'android:name': 'androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE' } }],
+    }],
+  });
+  assert.equal(activities.length, 2);
 
   const aliases = manifest.manifest.application[0]['activity-alias'];
   assert.equal(aliases.length, 1);
@@ -63,7 +81,7 @@ test('Health Connect manifest setup is exact and idempotent', () => {
     $: {
       'android:name': 'ViewPermissionUsageActivity',
       'android:exported': 'true',
-      'android:targetActivity': '.MainActivity',
+      'android:targetActivity': '.PermissionsRationaleActivity',
       'android:permission': 'android.permission.START_VIEW_PERMISSION_USAGE',
     },
     'intent-filter': [{
@@ -78,8 +96,14 @@ test('Health Connect manifest setup handles a missing intent-filter list', () =>
   const manifest = manifestFixture();
   delete manifest.manifest.application[0].activity[0]['intent-filter'];
   ensureHealthConnectManifest(manifest);
+  assert.deepEqual(
+    manifest.manifest.application[0].activity[0]['intent-filter'],
+    [],
+  );
+  const rationaleActivity = manifest.manifest.application[0].activity.find((activity) =>
+    activity.$?.['android:name'] === '.PermissionsRationaleActivity');
   assert.equal(
-    manifest.manifest.application[0].activity[0]['intent-filter'][0]
+    rationaleActivity['intent-filter'][0]
       .action[0].$['android:name'],
     'androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE',
   );
@@ -117,6 +141,19 @@ class MainActivity {
   assert.equal(once, twice);
   assert.match(once, /import dev\.matinzd\.healthconnect\.permissions\.HealthConnectPermissionDelegate/);
   assert.match(once, /super\.onCreate\(null\)\n    HealthConnectPermissionDelegate\.setPermissionDelegate\(this\)/);
+});
+
+test('Health Connect rationale activity opens only the in-app privacy route', () => {
+  const source = buildPermissionsRationaleActivity('com.sgaret.eatlog');
+  assert.match(source, /^package com\.sgaret\.eatlog;/);
+  assert.match(source, /new Intent\(this, MainActivity\.class\)/);
+  assert.match(source, /Uri\.parse\("eatlog:\/\/privacy"\)/);
+  assert.match(source, /FLAG_ACTIVITY_CLEAR_TOP \| Intent\.FLAG_ACTIVITY_SINGLE_TOP/);
+  assert.doesNotMatch(source, /https?:\/\//);
+  assert.throws(
+    () => buildPermissionsRationaleActivity(''),
+    /Android package is required/,
+  );
 });
 
 test('Health Connect delegate setup supports Java and fails closed on unknown templates', () => {

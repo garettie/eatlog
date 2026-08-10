@@ -20,17 +20,19 @@ Every variant keeps the installed name and brand `Eatlog`. Development builds co
 `plugins/withEatlogHealthConnect.js` now owns the minimum native setup:
 
 - registers `HealthConnectPermissionDelegate` after `MainActivity.super.onCreate`;
-- adds `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE` once;
-- adds the `ViewPermissionUsageActivity` alias with `android.intent.action.VIEW_PERMISSION_USAGE` and `android.intent.category.HEALTH_PERMISSIONS` once;
+- adds a dedicated `PermissionsRationaleActivity` for `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE`;
+- routes that activity to Eatlog's in-app Profile > Privacy screen without requiring a public URL;
+- adds the `ViewPermissionUsageActivity` alias with `android.intent.action.VIEW_PERMISSION_USAGE` and `android.intent.category.HEALTH_PERMISSIONS`, targeting the same rationale activity;
 - adds no health-data permission.
 
-Weight access remains declared centrally in `app.json` as only `android.permission.health.READ_WEIGHT` and `android.permission.health.WRITE_WEIGHT`. The generated manifest before and after the replacement was byte-for-byte identical. The new generated `MainActivity.kt` contains the explicit delegate registration. Unit tests cover exact output, missing intent filters, Kotlin and Java templates, idempotence, and fail-closed behavior when Expo changes its template.
+Weight access remains declared centrally in `app.json` as only `android.permission.health.READ_WEIGHT` and `android.permission.health.WRITE_WEIGHT`. The original package replacement first preserved the old generated manifest byte-for-byte. The final permission audit then corrected the old manifest's insufficient MainActivity rationale target: current Android guidance requires a dedicated activity that displays the app's privacy policy. The generated `PermissionsRationaleActivity.java` opens only the in-app privacy route, while `MainActivity.kt` contains the explicit delegate registration. Unit tests cover exact manifest output, the generated privacy route, missing intent filters, Kotlin and Java templates, idempotence, and fail-closed behavior when Expo changes its template.
 
 Primary references:
 
 - [React Native Health Connect installation](https://github.com/matinzd/react-native-health-connect#installation)
 - [React Native Health Connect permissions](https://matinzd.github.io/react-native-health-connect/docs/permissions)
 - [Expo config plugin mods](https://docs.expo.dev/config-plugins/mods/)
+- [Android Health Connect setup](https://developer.android.com/health-and-fitness/health-connect/get-started)
 
 ## Android permission hygiene
 

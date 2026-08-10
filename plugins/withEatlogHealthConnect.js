@@ -2,8 +2,11 @@ const {
   AndroidConfig,
   createRunOncePlugin,
   withAndroidManifest,
+  withDangerousMod,
   withMainActivity,
 } = require('expo/config-plugins');
+const { mkdirSync, writeFileSync } = require('node:fs');
+const { join } = require('node:path');
 
 const pkg = require('../package.json');
 
@@ -11,6 +14,8 @@ const RATIONALE_ACTION = 'androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE';
 const PERMISSION_USAGE_ACTION = 'android.intent.action.VIEW_PERMISSION_USAGE';
 const HEALTH_PERMISSIONS_CATEGORY = 'android.intent.category.HEALTH_PERMISSIONS';
 const PERMISSION_USAGE_ALIAS = 'ViewPermissionUsageActivity';
+const PERMISSIONS_RATIONALE_ACTIVITY = '.PermissionsRationaleActivity';
+const PRIVACY_ROUTE = 'eatlog://privacy';
 const PERMISSION_DELEGATE_IMPORT =
   'dev.matinzd.healthconnect.permissions.HealthConnectPermissionDelegate';
 const PERMISSION_DELEGATE_CALL =
@@ -32,10 +37,27 @@ function ensureHealthConnectManifest(androidManifest) {
   const mainApplication =
     AndroidConfig.Manifest.getMainApplicationOrThrow(androidManifest);
   const mainActivity = AndroidConfig.Manifest.getMainActivityOrThrow(androidManifest);
-  const intentFilters = (mainActivity['intent-filter'] ??= []);
+  mainActivity['intent-filter'] = (mainActivity['intent-filter'] ?? [])
+    .filter((intentFilter) => !hasAction(intentFilter, RATIONALE_ACTION));
 
-  if (!intentFilters.some((intentFilter) => hasAction(intentFilter, RATIONALE_ACTION))) {
-    intentFilters.push({
+  const activities = (mainApplication.activity ??= []);
+  let rationaleActivity = activities.find(
+    (activity) => activity.$?.['android:name'] === PERMISSIONS_RATIONALE_ACTIVITY,
+  );
+  if (!rationaleActivity) {
+    rationaleActivity = { $: {} };
+    activities.push(rationaleActivity);
+  }
+  rationaleActivity.$ = {
+    ...rationaleActivity.$,
+    'android:name': PERMISSIONS_RATIONALE_ACTIVITY,
+    'android:exported': 'true',
+    'android:theme': '@style/AppTheme',
+  };
+  const rationaleFilters = (rationaleActivity['intent-filter'] ??= []);
+
+  if (!rationaleFilters.some((intentFilter) => hasAction(intentFilter, RATIONALE_ACTION))) {
+    rationaleFilters.push({
       action: [{ $: { 'android:name': RATIONALE_ACTION } }],
     });
   }
@@ -54,7 +76,7 @@ function ensureHealthConnectManifest(androidManifest) {
     ...permissionUsageAlias.$,
     'android:name': PERMISSION_USAGE_ALIAS,
     'android:exported': 'true',
-    'android:targetActivity': mainActivity.$['android:name'],
+    'android:targetActivity': PERMISSIONS_RATIONALE_ACTIVITY,
     'android:permission': 'android.permission.START_VIEW_PERMISSION_USAGE',
   };
 
@@ -73,6 +95,47 @@ function ensureHealthConnectManifest(androidManifest) {
   }
 
   return androidManifest;
+}
+
+function buildPermissionsRationaleActivity(packageName) {
+  if (!/^[a-zA-Z][a-zA-Z0-9_.]*$/.test(packageName)) {
+    throw new Error('Android package is required for the Health Connect rationale activity');
+  }
+  return `package ${packageName};
+
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+
+public class PermissionsRationaleActivity extends Activity {
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    Intent privacyIntent = new Intent(this, MainActivity.class);
+    privacyIntent.setData(Uri.parse("${PRIVACY_ROUTE}"));
+    privacyIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+    startActivity(privacyIntent);
+    finish();
+  }
+}
+`;
+}
+
+function writePermissionsRationaleActivity(androidProjectRoot, packageName) {
+  const sourceDirectory = join(
+    androidProjectRoot,
+    'app',
+    'src',
+    'main',
+    'java',
+    ...packageName.split('.'),
+  );
+  mkdirSync(sourceDirectory, { recursive: true });
+  writeFileSync(
+    join(sourceDirectory, 'PermissionsRationaleActivity.java'),
+    buildPermissionsRationaleActivity(packageName),
+  );
 }
 
 function addHealthConnectPermissionDelegate(contents, language) {
@@ -110,13 +173,23 @@ const withEatlogHealthConnect = (config) => {
     return manifestConfig;
   });
 
-  return withMainActivity(config, (activityConfig) => {
+  config = withMainActivity(config, (activityConfig) => {
     activityConfig.modResults.contents = addHealthConnectPermissionDelegate(
       activityConfig.modResults.contents,
       activityConfig.modResults.language,
     );
     return activityConfig;
   });
+
+  return withDangerousMod(config, ['android', (dangerousConfig) => {
+    const packageName = dangerousConfig.android?.package;
+    if (!packageName) throw new Error('Android package is required for Health Connect setup');
+    writePermissionsRationaleActivity(
+      dangerousConfig.modRequest.platformProjectRoot,
+      packageName,
+    );
+    return dangerousConfig;
+  }]);
 };
 
 module.exports = createRunOncePlugin(
@@ -125,4 +198,5 @@ module.exports = createRunOncePlugin(
   pkg.version,
 );
 module.exports.addHealthConnectPermissionDelegate = addHealthConnectPermissionDelegate;
+module.exports.buildPermissionsRationaleActivity = buildPermissionsRationaleActivity;
 module.exports.ensureHealthConnectManifest = ensureHealthConnectManifest;
