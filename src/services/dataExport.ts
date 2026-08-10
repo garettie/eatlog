@@ -116,7 +116,7 @@ export async function exportData(onProgress?: OwnershipProgressListener): Promis
 
     onProgress?.({ operation: 'export', phase: 'zip', completed: 2, total: 3, message: 'Packaging CSV files', cancellable: false });
     await zip(nativePath(stage.uri), nativePath(archive.uri));
-    if (!await Sharing.isAvailableAsync()) throw new Error('Android sharing is unavailable.');
+    if (!await Sharing.isAvailableAsync()) throw new Error('Sharing is unavailable on this device.');
     onProgress?.({ operation: 'export', phase: 'share', completed: 3, total: 3, message: 'Choose where to save your export', cancellable: false });
     await Sharing.shareAsync(archive.uri, { mimeType: 'application/zip', dialogTitle: 'Export Eatlog data' });
     return { operation: 'export', completedAt: new Date().toISOString(), summary: 'CSV export created.' };

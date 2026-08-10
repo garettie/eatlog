@@ -4,6 +4,7 @@ import {
   rewriteFoodProviderQuery,
 } from './foodSearchCore';
 import type { FoodResult, FoodSearchMode } from './foodSearchTypes';
+import { getInstallationToken, isInstallationToken } from './installIdentity';
 
 const OFF_BASE = 'https://search.openfoodfacts.org';
 const SEARCH_TIMEOUT_MS = 8000;
@@ -24,7 +25,7 @@ interface FoodSearchRemoteMetrics {
 interface RemoteProviderOptions {
   workerUrl: string;
   fetchImpl?: typeof fetch;
-  getInstallId?: () => string;
+  getInstallationToken?: () => string | Promise<string>;
   openFoodFactsUserAgent?: string | null;
 }
 
@@ -64,19 +65,17 @@ async function fetchJSON(
 
 export function createFoodSearchRemoteProviders(options: RemoteProviderOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const getInstallId = options.getInstallId ?? (() => {
-    const application = require('expo-application') as typeof import('expo-application');
-    return application.getAndroidId();
-  });
+  const loadInstallationToken = options.getInstallationToken ?? getInstallationToken;
   let metrics: FoodSearchRemoteMetrics = { usdaRequests: 0, workerFailures: 0 };
 
   async function fetchWorker(path: string, init: RequestInit, signal?: AbortSignal): Promise<any> {
     if (!options.workerUrl) throw new Error('Food service is unavailable');
     let installId: string;
     try {
-      installId = getInstallId();
+      installId = await loadInstallationToken();
+      if (!isInstallationToken(installId)) throw new Error('invalid token');
     } catch {
-      throw new Error('Android install identifier is unavailable');
+      throw new Error('Installation identity is unavailable');
     }
     try {
       return await fetchJSON(fetchImpl, `${options.workerUrl}${path}`, SEARCH_TIMEOUT_MS, {

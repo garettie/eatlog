@@ -4,7 +4,7 @@ Generated from `package-lock.json` by `scripts/generate-third-party-notices.mjs`
 
 This inventory identifies production packages and their declared SPDX-style license expressions. Package copyright and license files remain authoritative. The bundled Onest font notice is preserved separately in `release/legal/ONEST-OFL-1.1.txt`.
 
-Production package records: 728
+Production package records: 729
 
 | Package | Version | Direct | License |
 | --- | --- | --- | --- |
@@ -358,6 +358,7 @@ Production package records: 728
 | expo-asset | 12.0.13 | no | MIT |
 | expo-build-properties | 1.0.10 | yes | MIT |
 | expo-constants | 18.0.13 | no | MIT |
+| expo-crypto | 15.0.9 | yes | MIT |
 | expo-dev-client | 6.0.21 | yes | MIT |
 | expo-dev-launcher | 6.0.21 | no | MIT |
 | expo-dev-menu | 7.0.19 | no | MIT |

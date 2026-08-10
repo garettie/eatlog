@@ -26,7 +26,7 @@ test('common and full USDA search use Worker POST body without eager detail requ
   const providers = createFoodSearchRemoteProviders({
     workerUrl: 'https://food.example.workers.dev',
     fetchImpl: fetchImpl as typeof fetch,
-    getInstallId: () => 'dd96dec43fb81c97',
+    getInstallationToken: async () => 'dd96dec43fb81c97dd96dec43fb81c97',
   });
   await providers.searchUSDA?.('rice', 'common');
   await providers.searchUSDA?.('rice', 'full');
@@ -35,7 +35,7 @@ test('common and full USDA search use Worker POST body without eager detail requ
   assert.equal(new URL(requests[0].url).pathname, '/v1/usda/search');
   assert.deepEqual(JSON.parse(String(requests[0].init?.body)), { query: 'rice', mode: 'common' });
   assert.deepEqual(JSON.parse(String(requests[1].init?.body)), { query: 'rice', mode: 'full' });
-  assert.equal((requests[0].init?.headers as Record<string, string>)['X-Eatlog-Install-ID'], 'dd96dec43fb81c97');
+  assert.equal((requests[0].init?.headers as Record<string, string>)['X-Eatlog-Install-ID'], 'dd96dec43fb81c97dd96dec43fb81c97');
 });
 
 test('selected USDA item loads full household portions from Worker detail route', async () => {
@@ -51,7 +51,7 @@ test('selected USDA item loads full household portions from Worker detail route'
   const providers = createFoodSearchRemoteProviders({
     workerUrl: 'https://food.example.workers.dev',
     fetchImpl: fetchImpl as typeof fetch,
-    getInstallId: () => 'dd96dec43fb81c97',
+    getInstallationToken: async () => 'dd96dec43fb81c97dd96dec43fb81c97',
   });
   const detail = await providers.loadUSDAFood?.('1');
   assert.deepEqual(detail?.portions.map((portion) => portion.grams), [158, 100]);
@@ -66,7 +66,7 @@ test('Open Food Facts runs only when called and remains independent of Worker av
   const providers = createFoodSearchRemoteProviders({
     workerUrl: '',
     fetchImpl: fetchImpl as typeof fetch,
-    getInstallId: () => 'dd96dec43fb81c97',
+    getInstallationToken: async () => 'dd96dec43fb81c97dd96dec43fb81c97',
     openFoodFactsUserAgent: 'Eatlog/1.1.0 (support@example.com)',
   });
   assert.equal(providers.searchUSDA, undefined);
@@ -146,4 +146,47 @@ test('Open Food Facts cancellation aborts its request and returns no result', as
   controller.abort();
   await assert.rejects(pending, (error: Error) => error.name === 'AbortError');
   assert.equal(captured.signal?.aborted, true);
+});
+
+test('Worker request waits for installation identity and fails closed without fetching', async () => {
+  let fetches = 0;
+  let releaseToken: ((token: string) => void) | undefined;
+  const token = new Promise<string>((resolve) => { releaseToken = resolve; });
+  const providers = createFoodSearchRemoteProviders({
+    workerUrl: 'https://food.example.workers.dev',
+    getInstallationToken: () => token,
+    fetchImpl: (async () => { fetches += 1; return jsonResponse({ foods: [] }); }) as typeof fetch,
+  });
+
+  const pending = providers.searchUSDA!('rice', 'common');
+  await Promise.resolve();
+  assert.equal(fetches, 0);
+  releaseToken?.('0123456789abcdef0123456789abcdef');
+  await pending;
+  assert.equal(fetches, 1);
+
+  const rawToken = 'fedcba9876543210fedcba9876543210';
+  const unavailable = createFoodSearchRemoteProviders({
+    workerUrl: 'https://food.example.workers.dev',
+    getInstallationToken: async () => { throw new Error(rawToken); },
+    fetchImpl: (async () => { fetches += 1; return jsonResponse({ foods: [] }); }) as typeof fetch,
+  });
+  await assert.rejects(unavailable.searchUSDA!('rice', 'common'), (error: unknown) => {
+    assert.equal(String(error), 'Error: Installation identity is unavailable');
+    assert.equal(String(error).includes(rawToken), false);
+    return true;
+  });
+  assert.equal(fetches, 1);
+});
+
+test('Worker request rejects a malformed injected installation identity', async () => {
+  let fetches = 0;
+  const providers = createFoodSearchRemoteProviders({
+    workerUrl: 'https://food.example.workers.dev',
+    getInstallationToken: () => 'not-a-token',
+    fetchImpl: (async () => { fetches += 1; return jsonResponse({ foods: [] }); }) as typeof fetch,
+  });
+
+  await assert.rejects(providers.loadUSDAFood!('1'), /Installation identity is unavailable/);
+  assert.equal(fetches, 0);
 });

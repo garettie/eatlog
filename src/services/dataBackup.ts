@@ -144,7 +144,7 @@ async function createBackup(
 export async function shareBackup(onProgress?: OwnershipProgressListener, signal?: AbortSignal): Promise<OwnershipResult> {
   const archive = await createBackup(onProgress, signal);
   try {
-    if (!await Sharing.isAvailableAsync()) throw new Error('Android sharing is unavailable.');
+    if (!await Sharing.isAvailableAsync()) throw new Error('Sharing is unavailable on this device.');
     onProgress?.({ operation: 'backup', phase: 'share', completed: 3, total: 3, message: 'Choose where to save your backup', cancellable: false });
     await Sharing.shareAsync(archive.uri, {
       mimeType: 'application/octet-stream',

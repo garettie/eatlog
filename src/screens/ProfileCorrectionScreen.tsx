@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +13,7 @@ import { useDataMaintenance } from '../context/DataMaintenanceContext';
 import { deleteEatlogHealthConnectWeights } from '../services/healthConnect';
 import { exportData } from '../services/dataExport';
 import { resetLocalData } from '../services/dataReset';
+import { supportsHealthConnect } from '../services/platformFeatures';
 import { M3 } from '../theme/tokens';
 import { ageFromBirthDate, calcBMR, calcTDEE, calculateTargets } from '../utils/calculations';
 import { todayISO } from '../utils/calendar';
@@ -185,12 +186,22 @@ export default function ProfileCorrectionScreen({ navigation }: Props) {
   }, []);
 
   const deleteAllData = useCallback(() => {
+    const confirmLocalDeletion = () => {
+      Alert.alert('Final confirmation', 'Delete all local Eatlog data now? This cannot be undone.', [
+        { text: 'Keep my data', style: 'cancel' },
+        { text: 'Delete everything', style: 'destructive', onPress: () => { void runDataMaintenance('Deleting all data', resetLocalData).catch(() => { }); } },
+      ]);
+    };
     Alert.alert('Delete all Eatlog data?', 'This erases your profile, logs, targets, reviews, and meal photos from this device.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Continue',
         style: 'destructive',
         onPress: () => {
+          if (!supportsHealthConnect(Platform.OS)) {
+            confirmLocalDeletion();
+            return;
+          }
           void deleteEatlogHealthConnectWeights().then((healthResult) => {
             const detail = healthResult.warning
               ? `${healthResult.warning}\n\nDelete all local Eatlog data anyway?`

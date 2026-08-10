@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, Text, View } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -23,6 +23,7 @@ import { M3 } from '../../theme/tokens';
 import { useToday } from '../../hooks/useToday';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import SheetBackButton from './SheetBackButton';
+import { supportsHealthConnect } from '../../services/platformFeatures';
 
 interface WeightInputStateProps {
   onLogComplete: (result: SaveWeightResult) => void;
@@ -258,7 +259,9 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
 
       {existingOrigin === 'health_connect' ? (
         <View className="rounded-2xl border border-m3-outline-variant/40 bg-m3-surface-container px-4 py-3">
-          <Text className="text-sm font-semibold text-m3-on-surface">Imported from Health Connect</Text>
+          <Text className="text-sm font-semibold text-m3-on-surface">
+            {supportsHealthConnect(Platform.OS) ? 'Imported from Health Connect' : 'Imported weight'}
+          </Text>
           <Text className="mt-1 text-sm text-m3-on-surface-variant">Saving changes makes this an Eatlog entry, so it takes priority for this date.</Text>
         </View>
       ) : null}

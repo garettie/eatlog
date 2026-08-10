@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -14,6 +15,7 @@ import {
 } from '../screens/ProfilePlanScreens';
 import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
 import { AboutScreen, AttributionsScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
+import { supportsHealthConnect } from '../services/platformFeatures';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
@@ -75,9 +77,11 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={PRIVACY_OPTIONS} />
       <Stack.Screen name="BackupRestore" component={BackupRestoreScreen} options={BACKUP_RESTORE_OPTIONS} />
       <Stack.Screen name="ExportData" component={ExportDataScreen} options={EXPORT_DATA_OPTIONS} />
-      <Stack.Screen name="HealthConnect" options={HEALTH_CONNECT_OPTIONS}>
-        {renderHealthConnect}
-      </Stack.Screen>
+      {supportsHealthConnect(Platform.OS) ? (
+        <Stack.Screen name="HealthConnect" options={HEALTH_CONNECT_OPTIONS}>
+          {renderHealthConnect}
+        </Stack.Screen>
+      ) : null}
       <Stack.Screen name="HowEatlogWorks" component={HowEatlogWorksScreen} options={HOW_EATLOG_WORKS_OPTIONS} />
       <Stack.Screen name="About" component={AboutScreen} options={ABOUT_OPTIONS} />
       <Stack.Screen name="Attributions" component={AttributionsScreen} options={ATTRIBUTIONS_OPTIONS} />

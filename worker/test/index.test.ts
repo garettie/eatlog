@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { contract, handleRequest, hashInstallId, type Env } from '../src/index.js';
 
-const INSTALL_ID = '0123456789abcdef';
+const INSTALL_ID = '0123456789abcdef0123456789abcdef';
 const JPEG = '/9j/2f/Z';
 
 class Limiter {

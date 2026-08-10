@@ -138,6 +138,7 @@ export function validateBackupManifest(value: unknown, databaseVersion: number):
     for (const requiredPath of paths) {
       if (!filePaths.has(requiredPath)) throw new Error('Backup manifest is missing file metadata.');
     }
+    if (filePaths.size !== paths.size) throw new Error('Backup manifest contains unexpected file metadata.');
   }
   return manifest as BackupManifest;
 }

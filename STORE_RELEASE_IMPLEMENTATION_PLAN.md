@@ -555,22 +555,22 @@ Target files:
 
 Tasks:
 
-- [ ] Make scan/description token retrieval asynchronous.
-- [ ] Make Worker-backed USDA token retrieval asynchronous.
-- [ ] Preserve dependency injection in tests.
-- [ ] Keep the Worker’s 16 to 64 hexadecimal validation if the new token fits it.
-- [ ] Confirm the Worker hashes the token before rate-limit storage.
-- [ ] Handle token-storage failure as a recoverable service-unavailable state.
+- [x] Make scan/description token retrieval asynchronous.
+- [x] Make Worker-backed USDA token retrieval asynchronous.
+- [x] Preserve dependency injection in tests.
+- [x] Keep the Worker’s 16 to 64 hexadecimal validation if the new token fits it.
+- [x] Confirm the Worker hashes the token before rate-limit storage.
+- [x] Handle token-storage failure as a recoverable service-unavailable state.
 
 Verification:
 
-- [ ] First call creates one valid token.
-- [ ] Concurrent first calls return the same token.
-- [ ] App restart returns the same token.
-- [ ] Corrupt token storage regenerates a valid token without a crash.
-- [ ] Backup/restore does not copy the token.
-- [ ] Android and iOS send the same header format.
-- [ ] No logs contain the token.
+- [x] First call creates one valid token.
+- [x] Concurrent first calls return the same token.
+- [x] App restart returns the same token.
+- [x] Corrupt token storage regenerates a valid token without a crash.
+- [x] Backup/restore does not copy the token.
+- [x] Android and iOS send the same header format.
+- [x] No logs contain the token.
 
 ### M4.2 Hide Android-only health behavior on iOS
 
@@ -585,12 +585,12 @@ Target files:
 
 Tasks:
 
-- [ ] Remove the Health Connect row and route from iOS navigation.
-- [ ] Skip foreground Health Connect sync on iOS.
-- [ ] Remove Health Connect wording from iOS privacy and delete-all copy.
-- [ ] Keep Android behavior unchanged.
-- [ ] Ignore Android Health Connect sync metadata safely when an Android backup is restored on iOS.
-- [ ] Keep Apple Health/HealthKit out of v1 code and metadata.
+- [x] Remove the Health Connect row and route from iOS navigation.
+- [x] Skip foreground Health Connect sync on iOS.
+- [x] Remove Health Connect wording from iOS privacy and delete-all copy.
+- [x] Keep Android behavior unchanged.
+- [x] Ignore Android Health Connect sync metadata safely when an Android backup is restored on iOS.
+- [x] Keep Apple Health/HealthKit out of v1 code and metadata.
 
 ### M4.3 Validate every native iOS surface
 
@@ -610,11 +610,11 @@ Tasks:
 
 ### M4.4 Verify iOS store configuration
 
-- [ ] App Store bundle identifier matches evaluated Expo config.
+- [x] App Store bundle identifier matches evaluated Expo config.
 - [ ] Distribution certificate and provisioning profile exist in EAS.
-- [ ] The generated Info.plist contains camera/photo descriptions and no microphone description.
+- [x] The generated Info.plist contains camera/photo descriptions and no microphone description.
 - [ ] The binary contains required privacy manifests and approved-reason entries from dependencies.
-- [ ] `supportsTablet` remains false and App Store Connect expects iPhone assets only.
+- [x] `supportsTablet` remains false and App Store Connect expects iPhone assets only.
 - [ ] The archive uses Xcode 26/iOS 26 SDK or the current Apple minimum.
 
 ### M4 exit criteria
@@ -1317,3 +1317,14 @@ Recheck these before submission:
 - Local preparation result: Android and iOS `npx expo prebuild --platform <platform> --no-install` passed in `/tmp`. Current EAS CLI configuration evaluation passed for both production platforms. Local archive inspection produced `/tmp/eatlog-m3-archive-android` and `/tmp/eatlog-m3-archive-ios`; both contain the owned plugin and exclude dependency folders, environment files, generated native folders, build output, and credential file types. No `eas build`, cloud build, signing, upload, update publish, or submission occurred. A later local pre-build inspection was interrupted and is not used as evidence.
 - OTA decision: `runtimeVersion.policy: "appVersion"` remains. `release/runbooks/OTA_POLICY.md` defines native/database/privacy exclusions, verification evidence, halt conditions, and interactive rollback. No update was published.
 - Remaining M3 blockers: **STORE ACCOUNT** Apple must reserve `com.sgaret.eatlog`, App Store Connect must supply an app ID, and Google production submission stays unset until closed testing; **CREDENTIAL** signing and store-submit credentials remain absent; **STORE ACCOUNT / CREDENTIAL** preview rollback practice requires an authorized EAS update record; **PHYSICAL DEVICE** Health Connect and iOS permission flows remain unverified; **ENVIRONMENT LIMITATION** Linux cannot run Xcode/CocoaPods aggregation or inspect a signed iOS archive; **PAID SERVICE** no cloud build or submission was run. These blockers do not invalidate the completed source/configuration M3 exit gate, but they remain release gates.
+
+### Phase 3 / M4 account-free evidence: 2026-08-10
+
+- Changed identity/request source: `src/services/installIdentity.ts`, `src/services/foodScan.ts`, `src/services/foodSearchRemote.ts`, their tests, the synthetic evaluation client, `expo-crypto` dependency records, and generated third-party notices. The service creates 16 secure random bytes as 32 lowercase hexadecimal characters, persists them in an app-private document file outside SQLite, shares concurrent initialization, retries after storage failure, and never returns internal causes or logs the token.
+- Changed platform source: `src/services/platformFeatures.ts`, Health Connect service/navigation/Profile/privacy/reset guards, restored-sync-state cleanup and tests, the shared iOS date picker, and platform-neutral backup/export sharing errors. Android remains on its existing Health Connect and calendar paths. iOS does not load the Health Connect native bridge, schedule foreground sync, register the route, show the Profile row, or show Health Connect privacy/reset/export wording.
+- Backup decision: current backups stage only `database.sqlite`, `manifest.json`, and referenced meal photos. Version-2 manifests now reject any file metadata outside that exact allowlist; the installation-identity filename is an explicit rejection test. Restore still clears device-specific Health Connect state and export ledger while preserving all weight rows, including Android-imported rows.
+- Worker contract: the existing 16-to-64 hexadecimal validator accepts the 32-character token. Rate-limit storage receives a salted SHA-256 digest, never the raw token. The Worker redaction test excludes the raw token, digest, headers, request inputs, provider bodies, and secrets.
+- Commands and results: focused identity/request tests passed 18/18; `env TMPDIR=/tmp npm test` passed 203/203; `npm run typecheck` passed after both code batches; Worker `npm test` passed 17/17; `npm run notices:check` passed; `git diff --check` passed. The first focused test attempt hit an **ENVIRONMENT LIMITATION** because sandboxed `tsx` could not create `/tmp/tsx-1000/15.pipe`; the approved local rerun passed and no network or paid service was used.
+- Artifact: `release/qa/IOS_SOURCE_AUDIT.md` maps each iOS-native surface to inspected source and the exact remaining physical check. Earlier branch artifacts already prove evaluated bundle IDs, iPhone-only configuration, camera/photo usage strings, absent microphone usage, and encryption configuration.
+- UX decision: the first-use Scan/Describe disclosure remains the only transmission gate. It is not repeated after acceptance, and no helper paragraph was added to the FAB, camera, gallery, Describe, search, review, or logging paths.
+- Remaining M4 blockers: **PHYSICAL DEVICE** Android/iPhone permission, camera, picker, Files, sharing, interruption, layout, accessibility, cross-platform archive, and remote-service checks; **ENVIRONMENT LIMITATION** no Xcode, iOS Simulator, CocoaPods native aggregation, or signed-binary inspection; **CREDENTIAL / STORE ACCOUNT** no distribution certificate, provisioning profile, App Store record, or TestFlight build; **PAID SERVICE** no EAS cloud build or simulator was used. A single post-change local iOS JavaScript export remains scheduled for the final account-free audit. M4 signed-build exit criteria remain unchecked.

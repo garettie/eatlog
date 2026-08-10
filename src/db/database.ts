@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 import { parseLocalISO, todayISO } from '../utils/calendar';
 import { computeWeightTrend } from '../utils/weightTrend';
 import { FOOD_LOG_DATA_TYPE_MIGRATION_SQL } from './foodLogDataTypeMigration';
+import { CLEAR_HEALTH_CONNECT_DEVICE_STATE_SQL } from './healthConnectDeviceState';
 import { WEIGHT_ORIGIN_MIGRATION_SQL } from './weightOriginMigration';
 import {
   assertProfileSafe,
@@ -1024,10 +1025,7 @@ export async function markHealthConnectDeletionComplete(logDate: string): Promis
 
 export async function clearHealthConnectDeviceState(): Promise<void> {
   const db = await getDb();
-  await db.withExclusiveTransactionAsync(async (txn) => {
-    await txn.runAsync('UPDATE health_connect_state SET enabled = 0, last_sync_at = NULL WHERE id = 1');
-    await txn.runAsync('DELETE FROM health_connect_weight_exports');
-  });
+  await db.withExclusiveTransactionAsync((txn) => txn.execAsync(CLEAR_HEALTH_CONNECT_DEVICE_STATE_SQL));
 }
 
 export async function insertDailyTarget(params: DailyTargetInput): Promise<void> {

@@ -8,6 +8,7 @@ import {
   validateBackupFileIntegrity,
   validateBackupManifest,
 } from './backupManifest';
+import { INSTALLATION_TOKEN_FILE_NAME } from '../services/installIdentity';
 
 test('accepts Eatlog backups and legacy Marco backups', () => {
   assert.equal(isSupportedBackupFileName('eatlog-123.eatlog-backup'), true);
@@ -70,4 +71,14 @@ test('validates actual database counts, file sizes, and integrity hashes', () =>
   assert.doesNotThrow(() => validateBackupFileIntegrity(v2.files[0], { size: 4096, md5: 'A'.repeat(32) }));
   assert.throws(() => validateBackupFileIntegrity(v2.files[0], { size: 4095, md5: 'a'.repeat(32) }), /integrity check/);
   assert.throws(() => validateBackupFileIntegrity(v2.files[0], { size: 4096, md5: 'b'.repeat(32) }), /integrity check/);
+});
+
+test('backup allowlist excludes the app-scoped installation identity', () => {
+  assert.throws(() => validateBackupManifest({
+    ...v2,
+    files: [
+      ...v2.files,
+      { archivePath: INSTALLATION_TOKEN_FILE_NAME, size: 32, md5: 'c'.repeat(32) },
+    ],
+  }, 9), /unexpected file metadata/);
 });

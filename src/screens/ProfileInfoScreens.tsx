@@ -8,6 +8,7 @@ import ResponsiveContent from '../components/ResponsiveContent';
 import { serviceConfig } from '../config/services';
 import { getDatabaseVersion } from '../db/database';
 import { LEGAL_ATTRIBUTIONS } from '../services/legalAttributions';
+import { supportsHealthConnect } from '../services/platformFeatures';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 import { getApplicationInfo } from '../utils/applicationInfo';
@@ -242,6 +243,7 @@ export function HowEatlogWorksScreen() {
 }
 
 export function PrivacyScreen() {
+    const healthConnectAvailable = supportsHealthConnect(Platform.OS);
     const estimateCopy = serviceConfig.availability.gemini
         ? 'After you accept the disclosure, Eatlog sends the selected photo or description to the Eatlog Worker, which sends it to Google Gemini for an estimate. Cloudflare uses an app-scoped installation token and IP address for rate limiting.'
         : 'Meal estimates are unavailable in this build.';
@@ -263,7 +265,9 @@ export function PrivacyScreen() {
             <Callout
                 icon="verified-user"
                 title="Local by default"
-                detail="Eatlog uses online services when you scan, describe, or search for food. You control exports and Health Connect."
+                detail={healthConnectAvailable
+                    ? 'Eatlog uses online services when you scan, describe, or search for food. You control exports and Health Connect.'
+                    : 'Eatlog uses online services when you scan, describe, or search for food. You control exports and deletion.'}
             />
 
             <View className="gap-3">
@@ -274,24 +278,33 @@ export function PrivacyScreen() {
                 </Card>
             </View>
 
-            <View className="gap-3">
-                <SectionTitle title="Connected service" />
-                <Card className="overflow-hidden">
-                    <InfoRow
-                        icon="health-and-safety"
-                        title="Health Connect"
-                        detail="When you connect Health Connect, Eatlog reads weight records and writes your weigh-ins using the permissions you grant."
-                        last
-                    />
-                </Card>
-            </View>
+            {healthConnectAvailable ? (
+                <View className="gap-3">
+                    <SectionTitle title="Connected service" />
+                    <Card className="overflow-hidden">
+                        <InfoRow
+                            icon="health-and-safety"
+                            title="Health Connect"
+                            detail="When you connect Health Connect, Eatlog reads weight records and writes your weigh-ins using the permissions you grant."
+                            last
+                        />
+                    </Card>
+                </View>
+            ) : null}
 
             <View className="gap-3">
                 <SectionTitle title="Files and deletion" />
                 <Card className="overflow-hidden">
                     <InfoRow icon="backup" title="Backups" detail="A backup includes your database and saved meal photos." />
                     <InfoRow icon="file-download" title="CSV exports" detail="Eatlog exports readable history without photos or sync data." />
-                    <InfoRow icon="delete-outline" title="Delete all data" detail="When you confirm deletion, Eatlog removes local data and meal photos, then tries to remove its Health Connect entries." last />
+                    <InfoRow
+                        icon="delete-outline"
+                        title="Delete all data"
+                        detail={healthConnectAvailable
+                            ? 'When you confirm deletion, Eatlog removes local data and meal photos, then tries to remove its Health Connect entries.'
+                            : 'When you confirm deletion, Eatlog removes local data and meal photos from this device.'}
+                        last
+                    />
                 </Card>
             </View>
         </Screen>
