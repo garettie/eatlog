@@ -3,14 +3,18 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View } from 'react-native';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
+import ProfileCorrectionScreen from '../screens/ProfileCorrectionScreen';
 import SetupCompleteScreen from '../screens/SetupCompleteScreen';
 import TabNavigator from './TabNavigator';
-import { getProfile } from '../db/database';
+import { getDailyTargetForDate, getLatestWeightLogOnOrBefore, getProfile } from '../db/database';
+import { todayISO } from '../utils/calendar';
+import { profileSafetyIssues, targetSafetyIssues, validateWeightKg } from '../utils/nutritionSafety';
 
 // ─── Route param types ────────────────────────────────────────────────────
 
 export type RootStackParamList = {
   Onboarding: undefined;
+  ProfileCorrection: undefined;
   SetupComplete: {
     displayName: string;
     tdee: number;
@@ -24,7 +28,7 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-type InitialRoute = 'Onboarding' | 'SetupComplete' | 'Tabs';
+type InitialRoute = 'Onboarding' | 'ProfileCorrection' | 'SetupComplete' | 'Tabs';
 
 export default function RootNavigator() {
   const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null);
@@ -39,7 +43,23 @@ export default function RootNavigator() {
           setInitialRoute('Onboarding');
           return;
         }
-        setInitialRoute('Tabs');
+        const today = todayISO();
+        const weight = await getLatestWeightLogOnOrBefore(today);
+        const currentWeightKg = weight?.trend_weight_kg != null && !validateWeightKg(weight.trend_weight_kg, 'Trend weight')
+          ? weight.trend_weight_kg
+          : weight?.scale_weight_kg != null && !validateWeightKg(weight.scale_weight_kg, 'Scale weight')
+            ? weight.scale_weight_kg
+            : null;
+        const profileIssues = profileSafetyIssues(profile, {
+          currentWeightKg,
+          requireCurrentWeight: true,
+          checkGoalDirection: false,
+        });
+        const target = await getDailyTargetForDate(today);
+        const targetIssues = target
+          ? targetSafetyIssues(target, { goalType: profile.goal_type, referenceWeightKg: currentWeightKg })
+          : ['An active nutrition target is required.'];
+        setInitialRoute(profileIssues.length === 0 && targetIssues.length === 0 ? 'Tabs' : 'ProfileCorrection');
       } catch (e) {
         console.error('[Navigation] onboarding check failed', e);
         setInitialRoute('Onboarding');
@@ -63,6 +83,7 @@ export default function RootNavigator() {
       }}
     >
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      <Stack.Screen name="ProfileCorrection" component={ProfileCorrectionScreen} />
       <Stack.Screen
         name="SetupComplete"
         component={SetupCompleteScreen}

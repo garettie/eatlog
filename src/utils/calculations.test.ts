@@ -1,60 +1,47 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { GoalType, ProteinPreference } from '../db/database';
-import { calculateMacrosForCalories, calculateTargets } from './calculations';
+import type { ActivityLevel, GoalType, ProteinPreference, Sex } from '../db/database';
+import {
+  calcBMR,
+  calcTDEE,
+  calculateMacrosForCalories,
+  calculateTargets,
+} from './calculations';
 
-const PROTEIN_BASE: Record<GoalType, number> = { cut: 2.1, maintain: 1.8, bulk: 1.7 };
-const PROTEIN_OFFSET: Record<ProteinPreference, number> = {
-  low: -0.2,
-  moderate: 0,
-  high: 0.2,
-  extra_high: 0.4,
-};
+const activities: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
+const preferences: ProteinPreference[] = ['low', 'moderate', 'high', 'extra_high'];
 
-function legacyCalculateTargets(input: {
-  tdeeKcal: number;
-  goalType: GoalType;
-  proteinPreference: ProteinPreference;
-  weightKg: number;
-  goalRateKgPerWeek: number;
-}) {
-  let targetCalories = input.tdeeKcal + input.goalRateKgPerWeek * 7700 / 7;
-  const gramsPerKg = Math.max(
-    PROTEIN_BASE[input.goalType] + PROTEIN_OFFSET[input.proteinPreference],
-    1.2,
-  );
-  const targetProteinG = Math.round(input.weightKg * gramsPerKg * 10) / 10;
-  const targetFatG = Math.round((targetCalories * 0.25) / 9 * 10) / 10;
-  const remainingKcal = targetCalories - targetProteinG * 4 - targetFatG * 9;
-  let targetCarbsG: number;
-  if (remainingKcal < 200) {
-    targetCarbsG = 50;
-    targetCalories = Math.round(targetProteinG * 4 + targetFatG * 9 + targetCarbsG * 4);
-  } else {
-    targetCarbsG = Math.round(remainingKcal / 4 * 10) / 10;
-  }
-  return {
-    targetCalories: Math.round(targetCalories),
-    targetProteinG,
-    targetFatG,
-    targetCarbsG,
-  };
-}
-
-test('calculateTargets preserves legacy output across goal and carb-floor cases', () => {
-  const cases = [
-    { tdeeKcal: 2500, goalType: 'cut', proteinPreference: 'moderate', weightKg: 80, goalRateKgPerWeek: -0.5 },
-    { tdeeKcal: 2000, goalType: 'maintain', proteinPreference: 'low', weightKg: 60, goalRateKgPerWeek: 0 },
-    { tdeeKcal: 2800, goalType: 'bulk', proteinPreference: 'extra_high', weightKg: 90, goalRateKgPerWeek: 0.4 },
-    { tdeeKcal: 500, goalType: 'cut', proteinPreference: 'high', weightKg: 200, goalRateKgPerWeek: -1 },
-  ] as const;
-
-  for (const input of cases) {
-    assert.deepEqual(calculateTargets(input), legacyCalculateTargets(input));
+test('both BMR branches and every activity level produce finite positive values', () => {
+  for (const sex of ['male', 'female'] as Sex[]) {
+    const bmr = calcBMR({ sex, weight_kg: 80, height_cm: 180, age: 35 });
+    assert.ok(Number.isFinite(bmr) && bmr > 0);
+    for (const activityLevel of activities) {
+      const tdee = calcTDEE(bmr, activityLevel);
+      assert.ok(Number.isFinite(tdee) && tdee > 0);
+    }
   }
 });
 
-test('calculateTargets delegates the goal-adjusted calories to the shared allocator', () => {
+test('all protein preferences produce safe targets for each goal', () => {
+  for (const goalType of ['cut', 'maintain', 'bulk'] as GoalType[]) {
+    for (const proteinPreference of preferences) {
+      const rate = goalType === 'cut' ? -0.5 : goalType === 'bulk' ? 0.25 : 0;
+      const result = calculateTargets({
+        tdeeKcal: 2500,
+        goalType,
+        proteinPreference,
+        weightKg: 80,
+        goalRateKgPerWeek: rate,
+      });
+      assert.ok(result.targetCalories >= 1000 && result.targetCalories <= 6000);
+      assert.ok(result.targetProteinG > 0);
+      assert.ok(result.targetFatG > 0);
+      assert.ok(result.targetCarbsG >= 130);
+    }
+  }
+});
+
+test('calculateTargets delegates safe goal-adjusted calories to the allocator', () => {
   const input = {
     tdeeKcal: 2400,
     goalType: 'bulk' as const,
@@ -63,9 +50,31 @@ test('calculateTargets delegates the goal-adjusted calories to the shared alloca
     goalRateKgPerWeek: 0.25,
   };
   assert.deepEqual(calculateTargets(input), calculateMacrosForCalories({
-    targetCalories: input.tdeeKcal + input.goalRateKgPerWeek * 7700 / 7,
+    targetCalories: Math.round(input.tdeeKcal + input.goalRateKgPerWeek * 7700 / 7),
     goalType: input.goalType,
     proteinPreference: input.proteinPreference,
     weightKg: input.weightKg,
+  }));
+});
+
+test('the existing low-calorie path stops instead of returning negative or rewritten macros', () => {
+  assert.throws(() => calculateTargets({
+    tdeeKcal: 500,
+    goalType: 'cut',
+    proteinPreference: 'high',
+    weightKg: 200,
+    goalRateKgPerWeek: -0.9,
+  }), /Calories|Carbohydrates|target/);
+});
+
+test('non-finite and unsupported calculation inputs are rejected', () => {
+  assert.throws(() => calcBMR({ sex: 'male', weight_kg: Number.NaN, height_cm: 180, age: 35 }));
+  assert.throws(() => calcBMR({ sex: 'male', weight_kg: 80, height_cm: 180, age: 17 }));
+  assert.throws(() => calcTDEE(Number.POSITIVE_INFINITY, 'moderate'));
+  assert.throws(() => calculateMacrosForCalories({
+    targetCalories: Number.POSITIVE_INFINITY,
+    goalType: 'maintain',
+    proteinPreference: 'moderate',
+    weightKg: 80,
   }));
 });

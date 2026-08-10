@@ -25,11 +25,18 @@ import {
     updateProfilePresentation,
 } from '../db/database';
 import { ageFromBirthDate, calcBMR, calcTDEE, calculateTargets, type MacroTargets } from '../utils/calculations';
-import { parseLocalISO, todayISO } from '../utils/calendar';
+import { todayISO } from '../utils/calendar';
 import { MANUAL_TARGET_CALORIE_TOLERANCE, macroCalories, validateManualTargets } from '../utils/planValidation';
 import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilograms } from '../utils/weightUnits';
 import { M3 } from '../theme/tokens';
-import { GOAL_RATE_RANGES, isGoalRateValid } from '../utils/goalRate';
+import { goalRateBounds, isGoalRateValid } from '../utils/goalRate';
+import {
+    ESTIMATE_DISCLAIMER,
+    profileSafetyIssues,
+    validateBirthDate,
+    validateHeightCm,
+    validateWeightKg,
+} from '../utils/nutritionSafety';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { FORM_MAX_WIDTH } from '../theme/layout';
 
@@ -107,8 +114,14 @@ function toUpdate(profile: Profile, overrides: Partial<ProfileUpdate> = {}): Pro
 async function calculatedPlan(profile: Profile, overrides: Partial<ProfileUpdate> = {}): Promise<{ profile: ProfileUpdate; target: DailyTargetInput }> {
     const nextProfile = toUpdate(profile, overrides);
     const weight = await getLatestWeightLogOnOrBefore(todayISO());
-    const weightKg = weight?.trend_weight_kg ?? weight?.scale_weight_kg ?? profile.target_weight_kg;
-    if (weightKg == null) throw new Error('Add a weight check-in before recalculating targets.');
+    const weightKg = weight?.trend_weight_kg != null && !validateWeightKg(weight.trend_weight_kg, 'Trend weight')
+        ? weight.trend_weight_kg
+        : weight?.scale_weight_kg != null && !validateWeightKg(weight.scale_weight_kg, 'Scale weight')
+            ? weight.scale_weight_kg
+        : null;
+    const profileIssue = profileSafetyIssues(nextProfile, { currentWeightKg: weightKg, requireCurrentWeight: true })[0];
+    if (profileIssue) throw new Error(profileIssue);
+    if (weightKg == null) throw new Error('Add a valid weight check-in before recalculating targets.');
     const tdee = calcTDEE(calcBMR({ sex: nextProfile.sex, weight_kg: weightKg, height_cm: nextProfile.height_cm, age: ageFromBirthDate(nextProfile.birth_date) }), nextProfile.activity_level);
     const macros = calculateTargets({
         tdeeKcal: tdee,
@@ -138,14 +151,23 @@ export function PersonalDetailsScreen() {
     useEffect(() => { if (profile) { setName(profile.display_name); setSex(profile.sex); setBirthDate(profile.birth_date); setHeight(profile.weight_unit === 'kg' ? String(profile.height_cm) : String(cmToFeetInches(profile.height_cm).feet)); setHeightInches(profile.weight_unit === 'kg' ? '' : String(cmToFeetInches(profile.height_cm).inches)); setActivity(profile.activity_level); } }, [profile]);
     const save = useCallback(async () => {
         if (!profile) return;
-        const heightCm = profile.weight_unit === 'kg' ? Number(height) : feetInchesToCm(Number(height), Number(heightInches)); const age = ageFromBirthDate(birthDate);
-        try { parseLocalISO(birthDate); } catch { setError('Enter a valid birth date (YYYY-MM-DD).'); return; }
-        if (age < 5 || age > 125) { setError('Enter a birth date for an age between 5 and 125.'); return; }
-        if (!Number.isFinite(heightCm) || heightCm < 50 || heightCm > 280) { setError('Height must be between 50 and 280 cm.'); return; }
+        const heightCm = profile.weight_unit === 'kg' ? Number(height) : feetInchesToCm(Number(height), Number(heightInches));
+        const birthIssue = validateBirthDate(birthDate);
+        if (birthIssue) { setError(birthIssue); return; }
+        const heightIssue = validateHeightCm(heightCm);
+        if (heightIssue) { setError(heightIssue); return; }
         const next = toUpdate(profile, { display_name: name.trim(), sex, birth_date: birthDate, height_cm: heightCm, activity_level: activity });
         const formulaChanged = sex !== profile.sex || birthDate !== profile.birth_date || heightCm !== profile.height_cm || activity !== profile.activity_level;
         setSaving(true); setError(null);
         try {
+            const latestWeight = await getLatestWeightLogOnOrBefore(todayISO());
+            const currentWeightKg = latestWeight?.trend_weight_kg != null && !validateWeightKg(latestWeight.trend_weight_kg, 'Trend weight')
+                ? latestWeight.trend_weight_kg
+                : latestWeight?.scale_weight_kg != null && !validateWeightKg(latestWeight.scale_weight_kg, 'Scale weight')
+                    ? latestWeight.scale_weight_kg
+                    : null;
+            const profileIssue = profileSafetyIssues(next, { currentWeightKg, requireCurrentWeight: true })[0];
+            if (profileIssue) throw new Error(profileIssue);
             if (formulaChanged) navigation.navigate('PlanPreview', await calculatedPlan(profile, next));
             else { await updateProfilePresentation(next); navigation.goBack(); }
         } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save personal details.'); } finally { setSaving(false); }
@@ -186,7 +208,11 @@ export function GoalAndRateScreen() {
         void (async () => {
             try {
                 const latestWeight = await getLatestWeightLogOnOrBefore(todayISO());
-                const latestWeightKg = latestWeight?.trend_weight_kg ?? latestWeight?.scale_weight_kg ?? null;
+                const latestWeightKg = latestWeight?.trend_weight_kg != null && !validateWeightKg(latestWeight.trend_weight_kg, 'Trend weight')
+                    ? latestWeight.trend_weight_kg
+                    : latestWeight?.scale_weight_kg != null && !validateWeightKg(latestWeight.scale_weight_kg, 'Scale weight')
+                        ? latestWeight.scale_weight_kg
+                        : null;
                 const targetWeightKg = profile.target_weight_kg
                     ?? latestWeightKg
                     ?? null;
@@ -211,37 +237,39 @@ export function GoalAndRateScreen() {
         setGoal(nextGoal);
         if (nextGoal === 'maintain') {
             setRateKg(0);
+            if (currentWeightKg != null) setTargetWeight(fromKilograms(currentWeightKg, profile?.weight_unit ?? 'kg'));
             return;
         }
 
         const fallbackWeightKg = profile?.target_weight_kg ?? null;
         const baseWeightKg = currentWeightKg ?? fallbackWeightKg;
         if (nextGoal === 'cut') {
-            setRateKg(GOAL_RATE_RANGES.cut.defaultRate);
+            setRateKg(goalRateBounds('cut', baseWeightKg).defaultRate);
             if (baseWeightKg != null) {
-                setTargetWeight(fromKilograms(Math.max(20, baseWeightKg - 5), profile?.weight_unit ?? 'kg'));
+                setTargetWeight(fromKilograms(Math.max(30, baseWeightKg - 5), profile?.weight_unit ?? 'kg'));
             }
             return;
         }
 
-        setRateKg(GOAL_RATE_RANGES.bulk.defaultRate);
+        setRateKg(goalRateBounds('bulk', baseWeightKg).defaultRate);
         if (baseWeightKg != null) {
-            setTargetWeight(fromKilograms(Math.min(500, baseWeightKg + 3), profile?.weight_unit ?? 'kg'));
+            setTargetWeight(fromKilograms(Math.min(300, baseWeightKg + 3), profile?.weight_unit ?? 'kg'));
         }
     }, [currentWeightKg, profile]);
 
     const save = useCallback(async () => {
         if (!profile) return; const targetKg = toKilograms(targetWeight, profile.weight_unit);
-        if (!Number.isFinite(targetKg) || targetKg < 20 || targetKg > 500) { setError('Target weight must be between 20 and 500 kg.'); return; }
-        if (!isGoalRateValid(rateKg, goal)) { setError('Use a rate within the available range for the selected goal.'); return; }
+        const targetWeightIssue = validateWeightKg(targetKg, 'Target weight');
+        if (targetWeightIssue) { setError(targetWeightIssue); return; }
+        if (!isGoalRateValid(rateKg, goal, currentWeightKg)) { setError('Use a rate within the safe range for the selected goal and weight.'); return; }
         setSaving(true); setError(null); try { navigation.navigate('PlanPreview', await calculatedPlan(profile, { goal_type: goal, goal_rate_kg_per_week: goal === 'maintain' ? 0 : rateKg, target_weight_kg: targetKg })); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not calculate a plan.'); } finally { setSaving(false); }
     }, [goal, navigation, profile, rateKg, targetWeight]);
 
     if (!profile || !hydrated) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
 
     const weightUnit = profile.weight_unit === 'kg' ? 'kg' : 'lbs';
-    const weightMin = profile.weight_unit === 'kg' ? 20 : 44;
-    const weightMax = profile.weight_unit === 'kg' ? 500 : 1100;
+    const weightMin = profile.weight_unit === 'kg' ? 30 : 66.1;
+    const weightMax = profile.weight_unit === 'kg' ? 300 : 661.4;
     return (
         <Screen>
             <ScrollView contentContainerClassName="p-6 gap-5">
@@ -281,6 +309,7 @@ export function GoalAndRateScreen() {
                                 valueKgPerWeek={rateKg}
                                 onValueChange={setRateKg}
                                 weightUnit={profile.weight_unit}
+                                currentWeightKg={currentWeightKg}
                             />
                         </View>
                     </View>
@@ -306,8 +335,21 @@ export function NutritionTargetsScreen() {
     const save = useCallback(async () => {
         if (!profile) return; setSaving(true); setError(null); try {
             if (mode === 'calculated') { navigation.navigate('PlanPreview', await calculatedPlan(profile)); return; }
-            const targets: MacroTargets = { targetCalories: Number(calories), targetProteinG: Number(protein), targetFatG: Number(fat), targetCarbsG: Number(carbs) }; const validation = validateManualTargets(targets); if (validation) { setError(validation); return; }
+            const targets: MacroTargets = { targetCalories: Number(calories), targetProteinG: Number(protein), targetFatG: Number(fat), targetCarbsG: Number(carbs) };
             const current = await getDailyTargetForDate(todayISO()); if (!current) throw new Error('Current target is unavailable.');
+            const latestWeight = await getLatestWeightLogOnOrBefore(todayISO());
+            const currentWeightKg = latestWeight?.trend_weight_kg != null && !validateWeightKg(latestWeight.trend_weight_kg, 'Trend weight')
+                ? latestWeight.trend_weight_kg
+                : latestWeight?.scale_weight_kg != null && !validateWeightKg(latestWeight.scale_weight_kg, 'Scale weight')
+                    ? latestWeight.scale_weight_kg
+                    : null;
+            if (currentWeightKg == null) throw new Error('Add a valid weight check-in before editing targets.');
+            const validation = validateManualTargets(targets, {
+                goalType: profile.goal_type,
+                referenceWeightKg: currentWeightKg,
+                tdeeEstimate: current.tdee_estimate,
+            });
+            if (validation) { setError(validation); return; }
             navigation.navigate('PlanPreview', { profile: toUpdate(profile), target: { effective_date: todayISO(), tdee_estimate: current.tdee_estimate, target_calories: targets.targetCalories, target_protein_g: targets.targetProteinG, target_fat_g: targets.targetFatG, target_carbs_g: targets.targetCarbsG, calculation_method: 'manual' } });
         } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not prepare targets.'); } finally { setSaving(false); }
     }, [calories, carbs, fat, mode, navigation, profile, protein]);
@@ -323,5 +365,5 @@ export function PlanPreviewScreen({ route, navigation, onDataChanged }: Props) {
     useEffect(() => { void getDailyTargetForDate(todayISO()).then((target) => { if (target) setCurrent(target); }).catch(() => setError('Could not load the current target.')); }, []);
     const source = route.params.target.calculation_method === 'manual' ? 'Manual' : 'Profile recalculation';
     const save = async () => { setSaving(true); setError(null); try { await updateProfileAndPlan(route.params); onDataChanged(); navigation.popToTop(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save your plan.'); } finally { setSaving(false); } };
-    return <Screen><ScrollView contentContainerClassName="p-6 gap-5" keyboardShouldPersistTaps="handled"><Text className="text-m3-on-surface-variant text-sm">Effective {route.params.target.effective_date}. Prior diary history stays unchanged.</Text>{current ? <TargetCard label="Current" target={current} /> : <ActivityIndicator color={M3.onSurfaceVariant} />}<TargetCard label={`Proposed · ${source}`} target={route.params.target} />{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Save plan" onPress={() => void save()} loading={saving} /><Pressable onPress={() => navigation.goBack()} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel plan changes" className="min-h-[48px] items-center justify-center"><Text className="text-m3-on-surface font-semibold text-sm">Cancel</Text></Pressable></ScrollView></Screen>;
+    return <Screen><ScrollView contentContainerClassName="p-6 gap-5" keyboardShouldPersistTaps="handled"><Text className="text-m3-on-surface-variant text-sm">Effective {route.params.target.effective_date}. Prior diary history stays unchanged.</Text><Text className="text-m3-on-surface-variant text-xs leading-4">{ESTIMATE_DISCLAIMER}</Text>{current ? <TargetCard label="Current" target={current} /> : <ActivityIndicator color={M3.onSurfaceVariant} />}<TargetCard label={`Proposed · ${source}`} target={route.params.target} />{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Save plan" onPress={() => void save()} loading={saving} /><Pressable onPress={() => navigation.goBack()} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel plan changes" className="min-h-[48px] items-center justify-center"><Text className="text-m3-on-surface font-semibold text-sm">Cancel</Text></Pressable></ScrollView></Screen>;
 }

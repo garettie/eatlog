@@ -31,19 +31,18 @@ import SegmentedControl from '../components/SegmentedControl';
 import TappableRow from '../components/TappableRow';
 import type {
   ActivityLevel,
+  ProfileUpdate,
   GoalType,
   ProteinPreference,
   Sex,
 } from '../db/database';
 import {
-  insertDailyTarget,
-  insertProfile,
-  saveWeightLog,
+  insertInitialProfileAndPlan,
 } from '../db/database';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { M3 } from '../theme/tokens';
 import { todayISO } from '../utils/calendar';
-import { GOAL_RATE_RANGES } from '../utils/goalRate';
+import { goalRateBounds } from '../utils/goalRate';
 import {
   ageFromBirthDate,
   calcBMR,
@@ -54,6 +53,16 @@ import {
   kgToLbs,
   lbsToKg,
 } from '../utils/calculations';
+import {
+  birthDateBounds,
+  ESTIMATE_DISCLAIMER,
+  NUTRITION_SAFETY_POLICY,
+  profileSafetyIssues,
+  validateBirthDate,
+  validateHeightCm,
+  validateWeightKg,
+  WELLNESS_DISCLAIMER,
+} from '../utils/nutritionSafety';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { FORM_MAX_WIDTH } from '../theme/layout';
 
@@ -61,20 +70,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 type UnitSystem = 'metric' | 'imperial';
 
 const TOTAL_STEPS = 6;
-
-function yearsAgo(date: Date, years: number): Date {
-  const year = date.getFullYear() - years;
-  const day = Math.min(
-    date.getDate(),
-    new Date(year, date.getMonth() + 1, 0).getDate()
-  );
-  return new Date(year, date.getMonth(), day);
-}
-
-const TODAY = new Date();
-const LATEST_BIRTH_DATE = yearsAgo(TODAY, 5);
-const EARLIEST_BIRTH_DATE = new Date(yearsAgo(TODAY, 126));
-EARLIEST_BIRTH_DATE.setDate(EARLIEST_BIRTH_DATE.getDate() + 1);
 
 function StyledInput({
   label,
@@ -283,25 +278,34 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   function applyHeightCmText(t: string) {
     setHeightCmText(t);
-    const v = parseFloat(t);
-    if (!isNaN(v) && v >= 50 && v <= 280) setHeightCm(Math.round(v * 10) / 10);
+    const v = Number(t.trim());
+    if (Number.isFinite(v)
+      && v >= NUTRITION_SAFETY_POLICY.minimumHeightCm
+      && v <= NUTRITION_SAFETY_POLICY.maximumHeightCm) {
+      setHeightCm(Math.round(v * 10) / 10);
+    }
   }
 
   function applyHeightImperial(ft: string, inches: string) {
     setHeightFtText(ft);
     setHeightInText(inches);
-    const f = parseFloat(ft) || 0;
-    const i = parseFloat(inches) || 0;
+    const f = Number(ft.trim());
+    const i = Number(inches.trim());
     const cm = ftInToCm(f, i);
-    if ((f > 0 || i > 0) && cm >= 50 && cm <= 280) setHeightCm(cm);
+    if (Number.isFinite(f) && Number.isFinite(i)
+      && f >= 0 && i >= 0 && i < 12
+      && cm >= NUTRITION_SAFETY_POLICY.minimumHeightCm
+      && cm <= NUTRITION_SAFETY_POLICY.maximumHeightCm) {
+      setHeightCm(cm);
+    }
   }
 
   function applyWeightText(t: string) {
     setWeightText(t);
-    const v = parseFloat(t);
-    if (isNaN(v)) return;
+    const v = Number(t.trim());
+    if (!Number.isFinite(v)) return;
     const kg = units === 'metric' ? v : lbsToKg(v);
-    if (kg < 20 || kg > 500) return;
+    if (validateWeightKg(kg)) return;
     if (units === 'metric') {
       setWeightKg(v);
       setWeightLbs(Math.round(kgToLbs(v)));
@@ -313,10 +317,10 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   function applyTargetWeightText(t: string) {
     setTargetWeightText(t);
-    const v = parseFloat(t);
-    if (isNaN(v)) return;
+    const v = Number(t.trim());
+    if (!Number.isFinite(v)) return;
     const kg = units === 'metric' ? v : lbsToKg(v);
-    if (kg < 20 || kg > 500) return;
+    if (validateWeightKg(kg, 'Target weight')) return;
     if (units === 'metric') {
       setTargetWeightKg(v);
       setTargetWeightLbs(Math.round(kgToLbs(v) * 10) / 10);
@@ -332,6 +336,21 @@ export default function OnboardingScreen({ navigation }: Props) {
     return units === 'metric' ? weightKg : lbsToKg(weightLbs);
   }
 
+  function resolveHeightInputCm(): number {
+    if (units === 'metric') return Number(heightCmText.trim());
+    return ftInToCm(Number(heightFtText.trim()), Number(heightInText.trim()));
+  }
+
+  function resolveWeightInputKg(): number {
+    const value = Number(weightText.trim());
+    return units === 'metric' ? value : lbsToKg(value);
+  }
+
+  function resolveTargetWeightInputKg(): number {
+    const value = Number(targetWeightText.trim());
+    return units === 'metric' ? value : lbsToKg(value);
+  }
+
   function resolveBirthDateISO(): string {
     const y = birthDate.getFullYear();
     const mo = String(birthDate.getMonth() + 1).padStart(2, '0');
@@ -340,20 +359,36 @@ export default function OnboardingScreen({ navigation }: Props) {
   }
 
   function isValidBirthDate(): boolean {
-    const age = ageFromBirthDate(resolveBirthDateISO());
-    return age >= 5 && age <= 125;
+    return validateBirthDate(resolveBirthDateISO()) == null;
   }
 
   function validateStep(stepNum: number): string | null {
     switch (stepNum) {
       case 1:
-        if (!isValidBirthDate()) return 'Please enter a valid birth date.';
+        if (!isValidBirthDate()) return validateBirthDate(resolveBirthDateISO()) ?? 'Please enter a valid birth date.';
         return null;
       case 2: {
-        if (heightCm < 50 || heightCm > 280) return 'Height must be between 50 cm and 280 cm.';
-        const w = resolveWeightKg();
-        if (w < 20 || w > 500) return 'Weight must be between 20 kg and 500 kg.';
+        const heightIssue = validateHeightCm(resolveHeightInputCm());
+        if (heightIssue) return heightIssue;
+        const weightIssue = validateWeightKg(resolveWeightInputKg(), 'Current weight');
+        if (weightIssue) return weightIssue;
         return null;
+      }
+      case 4: {
+        const currentWeightKg = resolveWeightInputKg();
+        const nextProfile: ProfileUpdate = {
+          display_name: displayName.trim(),
+          sex,
+          height_cm: resolveHeightInputCm(),
+          birth_date: resolveBirthDateISO(),
+          activity_level: activityLevel,
+          goal_type: goalType,
+          goal_rate_kg_per_week: goalType === 'maintain' ? 0 : goalRate,
+          protein_preference: proteinPreference,
+          weight_unit: units === 'metric' ? 'kg' : 'lb',
+          target_weight_kg: goalType === 'maintain' ? currentWeightKg : resolveTargetWeightInputKg(),
+        };
+        return profileSafetyIssues(nextProfile, { currentWeightKg })[0] ?? null;
       }
       default:
         return null;
@@ -364,15 +399,21 @@ export default function OnboardingScreen({ navigation }: Props) {
     setGoalType(gt);
     if (gt === 'maintain') {
       setGoalRate(0);
+      const currentWeightKg = resolveWeightKg();
+      setTargetWeightKg(currentWeightKg);
+      setTargetWeightLbs(Math.round(kgToLbs(currentWeightKg) * 10) / 10);
+      setTargetWeightText(units === 'metric' ? currentWeightKg.toFixed(1) : String(Math.round(kgToLbs(currentWeightKg) * 10) / 10));
     } else if (gt === 'cut') {
-      setGoalRate(GOAL_RATE_RANGES.cut.defaultRate);
-      const nextTargetKg = Math.max(20, resolveWeightKg() - 5);
+      const currentWeightKg = resolveWeightKg();
+      setGoalRate(goalRateBounds('cut', currentWeightKg).defaultRate);
+      const nextTargetKg = Math.max(NUTRITION_SAFETY_POLICY.minimumWeightKg, currentWeightKg - 5);
       setTargetWeightKg(nextTargetKg);
       setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
       setTargetWeightText(units === 'metric' ? nextTargetKg.toFixed(1) : String(Math.round(kgToLbs(nextTargetKg) * 10) / 10));
     } else {
-      setGoalRate(GOAL_RATE_RANGES.bulk.defaultRate);
-      const nextTargetKg = Math.min(500, resolveWeightKg() + 3);
+      const currentWeightKg = resolveWeightKg();
+      setGoalRate(goalRateBounds('bulk', currentWeightKg).defaultRate);
+      const nextTargetKg = Math.min(NUTRITION_SAFETY_POLICY.maximumWeightKg, currentWeightKg + 3);
       setTargetWeightKg(nextTargetKg);
       setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
       setTargetWeightText(units === 'metric' ? nextTargetKg.toFixed(1) : String(Math.round(kgToLbs(nextTargetKg) * 10) / 10));
@@ -395,11 +436,17 @@ export default function OnboardingScreen({ navigation }: Props) {
   }
 
   async function handleCalculate() {
+    const validationError = [validateStep(1), validateStep(2), validateStep(4)].find(Boolean);
+    if (validationError) {
+      setStepError(validationError);
+      return;
+    }
     setIsCalculating(true);
+    setStepError(null);
     try {
-      const w = resolveWeightKg();
+      const w = resolveWeightInputKg();
       const age = ageFromBirthDate(resolveBirthDateISO());
-      const bmr = calcBMR({ sex, weight_kg: w, height_cm: heightCm, age });
+      const bmr = calcBMR({ sex, weight_kg: w, height_cm: resolveHeightInputCm(), age });
       const tdee = calcTDEE(bmr, activityLevel);
       setTdeeEstimate(Math.round(tdee));
 
@@ -412,12 +459,14 @@ export default function OnboardingScreen({ navigation }: Props) {
       });
       setComputedTargets(targets);
       goToStep(TOTAL_STEPS);
+    } catch (error) {
+      setStepError(error instanceof Error ? error.message : 'Could not calculate a safe plan.');
     } finally {
       setIsCalculating(false);
     }
   }
 
-  // ── Step 6: calculating beat → auto-save ────────────────────────────────
+  // ── Step 6: calculation review ─────────────────────────────────────────
 
   const [calcStage, setCalcStage] = useState(0);
   const savedRef = useRef(false);
@@ -428,71 +477,61 @@ export default function OnboardingScreen({ navigation }: Props) {
     setCalcStage(0);
     if (reduced) {
       setCalcStage(CALC_LINES.length);
-      const t = setTimeout(() => void saveOnce(), 250);
-      return () => clearTimeout(t);
+      return;
     }
     const timers = CALC_LINES.map((_, i) =>
       setTimeout(() => setCalcStage(i + 1), 400 * (i + 1))
     );
-    const saveT = setTimeout(() => void saveOnce(), 400 * CALC_LINES.length + 450);
     return () => {
       timers.forEach(clearTimeout);
-      clearTimeout(saveT);
     };
   }, [step, computedTargets]);
 
-  async function saveOnce() {
-    if (savedRef.current) return;
-    savedRef.current = true;
-    await handleSave();
-  }
-
   async function handleSave() {
+    if (savedRef.current || !computedTargets) return;
+    savedRef.current = true;
     setIsSubmitting(true);
     try {
-      const w = resolveWeightKg();
+      const w = resolveWeightInputKg();
       const today = todayISO();
-
-      await insertProfile({
+      const profile: ProfileUpdate = {
         display_name: displayName.trim(),
         sex,
-        height_cm: heightCm,
+        height_cm: resolveHeightInputCm(),
         birth_date: resolveBirthDateISO(),
         activity_level: activityLevel,
         goal_type: goalType,
-        goal_rate_kg_per_week: goalRate,
+        goal_rate_kg_per_week: goalType === 'maintain' ? 0 : goalRate,
         protein_preference: proteinPreference,
         weight_unit: units === 'metric' ? 'kg' : 'lb',
-        target_weight_kg: goalType === 'maintain' ? w : targetWeightKg,
-      });
-
-      await saveWeightLog({
-        logDate: today,
-        scaleWeightKg: w,
-      });
-
-      await insertDailyTarget({
-        effective_date: today,
-        tdee_estimate: tdeeEstimate,
-        target_calories: computedTargets!.targetCalories,
-        target_protein_g: computedTargets!.targetProteinG,
-        target_fat_g: computedTargets!.targetFatG,
-        target_carbs_g: computedTargets!.targetCarbsG,
-        calculation_method: 'initial_estimate',
+        target_weight_kg: goalType === 'maintain' ? w : resolveTargetWeightInputKg(),
+      };
+      await insertInitialProfileAndPlan({
+        profile,
+        weightKg: w,
+        target: {
+          effective_date: today,
+          tdee_estimate: tdeeEstimate,
+          target_calories: computedTargets.targetCalories,
+          target_protein_g: computedTargets.targetProteinG,
+          target_fat_g: computedTargets.targetFatG,
+          target_carbs_g: computedTargets.targetCarbsG,
+          calculation_method: 'initial_estimate',
+        },
       });
 
       navigation.replace('SetupComplete', {
         displayName: displayName.trim(),
         tdee: tdeeEstimate,
-        targetCalories: computedTargets!.targetCalories,
-        targetProtein: computedTargets!.targetProteinG,
-        targetFat: computedTargets!.targetFatG,
-        targetCarbs: computedTargets!.targetCarbsG,
+        targetCalories: computedTargets.targetCalories,
+        targetProtein: computedTargets.targetProteinG,
+        targetFat: computedTargets.targetFatG,
+        targetCarbs: computedTargets.targetCarbsG,
       });
     } catch (err) {
+      savedRef.current = false;
       console.error('Save error:', err);
-      Alert.alert('Something went wrong', 'Could not save your profile. Please try again.');
-      setStep(5);
+      Alert.alert('Could not save your plan', err instanceof Error ? err.message : 'Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -500,9 +539,10 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   // ── Derived display values ──────────────────────────────────────────────
 
-  const weightMin = units === 'metric' ? 20 : 44;
-  const weightMax = units === 'metric' ? 500 : 1100;
+  const weightMin = units === 'metric' ? NUTRITION_SAFETY_POLICY.minimumWeightKg : Math.round(kgToLbs(NUTRITION_SAFETY_POLICY.minimumWeightKg) * 10) / 10;
+  const weightMax = units === 'metric' ? NUTRITION_SAFETY_POLICY.maximumWeightKg : Math.round(kgToLbs(NUTRITION_SAFETY_POLICY.maximumWeightKg) * 10) / 10;
   const weightUnit = units === 'metric' ? 'kg' : 'lbs';
+  const dateBounds = birthDateBounds();
 
   const heightInches = Math.round(heightCm / 2.54);
   const formatFtIn = (totalIn: number) =>
@@ -595,6 +635,9 @@ export default function OnboardingScreen({ navigation }: Props) {
                       <MaterialIcons name="calendar-today" size={16} color={M3.onSurfaceVariant} />
                     </Pressable>
                   </View>
+                  <Text className="text-xs leading-4 text-m3-on-surface-variant">
+                    {WELLNESS_DISCLAIMER}
+                  </Text>
                 </>
               )}
 
@@ -681,8 +724,8 @@ export default function OnboardingScreen({ navigation }: Props) {
                           setHeightInText(String(inches));
                         }
                       }}
-                      min={units === 'metric' ? 120 : 47}
-                      max={units === 'metric' ? 220 : 87}
+                       min={units === 'metric' ? NUTRITION_SAFETY_POLICY.minimumHeightCm : Math.round(NUTRITION_SAFETY_POLICY.minimumHeightCm / 2.54 * 10) / 10}
+                       max={units === 'metric' ? NUTRITION_SAFETY_POLICY.maximumHeightCm : Math.round(NUTRITION_SAFETY_POLICY.maximumHeightCm / 2.54 * 10) / 10}
                       step={1}
                       unit={units === 'metric' ? 'cm' : ''}
                       label="Height"
@@ -853,6 +896,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                           valueKgPerWeek={goalRate}
                           onValueChange={setGoalRate}
                           weightUnit={units === 'metric' ? 'kg' : 'lb'}
+                          currentWeightKg={resolveWeightKg()}
                         />
                       </View>
                     </Reanimated.View>
@@ -931,9 +975,22 @@ export default function OnboardingScreen({ navigation }: Props) {
                           </View>
                         <Text className="text-sm font-medium text-m3-on-surface">{line}</Text>
                         </Reanimated.View>
-                      ) : null
+                        ) : null
                     )}
                   </View>
+                  {computedTargets && calcStage >= CALC_LINES.length ? (
+                    <View className="w-full gap-4 rounded-3xl bg-m3-surface-container p-6">
+                      <View className="gap-1">
+                        <Text className="text-xs font-semibold uppercase tracking-wider text-m3-on-surface-variant">Review starting targets</Text>
+                        <Text className="text-3xl font-bold text-m3-on-surface tabular-nums">{computedTargets.targetCalories.toLocaleString()} kcal/day</Text>
+                        <Text className="text-sm text-m3-on-surface-variant tabular-nums">
+                          Protein {computedTargets.targetProteinG}g · Carbs {computedTargets.targetCarbsG}g · Fat {computedTargets.targetFatG}g
+                        </Text>
+                      </View>
+                      <Text className="text-xs leading-4 text-m3-on-surface-variant">{ESTIMATE_DISCLAIMER}</Text>
+                      <PrimaryButton title="Use these starting targets" icon="check" onPress={() => void handleSave()} loading={isSubmitting} />
+                    </View>
+                  ) : null}
                 </View>
               )}
             </Reanimated.View>
@@ -986,8 +1043,8 @@ export default function OnboardingScreen({ navigation }: Props) {
       <DateSelector
         visible={showDatePicker}
         value={birthDate}
-        minimumDate={EARLIEST_BIRTH_DATE}
-        maximumDate={LATEST_BIRTH_DATE}
+        minimumDate={dateBounds.earliest}
+        maximumDate={dateBounds.latest}
         onCancel={() => setShowDatePicker(false)}
         onConfirm={(date) => {
           setBirthDate(date);

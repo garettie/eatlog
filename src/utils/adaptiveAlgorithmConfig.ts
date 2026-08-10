@@ -20,7 +20,7 @@ export interface AdaptiveAlgorithmConfig {
 }
 
 export const ADAPTIVE_ALGORITHM_CONFIG: Readonly<AdaptiveAlgorithmConfig> = Object.freeze({
-  algorithmVersion: 4,
+  algorithmVersion: 5,
   windowDays: 28,
   minimumIntakeDays: 10,
   minimumWeightReadings: 4,

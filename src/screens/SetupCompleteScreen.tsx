@@ -21,6 +21,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { M3 } from '../theme/tokens';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
+import { WELLNESS_DISCLAIMER } from '../utils/nutritionSafety';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupComplete'>;
 
@@ -149,10 +150,11 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
                   <Text className="text-m3-on-surface text-sm font-semibold mb-1">
                     Built for better calibration
                   </Text>
-                  <Text className="text-m3-on-surface-variant text-sm">
-                    These starting targets use the Mifflin-St Jeor formula. Consistent food and
-                    weight logs build the history needed for more personalized adjustments.
-                  </Text>
+                    <Text className="text-m3-on-surface-variant text-sm">
+                      These starting targets use the Mifflin-St Jeor formula. Consistent food and
+                      weight logs build the history needed for more personalized adjustments.
+                    </Text>
+                    <Text className="mt-3 text-xs leading-4 text-m3-on-surface-variant">{WELLNESS_DISCLAIMER}</Text>
                 </View>
               </View>
             </Card>

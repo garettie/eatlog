@@ -643,9 +643,9 @@ function AnalyticsScreen({
             <MaterialIcons name="check" size={20} color={M3.onSurfaceVariant} />
           </View>
           <View className="flex-1 min-w-0 gap-0.5">
-            <Text className="text-m3-on-surface font-bold text-sm">No target change recommended</Text>
+            <Text className="text-m3-on-surface font-bold text-sm">{recommendation.reason === 'target_out_of_policy' ? 'No safe target could be calculated' : 'No target change recommended'}</Text>
             <Text className="text-m3-on-surface-variant text-xs tabular-nums">
-              Keep {Math.round(target.target_calories).toLocaleString()} kcal/day
+              {recommendation.reason === 'target_out_of_policy' ? 'Review your profile or consult a qualified professional.' : `Keep ${Math.round(target.target_calories).toLocaleString()} kcal/day`}
             </Text>
           </View>
         </View>

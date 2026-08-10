@@ -50,7 +50,7 @@ The repository already contains the product surface needed for a useful first re
 Verification completed during the release-readiness audit:
 
 - [x] Root TypeScript check passes.
-- [x] Root test suite passes: 162 tests.
+- [x] Root test suite passes: 176 tests.
 - [x] Worker test suite passes: 17 tests.
 - [x] Android production JavaScript export completes.
 - [x] The deployed Worker `/healthz` endpoint responds.
@@ -59,7 +59,7 @@ Known release gaps:
 
 | Area | Current state | Required release state |
 | --- | --- | --- |
-| Nutrition safety | Ages 5 to 125 accepted; one absolute goal-rate range; no common calculated-target floor | Adult-only policy, reviewed limits, one validator for every target source |
+| Nutrition safety | Adult-only policy, reviewed limits, shared validator, and direct failure paths implemented; physical/device and store-policy review remain | Final reviewer evidence and release/device verification |
 | Android permissions | Unused microphone permission requested | Generated manifest contains only required permissions |
 | iOS remote services | Scan, Describe, and USDA depend on Android ID | App-scoped installation identity works on Android and iOS |
 | iOS platform UI | Health Connect remains visible; no bundle identifier or store build | Android-only health UI hidden; signed TestFlight build passes |
@@ -216,6 +216,18 @@ Create a short policy that a qualified reviewer signs off. It must define:
 
 Engineering must translate approved values into named constants and tests. Do not hide policy values inside screen components.
 
+Approved policy used by this batch:
+
+- Ages 18 through 78.
+- Height 100 through 250 cm; weight 30 through 300 kg.
+- Calculated and manual calories 1,000 through 6,000 kcal/day.
+- Protein at least 0.8 g/kg, fat at least 20% of target energy, and carbohydrates at least 130 g/day.
+- Macro-derived energy must be within 10 kcal of the calorie target.
+- Goal-rate step 0.05 kg/week; cut maximum `min(1% of body weight, 0.9 kg/week)`; bulk maximum `min(0.5% of body weight, 0.5 kg/week)`.
+- Cut targets must be below current weight; bulk targets must be above current weight; maintain targets must match rounded TDEE.
+- Unsafe or infeasible calculations stop with a direct error or paused adaptive state; the app does not silently clamp or rewrite targets.
+- Disclosures cover general wellness estimates and advise qualified professional review for pregnancy, breastfeeding, medical conditions, eating-disorder history, or specialized nutrition.
+
 ### M1.2 Enforce adult-only onboarding and profile editing
 
 Target files:
@@ -227,19 +239,19 @@ Target files:
 
 Tasks:
 
-- [ ] Change the accepted minimum age from 5 to 18.
-- [ ] Set the date selector’s maximum birth date to the date exactly 18 years before today.
-- [ ] Parse `YYYY-MM-DD` as a local calendar date instead of relying on UTC string parsing.
-- [ ] Reject future dates, invalid calendar dates, and ages outside policy.
-- [ ] Use the same validation in onboarding and Profile.
-- [ ] Give existing underage profiles a blocking correction screen. Allow birth-date correction, data export, and delete-all. Do not calculate or recommend a plan until the profile passes.
-- [ ] Preserve historical logs when an existing user corrects profile data.
+- [x] Change the accepted minimum age from 5 to 18.
+- [x] Set the date selector’s maximum birth date to the date exactly 18 years before today.
+- [x] Parse `YYYY-MM-DD` as a local calendar date instead of relying on UTC string parsing.
+- [x] Reject future dates, invalid calendar dates, and ages outside policy.
+- [x] Use the same validation in onboarding and Profile.
+- [x] Give existing underage profiles a blocking correction screen. Allow birth-date correction, data export, and delete-all. Do not calculate or recommend a plan until the profile passes.
+- [x] Preserve historical logs when an existing user corrects profile data.
 
 Verification:
 
-- [ ] Test birthdays one day below, on, and one day above the 18-year boundary.
-- [ ] Test leap-day birthdays.
-- [ ] Test local dates in positive and negative UTC offsets.
+- [x] Test birthdays one day below, on, and one day above the 18-year boundary.
+- [x] Test leap-day birthdays.
+- [x] Test local dates in positive and negative UTC offsets.
 - [ ] Test an existing underage profile without deleting its logs.
 
 ### M1.3 Create one validation path for all targets
@@ -254,28 +266,28 @@ Target files:
 
 Tasks:
 
-- [ ] Validate finite inputs before BMR, TDEE, rate, and macro math.
-- [ ] Apply approved calorie and macro boundaries after calculation.
-- [ ] Reject calculations that cannot satisfy all approved boundaries.
-- [ ] Apply one target validator to initial estimates, profile recalculation, manual targets, and adaptive recommendations.
-- [ ] Keep manual and calculated target policies consistent unless the safety policy names a reason for a difference.
-- [ ] Reject a cut target at or above current weight.
-- [ ] Reject a bulk target at or below current weight.
-- [ ] Define maintain-target behavior in the policy and enforce it.
-- [ ] Prevent adaptive Accept from crossing the same target boundaries.
-- [ ] Keep historical targets unchanged. Insert a new effective target only after the user reviews and accepts it.
-- [ ] Show a direct error when a safe plan cannot be calculated. Do not clamp in silence.
+- [x] Validate finite inputs before BMR, TDEE, rate, and macro math.
+- [x] Apply approved calorie and macro boundaries after calculation.
+- [x] Reject calculations that cannot satisfy all approved boundaries.
+- [x] Apply one target validator to initial estimates, profile recalculation, manual targets, and adaptive recommendations.
+- [x] Keep manual and calculated target policies consistent unless the safety policy names a reason for a difference.
+- [x] Reject a cut target at or above current weight.
+- [x] Reject a bulk target at or below current weight.
+- [x] Define maintain-target behavior in the policy and enforce it.
+- [x] Prevent adaptive Accept from crossing the same target boundaries.
+- [x] Keep historical targets unchanged. Insert a new effective target only after the user reviews and accepts it.
+- [x] Show a direct error when a safe plan cannot be calculated. Do not clamp in silence.
 
 Verification matrix:
 
-- [ ] Minimum and maximum age, height, and weight.
-- [ ] Lowest and highest allowed cut and bulk rate at several body weights.
-- [ ] Male and female formula branches.
-- [ ] Each activity level and protein preference.
-- [ ] Manual targets at every boundary.
-- [ ] Negative, zero, `NaN`, infinite, and oversized values.
-- [ ] Adaptive recommendation just inside and outside each boundary.
-- [ ] Regression case for the current low-calorie calculation path.
+- [x] Minimum and maximum age, height, and weight.
+- [x] Lowest and highest allowed cut and bulk rate at several body weights.
+- [x] Male and female formula branches.
+- [x] Each activity level and protein preference.
+- [x] Manual targets at every boundary.
+- [x] Negative, zero, `NaN`, infinite, and oversized values.
+- [x] Adaptive recommendation just inside and outside each boundary.
+- [x] Regression case for the current low-calorie calculation path.
 
 ### M1.4 Add clear health and estimation language
 
@@ -288,18 +300,18 @@ Target files:
 
 Tasks:
 
-- [ ] State that calorie and macro targets are estimates for general wellness use.
-- [ ] State that meal-photo and description results are estimates and require review.
-- [ ] Tell users to consult a qualified professional for medical conditions, pregnancy, eating-disorder history, or specialized nutrition needs.
-- [ ] Avoid diagnosis, treatment, guaranteed weight change, and guaranteed accuracy claims.
-- [ ] Keep the copy concise and visible at decision points.
+- [x] State that calorie and macro targets are estimates for general wellness use.
+- [x] State that meal-photo and description results are estimates and require review.
+- [x] Tell users to consult a qualified professional for medical conditions, pregnancy, eating-disorder history, or specialized nutrition needs.
+- [x] Avoid diagnosis, treatment, guaranteed weight change, and guaranteed accuracy claims.
+- [x] Keep the copy concise and visible at decision points.
 
 ### M1 exit criteria
 
-- [ ] A reviewer approved the target-safety policy.
-- [ ] All target sources pass one shared guardrail suite.
-- [ ] Adult gating works for new and existing profiles.
-- [ ] No valid UI path produces a target outside policy.
+- [x] A reviewer approved the target-safety policy.
+- [x] All target sources pass one shared guardrail suite.
+- [x] Adult gating works for new and existing profiles.
+- [x] No valid UI path produces a target outside policy.
 
 ## 8. Milestone M2: privacy, permissions, support, and legal disclosures
 
@@ -1235,14 +1247,21 @@ Recheck these before submission:
 - Changed `eas.json`: added EAS CLI `>= 16.26.0`, remote app-version management, and a production Android AAB profile using the production environment/channel with auto-increment. Existing development and preview APK profiles are unchanged.
 - Changed `package.json` and `package-lock.json`: added Expo-selected direct dependency `react-native-worklets@0.5.1`, required by `react-native-reanimated@4.1.7` peer range `0.5 - 0.8`.
 
+### Completed M1 nutrition-safety batch
+
+- Added `src/utils/nutritionSafety.ts` as the shared policy and validator for profile, goal-rate, macro, calorie, target-direction, and local-date checks.
+- Hardened initial, profile-recalculation, manual, and adaptive target paths; unsafe values now reject or pause instead of being silently clamped or rewritten.
+- Added blocking `ProfileCorrectionScreen` with correction review, export, and delete-all recovery while preserving existing logs.
+- Added onboarding/profile disclaimers and adaptive target safety checks, plus boundary/regression coverage in utility and database tests.
+
 ### Verification
 
 - `env TMPDIR=/tmp npm ci`: passed; installed 781 packages. npm reported 31 dependency-audit vulnerabilities and blocked `esbuild@0.28.1` postinstall under the local install-scripts policy.
-- `env TMPDIR=/tmp npm test`: passed, 162 tests.
+- `env TMPDIR=/tmp npm test`: passed, 176 tests.
 - `npm run typecheck`: passed.
 - `npx expo install --check`: passed, dependencies up to date.
 - `npx expo-doctor`: 16 of 18 checks passed; remaining warnings documented below.
-- `env TMPDIR=/tmp npx expo export --platform android`: passed; artifact `dist/`.
+- `npx expo export --platform android`: passed; artifact `dist/`.
 - `npx expo config --type public`: evaluated config contains compile/target SDK 36, min SDK 26, only Health Connect READ_WEIGHT/WRITE_WEIGHT permissions, and `microphonePermission: false`.
 - `npx expo prebuild --platform android --no-install`: passed; artifacts `android/gradle.properties` and `android/app/src/main/AndroidManifest.xml`.
 - Generated `android/gradle.properties` sets min SDK 26, compile SDK 36, and target SDK 36. Generated manifest requests only Health Connect READ_WEIGHT/WRITE_WEIGHT among app-configured sensitive permissions, contains the Android 13 rationale intent, and contains the Android 14+ `ViewPermissionUsageActivity` alias. Its `RECORD_AUDIO` line is a manifest-merger removal directive from ImagePicker, not a requested permission.
@@ -1258,4 +1277,4 @@ Recheck these before submission:
 ### Remaining blockers and next batch
 
 - Do not mark M2 or M3 complete: physical permission flows, final merged release manifest, audit remediation, worker verification, device testing, signing, store records, paid-account tasks, and iOS work remain unverified or out of scope.
-- Next batch: complete M1 nutrition safety policy and shared target validation before further store preparation.
+- M1 implementation and automated verification are complete. Next batch: record the qualified reviewer identity/evidence, then continue M2 privacy/permissions and M3 clean-checkout release verification.

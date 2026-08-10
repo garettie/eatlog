@@ -19,6 +19,7 @@ import {
 import { ADAPTIVE_ALGORITHM_CONFIG } from '../utils/adaptiveAlgorithmConfig';
 import { gateAdaptiveReview } from '../utils/adaptiveReviewGate';
 import { addCalendarDays, calendarDaysBetween, parseLocalISO, todayISO } from '../utils/calendar';
+import { assertTargetSafe, validateWeightKg } from '../utils/nutritionSafety';
 
 export interface AdaptiveReviewEligibility {
   intakeDayCount: number;
@@ -118,6 +119,19 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
      ORDER BY log_date ASC`,
     [evidenceStart, reviewDate],
   );
+  const latestWeight = [...weights].reverse().find((row) => {
+    return !validateWeightKg(row.trend_weight_kg, 'Trend weight')
+      || !validateWeightKg(row.scale_weight_kg, 'Scale weight');
+  });
+  const currentWeightKg = latestWeight == null
+    ? null
+    : !validateWeightKg(latestWeight.trend_weight_kg, 'Trend weight')
+      ? latestWeight.trend_weight_kg
+      : latestWeight.scale_weight_kg;
+  assertTargetSafe(target, {
+    goalType: profile.goal_type,
+    referenceWeightKg: currentWeightKg,
+  });
   const eligibilityInput = {
     reviewDate,
     dailyCalories: dailyCalories.map((row) => ({ date: row.log_date, calories: row.calories })),
@@ -141,6 +155,7 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
       goalType: profile.goal_type,
       goalRateKgPerWeek: profile.goal_rate_kg_per_week,
       proteinPreference: profile.protein_preference,
+      targetWeightKg: profile.target_weight_kg,
     },
     previousTdee: target.tdee_estimate,
     previousTargetId: target.id,
@@ -473,17 +488,19 @@ async function resolveReview(
 
     let target: DailyTarget | null = null;
     if (resolution === 'accepted') {
+      const recommendation = evidence.recommendation;
+      if (!recommendation) throw new Error('Adaptive recommendation is no longer available.');
       const inserted = await txn.runAsync(
         `INSERT INTO daily_targets
           (effective_date, tdee_estimate, target_calories, target_protein_g, target_fat_g, target_carbs_g, calculation_method)
          VALUES (?, ?, ?, ?, ?, ?, 'adaptive')`,
         [
           todayISO(),
-          review.proposed_tdee,
-          review.proposed_target_calories,
-          review.proposed_target_protein_g,
-          review.proposed_target_fat_g,
-          review.proposed_target_carbs_g,
+          recommendation.proposedTdee,
+          recommendation.targetCalories,
+          recommendation.targetProteinG,
+          recommendation.targetFatG,
+          recommendation.targetCarbsG,
         ],
       );
       await txn.runAsync('UPDATE adaptive_reviews SET resulting_target_id = ? WHERE id = ?', [inserted.lastInsertRowId, review.id]);

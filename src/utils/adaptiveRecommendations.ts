@@ -13,7 +13,12 @@ import {
   calendarDaysBetween,
   parseLocalISO,
 } from './calendar';
-import { isGoalRateValid } from './goalRate';
+import {
+  ageOnDate,
+  profileSafetyIssues,
+  targetSafetyIssues,
+  validateWeightKg,
+} from './nutritionSafety';
 
 export interface AdaptiveDailyCalories {
   date: string;
@@ -48,6 +53,7 @@ export interface AdaptiveProfileEvidence {
   goalType: GoalType;
   goalRateKgPerWeek: number;
   proteinPreference: ProteinPreference;
+  targetWeightKg: number | null;
 }
 
 export interface AdaptiveEvidencePayload {
@@ -131,7 +137,7 @@ export interface AdaptiveRecommendation extends MacroTargets {
   evidenceHash: string;
 }
 
-export type AdaptivePauseReason = 'tdee_floor_conflict' | 'macro_target_infeasible';
+export type AdaptivePauseReason = 'tdee_floor_conflict' | 'macro_target_infeasible' | 'target_out_of_policy';
 
 export type AdaptiveCalculationResult =
   | { kind: 'recommendation'; recommendation: AdaptiveRecommendation }
@@ -159,20 +165,19 @@ export type AdaptiveCalculationResult =
       eligibility: AdaptiveEligibility;
       requestedTargetCalories: number;
       allocatedTargetCalories: number;
+    }
+  | {
+      kind: 'paused';
+      reason: 'target_out_of_policy';
+      eligibility: AdaptiveEligibility;
+      requestedTargetCalories: number;
+      message: string;
     };
 
 export class AdaptiveInputError extends RangeError {
   override name = 'AdaptiveInputError';
 }
 
-const VALID_SEXES: readonly Sex[] = ['male', 'female'];
-const VALID_GOAL_TYPES: readonly GoalType[] = ['cut', 'maintain', 'bulk'];
-const VALID_PROTEIN_PREFERENCES: readonly ProteinPreference[] = [
-  'low',
-  'moderate',
-  'high',
-  'extra_high',
-];
 const VALID_INTAKE_CONFIRMATION_STATUSES: readonly AdaptiveIntakeConfirmationStatus[] = [
   'complete',
   'partial',
@@ -333,8 +338,10 @@ function normalizeWeights(
   const dates = new Set<string>();
   const validated = rows.map((row) => {
     requireValidDate(row.date, 'Weight date');
-    requireFinitePositive(row.scaleWeightKg, 'Scale weight');
-    requireFinitePositive(row.trendWeightKg, 'Trend weight');
+    const scaleIssue = validateWeightKg(row.scaleWeightKg, 'Scale weight');
+    if (scaleIssue) inputError(scaleIssue);
+    const trendIssue = validateWeightKg(row.trendWeightKg, 'Trend weight');
+    if (trendIssue) inputError(trendIssue);
     if (dates.has(row.date)) inputError(`Duplicate weight date: ${row.date}`);
     dates.add(row.date);
     return { ...row };
@@ -344,21 +351,28 @@ function normalizeWeights(
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function validateProfile(profile: AdaptiveProfileEvidence, reviewDate: string): void {
-  if (!VALID_SEXES.includes(profile.sex)) inputError('Sex is invalid');
-  if (!VALID_GOAL_TYPES.includes(profile.goalType)) inputError('Goal type is invalid');
-  if (!VALID_PROTEIN_PREFERENCES.includes(profile.proteinPreference)) {
-    inputError('Protein preference is invalid');
-  }
-  requireFinitePositive(profile.heightCm, 'Height');
-  requireValidDate(profile.birthDate, 'Birth date');
-  if (calendarDaysBetween(profile.birthDate, reviewDate) < 0) {
-    inputError('Birth date cannot be later than the review date');
-  }
-  requireFinite(profile.goalRateKgPerWeek, 'Goal rate');
-  if (!isGoalRateValid(profile.goalRateKgPerWeek, profile.goalType)) {
-    inputError(`Goal rate is invalid for goal type ${profile.goalType}`);
-  }
+function validateProfile(
+  profile: AdaptiveProfileEvidence,
+  reviewDate: string,
+  currentWeightKg?: number,
+): void {
+  const issues = profileSafetyIssues({
+    sex: profile.sex,
+    height_cm: profile.heightCm,
+    birth_date: profile.birthDate,
+    activity_level: 'moderate',
+    goal_type: profile.goalType,
+    goal_rate_kg_per_week: profile.goalRateKgPerWeek,
+    protein_preference: profile.proteinPreference,
+    weight_unit: 'kg',
+    target_weight_kg: profile.targetWeightKg,
+  }, {
+    referenceDate: reviewDate,
+    currentWeightKg,
+    requireCurrentWeight: currentWeightKg != null,
+    checkGoalDirection: false,
+  });
+  if (issues.length > 0) inputError(issues[0]);
 }
 
 interface NormalizedEvidence {
@@ -474,19 +488,6 @@ export function evaluateAdaptiveEligibility(input: AdaptiveEligibilityInput): Ad
   return eligibilityFor(normalizedEvidence(input), config);
 }
 
-function ageOnDate(birthDate: string, date: string): number {
-  const birth = parseLocalISO(birthDate);
-  const onDate = parseLocalISO(date);
-  let age = onDate.getFullYear() - birth.getFullYear();
-  if (
-    onDate.getMonth() < birth.getMonth()
-    || (onDate.getMonth() === birth.getMonth() && onDate.getDate() < birth.getDate())
-  ) {
-    age -= 1;
-  }
-  return age;
-}
-
 export function estimateWeightSlopeKgPerDay(
   readings: ReadonlyArray<{ date: string; weightKg: number }>,
 ): number {
@@ -599,6 +600,7 @@ function canonicalEvidence(payload: AdaptiveEvidencePayload): AdaptiveEvidencePa
       goalType: payload.profile.goalType,
       goalRateKgPerWeek: payload.profile.goalRateKgPerWeek,
       proteinPreference: payload.profile.proteinPreference,
+      targetWeightKg: payload.profile.targetWeightKg,
     },
     previousTdee: payload.previousTdee,
     previousTargetId: payload.previousTargetId,
@@ -667,6 +669,8 @@ export function calculateAdaptiveRecommendation(
   validateProfile(input.profile, input.reviewDate);
 
   const evidence = normalizedEvidence(input);
+  const latestWeight = evidence.weights[evidence.weights.length - 1];
+  validateProfile(input.profile, input.reviewDate, latestWeight?.trendWeightKg);
   const eligibility = eligibilityFor(evidence, config);
   if (!eligibility.eligible) {
     return { kind: 'ineligible', reasons: eligibility.reasons, eligibility };
@@ -724,26 +728,47 @@ export function calculateAdaptiveRecommendation(
     };
   }
   const clampedTdee = Math.min(upperTdee, Math.max(lowerTdee, updatedTdee));
-  const proposedTdee = Math.max(tdeeFloor, clampedTdee);
+  const proposedTdee = clampedTdee;
   const goalAdjustment = input.profile.goalRateKgPerWeek * config.kcalPerKg / 7;
   requireFinite(goalAdjustment, 'Goal calorie adjustment');
   const unflooredTarget = proposedTdee + goalAdjustment;
   requireFinite(unflooredTarget, 'Unfloored calorie target');
-  const requestedTargetCalories = Math.round(Math.max(tdeeFloor, unflooredTarget));
+  const requestedTargetCalories = Math.round(unflooredTarget);
   requireFinite(requestedTargetCalories, 'Requested calorie target');
-  const macros = calculateMacrosForCalories({
-    targetCalories: requestedTargetCalories,
-    goalType: input.profile.goalType,
-    proteinPreference: input.profile.proteinPreference,
-    weightKg: end.trendWeightKg,
-  });
-  if (Math.abs(macros.targetCalories - requestedTargetCalories) > config.macroCalorieToleranceKcal) {
+  let macros: MacroTargets;
+  try {
+    macros = calculateMacrosForCalories({
+      targetCalories: requestedTargetCalories,
+      goalType: input.profile.goalType,
+      proteinPreference: input.profile.proteinPreference,
+      weightKg: end.trendWeightKg,
+    });
+  } catch (error) {
     return {
       kind: 'paused',
-      reason: 'macro_target_infeasible',
+      reason: 'target_out_of_policy',
       eligibility,
       requestedTargetCalories,
-      allocatedTargetCalories: macros.targetCalories,
+      message: error instanceof Error ? error.message : 'Target is outside safety policy.',
+    };
+  }
+  const targetIssue = targetSafetyIssues({
+    tdee_estimate: proposedTdee,
+    target_calories: macros.targetCalories,
+    target_protein_g: macros.targetProteinG,
+    target_fat_g: macros.targetFatG,
+    target_carbs_g: macros.targetCarbsG,
+  }, {
+    goalType: input.profile.goalType,
+    referenceWeightKg: end.trendWeightKg,
+  });
+  if (targetIssue.length > 0) {
+    return {
+      kind: 'paused',
+      reason: 'target_out_of_policy',
+      eligibility,
+      requestedTargetCalories,
+      message: targetIssue[0],
     };
   }
   const evidenceHash = hashAdaptiveEvidence({

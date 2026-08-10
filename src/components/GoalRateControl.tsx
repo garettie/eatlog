@@ -5,10 +5,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import type { GoalType, WeightUnit } from '../db/database';
 import { M3 } from '../theme/tokens';
 import {
-  GOAL_RATE_RANGES,
   GOAL_RATE_STEP_KG,
   GOAL_RATE_WARNING_THRESHOLD,
+  goalRateBounds,
   goalRateSeverity,
+  isGoalRateValid,
   normalizeGoalRate,
 } from '../utils/goalRate';
 import { fromKilograms, toKilograms } from '../utils/weightUnits';
@@ -20,6 +21,7 @@ interface GoalRateControlProps {
   valueKgPerWeek: number;
   onValueChange: (valueKgPerWeek: number) => void;
   weightUnit: WeightUnit;
+  currentWeightKg?: number | null;
 }
 
 function mixColor(from: string, to: string, progress: number): string {
@@ -53,13 +55,14 @@ export default function GoalRateControl({
   valueKgPerWeek,
   onValueChange,
   weightUnit,
+  currentWeightKg,
 }: GoalRateControlProps) {
   const displayValue = fromKilograms(valueKgPerWeek, weightUnit);
   const formatDisplayValue = (value: number) => fromKilograms(value, weightUnit).toFixed(2);
   const [inputText, setInputText] = useState(() => displayValue.toFixed(2));
   const [editing, setEditing] = useState(false);
-  const range = GOAL_RATE_RANGES[goal];
-  const severity = goalRateSeverity(valueKgPerWeek, goal);
+  const range = goalRateBounds(goal, currentWeightKg);
+  const severity = goalRateSeverity(valueKgPerWeek, goal, currentWeightKg);
   const color = useMemo(() => severityColor(severity), [severity]);
   const warning = severity >= GOAL_RATE_WARNING_THRESHOLD;
   const unitLabel = `${weightUnit} / week`;
@@ -71,7 +74,8 @@ export default function GoalRateControl({
 
   const applyDisplayRate = (displayRate: number) => {
     const rateKg = toKilograms(displayRate, weightUnit);
-    onValueChange(normalizeGoalRate(rateKg, goal));
+    const normalized = normalizeGoalRate(rateKg, goal);
+    if (isGoalRateValid(normalized, goal, currentWeightKg)) onValueChange(normalized);
   };
 
   const handleInputChange = (text: string) => {
@@ -89,6 +93,10 @@ export default function GoalRateControl({
       return;
     }
     const normalized = normalizeGoalRate(toKilograms(parsed, weightUnit), goal);
+    if (!isGoalRateValid(normalized, goal, currentWeightKg)) {
+      setInputText(displayValue.toFixed(2));
+      return;
+    }
     onValueChange(normalized);
     setInputText(formatDisplayValue(normalized));
   };

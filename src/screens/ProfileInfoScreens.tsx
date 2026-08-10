@@ -10,6 +10,7 @@ import { getDatabaseVersion } from '../db/database';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 import { getApplicationInfo } from '../utils/applicationInfo';
+import { WELLNESS_DISCLAIMER } from '../utils/nutritionSafety';
 
 type MaterialIconName = keyof typeof MaterialIcons.glyphMap;
 
@@ -211,6 +212,12 @@ export function HowEatlogWorksScreen() {
                 icon="verified-user"
                 title="You choose what changes"
                 detail="Eatlog updates your plan after you accept a suggestion."
+            />
+
+            <Callout
+                icon="health-and-safety"
+                title="General wellness estimates"
+                detail={WELLNESS_DISCLAIMER}
             />
 
             <View className="gap-3">

@@ -38,6 +38,7 @@ const profile: AdaptiveProfileEvidence = {
   goalType: 'maintain',
   goalRateKgPerWeek: 0,
   proteinPreference: 'moderate',
+  targetWeightKg: 80,
 };
 
 function recommendationInput(
@@ -249,17 +250,16 @@ test('macro allocation conflict produces a paused result', () => {
       ...profile,
       sex: 'female',
       heightCm: 100,
-      birthDate: '1926-01-14',
+      birthDate: '1948-01-14',
       goalType: 'cut',
-      goalRateKgPerWeek: -1,
+      goalRateKgPerWeek: -0.9,
       proteinPreference: 'extra_high',
     },
     previousTdee: 1300,
   }));
   assert.equal(result.kind, 'paused');
-  assert.equal(result.reason, 'macro_target_infeasible');
-  assert.ok(Math.abs(result.allocatedTargetCalories - result.requestedTargetCalories)
-    > ADAPTIVE_ALGORITHM_CONFIG.macroCalorieToleranceKcal);
+  assert.equal(result.reason, 'target_out_of_policy');
+  assert.match(result.message, /Calories|Carbohydrates|target/);
 });
 
 test('cut, maintain, and bulk goal rates adjust target calories', () => {
@@ -270,19 +270,19 @@ test('cut, maintain, and bulk goal rates adjust target calories', () => {
   };
   const cut = successful(recommendationInput({
     ...shared,
-    profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'cut', goalRateKgPerWeek: -0.5 },
+    profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'cut', goalRateKgPerWeek: -0.5, targetWeightKg: 55 },
   }));
   const maintain = successful(recommendationInput({
     ...shared,
-    profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'maintain', goalRateKgPerWeek: 0 },
+    profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'maintain', goalRateKgPerWeek: 0, targetWeightKg: 60 },
   }));
   const bulk = successful(recommendationInput({
     ...shared,
-    profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'bulk', goalRateKgPerWeek: 0.5 },
+    profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'bulk', goalRateKgPerWeek: 0.3, targetWeightKg: 65 },
   }));
   assert.equal(cut.targetCalories, 1950);
   assert.equal(maintain.targetCalories, 2500);
-  assert.equal(bulk.targetCalories, 3050);
+  assert.equal(bulk.targetCalories, 2830);
 });
 
 test('calories outside the aligned interval do not affect average intake', () => {
@@ -331,9 +331,9 @@ test('valid out-of-window rows do not change recommendation', () => {
       { date: '2026-01-29', calories: 9999 },
     ],
     weights: [
-      { date: '2025-12-01', scaleWeightKg: 200, trendWeightKg: 200 },
+      { date: '2025-12-01', scaleWeightKg: 30, trendWeightKg: 30 },
       ...weights,
-      { date: '2026-01-29', scaleWeightKg: 20, trendWeightKg: 20 },
+    { date: '2026-01-29', scaleWeightKg: 30, trendWeightKg: 30 },
     ],
   }));
   assert.deepEqual(changed, first);
@@ -342,9 +342,9 @@ test('valid out-of-window rows do not change recommendation', () => {
 test('fingerprint changes with previous TDEE and algorithm version', () => {
   const first = hashAdaptiveEvidence(evidencePayload());
   const previousChanged = hashAdaptiveEvidence(evidencePayload({ previousTdee: 2100 }));
-  const versionConfig = config({ algorithmVersion: 5 });
+  const versionConfig = config({ algorithmVersion: 6 });
   const versionChanged = hashAdaptiveEvidence(evidencePayload({
-    algorithmVersion: 5,
+    algorithmVersion: 6,
     config: versionConfig,
   }));
   assert.match(first, /^fnv1a32-v2:[0-9a-f]{8}$/);
@@ -411,9 +411,32 @@ test('contradictory and out-of-range goal rates reject', () => {
   ]) {
     assert.throws(
       () => calculateAdaptiveRecommendation(recommendationInput({ profile: invalidProfile })),
-      /Goal rate is invalid/,
+      /Goal rate must be between|Goal rate is invalid/,
     );
   }
+});
+
+test('adaptive recommendations accept supported boundaries and reject adjacent values', () => {
+  const validInputs = [
+    recommendationInput({ profile: { ...profile, heightCm: 100 } }),
+    recommendationInput({ profile: { ...profile, heightCm: 250 } }),
+    recommendationInput({ profile: { ...profile, birthDate: '2008-01-28' } }),
+    recommendationInput({ profile: { ...profile, birthDate: '1948-01-28' } }),
+    recommendationInput({ weights: weights.map((row) => ({ ...row, scaleWeightKg: 30, trendWeightKg: 30 })) }),
+    recommendationInput({ weights: weights.map((row) => ({ ...row, scaleWeightKg: 300, trendWeightKg: 300 })) }),
+    recommendationInput({ profile: { ...profile, goalType: 'cut', goalRateKgPerWeek: -0.8, targetWeightKg: 70 } }),
+    recommendationInput({ profile: { ...profile, goalType: 'bulk', goalRateKgPerWeek: 0.4, targetWeightKg: 90 } }),
+  ];
+  for (const input of validInputs) assert.doesNotThrow(() => calculateAdaptiveRecommendation(input));
+
+  const invalidInputs = [
+    recommendationInput({ profile: { ...profile, heightCm: 99 } }),
+    recommendationInput({ weights: weights.map((row) => ({ ...row, scaleWeightKg: 29, trendWeightKg: 29 })) }),
+    recommendationInput({ profile: { ...profile, birthDate: '2008-01-29' } }),
+    recommendationInput({ profile: { ...profile, goalType: 'cut', goalRateKgPerWeek: -0.85, targetWeightKg: 70 } }),
+    recommendationInput({ profile: { ...profile, goalType: 'bulk', goalRateKgPerWeek: 0.45, targetWeightKg: 90 } }),
+  ];
+  for (const input of invalidInputs) assert.throws(() => calculateAdaptiveRecommendation(input), AdaptiveInputError);
 });
 
 test('fingerprint rejects non-finite values before serialization', () => {

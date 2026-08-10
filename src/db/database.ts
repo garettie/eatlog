@@ -1,9 +1,14 @@
 import * as SQLite from 'expo-sqlite';
 
-import { parseLocalISO } from '../utils/calendar';
+import { parseLocalISO, todayISO } from '../utils/calendar';
 import { computeWeightTrend } from '../utils/weightTrend';
 import { FOOD_LOG_DATA_TYPE_MIGRATION_SQL } from './foodLogDataTypeMigration';
 import { WEIGHT_ORIGIN_MIGRATION_SQL } from './weightOriginMigration';
+import {
+  assertProfileSafe,
+  assertTargetSafe,
+  validateWeightKg,
+} from '../utils/nutritionSafety';
 
 export type Sex = 'male' | 'female';
 export type ActivityLevel =
@@ -488,7 +493,20 @@ export async function insertProfile(params: {
   protein_preference: ProteinPreference;
   weight_unit: WeightUnit;
   target_weight_kg?: number | null;
+  currentWeightKg?: number;
 }): Promise<void> {
+  assertProfileSafe({
+    display_name: params.display_name,
+    sex: params.sex,
+    height_cm: params.height_cm,
+    birth_date: params.birth_date,
+    activity_level: params.activity_level,
+    goal_type: params.goal_type,
+    goal_rate_kg_per_week: params.goal_rate_kg_per_week,
+    protein_preference: params.protein_preference,
+    weight_unit: params.weight_unit,
+    target_weight_kg: params.target_weight_kg ?? null,
+  }, { currentWeightKg: params.currentWeightKg });
   const db = await getDb();
   await db.runAsync(
     `INSERT INTO profile
@@ -534,6 +552,95 @@ export interface DailyTargetInput {
   calculation_method: CalculationMethod;
 }
 
+function policyWeightFromLog(row: WeightLog): number | null {
+  if (!validateWeightKg(row.trend_weight_kg, 'Trend weight')) return row.trend_weight_kg;
+  if (!validateWeightKg(row.scale_weight_kg, 'Scale weight')) return row.scale_weight_kg;
+  return null;
+}
+
+async function latestPolicyWeight(
+  db: SQLite.SQLiteDatabase,
+  dateISO: string,
+): Promise<number | null> {
+  const rows = await db.getAllAsync<WeightLog>(
+    'SELECT * FROM weight_logs WHERE log_date <= ? ORDER BY log_date DESC',
+    [dateISO],
+  );
+  for (const row of rows) {
+    const weight = policyWeightFromLog(row);
+    if (weight != null) return weight;
+  }
+  return null;
+}
+
+function assertTargetSafeForProfile(
+  profile: ProfileUpdate,
+  target: DailyTargetInput,
+  currentWeightKg: number | null,
+): void {
+  assertProfileSafe(profile, { currentWeightKg, requireCurrentWeight: true });
+  assertTargetSafe(target, {
+    goalType: profile.goal_type,
+    referenceWeightKg: currentWeightKg,
+  });
+}
+
+export async function insertInitialProfileAndPlan(params: {
+  profile: ProfileUpdate;
+  weightKg: number;
+  target: DailyTargetInput;
+}): Promise<void> {
+  parseLocalISO(params.target.effective_date);
+  const roundedWeight = Math.round(params.weightKg * 1000) / 1000;
+  assertTargetSafeForProfile(params.profile, params.target, roundedWeight);
+  const db = await getDb();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync(
+      `INSERT INTO profile
+        (id, display_name, sex, height_cm, birth_date, activity_level, goal_type, goal_rate_kg_per_week, protein_preference, weight_unit, target_weight_kg)
+       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.profile.display_name.trim(),
+        params.profile.sex,
+        params.profile.height_cm,
+        params.profile.birth_date,
+        params.profile.activity_level,
+        params.profile.goal_type,
+        params.profile.goal_rate_kg_per_week,
+        params.profile.protein_preference,
+        params.profile.weight_unit,
+        params.profile.target_weight_kg,
+      ],
+    );
+    await txn.runAsync(
+      `INSERT INTO weight_logs
+        (log_date, scale_weight_kg, trend_weight_kg, origin, origin_record_id, origin_data_source, origin_last_modified_at, measured_at, revision)
+       VALUES (?, ?, ?, 'eatlog', NULL, NULL, NULL, ?, 1)`,
+      [params.target.effective_date, roundedWeight, roundedWeight, localNoonIso(params.target.effective_date)],
+    );
+    await txn.runAsync(
+      `INSERT INTO health_connect_weight_exports
+        (log_date, client_record_id, record_id, exported_revision, pending_delete)
+       VALUES (?, ?, NULL, NULL, 0)`,
+      [params.target.effective_date, `eatlog-weight:${params.target.effective_date}`],
+    );
+    await txn.runAsync(
+      `INSERT INTO daily_targets
+        (effective_date, tdee_estimate, target_calories, target_protein_g, target_fat_g, target_carbs_g, calculation_method)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        params.target.effective_date,
+        params.target.tdee_estimate,
+        params.target.target_calories,
+        params.target.target_protein_g,
+        params.target.target_fat_g,
+        params.target.target_carbs_g,
+        params.target.calculation_method,
+      ],
+    );
+  });
+}
+
 function profileUpdateValues(params: ProfileUpdate) {
   return [
     params.display_name.trim(), params.sex, params.height_cm, params.birth_date,
@@ -553,7 +660,11 @@ async function writeProfileUpdate(db: SQLite.SQLiteDatabase, params: ProfileUpda
 
 export async function updateProfilePresentation(params: ProfileUpdate): Promise<void> {
   const db = await getDb();
-  await db.withExclusiveTransactionAsync((txn) => writeProfileUpdate(txn, params));
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const currentWeightKg = await latestPolicyWeight(txn, todayISO());
+    assertProfileSafe(params, { currentWeightKg, requireCurrentWeight: true });
+    await writeProfileUpdate(txn, params);
+  });
 }
 
 export async function updateProfileAndPlan(params: {
@@ -564,6 +675,8 @@ export async function updateProfileAndPlan(params: {
   const db = await getDb();
   let saved: DailyTarget | null = null;
   await db.withExclusiveTransactionAsync(async (txn) => {
+    const currentWeightKg = await latestPolicyWeight(txn, params.target.effective_date);
+    assertTargetSafeForProfile(params.profile, params.target, currentWeightKg);
     await writeProfileUpdate(txn, params.profile);
     const inserted = await txn.runAsync(
       `INSERT INTO daily_targets
@@ -620,9 +733,8 @@ export async function saveWeightLog(params: {
   weightUnit?: WeightUnit;
 }): Promise<SaveWeightResult> {
   parseLocalISO(params.logDate);
-  if (!Number.isFinite(params.scaleWeightKg) || params.scaleWeightKg < 20 || params.scaleWeightKg > 500) {
-    throw new RangeError('Weight must be between 20 and 500 kilograms');
-  }
+  const weightIssue = validateWeightKg(params.scaleWeightKg);
+  if (weightIssue) throw new RangeError(weightIssue);
   const roundedWeight = Math.round(params.scaleWeightKg * 1000) / 1000;
   const db = await getDb();
   let result: SaveWeightResult | null = null;
@@ -792,6 +904,8 @@ export async function reconcileHealthConnectWeights(
   await db.withExclusiveTransactionAsync(async (txn) => {
     const selectedByDate = new Map(records.map((record) => [record.logDate, record]));
     for (const record of records) {
+      const weightIssue = validateWeightKg(record.scaleWeightKg, 'Health Connect weight');
+      if (weightIssue) throw new RangeError(weightIssue);
       const existing = await txn.getFirstAsync<WeightLog>(
         'SELECT * FROM weight_logs WHERE log_date = ?', [record.logDate],
       );
@@ -917,7 +1031,23 @@ export async function clearHealthConnectDeviceState(): Promise<void> {
 }
 
 export async function insertDailyTarget(params: DailyTargetInput): Promise<void> {
+  parseLocalISO(params.effective_date);
   const db = await getDb();
+  const profile = await db.getFirstAsync<Profile>('SELECT * FROM profile WHERE id = 1');
+  if (!profile) throw new Error('Profile is required before saving a target.');
+  const currentWeightKg = await latestPolicyWeight(db, params.effective_date);
+  assertTargetSafeForProfile({
+    display_name: profile.display_name,
+    sex: profile.sex,
+    height_cm: profile.height_cm,
+    birth_date: profile.birth_date,
+    activity_level: profile.activity_level,
+    goal_type: profile.goal_type,
+    goal_rate_kg_per_week: profile.goal_rate_kg_per_week,
+    protein_preference: profile.protein_preference,
+    weight_unit: profile.weight_unit,
+    target_weight_kg: profile.target_weight_kg,
+  }, params, currentWeightKg);
   await db.runAsync(
     `INSERT INTO daily_targets
       (effective_date, tdee_estimate, target_calories, target_protein_g, target_fat_g, target_carbs_g, calculation_method)
@@ -1618,6 +1748,7 @@ export async function getMealComponents(mealId: number): Promise<FoodLog[]> {
 }
 
 export async function getDailyTargetForDate(dateISO: string): Promise<DailyTarget | null> {
+  parseLocalISO(dateISO);
   const db = await getDb();
   return db.getFirstAsync<DailyTarget>(
     'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC, id DESC LIMIT 1',
