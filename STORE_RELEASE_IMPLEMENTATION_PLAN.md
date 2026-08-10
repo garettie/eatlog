@@ -161,8 +161,8 @@ Do not postpone both enrollments until submission day. A new personal Play accou
 
 ### M0.1 Confirm release identity
 
-- [ ] Keep the product display name `Eatlog`.
-- [ ] Keep Android package `com.sgaret.eatlog`.
+- [x] Keep the product display name `Eatlog`.
+- [x] Keep Android package `com.sgaret.eatlog`.
 - [ ] Reserve the proposed iOS bundle identifier `com.sgaret.eatlog`, or another stable Eatlog identifier if Apple reports it unavailable.
 - [ ] Use a store title with an Eatlog descriptor if the bare title cannot be reserved. Example pattern: `Eatlog: Macro Tracker`. Treat the descriptor as listing copy, not a product rename.
 - [ ] Use the same icon, capitalization, developer identity, support address, and privacy domain across both stores.
@@ -176,8 +176,8 @@ Do not postpone both enrollments until submission day. A new personal Play accou
 - [ ] Accept current store agreements.
 - [x] Price Eatlog at PHP 299 as a one-time upfront purchase in the Philippines.
 - [ ] Confirm the closest equivalent prices for other launch countries before release.
-- [ ] Keep subscriptions, in-app purchases, paywalls, receipt servers, and cross-store entitlements out of v1.
-- [ ] Accept that an Android purchase does not grant the iOS version, and an iOS purchase does not grant the Android version.
+- [x] Keep subscriptions, in-app purchases, paywalls, receipt servers, and cross-store entitlements out of v1.
+- [x] Accept that an Android purchase does not grant the iOS version, and an iOS purchase does not grant the Android version.
 - [ ] Decide who may receive direct preview APKs after launch and remove any public APK download link before the paid Play release.
 - [ ] Choose launch countries. If Apple distribution includes the EU, complete and verify Digital Services Act trader status.
 - [ ] Choose the public developer/legal name that will appear in policies and listings.
@@ -188,14 +188,14 @@ Do not postpone both enrollments until submission day. A new personal Play accou
 
 ### M0.3 Lift the iOS implementation constraint before coding
 
-`AGENTS.md` says not to add iOS-specific code because the earlier MVP was Android-only. The owner must update that project constraint before an agent implements M4 or later iOS tasks. This planning request expands the destination, but the plan file does not change repository operating rules by itself.
+The owner authorized iOS v1 source and simulator-readiness work on 2026-08-10. `AGENTS.md` now describes an Android-first public release followed by iOS, keeps Health Connect Android-only, and keeps HealthKit and Apple Health outside v1.
 
 ### M0 exit criteria
 
 - [ ] All account owners and required identifiers are known.
 - [ ] The privacy/support host and contact email are known.
-- [ ] Adult-only v1 and Android-first ordering are accepted.
-- [ ] The iOS code constraint has been updated before iOS implementation begins.
+- [x] Adult-only v1 and Android-first ordering are accepted.
+- [x] The iOS code constraint has been updated before iOS implementation begins.
 
 ## 7. Milestone M1: nutrition safety and product hardening
 
@@ -1281,3 +1281,12 @@ Recheck these before submission:
 - Do not mark M2 or M3 complete: physical permission flows, final merged release manifest, audit remediation, worker verification, device testing, signing, store records, paid-account tasks, and iOS work remain unverified or out of scope.
 - M1 implementation and automated verification are complete, including the existing-profile correction-path regression. No M1 numeric policy values changed.
 - M1 has no remaining implementation or verification blocker. Continue M2 privacy/permissions and M3 clean-checkout release verification; M2-M10 work remains open.
+
+### Phase 0 account-free evidence: 2026-08-10
+
+- Changed files: `AGENTS.md`, `release/OWNER_INPUTS.md`, and this plan.
+- Commands: `git status --short --branch`, `git log -8 --oneline --decorate`, `git worktree list --porcelain`, `git branch --list 'codex/store-release-readiness'`, and `git switch -c codex/store-release-readiness`.
+- Result: passed. Work continues on local branch `codex/store-release-readiness` from `622a0b2`; no push, tag, release, store record, or paid action occurred.
+- Artifact: `release/OWNER_INPUTS.md` records every unknown owner value with the build, submission, or public-release deadline.
+- Decision: Android ships first; iOS v1 source/configuration work is authorized; `com.sgaret.eatlog` and `com.sgaret.eatlog.dev` are candidate iOS identifiers; Apple reservation remains account-bound and unverified.
+- Unresolved risks: **OWNER INPUT** public developer/legal name, support email, privacy/support host, launch countries, device inventory, and operations owner; **STORE ACCOUNT** Play and Apple enrollment, app records, agreements, pricing evidence, banking, tax, and Apple bundle-ID reservation; **CREDENTIAL** store submission access and two-factor owner; **PHYSICAL DEVICE** Android and iPhone matrix; **PAID SERVICE** memberships, final signed/cloud builds, submissions, hosting, and production provider actions.
