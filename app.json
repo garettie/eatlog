@@ -21,7 +21,6 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan",
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.health.READ_WEIGHT",
         "android.permission.health.WRITE_WEIGHT"
       ]
@@ -44,8 +43,8 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
             "minSdkVersion": 26
           }
         }
@@ -53,8 +52,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Used to scan food labels for nutritional information",
-          "cameraPermission": "Used to scan food labels with the camera"
+          "photosPermission": "Allow Eatlog to access photos to scan meals.",
+          "cameraPermission": "Allow Eatlog to use your camera to scan meals.",
+          "microphonePermission": false
         }
       ],
       "@react-native-community/datetimepicker"

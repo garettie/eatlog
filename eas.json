@@ -1,4 +1,8 @@
 {
+  "cli": {
+    "version": ">= 16.26.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
@@ -19,6 +23,14 @@
       },
       "android": {
         "buildType": "apk"
+      }
+    },
+    "production": {
+      "environment": "production",
+      "channel": "production",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
       }
     }
   }
