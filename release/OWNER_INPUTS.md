@@ -13,6 +13,7 @@ Engineering can finish account-free release work without these values. Do not co
 | Final privacy-policy and support URLs after hosting | Awaiting host choice and publication | Submission | OWNER INPUT |
 | Register Eatlog's read-only Open Food Facts use and monitored contact in the provider API usage form | Awaiting support email and owner submission | Public release | OWNER INPUT |
 | Launch countries beyond the fixed Philippines storefront | Awaiting owner | Submission | OWNER INPUT |
+| Decide who may receive direct preview APKs after launch and remove any public APK link before the paid Play release | Awaiting owner | Public release | OWNER INPUT |
 | Google Play developer enrollment; account type and creation date | Unverified | Submission | STORE ACCOUNT |
 | Apple Developer Program enrollment and App Store Connect access | Unverified | Signed build | STORE ACCOUNT |
 | Reserve `com.sgaret.eatlog` with Apple; use `com.sgaret.eatlog.dev` for development | Candidate recorded; reservation account-bound and unverified | Signed build | STORE ACCOUNT |
@@ -22,6 +23,10 @@ Engineering can finish account-free release work without these values. Do not co
 | Apple Paid Apps Agreement, banking, tax, legal identity, and payout setup | Unverified | Public release | STORE ACCOUNT |
 | Store-console price showing PHP 299 as a one-time upfront purchase in the Philippines | Product decision fixed; console evidence unavailable | Public release | STORE ACCOUNT |
 | Equivalent prices and availability for any additional launch countries | Awaiting country choice and console review | Public release | OWNER INPUT |
+| Stable App Store Connect SKU | Awaiting owner | App record | OWNER INPUT |
+| Public copyright rights-holder name | Awaiting owner | Submission | OWNER INPUT |
+| Store-review contact name, monitored email, phone number, and time zone | Awaiting owner | Submission | OWNER INPUT |
+| Digital Services Act trader decision and verification if any EU country is selected | Awaiting launch-country choice | Submission | OWNER INPUT |
 | Google service account or EAS-managed submission access | Do not create until the Play app record exists | Submission | CREDENTIAL |
 | App Store Connect API key or EAS-managed Apple credentials | Do not create until enrollment and app record exist | Submission | CREDENTIAL |
 | Available Android devices: API 26, API 36/current, Samsung-class, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |

@@ -869,31 +869,31 @@ Create source copy that both stores adapt. It must include:
 
 Google fields:
 
-- [ ] Title within current Play limit.
-- [ ] Short description.
-- [ ] Full description.
-- [ ] Release notes.
-- [ ] App category: Health & Fitness unless Console guidance changes.
+- [x] Title within current Play limit.
+- [x] Short description.
+- [x] Full description.
+- [x] Release notes.
+- [x] App category: Health & Fitness unless Console guidance changes.
 - [ ] Support email and privacy URL.
 
 Apple fields:
 
-- [ ] Title within 30 characters. Keep Eatlog first.
-- [ ] Subtitle within 30 characters.
-- [ ] Keywords within 100 characters without unsupported competitor claims.
-- [ ] Description within 4,000 characters.
-- [ ] Promotional text if useful.
-- [ ] Release notes.
-- [ ] Primary category: Health & Fitness. Consider Food & Drink as secondary if available and accurate.
+- [x] Title within 30 characters. Keep Eatlog first.
+- [x] Subtitle within 30 characters.
+- [x] Keywords within 100 characters without unsupported competitor claims.
+- [x] Description within 4,000 characters.
+- [x] Promotional text if useful.
+- [x] Release notes.
+- [x] Primary category: Health & Fitness. Consider Food & Drink as secondary if available and accurate.
 - [ ] Privacy, support, and optional marketing URLs.
 
 ### M7.3 Produce store artwork from the canonical brand
 
-- [ ] Derive every raster from the canonical 1024 by 1024 flat-white egg mask.
-- [ ] Export Play high-resolution icon and feature graphic using current Console dimensions.
-- [ ] Use the existing adaptive and monochrome Android assets.
-- [ ] Export an opaque 1024 by 1024 App Store icon.
-- [ ] Do not add promotional badges, ratings, awards, or claims.
+- [x] Derive every raster from the canonical 1024 by 1024 flat-white egg mask.
+- [x] Export Play high-resolution icon and feature graphic using current Console dimensions.
+- [x] Use the existing adaptive and monochrome Android assets.
+- [x] Export an opaque 1024 by 1024 App Store icon.
+- [x] Do not add promotional badges, ratings, awards, or claims.
 
 Screenshot story:
 
@@ -918,17 +918,17 @@ Screenshot rules:
 
 Google notes/checks:
 
-- [ ] Explain Health Connect weight read/write use.
-- [ ] Provide steps for camera, gallery, backup, and reset.
+- [x] Explain Health Connect weight read/write use.
+- [x] Provide steps for camera, gallery, backup, and reset.
 - [ ] Keep production Worker online during review.
 
 Apple review notes:
 
-- [ ] State that Eatlog is a paid upfront download with no login, subscription, in-app purchase, or extra paid feature.
-- [ ] Explain that Scan and Describe send user-selected content to Gemini through the Eatlog Worker.
-- [ ] Explain that all saved logs remain on device unless the user exports a file.
-- [ ] Give a short path through onboarding, manual entry, scan, backup, and reset.
-- [ ] State that iOS v1 does not expose Health Connect or HealthKit.
+- [x] State that Eatlog is a paid upfront download with no login, subscription, in-app purchase, or extra paid feature.
+- [x] Explain that Scan and Describe send user-selected content to Gemini through the Eatlog Worker.
+- [x] Explain that all saved logs remain on device unless the user exports a file.
+- [x] Give a short path through onboarding, manual entry, scan, backup, and reset.
+- [x] State that iOS v1 does not expose Health Connect or HealthKit.
 - [ ] Give reviewer support contact and time zone.
 
 ### M7 exit criteria
@@ -1350,3 +1350,15 @@ Recheck these before submission:
 - Read-only production check: the already configured public Worker `GET /healthz` returned HTTP 200 with the expected health contract after a sandbox DNS failure was retried with approved network access. No validation traffic, USDA request, Gemini Describe/Scan, rate-limit exercise, deployment, secret change, quota change, or alert change occurred.
 - Current official references checked: Cloudflare Wrangler dry-run/deployment/rollback, required-secret, observability, and rate-limit binding documentation; the Gemini models/generateContent API; and USDA FoodData Central search/detail, key, rate-limit, and licensing guidance.
 - Remaining M6 blockers: **CREDENTIAL** production secret/binding/EAS-environment inspection, sampled log review, key-rotation status, provider retention review, and named deploy/rollback access; **OWNER INPUT** release/support/incident owner; **PAID SERVICE / CREDENTIAL** Gemini Describe/Scan production smoke and quota/budget alerts; **CREDENTIAL** Cloudflare usage/error notifications; **STORE ACCOUNT** Play/App Store monitoring consoles and support inbox; **PAID SERVICE** preview deployment/rollback drill. M6 production exit criteria remain unchecked.
+
+### Phase 6 / M7 account-free evidence: 2026-08-10
+
+- Changed metadata and review source: `release/store/metadata.mjs`, `release/store/STORE_FORM_WORKSHEET.md`, `release/store/REVIEW_MATERIAL.md`, `release/store/SCREENSHOT_PLAN.md`, `release/OWNER_INPUTS.md`, `scripts/validate-store-metadata.mjs`, `package.json`, and this plan. One versioned source now supplies both stores' copy, categories, reviewer notes, commercial facts, provider behavior, and alt text without fabricated contacts or URLs.
+- Copy result: current official Google limits were checked at 30 characters for title, 80 for short description, 4,000 for full description, and 500 for release notes. Current Apple limits were checked at 30 for name, 30 for subtitle, 100 UTF-8 bytes for keywords, 4,000 for description and version notes, 170 for promotional text, and 4,000 bytes for review notes. Final counts are Google 6/77/1,756/255 and Apple 6/19/68 bytes/1,618/92/233, with 867-byte review notes.
+- Claim decision: store copy preserves Eatlog, PHP 299 upfront Philippines pricing, no subscription/IAP/login/account/cloud database, separate platform purchases, local-first storage, adult general-wellness scope, editable estimates, and the network requirements for Scan, Describe, USDA, and explicit Open Food Facts full search. It contains Google's required non-medical sentence, no unsupported accuracy/outcome/social-proof/endorsement/offline claim, and no Apple Health or HealthKit claim in iOS public copy.
+- Changed artwork source and tooling: `release/artwork/source/`, `release/artwork/export/`, `release/artwork/README.md`, `scripts/store-artwork-png.mjs`, `scripts/generate-store-artwork.mjs`, and `scripts/validate-store-artwork.mjs`. The generator hydrates the source SVGs from the canonical `assets/icon.png`; it does not redraw, recolor, trace, or generatively alter the egg mask.
+- Artwork result: `google-play-icon-512.png` is 512×512 RGBA, fully opaque, and 10,055 bytes; `google-play-feature-graphic-1024x500.png` is 1024×500 RGB with no alpha and centered focal bounds `(343,18)–(681,481)`; `apple-app-store-icon-1024.png` is 1024×1024 RGB with no alpha and pixel-equivalent color content to the canonical icon. Original-resolution visual inspection confirmed the same white egg, scale marks, red indicator, and dark background with no badge, rating, award, price, text, or claim.
+- Screenshot/reviewer decision: the shot list defines seven distinct Android and iPhone captures, exact current format/dimension guidance, synthetic seed data, alt text, safe-area/accessibility review, and a real-binary-only rule. No screenshot was generated, composited, platform-swapped, or claimed. Reviewer material covers onboarding, manual entry, the single first-use transmission gate, provider paths, Health Connect Weight-only use on Android, iOS platform exclusions, backup/export/restore/reset, and evidence recording.
+- Commands and results: final `npm run store:metadata:check` passed; `npm run store:artwork:generate` passed; `npm run store:artwork:check` passed; all four new `.mjs` files passed `node --check`; `npm test` passed 5 config-plugin tests plus 219 TypeScript tests; `npm run typecheck` passed; and `git diff --check` passed. The first metadata validation caught its own false-positive diagnosis rule and the first artwork validation caught unresolved external SVG images; both implementation defects were fixed before the recorded passing reruns. The lean-ctx wrapper blocked `env TMPDIR=/tmp npm test`; the identical test command without the unnecessary environment prefix passed.
+- UX decision: remote-processing details stay in store/reviewer/privacy material and the existing one-time affirmative gate. No recurring helper paragraph or disclosure was added to the FAB, Scan, Describe, review, or ordinary food-logging path.
+- Remaining M7 blockers: **OWNER INPUT** public developer/legal name, support email and URLs, launch countries, preview-APK policy, reviewer contact/time zone, App Store SKU, copyright holder, and any EU trader decision; **STORE ACCOUNT** Play/App Store records, forms, agreements, paid-price evidence, country selection, payments/tax/banking, app signing, and uploads; **CREDENTIAL** signed release candidates and submission access; **PHYSICAL DEVICE / ENVIRONMENT LIMITATION** real Android/iPhone release screenshots and visual/device evidence; **PAID SERVICE** enrollment, final cloud builds, provider Scan capture if chosen, and submission. M7 account-free source is complete, but its record, screenshot, URL, and exit criteria remain unchecked.
