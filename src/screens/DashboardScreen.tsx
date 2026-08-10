@@ -134,7 +134,7 @@ function MacroProgress({ label, consumed, target, showRemaining, progressColorCl
         />
       </View>
       <Text className="text-m3-on-surface text-sm font-semibold tabular-nums text-center" numberOfLines={1}>
-        {showRemaining ? `${roundedRemaining}g left` : `${roundedConsumed} / ${roundedTarget}g`}
+        {showRemaining ? `${roundedRemaining}g left` : `${roundedConsumed}g / ${roundedTarget}g`}
       </Text>
       <View className="min-h-[14px] items-center">
         {hasVisibleOverage && (
@@ -454,22 +454,38 @@ function DashboardScreen({
             {/* Ring + flanking numbers */}
             <View className={`${stackNutritionSummary ? 'gap-3' : 'flex-row'} items-center justify-center w-full`}>
               {/* Left: flanking number */}
-              {!stackNutritionSummary && <View className="items-center flex-1 min-w-0">
-                <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
-                  {flankingLeft.toLocaleString()}
-                </Text>
-                <Text className="text-m3-on-surface-variant text-sm font-medium">
-                  {showRemaining ? 'Consumed' : 'Remaining'}
-                </Text>
-              </View>}
+              {!stackNutritionSummary && (
+                <View
+                  className="items-center flex-1 min-w-0"
+                  accessible
+                  accessibilityLabel={`${flankingLeft.toLocaleString()} kilocalories ${showRemaining ? 'consumed' : 'remaining'}`}
+                >
+                  <View className="flex-row items-baseline gap-1">
+                    <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
+                      {flankingLeft.toLocaleString()}
+                    </Text>
+                    <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
+                  </View>
+                  <Text className="text-m3-on-surface-variant text-sm font-medium">
+                    {showRemaining ? 'Consumed' : 'Remaining'}
+                  </Text>
+                </View>
+              )}
 
               {/* Center: ring with value overlaid */}
               <View className="items-center justify-center">
                 <CircularProgress progress={ringProgress} />
-                <View className="absolute inset-0 items-center justify-center">
-                  <Text className="text-m3-on-surface font-bold text-4xl tabular-nums tracking-tight">
-                    {ringValue.toLocaleString()}
-                  </Text>
+                <View
+                  className="absolute inset-0 items-center justify-center"
+                  accessible
+                  accessibilityLabel={`${ringValue.toLocaleString()} kilocalories ${showRemaining ? 'remaining' : 'consumed'}`}
+                >
+                  <View className="flex-row items-baseline gap-1">
+                    <Text className="text-m3-on-surface font-bold text-4xl tabular-nums tracking-tight">
+                      {ringValue.toLocaleString()}
+                    </Text>
+                    <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
+                  </View>
                   <Text className="text-m3-on-surface-variant text-sm font-medium mt-0.5">
                     {showRemaining ? 'Remaining' : 'Consumed'}
                   </Text>
@@ -477,28 +493,51 @@ function DashboardScreen({
               </View>
 
               {/* Right: target */}
-              {!stackNutritionSummary && <View className="items-center flex-1 min-w-0">
-                <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
-                  {targetCals.toLocaleString()}
-                </Text>
-                <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
-              </View>}
+              {!stackNutritionSummary && (
+                <View
+                  className="items-center flex-1 min-w-0"
+                  accessible
+                  accessibilityLabel={`${targetCals.toLocaleString()} kilocalories target`}
+                >
+                  <View className="flex-row items-baseline gap-1">
+                    <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
+                      {targetCals.toLocaleString()}
+                    </Text>
+                    <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
+                  </View>
+                  <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
+                </View>
+              )}
 
               {stackNutritionSummary && (
                 <View className="w-full flex-row gap-4">
-                  <View className="items-center flex-1 min-w-0">
-                    <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
-                      {flankingLeft.toLocaleString()}
-                    </Text>
+                  <View
+                    className="items-center flex-1 min-w-0"
+                    accessible
+                    accessibilityLabel={`${flankingLeft.toLocaleString()} kilocalories ${showRemaining ? 'consumed' : 'remaining'}`}
+                  >
+                    <View className="flex-row items-baseline gap-1">
+                      <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
+                        {flankingLeft.toLocaleString()}
+                      </Text>
+                      <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
+                    </View>
                     <Text className="text-m3-on-surface-variant text-sm font-medium">
                       {showRemaining ? 'Consumed' : 'Remaining'}
                     </Text>
                   </View>
                   <View className="w-px bg-m3-outline-variant/50" />
-                  <View className="items-center flex-1 min-w-0">
-                    <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
-                      {targetCals.toLocaleString()}
-                    </Text>
+                  <View
+                    className="items-center flex-1 min-w-0"
+                    accessible
+                    accessibilityLabel={`${targetCals.toLocaleString()} kilocalories target`}
+                  >
+                    <View className="flex-row items-baseline gap-1">
+                      <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
+                        {targetCals.toLocaleString()}
+                      </Text>
+                      <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
+                    </View>
                     <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
                   </View>
                 </View>
