@@ -464,7 +464,6 @@ function DashboardScreen({
                     <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                       {flankingLeft.toLocaleString()}
                     </Text>
-                    <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
                   </View>
                   <Text className="text-m3-on-surface-variant text-sm font-medium">
                     {showRemaining ? 'Consumed' : 'Remaining'}
@@ -484,7 +483,6 @@ function DashboardScreen({
                     <Text className="text-m3-on-surface font-bold text-4xl tabular-nums tracking-tight">
                       {ringValue.toLocaleString()}
                     </Text>
-                    <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
                   </View>
                   <Text className="text-m3-on-surface-variant text-sm font-medium mt-0.5">
                     {showRemaining ? 'Remaining' : 'Consumed'}
@@ -503,7 +501,6 @@ function DashboardScreen({
                     <Text className="text-m3-on-surface text-xl font-bold tabular-nums">
                       {targetCals.toLocaleString()}
                     </Text>
-                    <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
                   </View>
                   <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
                 </View>
@@ -520,7 +517,6 @@ function DashboardScreen({
                       <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
                         {flankingLeft.toLocaleString()}
                       </Text>
-                      <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
                     </View>
                     <Text className="text-m3-on-surface-variant text-sm font-medium">
                       {showRemaining ? 'Consumed' : 'Remaining'}
@@ -536,7 +532,6 @@ function DashboardScreen({
                       <Text className="text-m3-on-surface text-lg font-bold tabular-nums">
                         {targetCals.toLocaleString()}
                       </Text>
-                      <Text className="text-m3-on-surface-variant text-compact font-medium">kcal</Text>
                     </View>
                     <Text className="text-m3-on-surface-variant text-sm font-medium">Target</Text>
                   </View>
