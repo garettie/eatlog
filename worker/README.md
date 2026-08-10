@@ -2,7 +2,7 @@
 
 ## Local setup
 
-1. Run `npm install` in `worker/`.
+1. Run `npm ci` in `worker/`.
 2. Copy `.dev.vars.example` to `.dev.vars` and enter local secrets. Generate `RATE_LIMIT_SALT` with `openssl rand -hex 32`.
 3. Run `npx wrangler dev`, `npm test`, `npm run typecheck`, and `npm run dry-run`.
 
@@ -21,8 +21,8 @@ npx wrangler deploy --dry-run
 npx wrangler deploy
 ```
 
-Set `EXPO_PUBLIC_FOOD_WORKER_URL` to deployed `workers.dev` URL. Smoke-test `GET /healthz`, valid USDA search, wrong methods, malformed JSON, oversized input, throttling, timeout behavior, and redacted errors. Then rotate USDA and Gemini keys exposed to earlier APKs and remove old public key variables from EAS.
+Set `EXPO_PUBLIC_FOOD_WORKER_URL` to the deployed HTTPS origin. With the same origin in `EATLOG_WORKER_URL`, `npm run smoke:health` performs only the read-only health check. `npm run smoke:validation` adds synthetic invalid requests; it does not call USDA or Gemini, but it does consume test rate-limit entries. Run it only against local, preview, or an explicitly approved production Worker.
 
 Workers dashboard: inspect **Workers & Pages > eatlog-food > Metrics** for traffic, CPU, errors, and latency; inspect **Logs** for 429/5xx events and rejection categories. Logs intentionally exclude request URLs, bodies, queries, prompts, responses, headers, identifiers, hashes, and secrets.
 
-Rollback with `npx wrangler rollback` and select previous healthy version. Record deployed URL, version, rollback target, key-rotation status, and Gemini project rate/spending-cap confirmation in release notes.
+The full release, provider smoke, log review, secret-rotation, incident, and rollback procedure is in `../release/runbooks/WORKER_RELEASE.md`.

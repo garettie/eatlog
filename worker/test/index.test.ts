@@ -176,23 +176,45 @@ test('generates a request ID without an injected test dependency', async () => {
 test('validates install ID and required secrets before upstream work', async () => {
   let fetched = false;
   const fetchImpl = (async () => { fetched = true; throw new Error('unexpected'); }) as typeof fetch;
-  const invalidId = request('/v1/usda/foods/1', 'GET', undefined, { 'X-Eatlog-Install-ID': 'short' });
-  assert.equal((await call(invalidId, { fetchImpl })).response.status, 400);
+  for (const installId of ['', 'a'.repeat(15), 'a'.repeat(65), 'g'.repeat(32)]) {
+    const invalidId = request('/v1/usda/foods/1', 'GET', undefined, { 'X-Eatlog-Install-ID': installId });
+    const result = await call(invalidId, { fetchImpl });
+    assert.equal(result.response.status, 400);
+    assert.equal(result.body.error.code, 'INVALID_INSTALL_ID');
+  }
+  for (const installId of ['a'.repeat(16), 'B'.repeat(64)]) {
+    const result = await call(request('/v1/usda/foods/1', 'GET', undefined, {
+      'X-Eatlog-Install-ID': installId,
+    }), { fetchImpl: (async () => jsonResponse(usdaFood())) as typeof fetch });
+    assert.equal(result.response.status, 200);
+  }
+  const digest = await hashInstallId(INSTALL_ID, 'synthetic-salt');
+  assert.match(digest, /^[a-f0-9]{64}$/);
+  assert.equal(digest, await hashInstallId(INSTALL_ID, 'synthetic-salt'));
+  assert.notEqual(digest, await hashInstallId(INSTALL_ID, 'different-synthetic-salt'));
+  assert.notEqual(digest, INSTALL_ID);
   const env = makeEnv({ GEMINI_API_KEY: '' });
   const result = await call(request('/v1/usda/foods/1'), { env, fetchImpl });
   assert.equal(result.response.status, 503);
   assert.equal(result.body.error.code, 'SERVICE_UNAVAILABLE');
+  const whitespace = await call(request('/v1/usda/foods/1'), {
+    env: makeEnv({ RATE_LIMIT_SALT: '   ' }),
+    fetchImpl,
+  });
+  assert.equal(whitespace.response.status, 503);
   assert.equal(fetched, false);
 });
 
 test('enforces POST content type, object shape, known fields, and USDA query contract', async () => {
   const cases: Array<[Request, number, string]> = [
     [request('/v1/usda/search', 'POST', '{}', { 'Content-Type': 'text/plain' }), 415, 'UNSUPPORTED_MEDIA_TYPE'],
+    [request('/v1/usda/search', 'POST', undefined, { 'Content-Type': 'application/json' }), 400, 'MALFORMED_JSON'],
     [request('/v1/usda/search', 'POST', '{'), 400, 'MALFORMED_JSON'],
     [request('/v1/usda/search', 'POST', []), 400, 'INVALID_BODY'],
     [request('/v1/usda/search', 'POST', { query: 'rice', mode: 'common', pageSize: 50 }), 400, 'UNKNOWN_PROPERTY'],
     [request('/v1/usda/search', 'POST', { query: 'x', mode: 'common' }), 400, 'INVALID_QUERY'],
     [request('/v1/usda/search', 'POST', { query: 'x'.repeat(101), mode: 'common' }), 400, 'INVALID_QUERY'],
+    [request('/v1/usda/search', 'POST', { query: 'x'.repeat(5000), mode: 'common' }), 413, 'PAYLOAD_TOO_LARGE'],
     [request('/v1/usda/search', 'POST', { query: 'rice', mode: 'other' }), 400, 'INVALID_MODE'],
   ];
   for (const [req, status, code] of cases) {
@@ -293,6 +315,23 @@ test('owns Gemini models, prompts, schema, fallback order, and bypasses cache', 
   assert.equal(bodies[0].generationConfig.responseSchema.properties.components.maxItems, undefined);
   assert.deepEqual(cache.reads, []);
   assert.deepEqual(cache.writes, []);
+});
+
+test('accepts a synthetic JPEG scan without calling a real provider', async () => {
+  let upstreamBody: any;
+  const fetchImpl = (async (_input, init) => {
+    upstreamBody = JSON.parse(String(init?.body));
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+  const { response, body } = await call(request('/v1/estimate', 'POST', {
+    operation: 'scan',
+    imageBase64: JPEG,
+  }), { fetchImpl });
+  assert.equal(response.status, 200);
+  assert.equal(body.status, 'recognized');
+  assert.deepEqual(upstreamBody.contents[0].parts[1], {
+    inlineData: { mimeType: 'image/jpeg', data: JPEG },
+  });
 });
 
 test('enforces the Gemini component cap after provider normalization', async () => {
@@ -412,14 +451,17 @@ test('uses digest-only USDA cache keys, correct TTLs, and caches only successes'
   assert.deepEqual(errorCache.writes, []);
 });
 
-test('emits one structured error log without inputs, identifiers, digests, headers, or secrets', async () => {
+test('emits only allowlisted operational fields without inputs, identifiers, digests, headers, or secrets', async () => {
   const logs: string[] = [];
   const original = console.log;
   console.log = (value?: unknown) => { logs.push(String(value)); };
   try {
     const env = makeEnv();
     const digest = await hashInstallId(INSTALL_ID, env.RATE_LIMIT_SALT);
-    const result = await call(request('/v1/usda/search', 'POST', { query: 'private food description', mode: 'common' }, { Authorization: 'Bearer private-token' }), {
+    const result = await call(request('/v1/usda/search', 'POST', { query: 'private food description', mode: 'common' }, {
+      Authorization: 'Bearer private-token',
+      'CF-Connecting-IP': '203.0.113.9',
+    }), {
       env,
       requestId: 'request-log',
       fetchImpl: (async () => new Response('provider-secret-body', { status: 500 })) as typeof fetch,
@@ -427,11 +469,25 @@ test('emits one structured error log without inputs, identifiers, digests, heade
     assert.equal(result.response.status, 502);
     assert.equal(logs.length, 1);
     const entry = JSON.parse(logs[0]);
-    assert.deepEqual(Object.keys(entry), ['requestId', 'route', 'method', 'status', 'durationMs', 'upstream', 'cache', 'rejection']);
-    assert.equal(entry.requestId, 'request-log');
+    assert.deepEqual(Object.keys(entry), ['route', 'status', 'latencyMs', 'upstream', 'cache', 'rejection']);
+    assert.equal(Number.isFinite(entry.latencyMs) && entry.latencyMs >= 0, true);
+    assert.deepEqual({ ...entry, latencyMs: 0 }, {
+      route: 'usda-search',
+      status: 502,
+      latencyMs: 0,
+      upstream: 'usda',
+      cache: 'miss',
+      rejection: 'upstream-status',
+    });
     const serialized = `${logs[0]} ${JSON.stringify(result.body)}`;
-    for (const forbidden of [INSTALL_ID, digest, env.USDA_API_KEY, env.GEMINI_API_KEY, env.RATE_LIMIT_SALT, 'private food', 'private-token', 'provider-secret-body', 'USDA_API_KEY']) {
+    for (const forbidden of [
+      INSTALL_ID, digest, env.USDA_API_KEY, env.GEMINI_API_KEY, env.RATE_LIMIT_SALT,
+      'private food', 'private-token', 'provider-secret-body', 'USDA_API_KEY',
+    ]) {
       assert.equal(serialized.includes(forbidden), false);
+    }
+    for (const forbidden of ['203.0.113.9', 'request-log', 'POST']) {
+      assert.equal(logs[0].includes(forbidden), false);
     }
   } finally {
     console.log = original;

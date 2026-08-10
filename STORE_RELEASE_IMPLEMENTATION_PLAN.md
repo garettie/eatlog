@@ -762,7 +762,7 @@ Do not place secret values in captured logs.
 
 ### M6.1 Confirm production secrets and limits
 
-- [ ] Keep `USDA_API_KEY`, `GEMINI_API_KEY`, and `RATE_LIMIT_SALT` as Worker secrets.
+- [x] Keep `USDA_API_KEY`, `GEMINI_API_KEY`, and `RATE_LIMIT_SALT` as Worker secrets.
 - [ ] Rotate any key that appeared in an older client build or local log.
 - [ ] Confirm production and preview EAS environments contain only the public Worker URL.
 - [ ] Confirm install, IP, and emergency limits in deployed Worker bindings.
@@ -772,17 +772,17 @@ Do not place secret values in captured logs.
 
 ### M6.2 Verify privacy-preserving observability
 
-- [ ] Keep request bodies, queries, prompts, responses, raw IDs, ID hashes, headers, and secrets out of logs.
-- [ ] Verify sampled logs contain route, status, latency, upstream category, cache outcome, and rejection category only.
+- [x] Keep request bodies, queries, prompts, responses, raw IDs, ID hashes, headers, and secrets out of logs.
+- [x] Verify sampled logs contain route, status, latency, upstream category, cache outcome, and rejection category only.
 - [ ] Inspect a release smoke-test log sample by hand.
 - [ ] Use Play Android Vitals, TestFlight/App Store crash reports, Worker metrics, and the support inbox for v1 monitoring.
-- [ ] Do not add a third-party app telemetry SDK before v1 unless the owner accepts its privacy and dependency cost.
+- [x] Do not add a third-party app telemetry SDK before v1 unless the owner accepts its privacy and dependency cost.
 
 ### M6.3 Run production smoke tests
 
 Run after every Worker deployment and before store review:
 
-- [ ] `GET /healthz`.
+- [x] `GET /healthz`.
 - [ ] Valid common and full USDA searches.
 - [ ] Valid USDA food detail.
 - [ ] Valid Describe request using non-sensitive synthetic text.
@@ -1339,3 +1339,14 @@ Recheck these before submission:
 - QA artifacts: `release/qa/UI_SMOKE_SCRIPT.md` gives exact onboarding, manual logging, Today, Diary edit/delete/undo, weight, Analytics, Profile, privacy, export, restore, and reset steps with a synthetic seed and expected results. `release/qa/DEVICE_MATRIX.md` covers API 26, API 36/current Google Android, Samsung-class Android, constrained/small Android, minimum/current iOS, small/large iPhones, provider failures, accessibility, backup corruption, rollback, and release halt severity.
 - Automation decision: there is no existing UI harness, runnable emulator, or simulator in this environment. No unverified heavyweight framework was added. The UI automation and device boxes remain unchecked until a real binary runs the script with screenshots and a signed result record.
 - Remaining M5 blockers: **PHYSICAL DEVICE** native ZIP creation/extraction, duplicate raw ZIP-entry behavior, Files/share cancellation, real photo rollback, all four cross-device archive transfers, UI/accessibility smoke, and the complete device matrix; **ENVIRONMENT LIMITATION** no Android emulator/ADB daemon or iOS Simulator/Xcode; **CREDENTIAL** Play-equivalent and TestFlight signed candidates are unavailable; **PAID SERVICE / STORE ACCOUNT** no distribution build was requested. M5 device and exit criteria remain unchecked, and no cross-device success is claimed.
+
+### Phase 5 / M6 account-free evidence: 2026-08-10
+
+- Changed Worker source and tests: `worker/src/index.ts`, `worker/test/index.test.ts`, `worker/wrangler.jsonc`, `worker/package.json`, `worker/scripts/smoke.mjs`, and `worker/README.md`. Blank-only secret values now fail closed. Installation-token tests cover missing, short, long, non-hex, 16/64-character acceptance, deterministic salted SHA-256 hashing, and salt separation. Synthetic tests cover valid Scan without a provider call, missing/oversized/malformed inputs, routes/methods, upstream shape/content/status/timeout failures, rate limiting with `Retry-After`, and dependency-free health execution.
+- Logging result: Worker console JSON is restricted to exactly `route`, `status`, `latencyMs`, `upstream`, `cache`, and `rejection`. Tests prove it excludes request/response bodies, queries, prompts, provider bodies, raw tokens, salted hashes, IPs, headers, secrets, request IDs, and methods. Production sampled-log inspection remains credential-bound and unchecked.
+- Configuration result: current Wrangler syntax declares the three required secret names without values, sampled custom logs with automatic invocation logs disabled, and six rate-limit bindings. Invocation logs were disabled because Cloudflare documents that they can contain request and response metadata outside Eatlog's allowlist. The dry-run enumerated install/IP/emergency limits for both USDA and Gemini and bundled 28.09 KiB / 7.44 KiB gzip without deploying.
+- Operations artifacts: `release/runbooks/WORKER_RELEASE.md` defines candidate/version evidence, read-only and validation smoke modes, provider contract checks, exact log allowlist, owner-only deploy/rotation/rollback commands, rollback evidence, severity, and halt conditions. `release/OWNER_INPUTS.md` now records production binding, secret rotation, alert, Worker version, rollback target, EAS environment, and operations-owner requirements.
+- Commands and results: `env TMPDIR=/tmp npm ci` passed with 40 packages; install scripts for `esbuild` and `workerd` were locally blocked but tests and bundling passed. `npm test` passed 18/18; `npm run typecheck` passed; `env XDG_CONFIG_HOME=/tmp/eatlog-wrangler-config TMPDIR=/tmp npm run dry-run` passed; `npm audit --omit=dev` reported zero vulnerabilities. The first test run failed only because the test assumed zero-millisecond latency; the assertion was corrected to require finite nonnegative latency. The first dry-run bundle completed but its debug log targeted a read-only home path; the recorded rerun used the writable task-specific config path and passed.
+- Read-only production check: the already configured public Worker `GET /healthz` returned HTTP 200 with the expected health contract after a sandbox DNS failure was retried with approved network access. No validation traffic, USDA request, Gemini Describe/Scan, rate-limit exercise, deployment, secret change, quota change, or alert change occurred.
+- Current official references checked: Cloudflare Wrangler dry-run/deployment/rollback, required-secret, observability, and rate-limit binding documentation; the Gemini models/generateContent API; and USDA FoodData Central search/detail, key, rate-limit, and licensing guidance.
+- Remaining M6 blockers: **CREDENTIAL** production secret/binding/EAS-environment inspection, sampled log review, key-rotation status, provider retention review, and named deploy/rollback access; **OWNER INPUT** release/support/incident owner; **PAID SERVICE / CREDENTIAL** Gemini Describe/Scan production smoke and quota/budget alerts; **CREDENTIAL** Cloudflare usage/error notifications; **STORE ACCOUNT** Play/App Store monitoring consoles and support inbox; **PAID SERVICE** preview deployment/rollback drill. M6 production exit criteria remain unchecked.

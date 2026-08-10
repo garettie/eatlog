@@ -6,7 +6,9 @@
   "scripts": {
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "dry-run": "wrangler deploy --dry-run"
+    "dry-run": "wrangler deploy --dry-run",
+    "smoke:health": "node scripts/smoke.mjs",
+    "smoke:validation": "node scripts/smoke.mjs --validation"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260808.1",

@@ -28,6 +28,9 @@ Engineering can finish account-free release work without these values. Do not co
 | Available iPhones: minimum supported iOS, current iOS, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |
 | Named release/support owner who can monitor support, deploy or roll back the Worker, and rotate secrets | Awaiting owner | Public release | OWNER INPUT |
 | Confirm production Google Gemini and Cloudflare retention, abuse-protection, and logging settings against the privacy/store disclosures | Requires production-account access | Public release | CREDENTIAL |
+| Verify production Worker secret bindings and rotate any USDA, Gemini, or rate-limit secret exposed in an older client or log | Requires production-account access and key owners | Public release | CREDENTIAL |
+| Configure and verify Gemini quota/budget alerts plus Cloudflare usage/error notifications supported by the account plan | Requires production-account access and budget owner | Public release | CREDENTIAL |
+| Record the production Worker URL/version, previous healthy version, rollback target, deployed rate-limit bindings, and the EAS environments that contain only the public Worker URL | Requires Cloudflare and EAS access | Submission | CREDENTIAL |
 | Budget approval for paid memberships, EAS builds, provider usage, domain hosting, and test devices | Awaiting owner | Paid action | PAID SERVICE |
 
 Fixed product decisions already supplied by the owner:
