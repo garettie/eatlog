@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
+const releaseConfig = require('../app.json').expo;
+
 const {
   addHealthConnectPermissionDelegate,
   ensureHealthConnectManifest,
@@ -27,6 +29,20 @@ function manifestFixture() {
     },
   };
 }
+
+test('release config blocks unused Android template permissions', () => {
+  assert.deepEqual(releaseConfig.android.blockedPermissions, [
+    'android.permission.SYSTEM_ALERT_WINDOW',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+  ]);
+  assert.deepEqual(releaseConfig.android.permissions, [
+    'android.permission.health.READ_WEIGHT',
+    'android.permission.health.WRITE_WEIGHT',
+  ]);
+  const imagePicker = releaseConfig.plugins.find((plugin) =>
+    Array.isArray(plugin) && plugin[0] === 'expo-image-picker');
+  assert.equal(imagePicker[1].microphonePermission, false);
+});
 
 test('Health Connect manifest setup is exact and idempotent', () => {
   const manifest = manifestFixture();

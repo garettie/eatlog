@@ -32,6 +32,14 @@ Primary references:
 - [React Native Health Connect permissions](https://matinzd.github.io/react-native-health-connect/docs/permissions)
 - [Expo config plugin mods](https://docs.expo.dev/config-plugins/mods/)
 
+## Android permission hygiene
+
+`app.json` blocks the unused prebuild-template permissions `android.permission.SYSTEM_ALERT_WINDOW` and `android.permission.WRITE_EXTERNAL_STORAGE`. Expo converts each block into a manifest-merger removal directive, so a dependency cannot add it back silently. ImagePicker's `microphonePermission: false` continues to produce the separate `RECORD_AUDIO` removal directive.
+
+The generated app manifest retains `INTERNET` for named remote features, `VIBRATE` for the app's haptic controls, legacy read access used by the photo-library path on supported older Android releases, and Health Connect Weight read/write. Camera and photo-library access still require point-of-use device verification, and the final signed AAB's merged manifest remains a release gate.
+
+Primary reference: [Expo permissions guide](https://docs.expo.dev/guides/permissions/#android).
+
 ## iOS settings
 
 The evaluated production config uses the candidate bundle identifier, iPhone-only device family, the canonical 1024 by 1024 Eatlog icon, camera and photo-library purpose strings, and `ITSAppUsesNonExemptEncryption=false`. No microphone purpose string is generated. Eatlog uses standard HTTPS and platform cryptography and does not implement non-exempt encryption.

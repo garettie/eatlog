@@ -28,6 +28,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan",
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "permissions": [
         "android.permission.health.READ_WEIGHT",
         "android.permission.health.WRITE_WEIGHT"
