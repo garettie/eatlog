@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { scanFood, clarifyComponent, clarifyMeal, type DescribeResult, type FoodEstimationFailureKind } from '../../services/foodScan';
+import { requestRemoteEstimateDisclosureAlert } from '../../services/remoteEstimateDisclosureAlert';
 import { serviceConfig } from '../../config/services';
 import type { DataType, FoodResult } from '../../services/foodSearch';
 import { buildFoodPortions } from '../../services/foodSearchCore';
@@ -267,6 +268,12 @@ export default function FoodSheetContent({
                 showScanError('photo-unreadable', 'camera');
                 return;
             }
+            if (!(await requestRemoteEstimateDisclosureAlert())) {
+                if (fromBarRef.current) resetToEntry();
+                else transitionTo('entry', { pushHistory: false });
+                return;
+            }
+            if (requestId !== scanRequestRef.current) return;
             scanBase64Ref.current = base64;
             const scanResult = await scanFood(base64).catch((error) => {
                 console.error('[FoodSheet] camera estimate failed unexpectedly', error);
@@ -325,6 +332,12 @@ export default function FoodSheetContent({
                 showScanError('photo-unreadable', 'gallery');
                 return;
             }
+            if (!(await requestRemoteEstimateDisclosureAlert())) {
+                if (fromBarRef.current) resetToEntry();
+                else transitionTo('entry', { pushHistory: false });
+                return;
+            }
+            if (requestId !== scanRequestRef.current) return;
             scanBase64Ref.current = base64;
             const scanResult = await scanFood(base64).catch((error) => {
                 console.error('[FoodSheet] gallery estimate failed unexpectedly', error);
@@ -546,7 +559,7 @@ export default function FoodSheetContent({
                     />
                 )}
                 {renderedStateKey === 'describe' && (
-                    <DescribeInputState onResult={handleDescribeResult} onBack={onGoBack} onSearch={handleSearch} onManualEntry={handleManualEntry} />
+                    <DescribeInputState onResult={handleDescribeResult} requestDisclosure={requestRemoteEstimateDisclosureAlert} onBack={onGoBack} onSearch={handleSearch} onManualEntry={handleManualEntry} />
                 )}
                 {renderedStateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
                 {renderedStateKey === 'permission-denied' && (
@@ -590,6 +603,7 @@ export default function FoodSheetContent({
                         onLogComplete={handleMealLogged}
                         onClarify={handleClarify}
                         onClarifyComponent={handleClarifyComponent}
+                        requestDisclosure={requestRemoteEstimateDisclosureAlert}
                         editMealId={state.editMealId}
                         initialMeal={state.pendingMeal}
                         logDate={state.logDate ?? null}
@@ -602,6 +616,7 @@ export default function FoodSheetContent({
                         onSelectFood={handleSelectFood}
                         onManualEntry={handleManualEntry}
                         onEstimateResult={handleDescribeResult}
+                        requestDisclosure={requestRemoteEstimateDisclosureAlert}
                         onQuickLogComplete={handleSingleLogComplete}
                         initialMeal={state.pendingMeal}
                         logDate={state.logDate ?? null}

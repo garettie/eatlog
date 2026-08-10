@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, View } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps, type BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -21,6 +21,7 @@ import { buildFoodPortions } from '../services/foodSearchCore';
 import type { DescribeResult } from '../services/foodScan';
 import EatlogTabBar from './EatlogTabBar';
 import { syncHealthConnectWeights } from '../services/healthConnect';
+import { supportsHealthConnect } from '../services/platformFeatures';
 import { NAVIGATION_RAIL_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 function mealLabel(m: MealType): string {
@@ -71,6 +72,7 @@ export default function TabNavigator() {
     const sheetCloseRef = useRef<() => void>(() => { });
 
     const reconcileHealthConnect = useCallback(() => {
+        if (!supportsHealthConnect(Platform.OS)) return;
         void syncHealthConnectWeights().then((result) => {
             if (result.imported + result.updated + result.deleted > 0) {
                 setDataVersion((version) => version + 1);
@@ -79,10 +81,12 @@ export default function TabNavigator() {
     }, []);
 
     useEffect(() => {
+        if (!supportsHealthConnect(Platform.OS)) return;
         reconcileHealthConnect();
     }, [dataVersion, reconcileHealthConnect]);
 
     useEffect(() => {
+        if (!supportsHealthConnect(Platform.OS)) return;
         const subscription = AppState.addEventListener('change', (state) => {
             if (state === 'active') reconcileHealthConnect();
         });

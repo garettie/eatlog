@@ -106,7 +106,7 @@ async function main(): Promise<void> {
   if (evaluationCases.length === 0) throw new Error('No evaluation query matched the provided filter.');
   const providers = createFoodSearchRemoteProviders({
     workerUrl: workerUrl.replace(/\/$/, ''),
-    getInstallId: () => '0000000000000000',
+    getInstallationToken: () => '00000000000000000000000000000000',
   });
   let nearMisses: DedupNearMiss[] = [];
   let providerFailures: string[] = [];

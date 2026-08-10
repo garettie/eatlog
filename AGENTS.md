@@ -178,7 +178,7 @@ Boris Cherny (creator of Claude Code) keeps his team's file around 100 lines. Un
 - Language and version: TypeScript 5.9, React 19.1
 - Framework(s): React Native 0.81 + Expo SDK 54 (managed workflow)
 - Package manager: npm
-- Runtime / deployment target: Android (APK via EAS Build, sideloaded)
+- Runtime / deployment target: Android-first public release via Google Play, followed by iOS via the App Store
 - Styling: NativeWind 4.2 (Tailwind CSS for React Native)
 - Navigation: React Navigation 7 (native stack)
 - Storage: expo-sqlite (local-first, on-device SQLite, no backend)
@@ -216,7 +216,7 @@ Boris Cherny (creator of Claude Code) keeps his team's file around 100 lines. Un
 - Do not use `StyleSheet.create` — use NativeWind classes exclusively
 - Do not add backend/auth/network dependencies — this is local-first by design
 - Do not substitute the tech stack (e.g., swap NativeWind for styled-components) without discussion
-- Do not add iOS-specific code — Android-only MVP
+- iOS v1 source and release configuration are allowed; keep Health Connect Android-only and keep HealthKit/Apple Health outside v1
 
 ---
 

@@ -52,6 +52,7 @@ export type ProfileStackParamList = {
     HealthConnect: undefined;
     HowEatlogWorks: undefined;
     About: undefined;
+    Attributions: undefined;
     PlanPreview: { profile: ProfileUpdate; target: DailyTargetInput };
 };
 

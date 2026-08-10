@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +17,8 @@ import { deleteEatlogHealthConnectWeights } from '../services/healthConnect';
 import { resetLocalData } from '../services/dataReset';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
+import { serviceConfig } from '../config/services';
+import { supportsHealthConnect } from '../services/platformFeatures';
 
 interface ProfileScreenProps {
     dataVersion: number;
@@ -79,6 +81,14 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     const [readError, setReadError] = useState(false);
     const initialLoadDone = useRef(false);
     const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
+    const privacyPolicyUrl = serviceConfig.publicLinks.privacyPolicyUrl;
+    const supportUrl = serviceConfig.publicLinks.supportUrl;
+
+    const openPublicLink = useCallback((title: string, url: string) => {
+        void Linking.openURL(url).catch(() => {
+            Alert.alert('Could not open link', `This device could not open ${title}. Check your browser and try again.`);
+        });
+    }, []);
 
     const loadProfile = useCallback((showLoading: boolean) => {
         if (showLoading) setLoading(true);
@@ -117,6 +127,16 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     }, [navigation]);
 
     const deleteAllData = useCallback(() => {
+        const confirmLocalDeletion = () => {
+            Alert.alert('Final confirmation', 'Delete all local Eatlog data now? This cannot be undone.', [
+                { text: 'Keep my data', style: 'cancel' },
+                {
+                    text: 'Delete everything', style: 'destructive', onPress: () => {
+                        void runDataMaintenance('Deleting all data', resetLocalData).catch(() => { });
+                    },
+                },
+            ]);
+        };
         Alert.alert(
             'Delete all Eatlog data?',
             'This will erase your profile, food history, weight history, targets, reviews, and saved meal photos from this device.',
@@ -124,6 +144,10 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                 { text: 'Cancel', style: 'cancel' },
                 {
                     text: 'Continue', style: 'destructive', onPress: () => {
+                        if (!supportsHealthConnect(Platform.OS)) {
+                            confirmLocalDeletion();
+                            return;
+                        }
                         void deleteEatlogHealthConnectWeights().then((healthResult) => {
                             const detail = healthResult.warning
                                 ? `${healthResult.warning}\n\nDelete all local Eatlog data anyway? This cannot be undone.`
@@ -280,14 +304,23 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                     <Section title="Data & Sync">
                         <ProfileSettingRow icon="backup" title="Backup and restore" detail="Back up or restore your data" onPress={() => navigation.navigate('BackupRestore')} />
                         <ProfileSettingRow icon="file-download" title="Export data" detail="Save readable CSV files" onPress={() => navigation.navigate('ExportData')} />
-                        <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync weight with Android" onPress={() => navigation.navigate('HealthConnect')} />
+                        {supportsHealthConnect(Platform.OS) ? (
+                            <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync weight with Android" onPress={() => navigation.navigate('HealthConnect')} />
+                        ) : null}
                         <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase Eatlog data from this device" onPress={deleteAllData} showDivider={false} />
                     </Section>
 
                     <Section title="Help & About">
                         <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="How targets adapt to your logs" onPress={() => navigation.navigate('HowEatlogWorks')} />
                         <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="On-device data and network use" onPress={() => navigation.navigate('Privacy')} />
-                        <ProfileSettingRow icon="info-outline" title="About" detail="Build details and data sources" onPress={() => navigation.navigate('About')} showDivider={false} />
+                        <ProfileSettingRow icon="info-outline" title="About" detail="Build details and data sources" onPress={() => navigation.navigate('About')} />
+                        <ProfileSettingRow icon="copyright" title="Licenses and attributions" detail="Data, services, fonts, and software" onPress={() => navigation.navigate('Attributions')} showDivider={!!privacyPolicyUrl || !!supportUrl} />
+                        {privacyPolicyUrl ? (
+                            <ProfileSettingRow icon="policy" title="Privacy policy" detail="Open the public policy" onPress={() => openPublicLink('the privacy policy', privacyPolicyUrl)} showDivider={!!supportUrl} />
+                        ) : null}
+                        {supportUrl ? (
+                            <ProfileSettingRow icon="support-agent" title="Support" detail="Open Eatlog support" onPress={() => openPublicLink('Eatlog support', supportUrl)} showDivider={false} />
+                        ) : null}
                     </Section>
                 </View>
                 </View>

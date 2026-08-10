@@ -15,6 +15,7 @@ import { todayISO } from '../utils/calendar';
 import { healthConnectWindow, selectLatestExternalWeights, type ExternalWeightCandidate } from '../utils/healthConnect';
 import { getApplicationInfo } from '../utils/applicationInfo';
 import type { HealthConnectResetResult, HealthConnectStatus, HealthSyncResult } from './healthConnect.types';
+import { supportsHealthConnect } from './platformFeatures';
 
 const WEIGHT_PERMISSIONS: Permission[] = [
   { accessType: 'read', recordType: 'Weight' },
@@ -32,6 +33,7 @@ let syncPromise: Promise<HealthSyncResult> | null = null;
 let healthConnectModule: typeof import('react-native-health-connect') | null | undefined;
 
 function getHealthConnectModule(): typeof import('react-native-health-connect') | null {
+  if (!supportsHealthConnect(Platform.OS)) return null;
   if (healthConnectModule !== undefined) return healthConnectModule;
   try {
     healthConnectModule = require('react-native-health-connect') as typeof import('react-native-health-connect');
@@ -52,7 +54,7 @@ function permissionDirections(permissions: Array<{ accessType: string; recordTyp
 }
 
 async function availability(): Promise<'available' | 'unavailable' | 'update'> {
-  if (Platform.OS !== 'android') return 'unavailable';
+  if (!supportsHealthConnect(Platform.OS)) return 'unavailable';
   const healthConnect = getHealthConnectModule();
   if (!healthConnect) return 'unavailable';
   try {

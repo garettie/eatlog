@@ -9,7 +9,10 @@
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 0.1
+    "logs": {
+      "invocation_logs": false,
+      "head_sampling_rate": 0.1
+    }
   },
   "ratelimits": [
     { "name": "USDA_INSTALL_LIMITER", "namespace_id": "41001", "simple": { "limit": 30, "period": 60 } },

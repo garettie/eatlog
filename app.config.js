@@ -1,10 +1,7 @@
-const { expo } = require("./app.json");
-
 const isDevelopment = process.env.APP_VARIANT === "development";
 
-module.exports = {
-  ...expo,
-  name: isDevelopment ? "Eatlog Dev" : expo.name,
+module.exports = ({ config }) => ({
+  ...config,
   updates: {
     url: "https://u.expo.dev/700befb6-016e-4d35-a35c-bd375da07e4d",
   },
@@ -12,7 +9,11 @@ module.exports = {
     policy: "appVersion",
   },
   android: {
-    ...expo.android,
-    package: isDevelopment ? "com.sgaret.eatlog.dev" : expo.android.package,
+    ...config.android,
+    package: isDevelopment ? "com.sgaret.eatlog.dev" : config.android.package,
   },
-};
+  ios: {
+    ...config.ios,
+    bundleIdentifier: isDevelopment ? "com.sgaret.eatlog.dev" : config.ios.bundleIdentifier,
+  },
+});

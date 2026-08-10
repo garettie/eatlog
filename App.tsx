@@ -31,6 +31,7 @@ import { StatusBar } from "expo-status-bar";
 import { initDatabase, getActiveMealPhotoUris } from "./src/db/database";
 import { cleanupOrphanMealPhotos } from "./src/utils/mealPhotos";
 import RootNavigator from "./src/navigation/RootNavigator";
+import { navigationLinking } from "./src/navigation/linking";
 import { M3, TYPE } from "./src/theme/tokens";
 import {
 	DataMaintenanceContext,
@@ -300,7 +301,11 @@ export default function App() {
 						</ResponsiveContent>
 					</View>
 				) : (
-					<NavigationContainer key={dataEpoch} theme={navigationTheme}>
+					<NavigationContainer
+						key={dataEpoch}
+						linking={navigationLinking}
+						theme={navigationTheme}
+					>
 						<RootNavigator />
 					</NavigationContainer>
 				)}

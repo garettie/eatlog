@@ -13,6 +13,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { MaterialIcons } from "@expo/vector-icons";
 
+import { serviceConfig } from "../../config/services";
 import { insertFoodLog, type MealType, setFoodPinned } from "../../db/database";
 import { describeMeal, type DescribeResult } from "../../services/foodScan";
 import { loadFoodDetails, type FoodResult } from "../../services/foodSearch";
@@ -29,6 +30,7 @@ interface SearchInputStateProps {
 	onSelectFood: (food: FoodResult) => void;
 	onManualEntry: () => void;
 	onEstimateResult: (result: DescribeResult) => void;
+	requestDisclosure: () => Promise<boolean>;
 	onQuickLogComplete: (info: {
 		logId: number;
 		meal: MealType;
@@ -54,6 +56,7 @@ export default function SearchInputState({
 	onSelectFood,
 	onManualEntry,
 	onEstimateResult,
+	requestDisclosure,
 	onQuickLogComplete,
 	initialMeal,
 	logDate,
@@ -132,6 +135,7 @@ export default function SearchInputState({
 	const handleEstimate = useCallback(async () => {
 		const query = search.query.trim();
 		if (!query || estimating) return;
+		if (!(await requestDisclosure())) return;
 		setEstimating(true);
 		setEstimateError(null);
 		const result = await describeMeal(query);
@@ -142,7 +146,7 @@ export default function SearchInputState({
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [estimating, onEstimateResult, search.query]);
+	}, [estimating, onEstimateResult, requestDisclosure, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow
@@ -252,6 +256,11 @@ export default function SearchInputState({
 						) : null}
 
 						<SectionTitle>Online results</SectionTitle>
+						{serviceConfig.availability.openFoodFacts ? (
+							<Text className="text-m3-on-surface-variant text-xs px-1">
+								Press Search to send this query to Open Food Facts.
+							</Text>
+						) : null}
 						{search.remoteResults.map(foodRow)}
 						{search.remoteState === "loading" ? (
 							<View className="py-4">

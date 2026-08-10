@@ -13,7 +13,10 @@ export type {
 } from './foodSearchTypes';
 
 let latestNearMisses: DedupNearMiss[] = [];
-const remote = createFoodSearchRemoteProviders({ workerUrl: serviceConfig.foodWorkerUrl });
+const remote = createFoodSearchRemoteProviders({
+  workerUrl: serviceConfig.foodWorkerUrl,
+  openFoodFactsUserAgent: serviceConfig.openFoodFactsUserAgent,
+});
 
 export async function searchPersonalFoods(query: string): Promise<FoodResult[]> {
   const [rows, pinnedKeys] = await Promise.all([getFoodHistoryRows(), getPinnedFoodKeys()]);

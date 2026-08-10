@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { FORM_MAX_WIDTH } from '../theme/layout';
@@ -27,6 +27,7 @@ import {
 import type { OwnershipProgressEvent, RestorePreview } from '../services/dataOwnership.types';
 import type { HealthConnectStatus } from '../services/healthConnect.types';
 import { M3 } from '../theme/tokens';
+import { supportsHealthConnect } from '../services/platformFeatures';
 
 function Screen({ children }: { children: React.ReactNode }) {
     return (
@@ -184,7 +185,7 @@ export function ExportDataScreen() {
         <Screen>
             <ScrollView contentContainerClassName="p-6 gap-6">
                 <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Export your data</Text><Text className="text-sm text-m3-on-surface-variant">Save your food, weight, target, and review history as readable CSV files.</Text></View>
-                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For reading, not restoring</Text><Text className="text-sm text-m3-on-surface-variant">CSV exports include no meal photos, caches, or Health Connect sync metadata. Use Backup & restore when you need to restore Eatlog.</Text></Card>
+                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For reading, not restoring</Text><Text className="text-sm text-m3-on-surface-variant">{supportsHealthConnect(Platform.OS) ? 'CSV exports include no meal photos, caches, or Health Connect sync metadata. Use Backup & restore when you need to restore Eatlog.' : 'CSV exports include no meal photos or caches. Use Backup & restore when you need to restore Eatlog.'}</Text></Card>
                 <PrimaryButton title="Create CSV export" icon="file-download" onPress={() => void run()} disabled={progress != null} />
                 {progress ? <ProgressCard progress={progress} /> : null}
                 {message ? <Message text={message} /> : null}

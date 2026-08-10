@@ -41,6 +41,44 @@ export interface BackupManifestV2 {
 
 export type BackupManifest = BackupManifestV1 | BackupManifestV2;
 
+export const MAX_BACKUP_ARCHIVE_BYTES = 1024 * 1024 * 1024;
+export const MAX_BACKUP_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024;
+
+export function createBackupManifestV2(value: Omit<BackupManifestV2, 'formatVersion'>): BackupManifestV2 {
+  return { formatVersion: 2, ...value };
+}
+
+export function validateBackupArchiveSizes(archiveBytes: number, uncompressedBytes?: number): void {
+  if (!Number.isSafeInteger(archiveBytes) || archiveBytes <= 0 || archiveBytes > MAX_BACKUP_ARCHIVE_BYTES) {
+    throw new Error('This backup file is empty or too large.');
+  }
+  if (uncompressedBytes !== undefined
+    && (!Number.isSafeInteger(uncompressedBytes) || uncompressedBytes <= 0
+      || uncompressedBytes > MAX_BACKUP_UNCOMPRESSED_BYTES)) {
+    throw new Error('This backup expands beyond the supported size limit.');
+  }
+}
+
+export function validateExtractedBackupPaths(
+  paths: string[],
+  manifest: { databaseFile: string; photoFiles: ReadonlyArray<{ archivePath: string }> },
+): void {
+  const actual = new Set<string>();
+  for (const path of paths) {
+    if (!isSafeArchivePath(path)) throw new Error('Backup contains an unsafe archive path.');
+    if (actual.has(path)) throw new Error('Backup contains a duplicate archive path.');
+    actual.add(path);
+  }
+  const expected = new Set([
+    'manifest.json',
+    manifest.databaseFile,
+    ...manifest.photoFiles.map((photo) => photo.archivePath),
+  ]);
+  if (expected.size !== actual.size || [...expected].some((path) => !actual.has(path))) {
+    throw new Error('Backup archive contents do not match its manifest.');
+  }
+}
+
 export function isSupportedBackupFileName(name: string): boolean {
   const normalized = name.toLowerCase();
   return normalized.endsWith('.eatlog-backup') || normalized.endsWith('.marco-backup');
@@ -98,6 +136,9 @@ export function validateBackupManifest(value: unknown, databaseVersion: number):
     throw new Error('This backup format is not supported.');
   }
   const manifest = value as BackupManifest;
+  if (typeof manifest.appVersion !== 'string' || manifest.appVersion.length === 0) {
+    throw new Error('Backup manifest is incomplete.');
+  }
   if (!isNonNegativeInteger(manifest.databaseVersion) || manifest.databaseVersion > databaseVersion) {
     throw new Error('This backup uses a newer database version.');
   }
@@ -138,6 +179,7 @@ export function validateBackupManifest(value: unknown, databaseVersion: number):
     for (const requiredPath of paths) {
       if (!filePaths.has(requiredPath)) throw new Error('Backup manifest is missing file metadata.');
     }
+    if (filePaths.size !== paths.size) throw new Error('Backup manifest contains unexpected file metadata.');
   }
   return manifest as BackupManifest;
 }

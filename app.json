@@ -9,7 +9,15 @@
     "backgroundColor": "#151515",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": false
+      "bundleIdentifier": "com.sgaret.eatlog",
+      "supportsTablet": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Eatlog to use your camera to scan meals.",
+        "NSPhotoLibraryUsageDescription": "Allow Eatlog to access photos to scan meals."
+      }
     },
     "android": {
       "package": "com.sgaret.eatlog",
@@ -20,6 +28,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "pan",
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "permissions": [
         "android.permission.health.READ_WEIGHT",
         "android.permission.health.WRITE_WEIGHT"
@@ -38,7 +50,7 @@
         }
       ],
       "expo-sqlite",
-      "expo-health-connect",
+      "./plugins/withEatlogHealthConnect",
       [
         "expo-build-properties",
         {

@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -13,7 +14,8 @@ import {
   type ProfileStackParamList,
 } from '../screens/ProfilePlanScreens';
 import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
-import { AboutScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
+import { AboutScreen, AttributionsScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
+import { supportsHealthConnect } from '../services/platformFeatures';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
@@ -38,6 +40,7 @@ const EXPORT_DATA_OPTIONS = { title: 'Export data' } as const;
 const HEALTH_CONNECT_OPTIONS = { title: 'Health Connect' } as const;
 const HOW_EATLOG_WORKS_OPTIONS = { title: 'How Eatlog works' } as const;
 const ABOUT_OPTIONS = { title: 'About' } as const;
+const ATTRIBUTIONS_OPTIONS = { title: 'Licenses & attributions' } as const;
 const PLAN_PREVIEW_OPTIONS = { title: 'Review changes' } as const;
 
 function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps) {
@@ -74,11 +77,14 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={PRIVACY_OPTIONS} />
       <Stack.Screen name="BackupRestore" component={BackupRestoreScreen} options={BACKUP_RESTORE_OPTIONS} />
       <Stack.Screen name="ExportData" component={ExportDataScreen} options={EXPORT_DATA_OPTIONS} />
-      <Stack.Screen name="HealthConnect" options={HEALTH_CONNECT_OPTIONS}>
-        {renderHealthConnect}
-      </Stack.Screen>
+      {supportsHealthConnect(Platform.OS) ? (
+        <Stack.Screen name="HealthConnect" options={HEALTH_CONNECT_OPTIONS}>
+          {renderHealthConnect}
+        </Stack.Screen>
+      ) : null}
       <Stack.Screen name="HowEatlogWorks" component={HowEatlogWorksScreen} options={HOW_EATLOG_WORKS_OPTIONS} />
       <Stack.Screen name="About" component={AboutScreen} options={ABOUT_OPTIONS} />
+      <Stack.Screen name="Attributions" component={AttributionsScreen} options={ATTRIBUTIONS_OPTIONS} />
       <Stack.Screen name="PlanPreview" options={PLAN_PREVIEW_OPTIONS}>
         {renderPlanPreview}
       </Stack.Screen>

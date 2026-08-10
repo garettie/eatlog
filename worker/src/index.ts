@@ -264,7 +264,7 @@ async function digestText(value: string): Promise<string> {
 
 function requiredSecretsPresent(env: Env): boolean {
   return [env.USDA_API_KEY, env.GEMINI_API_KEY, env.RATE_LIMIT_SALT]
-    .every((value) => typeof value === 'string' && value.length > 0);
+    .every((value) => typeof value === 'string' && value.trim().length > 0);
 }
 
 async function applyRateLimits(env: Env, group: RouteGroup, installId: string, request: Request): Promise<void> {
@@ -555,19 +555,15 @@ async function geminiEstimate(input: EstimateInput, env: Env, fetchImpl: typeof 
 }
 
 function logOperational(
-  requestId: string,
   route: string,
-  method: string,
   status: number,
-  durationMs: number,
+  latencyMs: number,
   meta: ErrorMeta,
 ): void {
   console.log(JSON.stringify({
-    requestId,
     route,
-    method,
     status,
-    durationMs,
+    latencyMs,
     upstream: meta.upstream ?? 'none',
     cache: meta.cacheOutcome ?? 'bypass',
     rejection: meta.rejection ?? 'unknown',
@@ -612,7 +608,7 @@ export async function handleRequest(
       ? error
       : new HttpError(500, 'INTERNAL_ERROR', 'Food service could not complete the request.', { rejection: 'internal' });
     const ended = (dependencies.now ?? Date.now)();
-    logOperational(requestId, route, request.method, failure.status, Math.max(0, ended - started), failure.meta);
+    logOperational(route, failure.status, Math.max(0, ended - started), failure.meta);
     return errorResponse(failure, requestId);
   }
 }
