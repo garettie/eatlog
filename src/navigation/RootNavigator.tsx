@@ -8,7 +8,8 @@ import SetupCompleteScreen from '../screens/SetupCompleteScreen';
 import TabNavigator from './TabNavigator';
 import { getDailyTargetForDate, getLatestWeightLogOnOrBefore, getProfile } from '../db/database';
 import { todayISO } from '../utils/calendar';
-import { profileSafetyIssues, targetSafetyIssues, validateWeightKg } from '../utils/nutritionSafety';
+import { validateWeightKg } from '../utils/nutritionSafety';
+import { resolveProfileSafetyRoute } from '../utils/profileSafetyGate';
 
 // ─── Route param types ────────────────────────────────────────────────────
 
@@ -50,16 +51,13 @@ export default function RootNavigator() {
           : weight?.scale_weight_kg != null && !validateWeightKg(weight.scale_weight_kg, 'Scale weight')
             ? weight.scale_weight_kg
             : null;
-        const profileIssues = profileSafetyIssues(profile, {
-          currentWeightKg,
-          requireCurrentWeight: true,
-          checkGoalDirection: false,
-        });
         const target = await getDailyTargetForDate(today);
-        const targetIssues = target
-          ? targetSafetyIssues(target, { goalType: profile.goal_type, referenceWeightKg: currentWeightKg })
-          : ['An active nutrition target is required.'];
-        setInitialRoute(profileIssues.length === 0 && targetIssues.length === 0 ? 'Tabs' : 'ProfileCorrection');
+        setInitialRoute(resolveProfileSafetyRoute({
+          profile,
+          currentWeightKg,
+          target,
+          referenceDate: today,
+        }));
       } catch (e) {
         console.error('[Navigation] onboarding check failed', e);
         setInitialRoute('Onboarding');

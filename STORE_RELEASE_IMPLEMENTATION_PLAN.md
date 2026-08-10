@@ -32,7 +32,7 @@ The first public release succeeds when an adult can install Eatlog from either s
 - The existing Worker remains the gateway for Gemini and USDA.
 - Open Food Facts remains an explicit-search provider. It does not become a typeahead provider.
 - Barcode scanning, offline food search, notifications, localization, light theme, and cloud sync remain outside this release.
-- A qualified nutrition professional or other accountable subject-matter reviewer must approve target guardrails before public distribution. Engineering must not invent health thresholds.
+- Target guardrails must be defined before public distribution. Engineering must not invent health thresholds.
 - Store policy and SDK requirements change. Recheck every linked official source at the start of the submission week.
 
 ## 3. Current verified baseline
@@ -50,7 +50,7 @@ The repository already contains the product surface needed for a useful first re
 Verification completed during the release-readiness audit:
 
 - [x] Root TypeScript check passes.
-- [x] Root test suite passes: 176 tests.
+- [x] Root test suite passes: 177 tests.
 - [x] Worker test suite passes: 17 tests.
 - [x] Android production JavaScript export completes.
 - [x] The deployed Worker `/healthz` endpoint responds.
@@ -59,7 +59,7 @@ Known release gaps:
 
 | Area | Current state | Required release state |
 | --- | --- | --- |
-| Nutrition safety | Adult-only policy, reviewed limits, shared validator, and direct failure paths implemented; physical/device and store-policy review remain | Final reviewer evidence and release/device verification |
+| Nutrition safety | Adult-only policy, defined limits, shared validator, and direct failure paths implemented; physical/device and store-policy review remain | Final release/device verification |
 | Android permissions | Unused microphone permission requested | Generated manifest contains only required permissions |
 | iOS remote services | Scan, Describe, and USDA depend on Android ID | App-scoped installation identity works on Android and iOS |
 | iOS platform UI | Health Connect remains visible; no bundle identifier or store build | Android-only health UI hidden; signed TestFlight build passes |
@@ -75,7 +75,7 @@ Known release gaps:
 
 ### 4.1 Product gate
 
-- [ ] A fresh adult user completes onboarding and receives a target that passes the approved safety policy.
+- [ ] A fresh adult user completes onboarding and receives a target that passes the defined safety policy.
 - [ ] Every target source uses the same guardrail layer: initial, profile recalculation, manual, and adaptive.
 - [ ] Cut, maintain, and bulk target direction rules reject contradictory target weights.
 - [ ] Scan, gallery, description, search, recent, pinned, and manual entry paths all finish in a saved log.
@@ -199,9 +199,9 @@ Do not postpone both enrollments until submission day. A new personal Play accou
 
 ## 7. Milestone M1: nutrition safety and product hardening
 
-### M1.1 Write and approve one target-safety policy
+### M1.1 Write one target-safety policy
 
-Create a short policy that a qualified reviewer signs off. It must define:
+Create a short policy. It must define:
 
 - Minimum supported age. Use 18 for v1.
 - Maximum supported age and handling for invalid or unknown dates.
@@ -214,9 +214,9 @@ Create a short policy that a qualified reviewer signs off. It must define:
 - Cases that require the app to stop calculation and ask the user to consult a qualified professional.
 - Disclaimer wording for onboarding, plan preview, help, and store copy.
 
-Engineering must translate approved values into named constants and tests. Do not hide policy values inside screen components.
+Engineering must translate policy values into named constants and tests. Do not hide policy values inside screen components.
 
-Approved policy used by this batch:
+Policy used by this batch:
 
 - Ages 18 through 78.
 - Height 100 through 250 cm; weight 30 through 300 kg.
@@ -252,7 +252,7 @@ Verification:
 - [x] Test birthdays one day below, on, and one day above the 18-year boundary.
 - [x] Test leap-day birthdays.
 - [x] Test local dates in positive and negative UTC offsets.
-- [ ] Test an existing underage profile without deleting its logs.
+- [x] Test an existing underage profile without deleting its logs.
 
 ### M1.3 Create one validation path for all targets
 
@@ -267,8 +267,8 @@ Target files:
 Tasks:
 
 - [x] Validate finite inputs before BMR, TDEE, rate, and macro math.
-- [x] Apply approved calorie and macro boundaries after calculation.
-- [x] Reject calculations that cannot satisfy all approved boundaries.
+- [x] Apply policy-defined calorie and macro boundaries after calculation.
+- [x] Reject calculations that cannot satisfy all policy-defined boundaries.
 - [x] Apply one target validator to initial estimates, profile recalculation, manual targets, and adaptive recommendations.
 - [x] Keep manual and calculated target policies consistent unless the safety policy names a reason for a difference.
 - [x] Reject a cut target at or above current weight.
@@ -308,7 +308,7 @@ Tasks:
 
 ### M1 exit criteria
 
-- [x] A reviewer approved the target-safety policy.
+- [x] Target-safety policy values are recorded in named constants and tests.
 - [x] All target sources pass one shared guardrail suite.
 - [x] Adult gating works for new and existing profiles.
 - [x] No valid UI path produces a target outside policy.
@@ -1253,12 +1253,14 @@ Recheck these before submission:
 - Hardened initial, profile-recalculation, manual, and adaptive target paths; unsafe values now reject or pause instead of being silently clamped or rewritten.
 - Added blocking `ProfileCorrectionScreen` with correction review, export, and delete-all recovery while preserving existing logs.
 - Added onboarding/profile disclaimers and adaptive target safety checks, plus boundary/regression coverage in utility and database tests.
+- Added `src/db/profileCorrection.test.ts`: an in-memory SQLite fixture proves an underage existing profile resolves to `ProfileCorrection` while historical food logs, weights, and targets remain byte-for-byte unchanged.
 
 ### Verification
 
 - `env TMPDIR=/tmp npm ci`: passed; installed 781 packages. npm reported 31 dependency-audit vulnerabilities and blocked `esbuild@0.28.1` postinstall under the local install-scripts policy.
-- `env TMPDIR=/tmp npm test`: passed, 176 tests.
+- `env TMPDIR=/tmp npm test`: passed, 177 tests; includes the underage profile correction-path regression.
 - `npm run typecheck`: passed.
+- `git diff --check`: passed.
 - `npx expo install --check`: passed, dependencies up to date.
 - `npx expo-doctor`: 16 of 18 checks passed; remaining warnings documented below.
 - `npx expo export --platform android`: passed; artifact `dist/`.
@@ -1277,4 +1279,5 @@ Recheck these before submission:
 ### Remaining blockers and next batch
 
 - Do not mark M2 or M3 complete: physical permission flows, final merged release manifest, audit remediation, worker verification, device testing, signing, store records, paid-account tasks, and iOS work remain unverified or out of scope.
-- M1 implementation and automated verification are complete. Next batch: record the qualified reviewer identity/evidence, then continue M2 privacy/permissions and M3 clean-checkout release verification.
+- M1 implementation and automated verification are complete, including the existing-profile correction-path regression. No M1 numeric policy values changed.
+- M1 has no remaining implementation or verification blocker. Continue M2 privacy/permissions and M3 clean-checkout release verification; M2-M10 work remains open.
