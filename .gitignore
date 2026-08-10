@@ -13,6 +13,7 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -31,10 +32,17 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
+!.env.example
 worker/.dev.vars*
 !worker/.dev.vars.example
 worker/.wrangler/
+
+# submission credentials
+credentials.json
+service-account*.json
+google-service-account*.json
 
 # typescript
 *.tsbuildinfo

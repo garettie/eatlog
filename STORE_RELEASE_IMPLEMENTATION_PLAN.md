@@ -1,6 +1,6 @@
 # Eatlog Public Store Release Implementation Plan
 
-**Status:** Proposed implementation plan
+**Status:** Account-free M2-M7 complete; M8-M10 not started
 
 **Last updated:** 2026-08-10
 
@@ -93,12 +93,12 @@ Known release gaps:
 - [ ] The Apple App Privacy answers match the iOS binary and third-party SDK behavior.
 - [ ] The generated Android manifest contains no `RECORD_AUDIO` permission.
 - [ ] The app asks only for camera, photos, and Health Connect access at the point of use.
-- [ ] Store metadata avoids medical claims and states that calculated and AI-assisted results are estimates.
+- [x] Store metadata avoids medical claims and states that calculated and AI-assisted results are estimates.
 
 ### 4.3 Engineering gate
 
-- [ ] `npm ci`, tests, typecheck, Expo Doctor review, and production exports pass from a clean checkout.
-- [ ] Worker install, tests, typecheck, and dry-run pass from `worker/`.
+- [x] `npm ci`, tests, typecheck, Expo Doctor review, and production exports pass from a clean checkout.
+- [x] Worker install, tests, typecheck, and dry-run pass from `worker/`.
 - [ ] Google Play receives a signed AAB targeting API 36 or the current required level.
 - [ ] App Store Connect receives a signed IPA built with Apple’s current required Xcode and iOS SDK.
 - [ ] Build numbers increment through EAS remote version management.
@@ -397,9 +397,9 @@ Tasks:
 - [x] Confirm camera access appears only when the user starts a camera flow.
 - [x] Confirm gallery access appears only when the user starts a gallery flow.
 - [x] Confirm Health Connect requests only weight permissions used by the app.
-- [ ] Confirm the Health Connect system privacy/rationale action opens Eatlog's privacy information or its public policy as required.
+- [ ] Confirm the Health Connect system privacy/rationale action opens Eatlog's privacy information or its public policy as required. **PHYSICAL DEVICE:** source and generated-manifest checks pass; the system-launched flow still needs an Android 13 and Android 14+ device run.
 - [x] Generate native projects or inspect the EAS build artifact to audit final permissions.
-- [ ] Record the Android manifest permission list and iOS usage strings in release evidence.
+- [x] Record the Android manifest permission list and iOS usage strings in release evidence.
 
 ### M2.5 Complete provider identification and licensing
 
@@ -753,10 +753,10 @@ Do not place secret values in captured logs.
 
 ### M5 exit criteria
 
-- [ ] Automated release checks pass from a clean checkout.
+- [x] Automated release checks pass from a clean checkout.
 - [ ] Full supported migration and restore evidence exists.
 - [ ] The device matrix has no open P0/P1 issue.
-- [ ] The release-candidate commit has no unrelated diff.
+- [x] The release-candidate commit has no unrelated diff.
 
 ## 12. Milestone M6: Worker and provider production operations
 
@@ -1327,7 +1327,7 @@ Recheck these before submission:
 - Commands and results: focused identity/request tests passed 18/18; `env TMPDIR=/tmp npm test` passed 203/203; `npm run typecheck` passed after both code batches; Worker `npm test` passed 17/17; `npm run notices:check` passed; `git diff --check` passed. The first focused test attempt hit an **ENVIRONMENT LIMITATION** because sandboxed `tsx` could not create `/tmp/tsx-1000/15.pipe`; the approved local rerun passed and no network or paid service was used.
 - Artifact: `release/qa/IOS_SOURCE_AUDIT.md` maps each iOS-native surface to inspected source and the exact remaining physical check. Earlier branch artifacts already prove evaluated bundle IDs, iPhone-only configuration, camera/photo usage strings, absent microphone usage, and encryption configuration.
 - UX decision: the first-use Scan/Describe disclosure remains the only transmission gate. It is not repeated after acceptance, and no helper paragraph was added to the FAB, camera, gallery, Describe, search, review, or logging paths.
-- Remaining M4 blockers: **PHYSICAL DEVICE** Android/iPhone permission, camera, picker, Files, sharing, interruption, layout, accessibility, cross-platform archive, and remote-service checks; **ENVIRONMENT LIMITATION** no Xcode, iOS Simulator, CocoaPods native aggregation, or signed-binary inspection; **CREDENTIAL / STORE ACCOUNT** no distribution certificate, provisioning profile, App Store record, or TestFlight build; **PAID SERVICE** no EAS cloud build or simulator was used. A single post-change local iOS JavaScript export remains scheduled for the final account-free audit. M4 signed-build exit criteria remain unchecked.
+- Remaining M4 blockers: **PHYSICAL DEVICE** Android/iPhone permission, camera, picker, Files, sharing, interruption, layout, accessibility, cross-platform archive, and remote-service checks; **ENVIRONMENT LIMITATION** no Xcode, iOS Simulator, CocoaPods native aggregation, or signed-binary inspection; **CREDENTIAL / STORE ACCOUNT** no distribution certificate, provisioning profile, App Store record, or TestFlight build; **PAID SERVICE** no EAS cloud build or simulator was used. The final clean local iOS JavaScript export passed in Phase 7. M4 signed-build exit criteria remain unchecked.
 
 ### Phase 4 / M5 account-free evidence: 2026-08-10
 
@@ -1362,3 +1362,17 @@ Recheck these before submission:
 - Commands and results: final `npm run store:metadata:check` passed; `npm run store:artwork:generate` passed; `npm run store:artwork:check` passed; all four new `.mjs` files passed `node --check`; `npm test` passed 5 config-plugin tests plus 219 TypeScript tests; `npm run typecheck` passed; and `git diff --check` passed. The first metadata validation caught its own false-positive diagnosis rule and the first artwork validation caught unresolved external SVG images; both implementation defects were fixed before the recorded passing reruns. The lean-ctx wrapper blocked `env TMPDIR=/tmp npm test`; the identical test command without the unnecessary environment prefix passed.
 - UX decision: remote-processing details stay in store/reviewer/privacy material and the existing one-time affirmative gate. No recurring helper paragraph or disclosure was added to the FAB, Scan, Describe, review, or ordinary food-logging path.
 - Remaining M7 blockers: **OWNER INPUT** public developer/legal name, support email and URLs, launch countries, preview-APK policy, reviewer contact/time zone, App Store SKU, copyright holder, and any EU trader decision; **STORE ACCOUNT** Play/App Store records, forms, agreements, paid-price evidence, country selection, payments/tax/banking, app signing, and uploads; **CREDENTIAL** signed release candidates and submission access; **PHYSICAL DEVICE / ENVIRONMENT LIMITATION** real Android/iPhone release screenshots and visual/device evidence; **PAID SERVICE** enrollment, final cloud builds, provider Scan capture if chosen, and submission. M7 account-free source is complete, but its record, screenshot, URL, and exit criteria remain unchecked.
+
+### Phase 7 final account-free audit evidence: 2026-08-10
+
+- Changed final-audit source: `app.json`, `App.tsx`, `package.json`, the owned Health Connect plugin and tests, `src/navigation/linking.ts`, `src/navigation/linking.test.ts`, `release/config/NATIVE_CONFIGURATION.md`, `.gitignore`, `release/FINAL_ACCOUNT_FREE_AUDIT.md`, `release/OWNER_RELEASE_CHECKLIST.md`, and this plan. The audit fixed unused Android overlay/write-storage requests and replaced the insufficient Health Connect MainActivity rationale target with a dedicated privacy-rationale activity. The ImagePicker microphone-removal directive, legacy photo read path, haptics, Weight-only Health Connect access, and ordinary food-logging UI remain unchanged.
+- Health Connect result: current Android guidance requires a dedicated activity for the permissions-screen privacy link. `PermissionsRationaleActivity` handles Android 13's rationale action, Android 14+'s usage alias targets it, and its explicit intent opens only `eatlog://privacy`. React Navigation maps that URI to Tabs > Profile > Privacy. Focused plugin tests passed 7/7, the navigation-map test passed, and clean prebuild generated the expected manifest and Java source. **PHYSICAL DEVICE** proof of the system tap remains open.
+- Final clean root: local clone `/tmp/eatlog-final-audit3.5APtLe/repo` at `ba1cecc29d23b6c6a6dda8532e0a50249803302e` contained no environment file or copied/generated dependency/native output. `env TMPDIR=/tmp npm ci` passed with 781 packages; the exact `env TMPDIR=/tmp npm test` gate passed 7 config-plugin plus 220 TypeScript tests; typecheck, notices, store metadata/artwork validators, current Expo dependency validation, and Expo Doctor 18/18 passed. The filesystem sandbox initially blocked the `tsx` IPC socket; the approved local rerun passed. Read-only network access supplied current Expo and npm advisory metadata.
+- Export artifacts: clean Android export `/tmp/eatlog-final-audit3.5APtLe/export-android` passed once with 1,755 modules and a 5.48 MB Hermes bundle; clean iOS export `/tmp/eatlog-final-audit3.5APtLe/export-ios` passed once with 1,744 modules and a 5.45 MB bundle. A value-suppressing scan found no provider-secret name, private-key marker, or recognized Google, AWS, or GitHub credential shape in either artifact.
+- Dependency result: root `npm audit --omit=dev` completed with 12 high, 13 moderate, and zero critical findings, unchanged from the documented Expo/Metro build-only upstream constraint; npm still proposes only a forced Expo 57 upgrade. Worker audit reports zero. No forced audit fix or broad upgrade occurred.
+- Native result: Android and iOS prebuilds at `/tmp/eatlog-final-audit3.5APtLe/repo` passed without native installation. Android evaluates API 26/36 and generates removal directives for `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, and `WRITE_EXTERNAL_STORAGE`; retains `INTERNET`, photo-library legacy read access, `VIBRATE`, and Health Connect Weight read/write; registers the permission delegate; and contains the dedicated rationale activity and Android 14 alias. The iOS plist contains the correct camera/photo strings, no microphone string, non-exempt encryption false, and dark style. Eight dependency privacy manifests plus the plist passed XML validation; CocoaPods/Xcode aggregation remains unavailable.
+- Worker result: clean 40-package install, 18/18 synthetic tests, typecheck, and Wrangler dry-run passed. The dry-run bundled 28.09 KiB / 7.44 KiB gzip and enumerated six rate-limit bindings without deployment. The configured public health endpoint had already returned HTTP 200 in M6 and was not called again. No provider request or production mutation occurred.
+- Repository result: `git diff --check 622a0b2..ba1cecc` passed; the previous phase diffs and the final rationale diff were reviewed; tracked-file secret scanning found four synthetic Worker test assignments and no credential/environment/signing file or recognized credential shape; export scanning passed; and ignored-path checks cover dependencies, `dist/`, generated native folders, environment variants, Worker dev variables, signing files, keystores, and credential/service-account JSON. No matched value was printed. The complete command/evidence table is in `release/FINAL_ACCOUNT_FREE_AUDIT.md`.
+- UI/device result: **ENVIRONMENT LIMITATION / PHYSICAL DEVICE** no runnable Android emulator/ADB daemon, Xcode, iOS Simulator, signed binary, or physical device was available. No screenshot, native system-flow result, cross-device restore, accessibility pass, or signed merged-manifest/privacy-manifest result is claimed. Exact manual evidence is in `release/qa/` and the real-binary-only shot plan remains in `release/store/SCREENSHOT_PLAN.md`.
+- Final decision: M2 through M7 account-free source work is complete. M8 through M10 remain unchecked. The branch is ready for final device testing and paid-account setup, not for store submission or public release. The single ordered owner path is `release/OWNER_RELEASE_CHECKLIST.md`.
+- Remaining release blockers: **OWNER INPUT** identity/contact/host/URLs/countries/reviewer/SKU/copyright/device/operations/budget values; **STORE ACCOUNT** enrollments, records, agreements, pricing, banking/tax, forms, tests, review, and rollout; **CREDENTIAL** signing/submission/two-factor and production-service console evidence; **PHYSICAL DEVICE** complete Android/iPhone/native recovery/accessibility/screenshot matrix; **PAID SERVICE** memberships, signed/cloud builds, approved provider use, hosting, submissions, and preview drills; **ENVIRONMENT LIMITATION** no local Android/iOS native runtime or Xcode aggregation. **IMPLEMENTATION DEFECT:** none remains open from the account-free automated/static audit.

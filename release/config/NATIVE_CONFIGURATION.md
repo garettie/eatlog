@@ -8,7 +8,7 @@ Review date: 2026-08-10
 | --- | --- | --- |
 | Android production | `com.sgaret.eatlog` | Existing fixed package name |
 | Android development | `com.sgaret.eatlog.dev` | Evaluated development variant |
-| iOS production candidate | `com.sgaret.eatlog` | STORE ACCOUNT — Apple reservation is unverified |
+| iOS production candidate | `com.sgaret.eatlog` | STORE ACCOUNT: Apple reservation is unverified |
 | iOS development | `com.sgaret.eatlog.dev` | Evaluated development variant; registration is account-bound when signing is attempted |
 
 Every variant keeps the installed name and brand `Eatlog`. Development builds coexist by identifier, not by renaming the product.
