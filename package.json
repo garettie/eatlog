@@ -21,7 +21,6 @@
     "expo-file-system": "~19.0.23",
     "expo-font": "~14.0.0",
     "expo-haptics": "~15.0.8",
-    "expo-health-connect": "0.1.0",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-sharing": "~14.0.8",
@@ -49,7 +48,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "test": "tsx --test src/utils/*.test.ts src/db/*.test.ts src/services/*.test.ts",
+    "test": "node plugins/withEatlogHealthConnect.test.js && tsx --test src/utils/*.test.ts src/db/*.test.ts src/services/*.test.ts",
     "evaluate:food-search": "tsx scripts/evaluate-food-search.ts",
     "notices": "node scripts/generate-third-party-notices.mjs",
     "notices:check": "node scripts/generate-third-party-notices.mjs --check",

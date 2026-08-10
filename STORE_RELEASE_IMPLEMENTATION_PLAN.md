@@ -455,21 +455,21 @@ Apple worksheet:
 
 Tasks:
 
-- [ ] Preserve current unrelated work and use a dedicated release branch when implementation starts.
+- [x] Preserve current unrelated work and use a dedicated release branch when implementation starts.
 - [x] Run root `npm ci` with a writable temp directory when needed.
-- [ ] Run `npm ci` in `worker/`.
+- [x] Run `npm ci` in `worker/`.
 - [x] Run `npx expo install --check`.
 - [x] Run `npx expo-doctor`.
-- [ ] Run `npm audit --omit=dev`; review high/critical findings and document accepted exceptions.
-- [ ] Verify no build depends on untracked files or global packages.
+- [x] Run `npm audit --omit=dev`; review high/critical findings and document accepted exceptions.
+- [x] Verify no build depends on untracked files or global packages.
 
 ### M3.2 Resolve the current dependency findings
 
 - [x] Confirm the exact `react-native-reanimated` peer range in the clean install.
 - [x] If Expo Doctor still requires a direct `react-native-worklets` dependency, add the Expo-compatible version and resolve any strict-mode warnings instead of ignoring the peer requirement.
 - [x] Confirm `react-native-svg` resolves to the Expo-supported `15.12.1` version from the lockfile.
-- [ ] Replace the unmaintained `expo-health-connect` plugin or own a local config plugin that produces the required Android 13 permission-rationale intent and Android 14+ permission-usage alias.
-- [ ] Compare generated manifests before removing the old plugin. Preserve all required Health Connect entries.
+- [x] Replace the unmaintained `expo-health-connect` plugin or own a local config plugin that produces the required Android 13 permission-rationale intent and Android 14+ permission-usage alias.
+- [x] Compare generated manifests before removing the old plugin. Preserve all required Health Connect entries.
 - [x] Investigate the `app.config.js`/`app.json` Expo Doctor warning. Document it only if evaluated config proves the warning is a false positive.
 
 ### M3.3 Update Expo native configuration
@@ -486,12 +486,12 @@ Tasks:
 - [x] Remove the Android compile/target SDK 35 override and use Expo SDK 54’s API 36 defaults, or set both to 36 if explicit values remain necessary.
 - [x] Keep Android minimum SDK 26 unless device-support policy changes.
 - [ ] Add `ios.bundleIdentifier` after Apple reservation.
-- [ ] Add a development iOS identifier variant so dev and production builds can coexist.
-- [ ] Keep `ios.supportsTablet: false` for v1.
-- [ ] Add an accurate `ios.config.usesNonExemptEncryption` value.
-- [ ] Confirm the 1024 by 1024 iOS icon has no transparency and follows the canonical Eatlog mask.
-- [ ] Add production permission strings.
-- [ ] Keep EAS project ID, owner, update URL, and runtime-version policy.
+- [x] Add a development iOS identifier variant so dev and production builds can coexist.
+- [x] Keep `ios.supportsTablet: false` for v1.
+- [x] Add an accurate `ios.config.usesNonExemptEncryption` value.
+- [x] Confirm the 1024 by 1024 iOS icon has no transparency and follows the canonical Eatlog mask.
+- [x] Add production permission strings.
+- [x] Keep EAS project ID, owner, update URL, and runtime-version policy.
 
 ### M3.4 Create production EAS profiles
 
@@ -500,12 +500,12 @@ Required `eas.json` behavior:
 - [x] Add `cli.version` and `cli.appVersionSource: "remote"`.
 - [x] Add a `production` build profile with `channel: "production"`, production environment selection, and `autoIncrement: true`.
 - [x] Build Android as `app-bundle`.
-- [ ] Build iOS for App Store distribution.
+- [x] Build iOS for App Store distribution.
 - [x] Keep preview as an internal APK for direct device QA.
-- [ ] Add an Android internal-track submit profile with `releaseStatus: "draft"` for the first upload.
+- [x] Add an Android internal-track submit profile with `releaseStatus: "draft"` for the first upload.
 - [ ] Add a production Android submit profile only after closed testing.
 - [ ] Add an iOS submit profile with App Store Connect app ID after the record exists.
-- [ ] Keep service-account JSON and `.p8` credentials out of git. Prefer EAS-managed credentials or secret file variables.
+- [x] Keep service-account JSON and `.p8` credentials out of git. Prefer EAS-managed credentials or secret file variables.
 
 Version policy:
 
@@ -517,19 +517,19 @@ Version policy:
 ### M3.5 Define EAS Update policy
 
 - [x] Bind public builds to the `production` channel.
-- [ ] Keep `runtimeVersion.policy: "appVersion"` unless a tested policy change has a clear benefit.
-- [ ] Allow OTA updates only for JavaScript/assets compatible with the installed native runtime.
-- [ ] Require the same tests and smoke flow before an OTA publish.
-- [ ] Do not use OTA to bypass store review for native behavior, privacy changes, permissions, or incompatible database migrations.
-- [ ] Record every production update ID and rollback target.
+- [x] Keep `runtimeVersion.policy: "appVersion"` unless a tested policy change has a clear benefit.
+- [x] Allow OTA updates only for JavaScript/assets compatible with the installed native runtime.
+- [x] Require the same tests and smoke flow before an OTA publish.
+- [x] Do not use OTA to bypass store review for native behavior, privacy changes, permissions, or incompatible database migrations.
+- [x] Record every production update ID and rollback target.
 - [ ] Practice reverting a preview-channel update before using production OTA.
 
 ### M3 exit criteria
 
-- [ ] Clean checkout verification passes.
-- [ ] Expo Doctor has no unexplained release-impacting finding.
-- [ ] Evaluated production config has stable identifiers and required SDK levels.
-- [ ] EAS can produce production build plans for Android and iOS without exposing secrets.
+- [x] Clean checkout verification passes.
+- [x] Expo Doctor has no unexplained release-impacting finding.
+- [x] Evaluated production config has stable identifiers and required SDK levels.
+- [x] EAS can produce production build plans for Android and iOS without exposing secrets.
 
 ## 10. Milestone M4: cross-platform service and iOS enablement
 
@@ -1302,3 +1302,18 @@ Recheck these before submission:
 - Test evidence: disclosure acceptance/reuse/version/corruption/storage failure/cancellation; no-transmission decline; valid HTTPS/configured User-Agent; supported Open Food Facts request body, `hits` parsing, missing-contact fail-closed behavior, non-JSON error, and abort; required in-app attribution coverage. Existing timeout, provider partial failure, and caller-cancellation tests remain passing.
 - Visual/device result: **ENVIRONMENT LIMITATION** `adb devices -l` could not start the WSL ADB daemon (`could not install *smartsocket* listener: Operation not permitted`); no Android emulator executable, Xcode, or `xcrun` is available. No screenshot or physical permission result is claimed.
 - Remaining M2 blockers: **OWNER INPUT** public developer/legal name, support contact/response expectation, controlled HTTPS host and final URLs, Open Food Facts API-usage registration, and page publication; **CREDENTIAL** production Gemini/Cloudflare contract, retention, and logging review; **PAID SERVICE** production Gemini service/account decision; **STORE ACCOUNT** final Data Safety, Health Apps, App Privacy, age-rating, export-compliance, and reviewer-form submission; **PHYSICAL DEVICE** permission/disclosure/share/Health Connect verification; **ENVIRONMENT LIMITATION** final merged release-binary Android/iOS permission and privacy-manifest audit. M2 exit criteria remain unchecked.
+
+### Phase 2 / M3 account-free evidence: 2026-08-10
+
+- Changed configuration and dependency files: `app.json`, `app.config.js`, `eas.json`, `package.json`, `package-lock.json`, `plugins/withEatlogHealthConnect.js`, `plugins/withEatlogHealthConnect.test.js`, and regenerated `release/legal/THIRD_PARTY_SOFTWARE.md` with 728 current production package/version records.
+- Changed release source: `release/config/NATIVE_CONFIGURATION.md`, `release/dependencies/DEPENDENCY_AUDIT.md`, `release/runbooks/OTA_POLICY.md`, and this plan.
+- Clean-install result: root and Worker `env TMPDIR=/tmp npm ci` passed from temporary local clones without environment files or generated native projects. The updated root graph installed 780 packages; the Worker installed 40 packages. Tests, typecheck, and notices check also passed in the reconstructed clean root at `/tmp/eatlog-m3-new.KneF7R/repo`.
+- Dependency result: root `npm audit --omit=dev` reports 12 high, 13 moderate, and zero critical findings after non-forced lockfile updates; Worker `npm audit --omit=dev` reports zero vulnerabilities. `brace-expansion`, `fast-uri`, `js-yaml`, `nanoid`, and `undici` were fixed within existing transitive ranges. The remaining `image-size` and `postcss` advisory paths are repository-input build tooling and are **ENVIRONMENT LIMITATION / blocked on upstream** for Expo SDK 54; npm proposes only a forced Expo 57 upgrade. Classification and reachability are in `release/dependencies/DEPENDENCY_AUDIT.md`.
+- Health Connect decision: maintained `react-native-health-connect@3.5.3` remains. Its bundled Expo plugin did not prove equivalent because it lacks permission-delegate setup and the Android 14 permission-usage alias. The obsolete `expo-health-connect@0.1.0` dependency was removed after the project-owned plugin produced a byte-identical generated manifest and explicit `MainActivity` delegate registration. Only Weight read/write permissions remain.
+- Native artifacts: baseline manifest `/tmp/eatlog-m3-clean.66IzGr/repo/android/app/src/main/AndroidManifest.xml`; replacement manifest `/tmp/eatlog-m3-new.KneF7R/generated-android/app/src/main/AndroidManifest.xml`; generated Kotlin activity beside the replacement manifest; iOS plist `/tmp/eatlog-m3-new.KneF7R/generated-ios/Eatlog/Info.plist`. `diff -u` on the manifests exited 0. The iOS plist contains camera/photo purpose strings and `ITSAppUsesNonExemptEncryption=false`, with no microphone string; the Xcode project uses bundle `com.sgaret.eatlog`, device family 1, and deployment target 15.1.
+- Icon evidence: `assets/icon.png` is 1024 by 1024 and every decoded alpha byte is 255. Original-resolution visual inspection confirmed the canonical flat-white egg mask on the dark Eatlog background.
+- Configuration result: production and `APP_VARIANT=development` Expo configs evaluate to `com.sgaret.eatlog` and `com.sgaret.eatlog.dev` on both platforms while keeping the installed name `Eatlog`. Production keeps owner/project/update/runtime settings, API 36 compile/target, API 26 minimum, iPhone-only support, and the candidate Apple identifier.
+- Commands and results: `npm test` passed 5 plugin tests plus 188 existing tests; `npm run typecheck` passed; `npm run notices:check` passed; `npx expo install --check` passed using Expo's local SDK 54 map while networking was unavailable; final `npx expo-doctor` passed 18/18. Doctor initially reported the stale app-config heuristic, then passed after `app.config.js` adopted Expo's supported `({ config }) => ({ ...config })` merge; no warning was suppressed.
+- Local preparation result: Android and iOS `npx expo prebuild --platform <platform> --no-install` passed in `/tmp`. Current EAS CLI configuration evaluation passed for both production platforms. Local archive inspection produced `/tmp/eatlog-m3-archive-android` and `/tmp/eatlog-m3-archive-ios`; both contain the owned plugin and exclude dependency folders, environment files, generated native folders, build output, and credential file types. No `eas build`, cloud build, signing, upload, update publish, or submission occurred. A later local pre-build inspection was interrupted and is not used as evidence.
+- OTA decision: `runtimeVersion.policy: "appVersion"` remains. `release/runbooks/OTA_POLICY.md` defines native/database/privacy exclusions, verification evidence, halt conditions, and interactive rollback. No update was published.
+- Remaining M3 blockers: **STORE ACCOUNT** Apple must reserve `com.sgaret.eatlog`, App Store Connect must supply an app ID, and Google production submission stays unset until closed testing; **CREDENTIAL** signing and store-submit credentials remain absent; **STORE ACCOUNT / CREDENTIAL** preview rollback practice requires an authorized EAS update record; **PHYSICAL DEVICE** Health Connect and iOS permission flows remain unverified; **ENVIRONMENT LIMITATION** Linux cannot run Xcode/CocoaPods aggregation or inspect a signed iOS archive; **PAID SERVICE** no cloud build or submission was run. These blockers do not invalidate the completed source/configuration M3 exit gate, but they remain release gates.

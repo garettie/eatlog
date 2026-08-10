@@ -4,7 +4,7 @@ Generated from `package-lock.json` by `scripts/generate-third-party-notices.mjs`
 
 This inventory identifies production packages and their declared SPDX-style license expressions. Package copyright and license files remain authoritative. The bundled Onest font notice is preserved separately in `release/legal/ONEST-OFL-1.1.txt`.
 
-Production package records: 729
+Production package records: 728
 
 | Package | Version | Direct | License |
 | --- | --- | --- | --- |
@@ -267,9 +267,9 @@ Production package records: 729
 | bplist-creator | 0.1.0 | no | MIT |
 | bplist-parser | 0.3.1 | no | MIT |
 | bplist-parser | 0.3.2 | no | MIT |
-| brace-expansion | 1.1.16 | no | MIT |
-| brace-expansion | 2.1.2 | no | MIT |
-| brace-expansion | 5.0.7 | no | MIT |
+| brace-expansion | 1.1.18 | no | MIT |
+| brace-expansion | 2.1.4 | no | MIT |
+| brace-expansion | 5.0.9 | no | MIT |
 | braces | 3.0.3 | no | MIT |
 | browserslist | 4.28.7 | no | MIT |
 | bser | 2.1.1 | no | Apache-2.0 |
@@ -367,7 +367,6 @@ Production package records: 729
 | expo-file-system | 19.0.23 | yes | MIT |
 | expo-font | 14.0.12 | yes | MIT |
 | expo-haptics | 15.0.8 | yes | MIT |
-| expo-health-connect | 0.1.0 | yes | MIT |
 | expo-image-loader | 6.0.0 | no | MIT |
 | expo-image-manipulator | 14.0.8 | yes | MIT |
 | expo-image-picker | 17.0.11 | yes | MIT |
@@ -388,7 +387,7 @@ Production package records: 729
 | fast-deep-equal | 3.1.3 | no | MIT |
 | fast-glob | 3.3.3 | no | MIT |
 | fast-json-stable-stringify | 2.1.0 | no | MIT |
-| fast-uri | 3.1.4 | no | BSD-3-Clause |
+| fast-uri | 3.1.5 | no | BSD-3-Clause |
 | fastq | 1.20.1 | no | ISC |
 | fb-watchman | 2.0.2 | no | Apache-2.0 |
 | fdir | 6.5.0 | no | MIT |
@@ -455,8 +454,8 @@ Production package records: 729
 | jimp-compact | 0.16.1 | no | MIT |
 | jiti | 1.21.7 | no | MIT |
 | js-tokens | 4.0.0 | no | MIT |
-| js-yaml | 3.15.0 | no | MIT |
-| js-yaml | 4.3.0 | no | MIT |
+| js-yaml | 3.15.1 | no | MIT |
+| js-yaml | 4.3.1 | no | MIT |
 | jsc-safe-url | 0.2.4 | no | 0BSD |
 | jsesc | 3.1.0 | no | MIT |
 | json-schema-traverse | 1.0.0 | no | MIT |
@@ -534,7 +533,7 @@ Production package records: 729
 | ms | 2.0.0 | no | MIT |
 | ms | 2.1.3 | no | MIT |
 | mz | 2.7.0 | no | MIT |
-| nanoid | 3.3.16 | no | MIT |
+| nanoid | 3.3.18 | no | MIT |
 | nativewind | 4.2.6 | yes | MIT |
 | negotiator | 0.6.3 | no | MIT |
 | negotiator | 0.6.4 | no | MIT |
@@ -696,7 +695,7 @@ Production package records: 729
 | type-fest | 0.21.3 | no | (MIT OR CC0-1.0) |
 | type-fest | 0.7.1 | no | (MIT OR CC0-1.0) |
 | typescript | 5.9.3 | no | Apache-2.0 |
-| undici | 6.27.0 | no | MIT |
+| undici | 6.28.0 | no | MIT |
 | undici-types | 8.3.0 | no | MIT |
 | unicode-canonical-property-names-ecmascript | 2.0.1 | no | MIT |
 | unicode-match-property-ecmascript | 2.0.0 | no | MIT |
