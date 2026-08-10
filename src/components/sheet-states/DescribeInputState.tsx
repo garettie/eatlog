@@ -9,12 +9,13 @@ import SheetBackButton from './SheetBackButton';
 
 interface DescribeInputStateProps {
   onResult: (result: DescribeResult) => void;
+  requestDisclosure: () => Promise<boolean>;
   onBack: () => void;
   onSearch: () => void;
   onManualEntry: () => void;
 }
 
-export default function DescribeInputState({ onResult, onBack, onSearch, onManualEntry }: DescribeInputStateProps) {
+export default function DescribeInputState({ onResult, requestDisclosure, onBack, onSearch, onManualEntry }: DescribeInputStateProps) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
   const handleEstimate = async () => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    if (!(await requestDisclosure())) return;
     Keyboard.dismiss();
     const requestId = ++requestRef.current;
     setError(null);

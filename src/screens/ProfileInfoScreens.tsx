@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Image, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,6 +7,7 @@ import Card from '../components/Card';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { serviceConfig } from '../config/services';
 import { getDatabaseVersion } from '../db/database';
+import { LEGAL_ATTRIBUTIONS } from '../services/legalAttributions';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 import { getApplicationInfo } from '../utils/applicationInfo';
@@ -66,7 +67,7 @@ const RESEARCH_LINKS = [
 
 function openExternalLink(title: string, url: string) {
     void Linking.openURL(url).catch(() => {
-        Alert.alert('Could not open link', `Android could not open ${title}. Check your browser and try again.`);
+        Alert.alert('Could not open link', `This device could not open ${title}. Check your browser and try again.`);
     });
 }
 
@@ -242,11 +243,15 @@ export function HowEatlogWorksScreen() {
 
 export function PrivacyScreen() {
     const estimateCopy = serviceConfig.availability.gemini
-        ? 'Eatlog sends your photo or description to Google Gemini when you use Scan or Describe.'
+        ? 'After you accept the disclosure, Eatlog sends the selected photo or description to the Eatlog Worker, which sends it to Google Gemini for an estimate. Cloudflare uses an app-scoped installation token and IP address for rate limiting.'
         : 'Meal estimates are unavailable in this build.';
-    const searchCopy = serviceConfig.availability.usda
-        ? 'Eatlog sends your search to USDA and Open Food Facts. It may cache results on this phone.'
-        : 'Eatlog sends your search to Open Food Facts and may cache results on this phone.';
+    const searchCopy = serviceConfig.availability.usda && serviceConfig.availability.openFoodFacts
+        ? 'Typing sends the query to the Eatlog Worker for USDA results. Pressing Search also sends it directly to Open Food Facts. Recent results stay briefly in memory.'
+        : serviceConfig.availability.usda
+            ? 'Typing sends the query to the Eatlog Worker for USDA results. Recent results stay briefly in memory.'
+            : serviceConfig.availability.openFoodFacts
+                ? 'Pressing Search sends the query directly to Open Food Facts. It does not run while you type.'
+                : 'Online food search is unavailable in this build.';
 
     return (
         <Screen>
@@ -301,6 +306,9 @@ export function AboutScreen() {
     const usdaDetail = serviceConfig.availability.usda
         ? 'Food search · Available'
         : 'Food search · Unavailable in this build';
+    const openFoodFactsDetail = serviceConfig.availability.openFoodFacts
+        ? 'Explicit full search · Available'
+        : 'Explicit full search · Unavailable in this build';
 
     return (
         <Screen>
@@ -327,7 +335,7 @@ export function AboutScreen() {
                     <DetailRow label="Version" value={application.appVersion} />
                     <DetailRow label="Build" value={application.appBuild} />
                     <DetailRow label="Database schema" value={String(getDatabaseVersion())} />
-                    <DetailRow label="Platform" value="Android" />
+                    <DetailRow label="Platform" value={Platform.OS === 'ios' ? 'iOS' : 'Android'} />
                     <DetailRow label="App license" value="0BSD" last />
                 </Card>
             </View>
@@ -352,7 +360,7 @@ export function AboutScreen() {
                     <LinkRow
                         icon="public"
                         title="Open Food Facts"
-                        detail="Food search · Available"
+                        detail={openFoodFactsDetail}
                         external
                         last
                         onPress={() => openExternalLink('Open Food Facts', 'https://world.openfoodfacts.org/')}
@@ -360,6 +368,57 @@ export function AboutScreen() {
                 </Card>
             </View>
 
+        </Screen>
+    );
+}
+
+export function AttributionsScreen() {
+    return (
+        <Screen>
+            <PageIntro
+                title="Licenses and attributions"
+                detail="Data, services, fonts, and open-source software used by Eatlog."
+            />
+
+            <Card className="overflow-hidden">
+                {LEGAL_ATTRIBUTIONS.map((item, index) => (
+                    <InfoRow
+                        key={item.title}
+                        icon={item.title === 'Open Food Facts' ? 'public' : item.title === 'Onest' ? 'font-download' : 'info-outline'}
+                        title={item.title}
+                        detail={item.detail}
+                        last={index === LEGAL_ATTRIBUTIONS.length - 1}
+                    />
+                ))}
+            </Card>
+
+            <View className="gap-3">
+                <SectionTitle title="License sources" />
+                <Card className="overflow-hidden">
+                    <LinkRow
+                        icon="public"
+                        title="Open Food Facts reuse terms"
+                        detail="Database and content licenses"
+                        external
+                        onPress={() => openExternalLink('Open Food Facts reuse terms', 'https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/')}
+                    />
+                    <LinkRow
+                        icon="science"
+                        title="USDA FoodData Central"
+                        detail="Data and API documentation"
+                        external
+                        onPress={() => openExternalLink('USDA FoodData Central', 'https://fdc.nal.usda.gov/data-documentation.html')}
+                    />
+                    <LinkRow
+                        icon="font-download"
+                        title="Onest license"
+                        detail="SIL Open Font License 1.1"
+                        external
+                        last
+                        onPress={() => openExternalLink('Onest license', 'https://github.com/simpals/onest/blob/main/OFL.txt')}
+                    />
+                </Card>
+            </View>
         </Screen>
     );
 }

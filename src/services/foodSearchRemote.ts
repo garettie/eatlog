@@ -5,8 +5,16 @@ import {
 } from './foodSearchCore';
 import type { FoodResult, FoodSearchMode } from './foodSearchTypes';
 
-const OFF_BASE = 'https://world.openfoodfacts.org';
+const OFF_BASE = 'https://search.openfoodfacts.org';
 const SEARCH_TIMEOUT_MS = 8000;
+const OFF_FIELDS = [
+  'product_name',
+  'code',
+  'brands',
+  'nutriments',
+  'serving_quantity',
+  'serving_size',
+];
 
 interface FoodSearchRemoteMetrics {
   usdaRequests: number;
@@ -17,6 +25,7 @@ interface RemoteProviderOptions {
   workerUrl: string;
   fetchImpl?: typeof fetch;
   getInstallId?: () => string;
+  openFoodFactsUserAgent?: string | null;
 }
 
 function abortError(): Error {
@@ -102,27 +111,29 @@ export function createFoodSearchRemoteProviders(options: RemoteProviderOptions) 
   }
 
   async function searchOpenFoodFacts(query: string, signal?: AbortSignal): Promise<FoodResult[]> {
-    const params = new URLSearchParams({
-      action: 'process',
-      search_simple: '1',
-      search_terms: rewriteFoodProviderQuery(query),
-      json: '1',
-      page_size: '15',
-      fields: 'product_name,code,brands,nutriments,serving_quantity,serving_size',
-    });
-    const body = await fetchJSON(fetchImpl, `${OFF_BASE}/cgi/search.pl?${params.toString()}`, SEARCH_TIMEOUT_MS, {
+    const body = await fetchJSON(fetchImpl, `${OFF_BASE}/search`, SEARCH_TIMEOUT_MS, {
+      method: 'POST',
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'Eatlog/1.1.0 (Android; https://github.com/garettie/eatlog)',
+        'Content-Type': 'application/json',
+        'User-Agent': options.openFoodFactsUserAgent!,
       },
+      body: JSON.stringify({
+        q: rewriteFoodProviderQuery(query),
+        langs: ['en'],
+        page: 1,
+        page_size: 15,
+        boost_phrase: true,
+        fields: OFF_FIELDS,
+      }),
     }, signal);
-    return parseOpenFoodFactsProducts(body?.products);
+    return parseOpenFoodFactsProducts(body?.hits);
   }
 
   return {
     searchUSDA: options.workerUrl ? searchUSDA : undefined,
     loadUSDAFood: options.workerUrl ? loadUSDAFood : undefined,
-    searchOpenFoodFacts,
+    searchOpenFoodFacts: options.openFoodFactsUserAgent ? searchOpenFoodFacts : undefined,
     getMetrics: (): FoodSearchRemoteMetrics => ({ ...metrics }),
     resetMetrics: () => { metrics = { usdaRequests: 0, workerFailures: 0 }; },
   };

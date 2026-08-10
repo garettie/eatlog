@@ -13,7 +13,7 @@ import {
   type ProfileStackParamList,
 } from '../screens/ProfilePlanScreens';
 import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
-import { AboutScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
+import { AboutScreen, AttributionsScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
@@ -38,6 +38,7 @@ const EXPORT_DATA_OPTIONS = { title: 'Export data' } as const;
 const HEALTH_CONNECT_OPTIONS = { title: 'Health Connect' } as const;
 const HOW_EATLOG_WORKS_OPTIONS = { title: 'How Eatlog works' } as const;
 const ABOUT_OPTIONS = { title: 'About' } as const;
+const ATTRIBUTIONS_OPTIONS = { title: 'Licenses & attributions' } as const;
 const PLAN_PREVIEW_OPTIONS = { title: 'Review changes' } as const;
 
 function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps) {
@@ -79,6 +80,7 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
       </Stack.Screen>
       <Stack.Screen name="HowEatlogWorks" component={HowEatlogWorksScreen} options={HOW_EATLOG_WORKS_OPTIONS} />
       <Stack.Screen name="About" component={AboutScreen} options={ABOUT_OPTIONS} />
+      <Stack.Screen name="Attributions" component={AttributionsScreen} options={ATTRIBUTIONS_OPTIONS} />
       <Stack.Screen name="PlanPreview" options={PLAN_PREVIEW_OPTIONS}>
         {renderPlanPreview}
       </Stack.Screen>

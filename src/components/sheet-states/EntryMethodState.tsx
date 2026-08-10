@@ -109,9 +109,6 @@ export default function EntryMethodState({
               hint="Take a photo of food or a nutrition label"
               onPress={onCamera}
             />
-            <Text className="px-1 text-center text-sm text-m3-on-surface-variant">
-              Take a photo. Review the estimate.
-            </Text>
             <View className={isNarrow ? 'flex-row gap-2' : 'flex-row gap-3'}>
               <MethodTile
                 icon="photo-library"

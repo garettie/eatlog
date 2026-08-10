@@ -8,8 +8,10 @@ Engineering can finish account-free release work without these values. Do not co
 | --- | --- | --- | --- |
 | Public developer or legal name used in both listings and the privacy policy | Awaiting owner | Public release | OWNER INPUT |
 | Monitored support email used by users, providers, and store reviewers | Awaiting owner | Submission | OWNER INPUT |
+| Public support-response expectation for the support page | Awaiting support owner | Submission | OWNER INPUT |
 | Owner-controlled HTTPS host or domain for stable `/privacy` and `/support` pages | Awaiting owner | Submission | OWNER INPUT |
 | Final privacy-policy and support URLs after hosting | Awaiting host choice and publication | Submission | OWNER INPUT |
+| Register Eatlog's read-only Open Food Facts use and monitored contact in the provider API usage form | Awaiting support email and owner submission | Public release | OWNER INPUT |
 | Launch countries beyond the fixed Philippines storefront | Awaiting owner | Submission | OWNER INPUT |
 | Google Play developer enrollment; account type and creation date | Unverified | Submission | STORE ACCOUNT |
 | Apple Developer Program enrollment and App Store Connect access | Unverified | Signed build | STORE ACCOUNT |
@@ -25,6 +27,7 @@ Engineering can finish account-free release work without these values. Do not co
 | Available Android devices: API 26, API 36/current, Samsung-class, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |
 | Available iPhones: minimum supported iOS, current iOS, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |
 | Named release/support owner who can monitor support, deploy or roll back the Worker, and rotate secrets | Awaiting owner | Public release | OWNER INPUT |
+| Confirm production Google Gemini and Cloudflare retention, abuse-protection, and logging settings against the privacy/store disclosures | Requires production-account access | Public release | CREDENTIAL |
 | Budget approval for paid memberships, EAS builds, provider usage, domain hosting, and test devices | Awaiting owner | Paid action | PAID SERVICE |
 
 Fixed product decisions already supplied by the owner:

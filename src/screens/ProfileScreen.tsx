@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { deleteEatlogHealthConnectWeights } from '../services/healthConnect';
 import { resetLocalData } from '../services/dataReset';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
+import { serviceConfig } from '../config/services';
 
 interface ProfileScreenProps {
     dataVersion: number;
@@ -79,6 +80,14 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     const [readError, setReadError] = useState(false);
     const initialLoadDone = useRef(false);
     const loadQueueRef = useRef<Promise<void>>(Promise.resolve());
+    const privacyPolicyUrl = serviceConfig.publicLinks.privacyPolicyUrl;
+    const supportUrl = serviceConfig.publicLinks.supportUrl;
+
+    const openPublicLink = useCallback((title: string, url: string) => {
+        void Linking.openURL(url).catch(() => {
+            Alert.alert('Could not open link', `This device could not open ${title}. Check your browser and try again.`);
+        });
+    }, []);
 
     const loadProfile = useCallback((showLoading: boolean) => {
         if (showLoading) setLoading(true);
@@ -287,7 +296,14 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                     <Section title="Help & About">
                         <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="How targets adapt to your logs" onPress={() => navigation.navigate('HowEatlogWorks')} />
                         <ProfileSettingRow icon="privacy-tip" title="Privacy" detail="On-device data and network use" onPress={() => navigation.navigate('Privacy')} />
-                        <ProfileSettingRow icon="info-outline" title="About" detail="Build details and data sources" onPress={() => navigation.navigate('About')} showDivider={false} />
+                        <ProfileSettingRow icon="info-outline" title="About" detail="Build details and data sources" onPress={() => navigation.navigate('About')} />
+                        <ProfileSettingRow icon="copyright" title="Licenses and attributions" detail="Data, services, fonts, and software" onPress={() => navigation.navigate('Attributions')} showDivider={!!privacyPolicyUrl || !!supportUrl} />
+                        {privacyPolicyUrl ? (
+                            <ProfileSettingRow icon="policy" title="Privacy policy" detail="Open the public policy" onPress={() => openPublicLink('the privacy policy', privacyPolicyUrl)} showDivider={!!supportUrl} />
+                        ) : null}
+                        {supportUrl ? (
+                            <ProfileSettingRow icon="support-agent" title="Support" detail="Open Eatlog support" onPress={() => openPublicLink('Eatlog support', supportUrl)} showDivider={false} />
+                        ) : null}
                     </Section>
                 </View>
                 </View>

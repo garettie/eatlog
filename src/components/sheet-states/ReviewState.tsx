@@ -134,6 +134,7 @@ interface ReviewStateProps {
 	}) => void;
 	onClarify: (name: string) => Promise<DescribeResult | null>;
 	onClarifyComponent: (name: string) => Promise<FoodResult | null>;
+	requestDisclosure: () => Promise<boolean>;
 	editMealId?: number | null;
 	initialMeal?: MealType | null;
 	/** Diary date to write to (backfill); null = today. Preserves the original date when editing a meal. */
@@ -193,6 +194,7 @@ export default function ReviewState({
 	onLogComplete,
 	onClarify,
 	onClarifyComponent,
+	requestDisclosure,
 	editMealId,
 	initialMeal,
 	logDate: logDateProp,
@@ -616,6 +618,7 @@ export default function ReviewState({
 	const handleClarify = useCallback(async () => {
 		const name = mealName.trim();
 		if (!name || clarifying) return;
+		if (!(await requestDisclosure())) return;
 		setClarifyError(null);
 		setClarifying(true);
 		try {
@@ -636,12 +639,13 @@ export default function ReviewState({
 		} finally {
 			setClarifying(false);
 		}
-	}, [mealName, clarifying, onClarify, components, showUndo]);
+	}, [mealName, clarifying, onClarify, components, requestDisclosure, showUndo]);
 
 	const handleClarifyComponent = useCallback(
 		async (component: EditableComponent) => {
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
+			if (!(await requestDisclosure())) return;
 			setComponentClarifyError(null);
 			setClarifyingComponentId(component.food.id);
 			try {
@@ -685,7 +689,7 @@ export default function ReviewState({
 				setClarifyingComponentId(null);
 			}
 		},
-		[clarifyingComponentId, onClarifyComponent, showUndo],
+		[clarifyingComponentId, onClarifyComponent, requestDisclosure, showUndo],
 	);
 
 	return (

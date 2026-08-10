@@ -342,17 +342,17 @@ Required public pages:
 Privacy policy contents:
 
 - [ ] Developer identity and Eatlog name.
-- [ ] Local-first storage and no-account behavior.
-- [ ] Camera/photo access and user-triggered transmission.
-- [ ] Gemini, USDA, Open Food Facts, Cloudflare, and Health Connect roles.
-- [ ] Data categories, purposes, retention, deletion, and sharing.
-- [ ] App-scoped rate-limit token and IP processing.
-- [ ] Apple or Google processes the upfront purchase and payment details; Eatlog receives no card or bank data.
-- [ ] Backup/export behavior and user responsibility for shared files.
-- [ ] Health data handling and permission revocation.
-- [ ] Adult-only scope.
-- [ ] Policy-change process and contact address.
-- [ ] Links to relevant provider policies where useful.
+- [x] Local-first storage and no-account behavior.
+- [x] Camera/photo access and user-triggered transmission.
+- [x] Gemini, USDA, Open Food Facts, Cloudflare, and Health Connect roles.
+- [x] Data categories, purposes, retention, deletion, and sharing.
+- [x] App-scoped rate-limit token and IP processing.
+- [x] Apple or Google processes the upfront purchase and payment details; Eatlog receives no card or bank data.
+- [x] Backup/export behavior and user responsibility for shared files.
+- [x] Health data handling and permission revocation.
+- [x] Adult-only scope.
+- [x] Policy-change process and contact address.
+- [x] Links to relevant provider policies where useful.
 
 Page requirements:
 
@@ -360,7 +360,7 @@ Page requirements:
 - [ ] Mobile-readable layout.
 - [ ] Stable URLs under a domain the owner controls.
 - [ ] No placeholder contact or company details.
-- [ ] Version-controlled source or saved release copy.
+- [x] Version-controlled source or saved release copy.
 
 ### M2.3 Update in-app disclosure and consent
 
@@ -374,13 +374,13 @@ Target files:
 Tasks:
 
 - [ ] Link the public privacy policy and support page from Profile.
-- [ ] Expand the privacy screen to describe the Worker, installation token, IP/rate limiting, and direct Open Food Facts requests.
-- [ ] Present a one-time disclosure before the first photo or description leaves the device.
-- [ ] Name Gemini as the recipient and state the purpose.
-- [ ] Require an affirmative action to continue; cancel leaves the content on device.
-- [ ] Store only the disclosure version and acceptance state locally.
-- [ ] Show disclosure again after a material data-flow change.
-- [ ] Keep search disclosure near explicit online search behavior.
+- [x] Expand the privacy screen to describe the Worker, installation token, IP/rate limiting, and direct Open Food Facts requests.
+- [x] Present a one-time disclosure before the first photo or description leaves the device.
+- [x] Name Gemini as the recipient and state the purpose.
+- [x] Require an affirmative action to continue; cancel leaves the content on device.
+- [x] Store only the disclosure version and acceptance state locally.
+- [x] Show disclosure again after a material data-flow change.
+- [x] Keep search disclosure near explicit online search behavior.
 
 ### M2.4 Remove unused permissions and audit generated native files
 
@@ -394,8 +394,8 @@ Tasks:
 - [x] Remove explicit `android.permission.RECORD_AUDIO`.
 - [x] Set `microphonePermission: false` in the `expo-image-picker` plugin.
 - [x] Rewrite camera and photo permission strings to describe meal scanning, not food-label scanning alone.
-- [ ] Confirm camera access appears only when the user starts a camera flow.
-- [ ] Confirm gallery access appears only when the user starts a gallery flow.
+- [x] Confirm camera access appears only when the user starts a camera flow.
+- [x] Confirm gallery access appears only when the user starts a gallery flow.
 - [x] Confirm Health Connect requests only weight permissions used by the app.
 - [ ] Confirm the Health Connect system privacy/rationale action opens Eatlog's privacy information or its public policy as required.
 - [x] Generate native projects or inspect the EAS build artifact to audit final permissions.
@@ -411,36 +411,36 @@ Target files:
 
 Tasks:
 
-- [ ] Move Open Food Facts search from legacy `/cgi/search.pl` to its supported search interface.
-- [ ] Use the required User-Agent shape: `Eatlog/<version> (<support-email>)`.
+- [x] Move Open Food Facts search from legacy `/cgi/search.pl` to its supported search interface.
+- [x] Use the required User-Agent shape: `Eatlog/<version> (<support-email>)`.
 - [ ] Register Eatlog/API usage with Open Food Facts if their current process requires it.
-- [ ] Add visible Open Food Facts database attribution and ODbL link.
-- [ ] Add USDA FoodData Central attribution and its public-domain/CC0 status.
-- [ ] Add Google Gemini and Cloudflare service acknowledgements without implying endorsement.
-- [ ] Generate a third-party software notice from production dependencies and bundled fonts.
-- [ ] Keep the project’s 0BSD app license visible in About.
+- [x] Add visible Open Food Facts database attribution and ODbL link.
+- [x] Add USDA FoodData Central attribution and its public-domain/CC0 status.
+- [x] Add Google Gemini and Cloudflare service acknowledgements without implying endorsement.
+- [x] Generate a third-party software notice from production dependencies and bundled fonts.
+- [x] Keep the project’s 0BSD app license visible in About.
 
 ### M2.6 Prepare store policy worksheets
 
 Google Play worksheet:
 
-- [ ] Data Safety answers for transmitted photos, descriptions, searches, app-scoped token, and provider processing.
-- [ ] Confirmation that local-only profile, log, and health records do not leave the device unless the user exports or invokes a network feature.
-- [ ] Health Apps declaration with Nutrition and Weight Management plus every applicable Health Connect category.
-- [ ] Health Connect permission justification.
-- [ ] Ads: none.
-- [ ] Account creation: none; store account-deletion rules do not apply.
-- [ ] Content rating and target audience: adults.
+- [x] Data Safety answers for transmitted photos, descriptions, searches, app-scoped token, and provider processing.
+- [x] Confirmation that local-only profile, log, and health records do not leave the device unless the user exports or invokes a network feature.
+- [x] Health Apps declaration with Nutrition and Weight Management plus every applicable Health Connect category.
+- [x] Health Connect permission justification.
+- [x] Ads: none.
+- [x] Account creation: none; store account-deletion rules do not apply.
+- [x] Content rating and target audience: adults.
 
 Apple worksheet:
 
-- [ ] App Privacy answers for all app and third-party SDK behavior.
+- [x] App Privacy answers for all app and third-party SDK behavior.
 - [ ] Privacy policy URL and support URL.
-- [ ] Updated age-rating questionnaire.
-- [ ] Medical or treatment-information answer based on final copy, with no claim that Eatlog is a medical device.
-- [ ] Export-compliance answer.
+- [x] Updated age-rating questionnaire.
+- [x] Medical or treatment-information answer based on final copy, with no claim that Eatlog is a medical device.
+- [x] Export-compliance answer.
 - [ ] Third-party SDK privacy manifest and required-reason API review.
-- [ ] Review notes that explain local-first storage, optional remote estimates, and the absence of login.
+- [x] Review notes that explain local-first storage, optional remote estimates, and the absence of login.
 
 ### M2 exit criteria
 
@@ -1290,3 +1290,15 @@ Recheck these before submission:
 - Artifact: `release/OWNER_INPUTS.md` records every unknown owner value with the build, submission, or public-release deadline.
 - Decision: Android ships first; iOS v1 source/configuration work is authorized; `com.sgaret.eatlog` and `com.sgaret.eatlog.dev` are candidate iOS identifiers; Apple reservation remains account-bound and unverified.
 - Unresolved risks: **OWNER INPUT** public developer/legal name, support email, privacy/support host, launch countries, device inventory, and operations owner; **STORE ACCOUNT** Play and Apple enrollment, app records, agreements, pricing evidence, banking, tax, and Apple bundle-ID reservation; **CREDENTIAL** store submission access and two-factor owner; **PHYSICAL DEVICE** Android and iPhone matrix; **PAID SERVICE** memberships, final signed/cloud builds, submissions, hosting, and production provider actions.
+
+### Phase 1 / M2 account-free evidence: 2026-08-10
+
+- Changed app source: `src/services/remoteEstimateDisclosure.ts`, `src/services/remoteEstimateDisclosureAlert.ts`, Scan/Describe/Search/Review sheet states, `src/config/services.ts`, Open Food Facts client/tests, Profile privacy/about/attribution screens, conditional public links, and reset behavior. The redundant “Take a photo. Review the estimate.” helper was removed from the FAB entry sheet; ordinary logging has no recurring privacy paragraph.
+- Changed policy/legal source: `release/privacy/DATA_INVENTORY.md`, `release/site/privacy.md`, `release/site/support.md`, `release/store/POLICY_WORKSHEETS.md`, `release/legal/`, `release/OWNER_INPUTS.md`, and root `LICENSE`.
+- Generated artifact: `release/legal/THIRD_PARTY_SOFTWARE.md` contains 729 unique production package/version license records from `package-lock.json`; `release/legal/ONEST-OFL-1.1.txt` preserves the bundled font notice. `scripts/generate-third-party-notices.mjs` makes the inventory reproducible and fails on missing or inconsistent license identifiers.
+- Provider decision: explicit Open Food Facts full search now uses the official Search-a-licious privacy-preserving `POST /search` interface and parses `hits`. The provider is disabled unless a valid owner-controlled support email produces `Eatlog/<version> (<support-email>)`; no contact was invented. Common/type-ahead mode remains USDA-only through the Worker, and cancellation/partial-provider behavior remains intact.
+- Disclosure decision: version 1 stores only `{version, accepted}` in an app-private file outside SQLite backups. Scan, Describe, AI fallback, and re-estimation all await the same first-use affirmative gate before transmission. Decline writes nothing, performs no provider call, and leaves the selected source unchanged. Material behavior/copy changes require a version increment.
+- Commands and results: `npm test` passed 188/188; `npm run typecheck` passed; `npm run notices:check` passed; `git diff --check` passed; local Android and iOS JavaScript exports passed with artifacts `/tmp/eatlog-m2-android.JBeak1` and `/tmp/eatlog-m2-ios.YHpYQ8`. An initial typecheck found one test-only AbortSignal assertion error; the assertion was corrected and the recorded rerun passed.
+- Test evidence: disclosure acceptance/reuse/version/corruption/storage failure/cancellation; no-transmission decline; valid HTTPS/configured User-Agent; supported Open Food Facts request body, `hits` parsing, missing-contact fail-closed behavior, non-JSON error, and abort; required in-app attribution coverage. Existing timeout, provider partial failure, and caller-cancellation tests remain passing.
+- Visual/device result: **ENVIRONMENT LIMITATION** `adb devices -l` could not start the WSL ADB daemon (`could not install *smartsocket* listener: Operation not permitted`); no Android emulator executable, Xcode, or `xcrun` is available. No screenshot or physical permission result is claimed.
+- Remaining M2 blockers: **OWNER INPUT** public developer/legal name, support contact/response expectation, controlled HTTPS host and final URLs, Open Food Facts API-usage registration, and page publication; **CREDENTIAL** production Gemini/Cloudflare contract, retention, and logging review; **PAID SERVICE** production Gemini service/account decision; **STORE ACCOUNT** final Data Safety, Health Apps, App Privacy, age-rating, export-compliance, and reviewer-form submission; **PHYSICAL DEVICE** permission/disclosure/share/Health Connect verification; **ENVIRONMENT LIMITATION** final merged release-binary Android/iOS permission and privacy-manifest audit. M2 exit criteria remain unchecked.
