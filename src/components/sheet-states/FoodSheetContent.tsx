@@ -52,7 +52,7 @@ type FoodSheetFailureKind =
     | 'photo-unreadable';
 
 const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
-    unavailable: 'Estimates are not configured in this build.',
+    unavailable: 'Photo and description estimates are unavailable.',
     network: 'Check your connection, then try again.',
     timeout: 'The estimate took too long. Try again.',
     provider: 'The estimation service could not complete this request.',
@@ -718,9 +718,11 @@ function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onM
                 <Pressable onPress={onSearch} accessibilityRole="button" accessibilityLabel="Search foods instead" className="min-h-[48px] justify-center px-4 active:opacity-60">
                     <Text className="text-m3-on-surface text-xs font-semibold">Search foods</Text>
                 </Pressable>
-                <Pressable onPress={onDescribe} accessibilityRole="button" accessibilityLabel="Describe the meal instead" className="min-h-[48px] justify-center px-4 active:opacity-60">
-                    <Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text>
-                </Pressable>
+                {kind !== 'unavailable' ? (
+                    <Pressable onPress={onDescribe} accessibilityRole="button" accessibilityLabel="Describe the meal instead" className="min-h-[48px] justify-center px-4 active:opacity-60">
+                        <Text className="text-m3-on-surface text-xs font-semibold">Describe instead</Text>
+                    </Pressable>
+                ) : null}
                 <Pressable onPress={onManualEntry} accessibilityRole="button" accessibilityLabel="Enter food manually" className="min-h-[48px] justify-center px-4 active:opacity-60">
                     <Text className="text-m3-on-surface text-xs font-semibold">Enter manually</Text>
                 </Pressable>

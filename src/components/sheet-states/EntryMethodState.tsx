@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { M3 } from '../../theme/tokens';
+import { useResponsiveLayout } from '../../theme/layout';
 
 interface EntryActionProps {
   icon: React.ComponentProps<typeof MaterialIcons>['name'];
@@ -26,17 +27,26 @@ function LeadAction({ icon, label, hint, onPress }: EntryActionProps) {
   );
 }
 
-function MethodTile({ icon, label, hint, onPress }: EntryActionProps) {
+interface MethodTileProps extends EntryActionProps {
+  compact: boolean;
+}
+
+function MethodTile({ icon, label, hint, onPress, compact }: MethodTileProps) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
-      className="min-h-[72px] flex-1 flex-row items-center gap-3 px-4 active:opacity-60"
+      className={compact
+        ? 'min-h-[72px] flex-1 flex-row items-center gap-2 px-2 active:opacity-60'
+        : 'min-h-[72px] flex-1 flex-row items-center gap-3 px-4 active:opacity-60'}
     >
-      <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
-        <MaterialIcons name={icon} size={20} color={M3.onSurfaceVariant} />
+      <View className={compact
+        ? 'h-9 w-9 items-center justify-center rounded-full bg-m3-surface-container-high'
+        : 'h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high'}
+      >
+        <MaterialIcons name={icon} size={compact ? 18 : 20} color={M3.onSurfaceVariant} />
       </View>
       <Text className="min-w-0 flex-1 text-base font-semibold text-m3-on-surface">{label}</Text>
     </Pressable>
@@ -80,8 +90,14 @@ export default function EntryMethodState({
   onWeight,
   estimatesAvailable,
 }: EntryMethodStateProps) {
+  const { isNarrow } = useResponsiveLayout();
+
   return (
-    <BottomSheetScrollView contentContainerClassName="px-5 pt-2 pb-6" showsVerticalScrollIndicator={false}>
+    <BottomSheetScrollView
+      contentContainerClassName="px-5 pt-2 pb-6"
+      showsVerticalScrollIndicator
+      persistentScrollbar
+    >
       <View className="gap-4">
         <Text accessibilityRole="header" className="text-xl font-bold text-m3-on-surface">Add entry</Text>
 
@@ -93,30 +109,35 @@ export default function EntryMethodState({
               hint="Take a photo of food or a nutrition label"
               onPress={onCamera}
             />
-            <View className="flex-row gap-3">
+            <Text className="px-1 text-center text-sm text-m3-on-surface-variant">
+              Take a photo. Review the estimate.
+            </Text>
+            <View className={isNarrow ? 'flex-row gap-2' : 'flex-row gap-3'}>
               <MethodTile
                 icon="photo-library"
                 label="Upload photo"
                 hint="Choose an existing meal photo"
                 onPress={onGallery}
+                compact={isNarrow}
               />
               <MethodTile
                 icon="edit-note"
                 label="Describe meal"
                 hint="Type your meal for an estimate"
                 onPress={onDescribe}
+                compact={isNarrow}
               />
             </View>
           </View>
         ) : (
           <View
             accessible
-            accessibilityLabel="Food estimates are unavailable in this build. Recent meals and food search still work."
+            accessibilityLabel="Photo and description estimates are unavailable. You can still use Recent meals or Search foods."
             className="flex-row items-start gap-2 rounded-xl bg-m3-surface-container-high px-3 py-3"
           >
             <MaterialIcons name="info-outline" size={18} color={M3.onSurfaceVariant} />
             <Text className="flex-1 text-sm text-m3-on-surface-variant">
-              Food estimates are unavailable in this build. Recent meals and food search still work.
+              Photo and description estimates are unavailable. You can still use Recent meals or Search foods.
             </Text>
           </View>
         )}

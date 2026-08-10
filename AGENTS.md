@@ -259,6 +259,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Worker tests must exercise at least one request without injected runtime dependencies; call Web API methods such as `crypto.randomUUID()` through their owning object, never as unbound function references.
 - Gemini Flash-Lite rejects `maxItems` in Eatlog's `responseSchema`; omit it from the provider schema and enforce `MAX_COMPONENTS` after response normalization.
 - How Eatlog Works must keep research references visible inline; do not hide them behind an accordion or disclosure.
+- When a user requests a complete Impeccable command set, load and execute every named command playbook; never substitute `polish` as an umbrella workflow.
 
 ---
 
