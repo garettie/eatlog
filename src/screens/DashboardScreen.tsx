@@ -100,8 +100,9 @@ interface MacroProgressProps {
 
 function MacroProgress({ label, consumed, target, showRemaining, progressColorClass }: MacroProgressProps) {
   const reduced = useReducedMotion();
-  const pct = target > 0 ? Math.min(1, Math.max(0, consumed / target)) : 0;
   const remaining = Math.max(0, target - consumed);
+  const displayedValue = showRemaining ? remaining : consumed;
+  const pct = target > 0 ? Math.min(1, Math.max(0, displayedValue / target)) : 0;
   const over = Math.max(0, consumed - target);
   const barPctSV = useSharedValue(0);
 
