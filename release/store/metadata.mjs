@@ -82,14 +82,14 @@ Eatlog is a one-time paid download. It has no subscriptions, in-app purchases, a
   reviewerNotes: {
     google: `Eatlog is a one-time paid download with no login, subscription, in-app purchase, or extra paid feature.
 
-Complete onboarding with synthetic adult data. Manual food entry works without a network connection. Open the center Add control: Scan a meal opens the camera, and Upload photo opens the photo library. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker after the first-use disclosure is accepted. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
+Complete onboarding with synthetic adult data. Manual food entry works without a network connection. Open the center Add control: Scan a meal opens the camera, and Upload photo opens the photo library. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker when the user invokes that action. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 
 Android only: Profile > Health Connect requests read and write access for Weight. Eatlog imports Weight into local history and exports only weights entered in Eatlog. No other Health Connect data type is requested.
 
 Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.`,
     apple: `Eatlog is a one-time paid download with no login, subscription, in-app purchase, or extra paid feature. Saved profiles, targets, logs, weights, and meal photos stay on device unless the user exports a file.
 
-Complete onboarding with synthetic adult data. Use the center Add control for manual entry, Scan a meal, or Upload photo. Scan a meal opens the camera; Upload photo opens the photo library. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker after the first-use disclosure is accepted. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
+Complete onboarding with synthetic adult data. Use the center Add control for manual entry, Scan a meal, or Upload photo. Scan a meal opens the camera; Upload photo opens the photo library. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker when the user invokes that action. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 
 Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.
 

@@ -2,7 +2,7 @@
 title: Eatlog Privacy Policy
 publication_status: blocked-on-owner-input
 policy_version: 1.0-draft
-last_updated: 2026-08-10
+last_updated: 2026-08-11
 ---
 
 # Eatlog Privacy Policy
@@ -15,7 +15,7 @@ Eatlog is an account-free nutrition and weight log. It stores your profile, targ
 
 Eatlog stores the information you enter during setup and use, including your display name, birth date, sex, height, activity level, nutrition goal, target weight, preferred units, food logs, meal details, nutrition estimates, targets, weight records, and review decisions. Saved meal photos are stored as app-private files. Recent online search results may stay briefly in memory.
 
-Eatlog also stores two small app-private files outside its database: a versioned record that you accepted the Scan/Describe disclosure and an app-scoped random installation token used to limit abuse of the online service. These files are not included in an Eatlog backup or CSV export.
+Eatlog also stores an app-scoped random installation token outside its database to limit abuse of the online service. This file is not included in an Eatlog backup or CSV export.
 
 ## When Eatlog sends data online
 
@@ -23,9 +23,7 @@ Eatlog uses online services only for the actions described below.
 
 ### Scan, Describe, and re-estimation
 
-Before the first request, Eatlog explains the transmission and asks you to affirm it. If you cancel, Eatlog sends nothing and leaves the selected photo or text on your device. Eatlog asks again only after a material disclosure change.
-
-If you continue, Eatlog sends the selected, resized photo or meal description through the Eatlog Cloudflare Worker to Google Gemini to produce a nutrition estimate. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the estimate before saving it.
+Choosing Scan, Describe, or re-estimation starts the online request. Eatlog sends the selected, resized photo or meal text through the Eatlog Cloudflare Worker to Google Gemini to produce a nutrition estimate. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the estimate before saving it.
 
 ### USDA FoodData Central
 
@@ -55,7 +53,7 @@ A restorable Eatlog backup contains a database snapshot and referenced meal phot
 
 ## Retention and deletion
 
-You can edit and delete individual logs in Eatlog. Delete all data removes the local database, meal photos, disclosure acceptance, and temporary backup/export files. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and warns you if it cannot confirm that removal. Deleting the app removes its app-private storage, subject to operating-system behavior. Files you exported or shared remain in the locations you chose.
+You can edit and delete individual logs in Eatlog. Delete all data removes the local database, meal photos, and temporary backup/export files. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and warns you if it cannot confirm that removal. Deleting the app removes its app-private storage, subject to operating-system behavior. Files you exported or shared remain in the locations you chose.
 
 The Eatlog Worker is designed to log operational fields only. It must not log request bodies, images, descriptions, search queries, prompts, provider responses, raw installation tokens, token hashes, IP addresses, headers, or secrets. Google, Cloudflare, USDA, Open Food Facts, and any share destination process data under their own terms and policies.
 
@@ -75,4 +73,4 @@ Publication is blocked until the owner supplies a monitored support contact and 
 
 ## Policy changes
 
-Material changes to what Eatlog sends, who receives it, or why require a new policy date and a disclosure-version change in the app. Older release copies remain in version control. The final public page must tell users how to contact the developer about a change.
+Material changes to what Eatlog sends, who receives it, or why require a new policy date and updated in-app privacy copy. Older release copies remain in version control. The final public page must tell users how to contact the developer about a change.

@@ -7,6 +7,14 @@ export interface FoodPortion {
   grams: number;
 }
 
+export type FoodDefaultAmountKind = 'last-logged' | 'reviewed' | 'serving' | 'reference';
+
+export interface FoodDefaultAmount {
+  kind: FoodDefaultAmountKind;
+  grams: number;
+  servingId: string | null;
+}
+
 export interface FoodHistoryMetadata {
   representativeLogId: number;
   lastLoggedAt: string;
@@ -46,10 +54,9 @@ export interface FoodResult {
   carbsPer100g: number | null;
   fatPer100g: number | null;
   portions: FoodPortion[];
-  defaultPortionId: string;
+  defaultAmount: FoodDefaultAmount;
   history?: FoodHistoryMetadata;
   isPinned?: boolean;
-  estimatedGrams?: number | null;
   confidence?: FoodEstimateConfidence;
   confidenceReason?: string | null;
   alternateSourceIds: { source: FoodSource; id: string }[];

@@ -16,8 +16,7 @@ import type { MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
 import { deleteFoodLog, deleteMeal, restoreWeightSave, type MealType } from '../db/database';
 import { formatDayHeader, todayISO } from '../utils/calendar';
-import type { FoodResult, DataType } from '../services/foodSearch';
-import { buildFoodPortions } from '../services/foodSearchCore';
+import { foodResultFromLog } from '../services/foodSearchCore';
 import type { DescribeResult } from '../services/foodScan';
 import EatlogTabBar from './EatlogTabBar';
 import { syncHealthConnectWeights } from '../services/healthConnect';
@@ -149,32 +148,9 @@ export default function TabNavigator() {
         });
 
         requestAnimationFrame(() => {
-            const components: FoodResult[] = mealGroup.components.map((log, i) => {
-                const grams = log.grams_logged && log.grams_logged > 0 ? log.grams_logged : 100;
-                const per100gRatio = 100 / grams;
-                const portions = buildFoodPortions([
-                    { id: 'history-last', label: 'Last logged', grams },
-                    { id: 'history-serving', label: log.serving_label ?? `${log.serving_size_g ?? 0} g`, grams: log.serving_size_g },
-                ]);
-                return {
-                id: `meal-edit-${mealGroup.id}-${i}`,
-                name: log.name,
-                source: log.source as FoodResult['source'],
-                sourceFoodId: log.source_food_id ?? '',
-                dataType: (log.data_type as DataType) || 'manual',
-                brand: log.brand,
-                preparation: log.preparation,
-                normalizedName: log.name.toLowerCase(),
-                caloriesPer100g: log.calories_per_100g ?? log.calories * per100gRatio,
-                proteinPer100g: log.protein_g_per_100g ?? log.protein_g * per100gRatio,
-                carbsPer100g: log.carbs_g_per_100g ?? log.carbs_g * per100gRatio,
-                fatPer100g: log.fat_g_per_100g ?? log.fat_g * per100gRatio,
-                portions,
-                defaultPortionId: portions[0].id,
-                estimatedGrams: log.grams_logged ?? undefined,
-                alternateSourceIds: [],
-                };
-            });
+            const components = mealGroup.components.map((log, i) =>
+                foodResultFromLog(log, `meal-edit-${mealGroup.id}-${i}`)
+            );
             if (!components.length) return;
 
             const result: DescribeResult = {

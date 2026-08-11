@@ -30,7 +30,6 @@ interface SearchInputStateProps {
 	onSelectFood: (food: FoodResult) => void;
 	onManualEntry: () => void;
 	onEstimateResult: (result: DescribeResult) => void;
-	requestDisclosure: () => Promise<boolean>;
 	onQuickLogComplete: (info: {
 		logId: number;
 		meal: MealType;
@@ -56,7 +55,6 @@ export default function SearchInputState({
 	onSelectFood,
 	onManualEntry,
 	onEstimateResult,
-	requestDisclosure,
 	onQuickLogComplete,
 	initialMeal,
 	logDate,
@@ -135,7 +133,6 @@ export default function SearchInputState({
 	const handleEstimate = useCallback(async () => {
 		const query = search.query.trim();
 		if (!query || estimating) return;
-		if (!(await requestDisclosure())) return;
 		setEstimating(true);
 		setEstimateError(null);
 		const result = await describeMeal(query);
@@ -146,7 +143,7 @@ export default function SearchInputState({
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [estimating, onEstimateResult, requestDisclosure, search.query]);
+	}, [estimating, onEstimateResult, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow

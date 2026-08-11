@@ -54,9 +54,9 @@ function mapComponents(
         const name = normalizeScanName(component.name);
         const normalized = normalizeFoodName(name, component.brand ?? null);
         const portions = buildFoodPortions([
-            { id: 'reviewed', label: component.servingLabel ?? 'Reviewed amount', grams: component.estimatedGrams },
             { id: 'serving', label: component.servingLabel ?? `${component.servingSizeGrams ?? 0} g`, grams: component.servingSizeGrams },
         ]);
+        const serving = portions[0] ?? null;
         return {
             id: `${source}-${timestamp}-${index}`,
             name,
@@ -71,8 +71,11 @@ function mapComponents(
             carbsPer100g: Math.round(component.carbsPer100g * 10) / 10,
             fatPer100g: Math.round(component.fatPer100g * 10) / 10,
             portions,
-            defaultPortionId: portions[0].id,
-            estimatedGrams: component.estimatedGrams,
+            defaultAmount: {
+                kind: 'reviewed',
+                grams: component.estimatedGrams,
+                servingId: serving?.id ?? null,
+            },
             confidence: component.confidence,
             confidenceReason: component.confidenceReason,
             alternateSourceIds: [],

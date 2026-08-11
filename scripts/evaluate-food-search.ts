@@ -135,8 +135,11 @@ async function main(): Promise<void> {
     const topFive = outcome.items.slice(0, 5);
     console.log(`\n[${evaluation.mode}] ${evaluation.query} (${outcome.kind})`);
     topFive.forEach((item, index) => {
-      const portion = item.portions.find((candidate) => candidate.id === item.defaultPortionId) ?? item.portions[0];
-      console.log(`  ${index + 1}. ${item.name}${item.brand ? ` — ${item.brand}` : ''} [${item.dataType}]${portion ? ` · ${portion.label}` : ''}`);
+      const serving = item.defaultAmount.servingId
+        ? item.portions.find((candidate) => candidate.id === item.defaultAmount.servingId) ?? null
+        : null;
+      const amountLabel = serving?.label ?? (item.defaultAmount.kind === 'last-logged' ? 'Last logged' : item.defaultAmount.kind === 'reviewed' ? 'Reviewed amount' : '100 g');
+      console.log(`  ${index + 1}. ${item.name}${item.brand ? ` — ${item.brand}` : ''} [${item.dataType}] · ${amountLabel}`);
     });
     nearMisses.forEach((nearMiss) => printNearMiss(evaluation.query, nearMiss));
     providerFailures.forEach((failure) => console.log(`  provider failure: ${failure}`));
@@ -146,7 +149,7 @@ async function main(): Promise<void> {
       commonQueries += 1;
       if (outcome.items.slice(0, 3).some((item) => containsExpected(item, evaluation.expected))) commonTopThreeHits += 1;
       commonFirstFive += topFive.length;
-      commonPortioned += topFive.filter((item) => item.portions.some((portion) => portion.grams > 0)).length;
+      commonPortioned += topFive.filter((item) => item.defaultAmount.grams > 0).length;
     } else {
       brandQueries += 1;
       if (outcome.items.slice(0, 3).some((item) => containsExpected(item, evaluation.expected))) {

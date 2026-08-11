@@ -4,7 +4,6 @@ import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { loadFoodDetails, type FoodResult } from '../services/foodSearch';
-import { buildFoodPortions } from '../services/foodSearchCore';
 import { describeMeal } from '../services/foodScan';
 import { useFoodSearchController } from '../hooks/useFoodSearchController';
 import { M3 } from '../theme/tokens';
@@ -88,7 +87,6 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const grams = manualGramsValue;
 
     const name = manualName.trim();
-    const portions = buildFoodPortions([{ id: 'reviewed', label: 'Reviewed amount', grams }]);
     const food: FoodResult = {
       id: `manual-${Date.now()}`,
       name,
@@ -102,9 +100,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       proteinPer100g: pro > 0 ? pro : null,
       carbsPer100g: carb > 0 ? carb : null,
       fatPer100g: fat > 0 ? fat : null,
-      portions,
-      defaultPortionId: portions[0].id,
-      estimatedGrams: grams,
+      portions: [],
+      defaultAmount: { kind: 'reviewed', grams, servingId: null },
       alternateSourceIds: [],
     };
     onAdd([food]);

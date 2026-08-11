@@ -12,10 +12,9 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { scanFood, clarifyComponent, clarifyMeal, type DescribeResult, type FoodEstimationFailureKind } from '../../services/foodScan';
-import { requestRemoteEstimateDisclosureAlert } from '../../services/remoteEstimateDisclosureAlert';
 import { serviceConfig } from '../../config/services';
-import type { DataType, FoodResult } from '../../services/foodSearch';
-import { buildFoodPortions } from '../../services/foodSearchCore';
+import type { FoodResult } from '../../services/foodSearch';
+import { foodResultFromLog } from '../../services/foodSearchCore';
 import { type HealthConnectWeightExport, type LoggedMeal, type MealType, type SaveWeightResult, type WeightLog, getMealComponents } from '../../db/database';
 import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos';
 import { formatDayHeader, todayISO } from '../../utils/calendar';
@@ -268,11 +267,6 @@ export default function FoodSheetContent({
                 showScanError('photo-unreadable', 'camera');
                 return;
             }
-            if (!(await requestRemoteEstimateDisclosureAlert())) {
-                if (fromBarRef.current) resetToEntry();
-                else transitionTo('entry', { pushHistory: false });
-                return;
-            }
             if (requestId !== scanRequestRef.current) return;
             scanBase64Ref.current = base64;
             const scanResult = await scanFood(base64).catch((error) => {
@@ -330,11 +324,6 @@ export default function FoodSheetContent({
             });
             if (!base64) {
                 showScanError('photo-unreadable', 'gallery');
-                return;
-            }
-            if (!(await requestRemoteEstimateDisclosureAlert())) {
-                if (fromBarRef.current) resetToEntry();
-                else transitionTo('entry', { pushHistory: false });
                 return;
             }
             if (requestId !== scanRequestRef.current) return;
@@ -400,32 +389,9 @@ export default function FoodSheetContent({
         try {
             const logs = await getMealComponents(meal.meal_id);
             if (requestId !== mealRequestRef.current) return;
-            const components: FoodResult[] = logs.map((log, index) => {
-                const grams = log.grams_logged && log.grams_logged > 0 ? log.grams_logged : 100;
-                const ratio = 100 / grams;
-                const portions = buildFoodPortions([
-                    { id: 'history-last', label: 'Last logged', grams },
-                    { id: 'history-serving', label: log.serving_label ?? `${log.serving_size_g ?? 0} g`, grams: log.serving_size_g },
-                ]);
-                return {
-                    id: `recent-meal-${meal.meal_id}-${index}`,
-                    name: log.name,
-                    source: log.source as FoodResult['source'],
-                    sourceFoodId: log.source_food_id ?? '',
-                    dataType: (log.data_type as DataType) || 'manual',
-                    brand: log.brand,
-                    preparation: log.preparation,
-                    normalizedName: log.name.toLowerCase(),
-                    caloriesPer100g: log.calories_per_100g ?? log.calories * ratio,
-                    proteinPer100g: log.protein_g_per_100g ?? log.protein_g * ratio,
-                    carbsPer100g: log.carbs_g_per_100g ?? log.carbs_g * ratio,
-                    fatPer100g: log.fat_g_per_100g ?? log.fat_g * ratio,
-                    portions,
-                    defaultPortionId: portions[0].id,
-                    estimatedGrams: log.grams_logged,
-                    alternateSourceIds: [],
-                };
-            });
+            const components = logs.map((log, index) =>
+                foodResultFromLog(log, `recent-meal-${meal.meal_id}-${index}`)
+            );
             if (!components.length) throw new Error('Meal has no reusable components');
             setState((current) => ({ ...current, photoUri: meal.photo_uri }));
             transitionTo('review', {
@@ -559,7 +525,7 @@ export default function FoodSheetContent({
                     />
                 )}
                 {renderedStateKey === 'describe' && (
-                    <DescribeInputState onResult={handleDescribeResult} requestDisclosure={requestRemoteEstimateDisclosureAlert} onBack={onGoBack} onSearch={handleSearch} onManualEntry={handleManualEntry} />
+                    <DescribeInputState onResult={handleDescribeResult} onBack={onGoBack} onSearch={handleSearch} onManualEntry={handleManualEntry} />
                 )}
                 {renderedStateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
                 {renderedStateKey === 'permission-denied' && (
@@ -603,7 +569,6 @@ export default function FoodSheetContent({
                         onLogComplete={handleMealLogged}
                         onClarify={handleClarify}
                         onClarifyComponent={handleClarifyComponent}
-                        requestDisclosure={requestRemoteEstimateDisclosureAlert}
                         editMealId={state.editMealId}
                         initialMeal={state.pendingMeal}
                         logDate={state.logDate ?? null}
@@ -616,7 +581,6 @@ export default function FoodSheetContent({
                         onSelectFood={handleSelectFood}
                         onManualEntry={handleManualEntry}
                         onEstimateResult={handleDescribeResult}
-                        requestDisclosure={requestRemoteEstimateDisclosureAlert}
                         onQuickLogComplete={handleSingleLogComplete}
                         initialMeal={state.pendingMeal}
                         logDate={state.logDate ?? null}

@@ -6,7 +6,7 @@ Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the 
 
 1. Launch Eatlog and complete onboarding with the synthetic profile in `SCREENSHOT_PLAN.md`. The plan preview must pass the adult and nutrition-safety rules before it can be accepted.
 2. Open the center Add control. Choose Enter manually, enter the synthetic rice bowl, and save it. Today and Diary update immediately.
-3. Open Add again. Choose Scan a meal for the camera, Upload photo for the photo library, or Describe meal for text. On the first remote estimate only, accept the processing disclosure. Cancel first to verify that no request occurs and the selected content stays on device; then accept and continue with non-sensitive test content.
+3. Open Add again. Choose Scan a meal for the camera, Upload photo for the photo library, or Describe meal for text. Each action starts the requested remote estimate directly; use only non-sensitive test content.
 4. Review and edit every estimate before saving. The review result is an estimate, not a medical or guaranteed-accuracy result.
 5. Open Search foods. Typing uses USDA through the Eatlog Worker when configured. Pressing Search also runs the explicit direct Open Food Facts full search.
 6. Add and update a weight. Open Analytics to inspect weight trend, calorie history, logging consistency, and any plan-review state. The user chooses Accept or Keep.
@@ -21,7 +21,7 @@ Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the 
 
 ## Provider and privacy explanation
 
-- Scan, Describe, clarification, and re-estimation send only the user-selected photo or text through the Eatlog Cloudflare Worker to Google Gemini after the one-time disclosure is accepted.
+- Scan, Describe, clarification, and re-estimation send only the user-selected photo or text through the Eatlog Cloudflare Worker to Google Gemini when the user invokes that action.
 - USDA search and detail use the Worker. Open Food Facts is contacted directly only for explicit full search.
 - The app-scoped installation token is sent for throttling and is stored outside SQLite backups. The Worker stores only its salted hash for rate limiting.
 - Saved profile, target, log, meal, photo, and weight data stays local unless the user invokes a named remote feature or shares an export/backup.

@@ -30,24 +30,26 @@ export default function FoodSearchResultRow({
 	quickLogging = false,
 	accessibilityHint = "Opens food review",
 }: FoodSearchResultRowProps) {
-	const portion =
-		food.portions.find((candidate) => candidate.id === food.defaultPortionId) ??
-		food.portions[0];
+	const serving = food.defaultAmount.servingId
+		? food.portions.find((candidate) => candidate.id === food.defaultAmount.servingId) ?? null
+		: null;
 	const calories =
 		food.history?.calories ??
-		(food.caloriesPer100g != null && portion
-			? (food.caloriesPer100g * portion.grams) / 100
+		(food.caloriesPer100g != null
+			? (food.caloriesPer100g * food.defaultAmount.grams) / 100
 			: null);
 	const context = food.history?.parentMealName
 		? `Your history · ${food.history.parentMealName}`
 		: [provenance(food), food.brand].filter(Boolean).join(" · ");
-	const portionText = portion
-		? formatPortionLabel(
-				portion.label,
-				portion.grams,
-				/ml\b/i.test(portion.label) ? "ml" : "g",
-			)
-		: null;
+	const amountLabel = serving?.label
+		?? (food.defaultAmount.kind === "last-logged"
+			? "Last logged"
+			: food.defaultAmount.kind === "reviewed" ? "Reviewed amount" : "100 g");
+	const portionText = formatPortionLabel(
+		amountLabel,
+		food.defaultAmount.grams,
+		/ml\b/i.test(amountLabel) ? "ml" : "g",
+	);
 
 	return (
 		<View className="min-h-[72px] flex-row items-center rounded-2xl bg-m3-surface-container border border-m3-outline-variant/30 overflow-hidden">

@@ -19,7 +19,7 @@ function food(id: string, dataType: FoodResult['dataType'] = 'Survey (FNDDS)'): 
     carbsPer100g: 22,
     fatPer100g: 0,
     portions: [{ id: 'cup', label: '1 cup', grams: 100 }],
-    defaultPortionId: 'cup',
+    defaultAmount: { kind: 'serving', grams: 100, servingId: 'cup' },
     alternateSourceIds: [],
   };
 }

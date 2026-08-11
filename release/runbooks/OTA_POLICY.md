@@ -48,7 +48,7 @@ For each production update, append an owner-controlled release record containing
 
 ## Rollback
 
-Stop rollout immediately for crashes, startup failure, incorrect nutrition safety behavior, data corruption, backup/restore failure, disclosure bypass, provider data leakage, or a material store-policy mismatch.
+Stop rollout immediately for crashes, startup failure, incorrect nutrition safety behavior, data corruption, backup/restore failure, provider data leakage, or a material store-policy mismatch.
 
 The release owner runs the current EAS interactive rollback command:
 

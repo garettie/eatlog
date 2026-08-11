@@ -11,7 +11,6 @@ import {
 import { deleteAllMealPhotos } from '../utils/mealPhotos';
 import type { OwnershipProgressListener, OwnershipResult } from './dataOwnership.types';
 import { waitForHealthConnectIdle } from './healthConnect';
-import { clearRemoteEstimateDisclosure } from './remoteEstimateDisclosure';
 
 const TEMP_PREFIXES = [
   'eatlog-backup-stage-', 'eatlog-restore-stage-', 'eatlog-restore-safety-', 'eatlog-export-',
@@ -22,7 +21,6 @@ export async function resetLocalData(onProgress?: OwnershipProgressListener): Pr
   await waitForHealthConnectIdle();
   onProgress?.({ operation: 'reset', phase: 'photos', completed: 0, total: 3, message: 'Removing meal photos', cancellable: false });
   await deleteAllMealPhotos();
-  await clearRemoteEstimateDisclosure();
 
   const cache = new Directory(Paths.cache);
   for (const entry of cache.list()) {

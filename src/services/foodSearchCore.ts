@@ -379,13 +379,15 @@ export function buildFoodPortions(
   const portions: FoodResult['portions'] = [];
   for (const candidate of candidates) {
     if (candidate.grams == null || !Number.isFinite(candidate.grams) || candidate.grams <= 0) continue;
-    if (portions.some((portion) => Math.abs(portion.grams - candidate.grams!) < 0.01)) continue;
+    const label = candidate.label.trim() || `${candidate.grams} g`;
+    const normalizedLabel = label.toLowerCase().replace(/\s+/g, ' ');
+    if (portions.some((portion) =>
+      Math.abs(portion.grams - candidate.grams!) < 0.01
+      && portion.label.toLowerCase().replace(/\s+/g, ' ') === normalizedLabel
+    )) continue;
     const baseId = candidate.id.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-') || `portion-${portions.length}`;
     const id = portions.some((portion) => portion.id === baseId) ? `${baseId}-${portions.length}` : baseId;
-    portions.push({ id, label: candidate.label.trim() || `${candidate.grams} g`, grams: candidate.grams });
-  }
-  if (!portions.some((portion) => Math.abs(portion.grams - 100) < 0.01)) {
-    portions.push({ id: '100-g', label: '100 g', grams: 100 });
+    portions.push({ id, label, grams: candidate.grams });
   }
   return portions;
 }
@@ -470,6 +472,7 @@ export function parseUSDAFoods(foods: unknown): FoodResult[] {
       : null;
     const { normalizedName, preparation } = normalizeFoodName(food.description, brand);
     const portions = portionsFromUSDA(food);
+    const defaultServing = portions[0] ?? null;
     return [{
       id: `usda-${fdcId}`,
       name: cleanFoodDisplayName(food.description),
@@ -483,7 +486,9 @@ export function parseUSDAFoods(foods: unknown): FoodResult[] {
       providerOrder,
       ...macros,
       portions,
-      defaultPortionId: portions[0].id,
+      defaultAmount: defaultServing
+        ? { kind: 'serving', grams: defaultServing.grams, servingId: defaultServing.id }
+        : { kind: 'reference', grams: 100, servingId: null },
       alternateSourceIds: [],
     }];
   });
@@ -491,7 +496,7 @@ export function parseUSDAFoods(foods: unknown): FoodResult[] {
 
 function mergeUSDAFoodPortions(items: FoodResult[], details: unknown): FoodResult[] {
   if (!Array.isArray(details)) return items;
-  const portions = new Map<string, ReturnType<typeof portionsFromUSDA>>();
+  const portions = new Map<string, FoodResult['portions']>();
   for (const rawDetail of details) {
     if (!rawDetail || typeof rawDetail !== 'object') continue;
     const detail = rawDetail as Record<string, any>;
@@ -499,9 +504,14 @@ function mergeUSDAFoodPortions(items: FoodResult[], details: unknown): FoodResul
     portions.set(String(detail.fdcId), portionsFromUSDA(detail));
   }
   return items.map((item) => {
-    const portion = portions.get(item.sourceFoodId);
-    if (!portion?.length) return item;
-    return { ...item, portions: portion, defaultPortionId: portion[0].id };
+    const foodPortions = portions.get(item.sourceFoodId);
+    if (!foodPortions?.length) return item;
+    const defaultServing = foodPortions[0];
+    return {
+      ...item,
+      portions: foodPortions,
+      defaultAmount: { kind: 'serving', grams: defaultServing.grams, servingId: defaultServing.id },
+    };
   });
 }
 
@@ -538,6 +548,7 @@ export function parseOpenFoodFactsProducts(products: unknown): FoodResult[] {
         ? product.serving_size.trim()
         : servingSize ? `${servingSize} g` : '',
     }]);
+    const defaultServing = portions[0] ?? null;
     return [{
       id: `off-${product.code}`,
       name: cleanFoodDisplayName(productName),
@@ -551,7 +562,9 @@ export function parseOpenFoodFactsProducts(products: unknown): FoodResult[] {
       providerOrder,
       ...macros,
       portions,
-      defaultPortionId: portions[0].id,
+      defaultAmount: defaultServing
+        ? { kind: 'serving', grams: defaultServing.grams, servingId: defaultServing.id }
+        : { kind: 'reference', grams: 100, servingId: null },
       alternateSourceIds: [],
     }];
   });
@@ -580,6 +593,26 @@ export interface FoodHistoryRecord {
   parent_meal_name: string | null;
   parent_photo_uri: string | null;
   legacy_food_key: string;
+}
+
+export interface ReusableFoodLog {
+  name: string;
+  source: string;
+  source_food_id: string | null;
+  data_type: string | null;
+  brand: string | null;
+  preparation: string | null;
+  grams_logged: number | null;
+  serving_size_g: number | null;
+  serving_label: string | null;
+  calories_per_100g: number | null;
+  protein_g_per_100g: number | null;
+  carbs_g_per_100g: number | null;
+  fat_g_per_100g: number | null;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
 }
 
 interface PreparedHistoryRecord {
@@ -631,7 +664,7 @@ function historySource(value: string): FoodResult['source'] {
     : 'manual';
 }
 
-function historyDataType(row: FoodHistoryRecord): DataType {
+function historyDataType(row: Pick<FoodHistoryRecord, 'data_type' | 'source'>): DataType {
   const value = row.data_type;
   if (value === 'Survey (FNDDS)' || value === 'Foundation' || value === 'SR Legacy' || value === 'Branded'
     || value === 'off' || value === 'manual' || value === 'scan' || value === 'describe') return value;
@@ -640,6 +673,39 @@ function historyDataType(row: FoodHistoryRecord): DataType {
   if (row.source === 'scan') return 'scan';
   if (row.source === 'describe') return 'describe';
   return 'manual';
+}
+
+export function foodResultFromLog(log: ReusableFoodLog, id: string): FoodResult {
+  const grams = log.grams_logged && log.grams_logged > 0 ? log.grams_logged : 100;
+  const ratio = 100 / grams;
+  const servingLabel = log.serving_label?.trim();
+  const portions = buildFoodPortions(
+    log.serving_size_g
+      && log.serving_size_g > 0
+      && servingLabel
+      && servingLabel.toLowerCase() !== 'last logged'
+      && servingLabel.toLowerCase() !== 'reviewed amount'
+      ? [{ id: 'history-serving', label: servingLabel, grams: log.serving_size_g }]
+      : [],
+  );
+  const serving = portions[0] ?? null;
+  return {
+    id,
+    name: log.name,
+    source: historySource(log.source),
+    sourceFoodId: log.source_food_id ?? '',
+    dataType: historyDataType(log),
+    brand: log.brand,
+    preparation: log.preparation,
+    normalizedName: log.name.toLowerCase(),
+    caloriesPer100g: log.calories_per_100g ?? log.calories * ratio,
+    proteinPer100g: log.protein_g_per_100g ?? log.protein_g * ratio,
+    carbsPer100g: log.carbs_g_per_100g ?? log.carbs_g * ratio,
+    fatPer100g: log.fat_g_per_100g ?? log.fat_g * ratio,
+    portions,
+    defaultAmount: { kind: 'last-logged', grams, servingId: serving?.id ?? null },
+    alternateSourceIds: [],
+  };
 }
 
 function historyNameKey(record: PreparedHistoryRecord): string {
@@ -653,7 +719,6 @@ function historyNameKey(record: PreparedHistoryRecord): string {
 function newestFirst(first: PreparedHistoryRecord, second: PreparedHistoryRecord): number {
   return second.row.logged_at.localeCompare(first.row.logged_at) || second.row.id - first.row.id;
 }
-
 export function buildPersonalFoodResults(
   rows: FoodHistoryRecord[],
   pinnedKeys: Iterable<string>,
@@ -711,10 +776,22 @@ export function buildPersonalFoodResults(
     const lastGrams = row.grams_logged && row.grams_logged > 0
       ? row.grams_logged
       : row.serving_size_g && row.serving_size_g > 0 ? row.serving_size_g : 100;
-    const portions = buildFoodPortions([
-      { id: 'history-last', label: 'Last logged', grams: lastGrams },
-      { id: 'history-serving', label: row.serving_label ?? `${row.serving_size_g ?? 0} g`, grams: row.serving_size_g },
-    ]);
+    const servingRecord = cluster.find((record) => {
+      const label = record.row.serving_label?.trim();
+      return !!(
+        record.row.serving_size_g
+        && record.row.serving_size_g > 0
+        && label
+        && label.toLowerCase() !== 'last logged'
+        && label.toLowerCase() !== 'reviewed amount'
+      );
+    });
+    const portions = buildFoodPortions(servingRecord ? [{
+      id: 'history-serving',
+      label: servingRecord.row.serving_label!,
+      grams: servingRecord.row.serving_size_g,
+    }] : []);
+    const serving = portions[0] ?? null;
     const isPinned = pinned.has(pinKey) || cluster.some((record) => pinned.has(record.row.legacy_food_key));
     return {
       id: `history-${row.id}`,
@@ -728,7 +805,7 @@ export function buildPersonalFoodResults(
       searchText: [row.name, row.brand, row.parent_meal_name].filter(Boolean).join(' '),
       ...representative.macros,
       portions,
-      defaultPortionId: portions[0].id,
+      defaultAmount: { kind: 'last-logged', grams: lastGrams, servingId: serving?.id ?? null },
       history: {
         representativeLogId: row.id,
         lastLoggedAt: row.logged_at,
@@ -755,7 +832,9 @@ export function createQuickLogInput(
   meal: 'breakfast' | 'lunch' | 'dinner' | 'snack',
 ) {
   if (!food.history) throw new Error('Quick log requires a personal history result');
-  const portion = food.portions.find((candidate) => candidate.id === food.defaultPortionId) ?? food.portions[0];
+  const serving = food.defaultAmount.servingId
+    ? food.portions.find((candidate) => candidate.id === food.defaultAmount.servingId) ?? null
+    : null;
   return {
     log_date: logDate,
     name: food.name,
@@ -766,9 +845,9 @@ export function createQuickLogInput(
     brand: food.brand,
     data_type: food.dataType,
     preparation: food.preparation,
-    grams_logged: food.history.lastGrams,
-    serving_size_g: portion?.grams ?? food.history.lastGrams,
-    serving_label: portion?.label ?? null,
+    grams_logged: food.defaultAmount.grams,
+    serving_size_g: serving?.grams ?? null,
+    serving_label: serving?.label ?? null,
     calories_per_100g: food.caloriesPer100g,
     protein_g_per_100g: food.proteinPer100g,
     carbs_g_per_100g: food.carbsPer100g,

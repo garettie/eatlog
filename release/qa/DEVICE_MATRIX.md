@@ -22,7 +22,7 @@ Run on A36 and ICUR with synthetic inputs only.
 3. HTTP error and malformed response through a controlled test harness: no partial garbage is logged; Open Food Facts failure does not erase USDA/local results and vice versa.
 4. Missing or invalid installation identity through a development fault injection: no request is sent and the feature reports unavailable without displaying/logging the token.
 5. Rate limit: response shows a retryable failure and honors `Retry-After`; no repeated automatic request loop occurs.
-6. First Scan/Describe: decline the disclosure once, verify no request, then accept and complete one request. Reopen logging and verify the disclosure is not repeated.
+6. First Scan/Describe: verify the action proceeds directly to the remote request without an intervening disclosure dialog and returns an editable estimate for synthetic input.
 
 Do not run a cost-bearing Gemini Scan against production without owner approval.
 

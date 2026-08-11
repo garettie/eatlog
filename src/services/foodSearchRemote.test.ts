@@ -54,7 +54,8 @@ test('selected USDA item loads full household portions from Worker detail route'
     getInstallationToken: async () => 'dd96dec43fb81c97dd96dec43fb81c97',
   });
   const detail = await providers.loadUSDAFood?.('1');
-  assert.deepEqual(detail?.portions.map((portion) => portion.grams), [158, 100]);
+  assert.deepEqual(detail?.portions.map((portion) => portion.grams), [158]);
+  assert.deepEqual(detail?.defaultAmount, { kind: 'serving', grams: 158, servingId: 'usda-4' });
 });
 
 test('Open Food Facts runs only when called and remains independent of Worker availability', async () => {
@@ -113,7 +114,8 @@ test('Open Food Facts parses Search-a-licious hits and rejects non-JSON failures
   });
   const results = await validProviders.searchOpenFoodFacts?.('toast');
   assert.equal(results?.[0].name, 'Synthetic Toast');
-  assert.deepEqual(results?.[0].portions.map(({ grams }) => grams), [30, 100]);
+  assert.deepEqual(results?.[0].portions.map(({ grams }) => grams), [30]);
+  assert.deepEqual(results?.[0].defaultAmount, { kind: 'serving', grams: 30, servingId: 'off-serving' });
 
   const invalidProviders = createFoodSearchRemoteProviders({
     workerUrl: '',

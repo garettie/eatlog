@@ -63,7 +63,7 @@ Known release gaps:
 | Android permissions | Unused microphone permission requested | Generated manifest contains only required permissions |
 | iOS remote services | Scan, Describe, and USDA depend on Android ID | App-scoped installation identity works on Android and iOS |
 | iOS platform UI | Health Connect remains visible; no bundle identifier or store build | Android-only health UI hidden; signed TestFlight build passes |
-| Privacy | In-app summary exists | Public policy, in-app link, consent copy, store declarations, support contact |
+| Privacy | In-app summary exists | Public policy, in-app link, accurate network-use copy, store declarations, support contact |
 | Store builds | Internal APK profiles only | Production AAB and IPA profiles with remote build numbers |
 | Native recovery | Backup code has defensive checks; full device restore path lacks release evidence | Backup, restore, rollback, reset, and cross-platform transfer pass on devices |
 | Migration evidence | Focused v7 to v8 and v8 to v9 tests | Fresh install and supported v4 to current upgrade pass |
@@ -362,7 +362,7 @@ Page requirements:
 - [ ] No placeholder contact or company details.
 - [x] Version-controlled source or saved release copy.
 
-### M2.3 Update in-app disclosure and consent
+### M2.3 Update network-use disclosure
 
 Target files:
 
@@ -375,11 +375,11 @@ Tasks:
 
 - [ ] Link the public privacy policy and support page from Profile.
 - [x] Expand the privacy screen to describe the Worker, installation token, IP/rate limiting, and direct Open Food Facts requests.
-- [x] Present a one-time disclosure before the first photo or description leaves the device.
+- [x] Keep permanent Scan/Describe network-use disclosure in Profile and the privacy policy.
 - [x] Name Gemini as the recipient and state the purpose.
-- [x] Require an affirmative action to continue; cancel leaves the content on device.
-- [x] Store only the disclosure version and acceptance state locally.
-- [x] Show disclosure again after a material data-flow change.
+- [x] Make Scan and Describe direct actions without a separate transmission confirmation.
+- [x] Do not store a Scan/Describe prompt-acceptance state.
+- [x] Update the permanent privacy copy after a material data-flow change.
 - [x] Keep search disclosure near explicit online search behavior.
 
 ### M2.4 Remove unused permissions and audit generated native files
@@ -637,7 +637,7 @@ Add focused tests for:
 - [x] Installation-token creation, persistence, corruption, and concurrency.
 - [x] Platform-specific Health Connect visibility and service guards.
 - [x] Open Food Facts endpoint, User-Agent, parsing, errors, and cancellation.
-- [x] Privacy disclosure version/acceptance state.
+- [x] Direct Scan/Describe request behavior without a first-use prompt.
 
 ### M5.2 Add full supported migration evidence
 
@@ -1202,7 +1202,7 @@ Store one release record containing:
 Keep diffs reviewable and verify each batch before starting the next:
 
 1. **Safety policy and tests:** adult gating, local date parsing, shared target validation, adaptive boundaries.
-2. **Privacy and permissions:** data inventory, public pages, consent, support links, microphone removal, permission audit.
+2. **Privacy and permissions:** data inventory, public pages, network-use disclosure, support links, microphone removal, permission audit.
 3. **Dependency and Android build baseline:** API 36, Health Connect plugin strategy, peer dependencies, clean Expo Doctor review.
 4. **Cross-platform installation identity:** new token service, client integration, Worker contract tests.
 5. **iOS platform guards and config:** bundle ID, Health Connect hiding, usage strings, files/share/camera behavior.

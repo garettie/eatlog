@@ -1,6 +1,6 @@
 # Eatlog store policy worksheets
 
-Updated: 2026-08-10
+Updated: 2026-08-11
 
 These are source answers, not submitted console records. Reconcile them against the final binaries, provider contracts, and current store forms. Fields that require an account or owner decision remain labeled.
 
@@ -105,7 +105,7 @@ Reviewer path:
 2. Complete local onboarding with synthetic adult data.
 3. Use the center Add control; it is an action button, not a fifth tab.
 4. Manual logging works without online services.
-5. Scan or Describe shows a versioned disclosure before the first transmission. Cancel sends nothing; accepting enables the requested Gemini estimate through the Eatlog Worker.
+5. Scan or Describe starts the requested Gemini estimate directly through the Eatlog Worker. Profile → Privacy explains the transmission and providers.
 6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly.
 7. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
 8. Profile → Backup and restore creates/restores archives; Profile → Export data creates non-restorable CSV; Delete all data uses two confirmations.

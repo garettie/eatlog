@@ -41,16 +41,26 @@ import {
 } from "../../utils/calendar";
 import { M3 } from "../../theme/tokens";
 import { formatPortionLabel } from "../../utils/portionLabels";
+import {
+	buildFoodAmountOptions,
+	initialPortionSelection,
+	MIN_SERVINGS,
+	selectFoodAmount,
+	selectedServing,
+	servingsForSelection,
+	setGramsAmount,
+	setPortionMode,
+	setServingAmount,
+	type FoodAmountOption,
+	type PortionMode,
+	type PortionSelection,
+} from "../../utils/portionSelection";
 
 interface EditableComponent {
 	food: FoodResult;
 	per100g: { calories: number; protein: number; carbs: number; fat: number };
-	grams: number;
-	servings: number;
-	servingSizeGrams: number | null;
-	servingLabel: string | null;
-	selectedPortionId: string;
-	unitMode: "servings" | "grams" | "ml";
+	selection: PortionSelection;
+	portionValid: boolean;
 	originalName: string;
 }
 
@@ -70,12 +80,6 @@ type UndoAction =
 const UNDO_TIMEOUT_MS = 10_000;
 
 function toEditable(food: FoodResult): EditableComponent {
-	const portion =
-		food.portions.find((candidate) => candidate.id === food.defaultPortionId) ??
-		food.portions[0];
-	const hasServing = !!portion;
-	const defaultGrams = food.estimatedGrams ?? portion?.grams ?? 100;
-	const isBeverage = !!(portion?.label && /ml\b/i.test(portion.label));
 	return {
 		food,
 		per100g: {
@@ -84,39 +88,25 @@ function toEditable(food: FoodResult): EditableComponent {
 			carbs: Math.round((food.carbsPer100g ?? 0) * 10) / 10,
 			fat: Math.round((food.fatPer100g ?? 0) * 10) / 10,
 		},
-		grams: defaultGrams,
-		servings: hasServing
-			? Math.round((defaultGrams / portion!.grams) * 10) / 10
-			: 1,
-		servingSizeGrams: portion?.grams ?? null,
-		servingLabel: portion?.label ?? null,
-		selectedPortionId: portion?.id ?? "100-g",
-		unitMode: isBeverage ? "ml" : hasServing ? "servings" : "grams",
+		selection: initialPortionSelection(food),
+		portionValid: true,
 		originalName: food.name,
 	};
 }
 
 function formatCollapsedPortion(
 	component: EditableComponent,
-	hasServing: boolean,
-	showMl: boolean,
+	serving: FoodResult["portions"][number] | null,
 ): string {
-	if (showMl)
-		return formatPortionLabel(component.servingLabel, component.grams, "ml");
-	if (!hasServing || component.unitMode !== "servings")
-		return `${component.grams}g`;
+	const grams = Math.round(component.selection.grams * 10) / 10;
+	if (!serving || component.selection.mode !== "servings") return `${grams} g`;
 
-	const servings =
-		component.servings % 1 === 0
-			? component.servings.toFixed(0)
-			: component.servings.toFixed(1);
-	const servingLabel = formatPortionLabel(
-		component.servingLabel,
-		component.servingSizeGrams ?? component.grams,
-	);
-	return component.servings === 1
+	const servings = servingsForSelection(component.selection, serving);
+	const servingsLabel = String(Math.round(servings * 100) / 100);
+	const servingLabel = formatPortionLabel(serving.label, serving.grams);
+	return Math.abs(servings - 1) < 0.001
 		? servingLabel
-		: `${servings} × ${servingLabel}`;
+		: `${servingsLabel} × ${servingLabel}`;
 }
 
 interface ReviewStateProps {
@@ -134,7 +124,6 @@ interface ReviewStateProps {
 	}) => void;
 	onClarify: (name: string) => Promise<DescribeResult | null>;
 	onClarifyComponent: (name: string) => Promise<FoodResult | null>;
-	requestDisclosure: () => Promise<boolean>;
 	editMealId?: number | null;
 	initialMeal?: MealType | null;
 	/** Diary date to write to (backfill); null = today. Preserves the original date when editing a meal. */
@@ -194,7 +183,6 @@ export default function ReviewState({
 	onLogComplete,
 	onClarify,
 	onClarifyComponent,
-	requestDisclosure,
 	editMealId,
 	initialMeal,
 	logDate: logDateProp,
@@ -319,12 +307,12 @@ export default function ReviewState({
 			fat10 = 0,
 			totalGrams = 0;
 		for (const comp of components) {
-			const ratio = comp.grams / 100;
+			const ratio = comp.selection.grams / 100;
 			cal += Math.round(comp.per100g.calories * ratio);
 			pro10 += Math.round(comp.per100g.protein * ratio * 10);
 			carb10 += Math.round(comp.per100g.carbs * ratio * 10);
 			fat10 += Math.round(comp.per100g.fat * ratio * 10);
-			totalGrams += comp.grams;
+			totalGrams += comp.selection.grams;
 		}
 		return {
 			calories: cal,
@@ -337,59 +325,51 @@ export default function ReviewState({
 
 	const updateGrams = useCallback((idx: number, grams: number) => {
 		dirtyRef.current = true;
-		setComponents((prev) =>
-			prev.map((c, i) => {
-				if (i !== idx) return c;
-				const g = Math.max(1, grams);
-				const newServings =
-					c.servingSizeGrams && c.servingSizeGrams > 0
-						? Math.round((g / c.servingSizeGrams) * 10) / 10
-						: c.servings;
-				return { ...c, grams: g, servings: newServings };
-			}),
+		setComponents((previous) =>
+			previous.map((component, index) =>
+				index === idx
+					? { ...component, selection: setGramsAmount(component.selection, grams) }
+					: component,
+			),
 		);
 	}, []);
 
 	const updateServings = useCallback((idx: number, delta: number) => {
 		dirtyRef.current = true;
-		setComponents((prev) =>
-			prev.map((c, i) => {
-				if (i !== idx || !c.servingSizeGrams || c.servingSizeGrams <= 0)
-					return c;
-				const newServings = Math.max(
-					0.5,
-					Math.round((c.servings + delta) * 10) / 10,
-				);
+		setComponents((previous) =>
+			previous.map((component, index) => {
+				if (index !== idx) return component;
+				const serving = selectedServing(component.food, component.selection);
+				const current = servingsForSelection(component.selection, serving);
 				return {
-					...c,
-					servings: newServings,
-					grams: Math.round(newServings * c.servingSizeGrams),
+					...component,
+					selection: setServingAmount(
+						component.selection,
+						Math.max(MIN_SERVINGS, current + delta),
+						serving,
+					),
 				};
 			}),
 		);
 	}, []);
 
-	const updateServingsFromText = useCallback(
-		(idx: number, t: string, c: EditableComponent) => {
-			const n = parseFloat(t);
-			if (isNaN(n) || n <= 0 || !c.servingSizeGrams || c.servingSizeGrams <= 0)
-				return;
-			dirtyRef.current = true;
-			const s = Math.round(n * 10) / 10;
-			setComponents((prev) =>
-				prev.map((comp, i) =>
-					i === idx
-						? {
-								...comp,
-								servings: s,
-								grams: Math.round(s * c.servingSizeGrams!),
-							}
-						: comp,
-				),
-			);
-		},
-		[],
-	);
+	const updateServingsFromText = useCallback((idx: number, value: number) => {
+		dirtyRef.current = true;
+		setComponents((previous) =>
+			previous.map((component, index) =>
+				index === idx
+					? {
+							...component,
+							selection: setServingAmount(
+								component.selection,
+								value,
+								selectedServing(component.food, component.selection),
+							),
+						}
+					: component,
+			),
+		);
+	}, []);
 
 	const updateName = useCallback((idx: number, name: string) => {
 		dirtyRef.current = true;
@@ -405,44 +385,48 @@ export default function ReviewState({
 		);
 	}, []);
 
-	const updateUnitMode = useCallback(
-		(idx: number, mode: EditableComponent["unitMode"]) => {
-			dirtyRef.current = true;
-			setComponents((prev) =>
-				prev.map((c, i) => {
-					if (i !== idx || c.unitMode === mode) return c;
-					const newGrams =
-						mode === "servings" && c.servingSizeGrams && c.servingSizeGrams > 0
-							? Math.round(c.servings * c.servingSizeGrams)
-							: c.grams;
-					return { ...c, unitMode: mode, grams: newGrams };
-				}),
-			);
-		},
-		[],
-	);
+	const updateUnitMode = useCallback((idx: number, mode: PortionMode) => {
+		dirtyRef.current = true;
+		setComponents((previous) =>
+			previous.map((component, index) =>
+				index === idx
+					? {
+							...component,
+							selection: setPortionMode(
+								component.selection,
+								mode,
+								selectedServing(component.food, component.selection),
+							),
+						}
+					: component,
+			),
+		);
+	}, []);
 
-	const updatePortion = useCallback(
-		(idx: number, portion: FoodResult["portions"][number]) => {
-			dirtyRef.current = true;
-			setComponents((previous) =>
-				previous.map((component, index) =>
-					index === idx
-						? {
-								...component,
-								grams: portion.grams,
-								servings: 1,
-								servingSizeGrams: portion.grams,
-								servingLabel: portion.label,
-								selectedPortionId: portion.id,
-								unitMode: /ml\b/i.test(portion.label) ? "ml" : "servings",
-							}
-						: component,
-				),
+	const updateAmount = useCallback((idx: number, option: FoodAmountOption) => {
+		dirtyRef.current = true;
+		setComponents((previous) =>
+			previous.map((component, index) =>
+				index === idx
+					? {
+							...component,
+							selection: selectFoodAmount(component.selection, option),
+							portionValid: true,
+						}
+					: component,
+			),
+		);
+	}, []);
+
+	const updatePortionValidity = useCallback((idx: number, valid: boolean) => {
+		setComponents((previous) => {
+			const component = previous[idx];
+			if (!component || component.portionValid === valid) return previous;
+			return previous.map((entry, index) =>
+				index === idx ? { ...entry, portionValid: valid } : entry,
 			);
-		},
-		[],
-	);
+		});
+	}, []);
 
 	const updatePer100g = useCallback(
 		(idx: number, field: keyof EditableComponent["per100g"], value: number) => {
@@ -537,6 +521,10 @@ export default function ReviewState({
 
 	const handleLogMeal = useCallback(async () => {
 		if (components.length === 0) return;
+		if (components.some((component) => !component.portionValid)) {
+			setLogError("Enter a valid portion for every food.");
+			return;
+		}
 		const name = mealName.trim();
 		if (!name) {
 			setLogError("Name this meal before logging.");
@@ -556,7 +544,9 @@ export default function ReviewState({
 				meal_type: meal,
 				photo_uri: selectedPhotoUri,
 				components: components.map((comp) => {
-					const ratio = comp.grams / 100;
+					const grams = comp.selection.grams;
+					const serving = selectedServing(comp.food, comp.selection);
+					const ratio = grams / 100;
 					const cal = Math.round(comp.per100g.calories * ratio);
 					const pro = Math.round(comp.per100g.protein * ratio * 10) / 10;
 					const carb = Math.round(comp.per100g.carbs * ratio * 10) / 10;
@@ -570,9 +560,9 @@ export default function ReviewState({
 						brand: comp.food.brand,
 						data_type: comp.food.dataType,
 						preparation: comp.food.preparation,
-						grams_logged: comp.grams,
-						serving_size_g: comp.servingSizeGrams ?? comp.grams,
-						serving_label: comp.servingLabel,
+						grams_logged: grams,
+						serving_size_g: serving?.grams ?? null,
+						serving_label: serving?.label ?? null,
 						calories_per_100g: comp.per100g.calories,
 						protein_g_per_100g: comp.per100g.protein,
 						carbs_g_per_100g: comp.per100g.carbs,
@@ -618,7 +608,6 @@ export default function ReviewState({
 	const handleClarify = useCallback(async () => {
 		const name = mealName.trim();
 		if (!name || clarifying) return;
-		if (!(await requestDisclosure())) return;
 		setClarifyError(null);
 		setClarifying(true);
 		try {
@@ -639,13 +628,12 @@ export default function ReviewState({
 		} finally {
 			setClarifying(false);
 		}
-	}, [mealName, clarifying, onClarify, components, requestDisclosure, showUndo]);
+	}, [mealName, clarifying, onClarify, components, showUndo]);
 
 	const handleClarifyComponent = useCallback(
 		async (component: EditableComponent) => {
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
-			if (!(await requestDisclosure())) return;
 			setComponentClarifyError(null);
 			setClarifyingComponentId(component.food.id);
 			try {
@@ -689,7 +677,7 @@ export default function ReviewState({
 				setClarifyingComponentId(null);
 			}
 		},
-		[clarifyingComponentId, onClarifyComponent, requestDisclosure, showUndo],
+		[clarifyingComponentId, onClarifyComponent, showUndo],
 	);
 
 	return (
@@ -839,38 +827,24 @@ export default function ReviewState({
 						/>
 					</View>
 					<Text className="text-m3-on-surface-variant text-xs">
-						{totalMacros.totalGrams}g total
+						{totalMacros.totalGrams} g total
 					</Text>
 				</View>
 
 				{components.map((comp, idx) => {
 					const isExpanded = expandedIds.has(comp.food.id);
 					const nutritionExpanded = nutritionExpandedIds.has(comp.food.id);
-					const ratio = comp.grams / 100;
+					const serving = selectedServing(comp.food, comp.selection);
+					const servings = servingsForSelection(comp.selection, serving);
+					const amountOptions = buildFoodAmountOptions(comp.food);
+					const ratio = comp.selection.grams / 100;
 					const cal = Math.round(comp.per100g.calories * ratio);
-					const hasServing = !!(
-						comp.servingSizeGrams && comp.servingSizeGrams > 0
-					);
-					const showMl = !!(
-						comp.servingLabel && /ml\b/i.test(comp.servingLabel)
-					);
-					const portionSummary = formatCollapsedPortion(
-						comp,
-						hasServing,
-						showMl,
-					);
+					const hasServing = !!serving;
+					const portionSummary = formatCollapsedPortion(comp, serving);
 					const nutritionBasis =
-						comp.unitMode === "servings"
-							? "per serving"
-							: comp.unitMode === "ml"
-								? "per 100ml"
-								: "per 100g";
+						comp.selection.mode === "servings" ? "per serving" : "per 100 g";
 					const nutritionAccessibilityBasis =
-						comp.unitMode === "servings"
-							? "per serving"
-							: comp.unitMode === "ml"
-								? "per 100 milliliters"
-								: "per 100 grams";
+						comp.selection.mode === "servings" ? "per serving" : "per 100 grams";
 
 					return (
 						<View
@@ -981,27 +955,23 @@ export default function ReviewState({
 												Portion
 											</Text>
 											<PortionStepper
-												unitMode={comp.unitMode}
-												servings={comp.servings}
-												grams={comp.grams}
-												servingSizeGrams={comp.servingSizeGrams}
-												servingLabel={comp.servingLabel}
-												hasServing={hasServing}
-												showMl={showMl}
-												portions={comp.food.portions}
-												selectedPortionId={comp.selectedPortionId}
-												onPortionChange={(portion) =>
-													updatePortion(idx, portion)
+												unitMode={comp.selection.mode}
+												servings={servings}
+												grams={comp.selection.grams}
+												servingSizeGrams={serving?.grams ?? null}
+												servingLabel={serving?.label ?? null}
+												amountOptions={amountOptions}
+												selectedAmountId={comp.selection.selectedAmountId}
+												onAmountChange={(option) => updateAmount(idx, option)}
+												onModeChange={(mode) => updateUnitMode(idx, mode)}
+												onServingsDelta={(delta) => updateServings(idx, delta)}
+												onServingsSet={(value) =>
+													updateServingsFromText(idx, value)
 												}
-												onModeChange={(m) => updateUnitMode(idx, m)}
-												onServingsDelta={(d) => updateServings(idx, d)}
-												onServingsSet={(t) =>
-													updateServingsFromText(idx, t, comp)
+												onGramsSet={(value) => updateGrams(idx, value)}
+												onValidityChange={(valid) =>
+													updatePortionValidity(idx, valid)
 												}
-												onGramsSet={(t) => {
-													const v = parseFloat(t);
-													if (!isNaN(v) && v > 0) updateGrams(idx, v);
-												}}
 											/>
 										</View>
 
@@ -1043,8 +1013,8 @@ export default function ReviewState({
 														["calories", "protein", "carbs", "fat"] as const
 													).map((field) => {
 														const perServingMul =
-															comp.unitMode === "servings"
-																? (comp.servingSizeGrams ?? 100) / 100
+															comp.selection.mode === "servings" && serving
+																? serving.grams / 100
 																: 1;
 														const displayVal =
 															perServingMul === 1
@@ -1072,8 +1042,8 @@ export default function ReviewState({
 																	label={`${fieldLabel} ${nutritionAccessibilityBasis}${field === "calories" ? "" : ", grams"}`}
 																	onValueChange={(v) => {
 																		const mul =
-																			comp.unitMode === "servings"
-																				? (comp.servingSizeGrams ?? 100) / 100
+																			comp.selection.mode === "servings" && serving
+																				? serving.grams / 100
 																				: 1;
 																		const per100gVal =
 																			mul === 1
@@ -1259,7 +1229,8 @@ export default function ReviewState({
 					disabled={
 						components.length === 0 ||
 						!mealName.trim() ||
-						hasInvalidComponentName
+						hasInvalidComponentName ||
+						components.some((component) => !component.portionValid)
 					}
 				/>
 				{logError && (

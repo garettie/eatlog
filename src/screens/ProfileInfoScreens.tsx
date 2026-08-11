@@ -245,7 +245,7 @@ export function HowEatlogWorksScreen() {
 export function PrivacyScreen() {
     const healthConnectAvailable = supportsHealthConnect(Platform.OS);
     const estimateCopy = serviceConfig.availability.gemini
-        ? 'After you accept the disclosure, Eatlog sends the selected photo or description to the Eatlog Worker, which sends it to Google Gemini for an estimate. Cloudflare uses an app-scoped installation token and IP address for rate limiting.'
+        ? 'When you choose Scan, Describe, or re-estimate, Eatlog sends the selected photo or text to the Eatlog Worker, which sends it to Google Gemini for an estimate. Cloudflare uses an app-scoped installation token and IP address for rate limiting.'
         : 'Meal estimates are unavailable in this build.';
     const searchCopy = serviceConfig.availability.usda && serviceConfig.availability.openFoodFacts
         ? 'Typing sends the query to the Eatlog Worker for USDA results. Pressing Search also sends it directly to Open Food Facts. Recent results stay briefly in memory.'

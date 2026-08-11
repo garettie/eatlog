@@ -6,6 +6,19 @@ import { MealType, insertFoodLog } from '../../db/database';
 import { DataType, FoodResult } from '../../services/foodSearch';
 import { todayISO } from '../../utils/calendar';
 import { defaultMealForNow } from '../../utils/calculations';
+import {
+  buildFoodAmountOptions,
+  initialPortionSelection,
+  MIN_SERVINGS,
+  selectFoodAmount,
+  selectedServing,
+  servingsForSelection,
+  setGramsAmount,
+  setPortionMode,
+  setServingAmount,
+  type PortionMode,
+  type PortionSelection,
+} from '../../utils/portionSelection';
 import MealSelector from '../MealSelector';
 import MacroChipGroup from '../MacroChipGroup';
 import PortionStepper from '../PortionStepper';
@@ -44,8 +57,6 @@ interface SingleFoodReviewStateProps {
   onBack: () => void;
 }
 
-type UnitMode = 'servings' | 'grams' | 'ml';
-
 export default function SingleFoodReviewState({
   food,
   onLogComplete,
@@ -53,20 +64,19 @@ export default function SingleFoodReviewState({
   logDate,
   onBack,
 }: SingleFoodReviewStateProps) {
-  const defaultPortion = useMemo(() => food?.portions.find((portion) => portion.id === food.defaultPortionId)
-    ?? food?.portions[0] ?? null, [food]);
-  const [selectedPortionId, setSelectedPortionId] = useState(defaultPortion?.id ?? '100-g');
-  const selectedPortion = useMemo(() => food?.portions.find((portion) => portion.id === selectedPortionId)
-    ?? defaultPortion, [defaultPortion, food, selectedPortionId]);
-  const hasServing = !!selectedPortion;
-  const showMl = useMemo(
-    () => !!(selectedPortion?.label && /ml\b/i.test(selectedPortion.label)),
-    [selectedPortion],
+  const [selection, setSelection] = useState<PortionSelection>(() =>
+    food
+      ? initialPortionSelection(food)
+      : { grams: 100, mode: 'grams', selectedServingId: null, selectedAmountId: 'reference-100g' }
   );
-
-  const [mode, setMode] = useState<UnitMode>(() => showMl ? 'ml' : hasServing ? 'servings' : 'grams');
-  const [servings, setServings] = useState(1);
-  const [gramsInput, setGramsInput] = useState('');
+  const amountOptions = useMemo(() => food ? buildFoodAmountOptions(food) : [], [food]);
+  const serving = useMemo(
+    () => food ? selectedServing(food, selection) : null,
+    [food, selection],
+  );
+  const servings = servingsForSelection(selection, serving);
+  const gramsNum = selection.grams;
+  const [portionValid, setPortionValid] = useState(true);
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
@@ -75,25 +85,10 @@ export default function SingleFoodReviewState({
 
   useEffect(() => {
     if (!food) return;
-    const portion = food.portions.find((candidate) => candidate.id === food.defaultPortionId) ?? food.portions[0];
-    setSelectedPortionId(portion?.id ?? '100-g');
-    setMode(portion?.label && /ml\b/i.test(portion.label) ? 'ml' : portion ? 'servings' : 'grams');
-    if (portion) {
-      setServings(1);
-      setGramsInput(String(Math.round(portion.grams)));
-    } else {
-      setServings(1);
-      setGramsInput('100');
-    }
+    setSelection(initialPortionSelection(food));
+    setPortionValid(true);
     setMeal(initialMeal ?? defaultMealForNow());
   }, [food, initialMeal]);
-
-  const gramsNum = useMemo(() => {
-    if (mode === 'servings' && selectedPortion)
-      return Math.round(servings * selectedPortion.grams);
-    const n = parseFloat(gramsInput);
-    return isNaN(n) || n <= 0 ? 0 : n;
-  }, [mode, servings, gramsInput, selectedPortion]);
 
   const macros = useMemo(() => {
     if (!food || gramsNum <= 0) return null;
@@ -119,37 +114,36 @@ export default function SingleFoodReviewState({
   }, [food, gramsNum]);
 
   const handleModeChange = useCallback(
-    (newMode: UnitMode) => {
-      if (newMode === mode) return;
-      if (newMode === 'servings' && selectedPortion) {
-        setServings(
-          Math.round((gramsNum / selectedPortion.grams) * 10) / 10 || 1,
-        );
-      } else {
-        setGramsInput(String(Math.round(gramsNum) || 100));
-      }
-      setMode(newMode);
+    (mode: PortionMode) => {
+      setSelection((current) => setPortionMode(current, mode, serving));
     },
-    [mode, gramsNum, selectedPortion],
+    [serving],
   );
 
   const handleServingsDelta = useCallback((delta: number) => {
-    setServings((prev) =>
-      Math.max(0.25, Math.round((prev + delta) * 10) / 10),
+    setSelection((current) => {
+      const currentServing = food ? selectedServing(food, current) : null;
+      const currentServings = servingsForSelection(current, currentServing);
+      return setServingAmount(
+        current,
+        Math.max(MIN_SERVINGS, currentServings + delta),
+        currentServing,
+      );
+    });
+  }, [food]);
+
+  const handleServingsSet = useCallback((value: number) => {
+    setSelection((current) =>
+      setServingAmount(current, value, food ? selectedServing(food, current) : null)
     );
-  }, []);
+  }, [food]);
 
-  const handleServingsSet = useCallback((t: string) => {
-    const v = parseFloat(t);
-    if (!isNaN(v) && v > 0) setServings(Math.round(v * 10) / 10);
-  }, []);
-
-  const handleGramsSet = useCallback((t: string) => {
-    setGramsInput(t);
+  const handleGramsSet = useCallback((value: number) => {
+    setSelection((current) => setGramsAmount(current, value));
   }, []);
 
   const handleLog = useCallback(async () => {
-    if (!food || !macros || gramsNum <= 0) return;
+    if (!food || !macros || gramsNum <= 0 || !portionValid) return;
     setLogError(null);
     setLogging(true);
     try {
@@ -164,8 +158,8 @@ export default function SingleFoodReviewState({
         data_type: food.dataType,
         preparation: food.preparation,
         grams_logged: gramsNum,
-        serving_size_g: selectedPortion?.grams ?? null,
-        serving_label: selectedPortion?.label ?? null,
+        serving_size_g: serving?.grams ?? null,
+        serving_label: serving?.label ?? null,
         calories_per_100g: food.caloriesPer100g,
         protein_g_per_100g: food.proteinPer100g,
         carbs_g_per_100g: food.carbsPer100g,
@@ -182,7 +176,7 @@ export default function SingleFoodReviewState({
     } finally {
       setLogging(false);
     }
-  }, [food, macros, gramsNum, meal, onLogComplete, logDate, selectedPortion]);
+  }, [food, macros, gramsNum, portionValid, meal, onLogComplete, logDate, serving]);
 
   if (!food) return null;
 
@@ -218,32 +212,29 @@ export default function SingleFoodReviewState({
             <View className="bg-m3-surface-container-high px-3 py-1 rounded-full">
               <Text className="text-m3-on-surface tabular-nums text-xs font-semibold">
                 {food.caloriesPer100g != null
-                  ? `${Math.round(food.caloriesPer100g)} kcal / 100g`
+                  ? `${Math.round(food.caloriesPer100g)} kcal / 100 g`
                   : '---'}
               </Text>
             </View>
           </View>
 
           <PortionStepper
-            unitMode={mode}
+            unitMode={selection.mode}
             servings={servings}
             grams={gramsNum}
-            servingSizeGrams={selectedPortion?.grams ?? null}
-            servingLabel={selectedPortion?.label ?? null}
-            hasServing={hasServing}
-            showMl={showMl}
-            portions={food.portions}
-            selectedPortionId={selectedPortion?.id}
-            onPortionChange={(portion) => {
-              setSelectedPortionId(portion.id);
-              setServings(1);
-              setGramsInput(String(Math.round(portion.grams)));
-              setMode(/ml\b/i.test(portion.label) ? 'ml' : 'servings');
+            servingSizeGrams={serving?.grams ?? null}
+            servingLabel={serving?.label ?? null}
+            amountOptions={amountOptions}
+            selectedAmountId={selection.selectedAmountId}
+            onAmountChange={(option) => {
+              setSelection((current) => selectFoodAmount(current, option));
+              setPortionValid(true);
             }}
             onModeChange={handleModeChange}
             onServingsDelta={handleServingsDelta}
             onServingsSet={handleServingsSet}
             onGramsSet={handleGramsSet}
+            onValidityChange={setPortionValid}
           />
 
           {macros && (
@@ -277,7 +268,7 @@ export default function SingleFoodReviewState({
           iconPosition="left"
           onPress={handleLog}
           loading={logging}
-          disabled={!macros || gramsNum <= 0 || !food}
+          disabled={!macros || gramsNum <= 0 || !food || !portionValid}
         />
         {logError && (
           <Text className="text-m3-error text-xs font-medium" accessibilityLiveRegion="assertive">

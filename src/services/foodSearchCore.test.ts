@@ -37,7 +37,7 @@ function food(overrides: Partial<FoodResult> & Pick<FoodResult, 'id' | 'name'>):
     carbsPer100g: 12,
     fatPer100g: 2,
     portions: [{ id: '100-g', label: '100 g', grams: 100 }],
-    defaultPortionId: '100-g',
+    defaultAmount: { kind: 'reference', grams: 100, servingId: null },
     alternateSourceIds: [],
     ...overrides,
   };
@@ -72,7 +72,7 @@ test('parses supported USDA records with every valid household portion', () => {
   })));
   assert.deepEqual(parsed.map((item) => item.dataType), types);
   assert.deepEqual(parsed[0].portions.map((portion) => portion.label), ['1 egg', '2 eggs']);
-  assert.equal(parsed[0].defaultPortionId, 'usda-1');
+  assert.deepEqual(parsed[0].defaultAmount, { kind: 'serving', grams: 50, servingId: 'usda-1' });
   assert.equal(parsed[3].brand, 'Example Foods');
 });
 
@@ -85,8 +85,8 @@ test('parses Open Food Facts serving then 100 g and rejects incomplete macros', 
     { code: 'bad', product_name: 'Incomplete', nutriments: { 'energy-kcal_100g': 100, proteins_100g: 1, fat_100g: 0 } },
   ]);
   assert.equal(parsed.length, 1);
-  assert.deepEqual(parsed[0].portions.map((portion) => portion.grams), [30, 100]);
-  assert.equal(parsed[0].defaultPortionId, 'off-serving');
+  assert.deepEqual(parsed[0].portions.map((portion) => portion.grams), [30]);
+  assert.deepEqual(parsed[0].defaultAmount, { kind: 'serving', grams: 30, servingId: 'off-serving' });
 });
 
 test('expands Filipino-English aliases bidirectionally and rewrites providers', () => {
@@ -191,37 +191,57 @@ test('cross-source deduplication keeps personal default portion', () => {
     history({ id: 1, name: 'Rice', source: 'usda', source_food_id: '123', data_type: 'Foundation', grams_logged: 180 }),
   ], []);
   const result = rankAndDeduplicateFoodResults([
-    food({ id: 'remote', name: 'Rice', sourceFoodId: '123', portions: [{ id: 'remote', label: '100 g', grams: 100 }], defaultPortionId: 'remote' }),
+    food({ id: 'remote', name: 'Rice', sourceFoodId: '123', portions: [{ id: 'remote', label: '100 g', grams: 100 }], defaultAmount: { kind: 'serving', grams: 100, servingId: 'remote' } }),
     personal,
   ], 'rice').items;
   assert.equal(result.length, 1);
   assert.equal(result[0].history?.lastGrams, 180);
-  assert.equal(result[0].defaultPortionId, 'history-last');
+  assert.deepEqual(result[0].defaultAmount, { kind: 'last-logged', grams: 180, servingId: null });
 });
 
-test('portion builder removes invalid and equal weights without 150 g fallback', () => {
+test('portion builder keeps distinct serving labels at equal weights', () => {
   const portions = buildFoodPortions([
     { id: 'cup', label: '1 cup', grams: 180 },
-    { id: 'duplicate', label: 'Duplicate', grams: 180 },
+    { id: 'bowl', label: '1 bowl', grams: 180 },
     { id: 'bad', label: 'Bad', grams: 0 },
   ]);
-  assert.deepEqual(portions.map((portion) => portion.grams), [180, 100]);
-  assert.ok(!portions.some((portion) => portion.grams === 150));
+  assert.deepEqual(portions, [
+    { id: 'cup', label: '1 cup', grams: 180 },
+    { id: 'bowl', label: '1 bowl', grams: 180 },
+  ]);
 });
 
-test('quick log copies latest amount and nutrition and detaches component from meal', () => {
+test('quick log copies latest amount and preserves genuine serving metadata', () => {
   const [personal] = buildPersonalFoodResults([
     history({
       id: 1, name: 'Rice', source: 'describe', data_type: 'describe', grams_logged: 180,
+      serving_size_g: 50, serving_label: '1 serving',
       calories: 234, protein_g: 4.9, carbs_g: 50.4, fat_g: 0.5,
       parent_meal_name: 'Chicken rice',
     }),
   ], []);
   const input = createQuickLogInput(personal, '2026-08-08', 'lunch');
   assert.equal(input.grams_logged, 180);
+  assert.equal(input.serving_size_g, 50);
+  assert.equal(input.serving_label, '1 serving');
   assert.equal(input.calories, 234);
   assert.equal(input.meal, 'lunch');
   assert.equal(input.meal_id, null);
+});
+
+test('history recovers genuine serving after synthetic last-logged metadata', () => {
+  const [personal] = buildPersonalFoodResults([
+    history({
+      id: 1, name: 'Rice', source: 'usda', source_food_id: '123',
+      grams_logged: 180, serving_size_g: 50, serving_label: '1 serving',
+    }),
+    history({
+      id: 2, name: 'Rice', source: 'usda', source_food_id: '123',
+      grams_logged: 200, serving_size_g: 180, serving_label: 'Last logged',
+    }),
+  ], []);
+  assert.equal(personal.history?.lastGrams, 200);
+  assert.deepEqual(personal.portions, [{ id: 'history-serving', label: '1 serving', grams: 50 }]);
 });
 
 test('described meal component survives history search, quick log, and undo', () => {

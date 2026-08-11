@@ -1,6 +1,6 @@
 # Eatlog data inventory
 
-Verified against source on 2026-08-10. This inventory describes the account-free v1 application and its Cloudflare Worker. It is the source for privacy copy and store disclosures; it is not a claim that the draft public pages are hosted.
+Verified against source on 2026-08-11. This inventory describes the account-free v1 application and its Cloudflare Worker. It is the source for privacy copy and store disclosures; it is not a claim that the draft public pages are hosted.
 
 ## Storage on the device
 
@@ -11,11 +11,10 @@ Verified against source on 2026-08-10. This inventory describes the account-free
 | Food history and meals | Dates, meal type, food names, source identifiers, brands, preparation, portions, grams, calories and macros, meal relationships | App-private SQLite tables until deletion, reset, or app removal | Only content deliberately sent for an online lookup or estimate | Add, edit, delete, undo; included in backup and CSV export |
 | Weight history | Dates, scale and trend weight, revision, record origin, and Android Health Connect origin metadata | App-private SQLite until deletion, reset, or app removal | Android Health Connect records can cross the app boundary only after the user enables that connection | Add, edit, delete; included in backup and CSV export |
 | Health Connect state | Android-only enabled flag, last-sync time, exported-record IDs, revisions, and pending-delete flags | App-private SQLite; restored archives have device-specific connection state cleared | Only to Android Health Connect, not to Eatlog's Worker | Connect/disconnect; revoke in Android settings; reset attempts to remove Eatlog-written records |
-| Meal photos | App-private image files and SQLite file references | A successful Scan copies the selected image into app-private storage for review and a saved meal; saved files remain until meal-photo removal, reset, or app removal | A resized/compressed representation is sent only after affirmative disclosure and only when Scan is used | Choose camera/gallery content, remove a meal photo, exclude photos from CSV, include referenced photos in backup, reset |
+| Meal photos | App-private image files and SQLite file references | A successful Scan copies the selected image into app-private storage for review and a saved meal; saved files remain until meal-photo removal, reset, or app removal | A resized/compressed representation is sent when the user chooses Scan | Choose camera/gallery content, remove a meal photo, exclude photos from CSV, include referenced photos in backup, reset |
 | AI food cache | Normalized foods, brands, preparation, serving information, nutrition values, and Scan/Describe source | `food_cache` in SQLite until reset or app removal | No additional transmission; populated from a returned estimate | Included in database backup, excluded from human-readable CSV, removed by reset |
 | Pins | Keys for pinned foods | `pinned_foods` in SQLite until unpinned, reset, or app removal | No | Pin/unpin; included in database backup |
 | Online search cache | Recent USDA/Open Food Facts result sets and provider state | In process memory for a short TTL; ends when the app process ends | The original lookup already used the provider described below | Search cancellation, retry, or app close |
-| Disclosure acceptance | `{version, accepted}` only; no selected content | App-private JSON file outside SQLite until reset or app removal | No | Affirm or decline; a material disclosure-version change asks again |
 | Installation identity | App-scoped random token, after M4 implementation | App-private persistence outside SQLite and backups | Sent to the Eatlog Worker for request throttling; never shown or logged | Regenerates after missing/corrupt state or app removal; excluded from backup and CSV |
 
 SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals`, `food_logs`, `food_cache`, `pinned_foods`, `daily_targets`, `adaptive_reviews`, `health_connect_state`, `health_connect_weight_exports`, and `adaptive_intake_day_confirmations`.
@@ -25,10 +24,9 @@ SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals
 ### Scan, Describe, and re-estimation
 
 1. The user selects a camera/gallery image or enters text.
-2. Before the first transmission, Eatlog shows disclosure version 1. Declining performs no request and does not clear the selected source.
-3. Scan sends a resized/compressed base64 image; Describe and re-estimation send the entered food or meal text. Requests also carry the app-scoped installation token.
-4. The Eatlog Cloudflare Worker validates the request, applies installation-token and IP-based rate limits, and sends the requested content to Google Gemini.
-5. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
+2. Scan sends a resized/compressed base64 image; Describe and re-estimation send the entered food or meal text. Requests also carry the app-scoped installation token.
+3. The Eatlog Cloudflare Worker validates the request, applies installation-token and IP-based rate limits, and sends the requested content to Google Gemini.
+4. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
 
 The Worker must not log request bodies, images, descriptions, prompts, model responses, raw installation tokens, token hashes, IP addresses, headers, or secrets. M6 tests and runbooks verify that constraint. Cloudflare and Google process the request to provide and protect the service; their production terms and retention settings require an owner console review before release.
 
@@ -66,18 +64,17 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 
 ## Backup, restore, export, sharing, deletion
 
-- A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. The installation identity and disclosure file are outside SQLite and never enter the archive.
+- A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. The installation identity is outside SQLite and never enters the archive.
 - Restore stages and validates the archive, file sizes and hashes, record counts, database integrity, foreign keys, schema version, and photo mappings before replacing live data. It rejects future schemas without mutation. A safety copy supports automatic rollback if replacement fails.
 - A CSV export is a zipped, human-readable set of profile, meal, component, weight, target, and adaptive-review CSV files plus a manifest. It contains no photos or Health Connect synchronization metadata and cannot be restored.
 - Backup and export files leave Eatlog only when the user invokes the system share sheet and chooses a destination. Eatlog cannot control a recipient app or cloud-storage provider after sharing.
-- Individual food logs, meals, and weights can be deleted in the app. Delete all data removes the SQLite data, meal photos, disclosure state, and temporary ownership files. On Android it first attempts to remove Weight records written by Eatlog from Health Connect and reports warnings before local deletion.
+- Individual food logs, meals, and weights can be deleted in the app. Delete all data removes the SQLite data, meal photos, and temporary ownership files. On Android it first attempts to remove Weight records written by Eatlog from Health Connect and reports warnings before local deletion.
 - App removal is controlled by the operating system and removes app-private local storage. Copies the user exported or shared remain wherever the user placed them.
 
 ## Source evidence
 
 - Device database and migrations: `src/db/database.ts`
 - Meal-photo storage: `src/utils/mealPhotos.ts`
-- Disclosure and alert gate: `src/services/remoteEstimateDisclosure.ts`, `src/services/remoteEstimateDisclosureAlert.ts`, and `src/components/sheet-states/`
 - Scan/Describe client: `src/services/foodScan.ts`
 - USDA and Open Food Facts clients: `src/services/foodSearchRemote.ts`, `src/services/foodSearchEngine.ts`, and `src/hooks/useFoodSearchController.ts`
 - Health Connect: `src/services/healthConnect.ts`, `src/screens/DataSyncScreens.tsx`, and `src/navigation/TabNavigator.tsx`
@@ -90,4 +87,4 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 - **OWNER INPUT:** Register Eatlog's Open Food Facts API usage and confirm the monitored contact before enabling the provider in production.
 - **CREDENTIAL:** Review Google Gemini and Cloudflare production retention, account, and abuse-protection settings without exposing secrets.
 - **STORE ACCOUNT:** Reconcile this inventory against the final Google Data Safety and Apple App Privacy console questionnaires.
-- **PHYSICAL DEVICE:** Verify permission timing, disclosure cancellation, share destinations, Health Connect behavior, and reset on the release device matrix.
+- **PHYSICAL DEVICE:** Verify permission timing, direct Scan/Describe requests, share destinations, Health Connect behavior, and reset on the release device matrix.
