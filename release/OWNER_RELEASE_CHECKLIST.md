@@ -46,8 +46,9 @@ Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch,
 ## 6. Build and test Android
 
 - [ ] **PAID SERVICE / CREDENTIAL:** run the full clean release gate, then create one signed production AAB from the frozen commit with the production EAS profile. Record commit, version, version code, EAS build ID, checksum, signing custody, Worker version, and environment names without values.
-- [ ] **CREDENTIAL:** inspect the signed AAB: API 36/current target, package, icon, only intended merged permissions, no microphone/overlay/write-storage request, Health Connect Weight read/write only, and no bundled provider secret.
-- [ ] **PHYSICAL DEVICE:** install the Play-equivalent binary and run `release/qa/UI_SMOKE_SCRIPT.md` plus every Android row in `release/qa/DEVICE_MATRIX.md`, including native backup/restore/rollback and accessibility.
+- [ ] **CREDENTIAL:** inspect the signed AAB: API 36/current target, package, icon, Health Connect Weight read/write, legacy `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` capped at API 32, no Android 13 media-read permission, no microphone/overlay permission, and no bundled provider secret.
+- [ ] **PHYSICAL DEVICE:** install the Play-equivalent binary and run `release/qa/UI_SMOKE_SCRIPT.md` plus every Android row in `release/qa/DEVICE_MATRIX.md`, including meal Save image/share, API 26 legacy-write permission behavior, API 33+ save with no media-read prompt, native backup/restore/rollback, and accessibility.
+- [ ] **PHYSICAL DEVICE:** inspect saved Summary, Macros, and Components JPEGs for exact 1080 by 1350 dimensions, upright orientation, complete contained source photos, and absence of source GPS, camera model, original filename, and capture timestamp metadata.
 - [ ] **PHYSICAL DEVICE:** on Android 13 and Android 14+, tap the privacy-policy link from Health Connect's Eatlog permission screen. Confirm that Eatlog opens Profile > Privacy and that Back returns without exposing a logging sheet or losing app state.
 - [ ] **PHYSICAL DEVICE:** capture the seven real Android shots in `release/store/SCREENSHOT_PLAN.md` from that binary with synthetic data. Do not generate, composite, redraw, or reuse iOS UI.
 - [ ] **STORE ACCOUNT:** upload only validated artwork and real screenshots, keep the first release draft, review App Bundle Explorer/pre-launch results, and close every P0/P1.
@@ -68,13 +69,13 @@ Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch,
 ## 9. Build, test, and submit iOS
 
 - [ ] **PAID SERVICE / CREDENTIAL:** build a signed candidate with Apple's current required Xcode/iOS SDK. Record commit, version/build, EAS build ID, processed App Store build, signing identity, and Worker version.
-- [ ] **CREDENTIAL:** inspect the signed archive's Info.plist, merged privacy manifest, required-reason APIs, bundle ID, iPhone-only family, opaque icon, camera/photo strings, absent microphone string, and encryption answer.
-- [ ] **PHYSICAL DEVICE:** run the complete minimum/current/small/large iPhone matrix from TestFlight, including camera, limited Photos, Files, sharing, cross-platform archives, rollback, accessibility, safe areas, keyboard, and interruption recovery. Confirm no Health Connect, HealthKit, or Apple Health UI/code claim.
+- [ ] **CREDENTIAL:** inspect the signed archive's Info.plist, merged privacy manifest, required-reason APIs, bundle ID, iPhone-only family, opaque icon, camera/photo strings, exact add-only purpose string `Allow Eatlog to save meal images to your photo library.`, absent microphone string, and encryption answer.
+- [ ] **PHYSICAL DEVICE:** run the complete minimum/current/small/large iPhone matrix from TestFlight, including camera, add-only Photos grant/denial/Settings recovery, meal Save image/share and share cancellation, generated JPEG dimensions/metadata, Files, cross-platform archives, rollback, accessibility, safe areas, keyboard, and interruption recovery. Confirm Share requests no Photos permission. Confirm no Health Connect, HealthKit, or Apple Health UI/code claim.
 - [ ] **PHYSICAL DEVICE:** recapture the seven real iPhone shots from the signed candidate. Do not reuse Android screenshots.
 - [ ] **STORE ACCOUNT:** finish internal and external TestFlight, close every P0/P1, select the tested build, and submit for App Review with manual release. After approval, use phased release and the same halt conditions as Android.
 
 ## 10. Close the release record
 
 - [ ] **STORE ACCOUNT / CREDENTIAL:** record final commits/tags, store build and submission IDs, checksums, rollout dates, Worker version/rollback target, policy/form dates, device evidence, screenshots, known accepted issues, and support/incident owners.
-- [ ] **CREDENTIAL:** tag only after both store binaries are fixed. Do not use OTA for native, permission, privacy, identifier, or incompatible database changes; follow `release/runbooks/OTA_POLICY.md` for compatible JavaScript/assets only.
+- [ ] **CREDENTIAL:** tag only after both store binaries are fixed. Meal sharing adds `expo-media-library`, `react-native-view-shot`, and native permission configuration, so it requires new Android and iOS binaries and must not be sent by OTA to an older installed runtime. Follow `release/runbooks/OTA_POLICY.md` for compatible JavaScript/assets only.
 - [ ] **STORE ACCOUNT / CREDENTIAL / OWNER INPUT:** monitor store vitals/review messages, support, Worker errors/latency/rate limits, provider quotas/cost, backup/restore reports, and nutrition-safety reports through both staged releases.

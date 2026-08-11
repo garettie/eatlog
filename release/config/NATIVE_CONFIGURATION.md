@@ -1,6 +1,6 @@
 # Eatlog native configuration record
 
-Review date: 2026-08-10
+Review date: 2026-08-11
 
 ## Application identities
 
@@ -36,15 +36,17 @@ Primary references:
 
 ## Android permission hygiene
 
-`app.json` blocks the unused prebuild-template permissions `android.permission.SYSTEM_ALERT_WINDOW` and `android.permission.WRITE_EXTERNAL_STORAGE`. Expo converts each block into a manifest-merger removal directive, so a dependency cannot add it back silently. ImagePicker's `microphonePermission: false` continues to produce the separate `RECORD_AUDIO` removal directive.
+`app.json` blocks `android.permission.SYSTEM_ALERT_WINDOW` and every Android 13 media-read permission (`READ_MEDIA_VISUAL_USER_SELECTED`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, and `READ_MEDIA_AUDIO`). ImagePicker's `microphonePermission: false` continues to produce the separate `RECORD_AUDIO` removal directive. Media Library uses `granularPermissions: []`, so it does not request Android 13 photo, video, or audio reads.
 
-The generated app manifest retains `INTERNET` for named remote features, `VIBRATE` for the app's haptic controls, legacy read access used by the photo-library path on supported older Android releases, and Health Connect Weight read/write. Camera and photo-library access still require point-of-use device verification, and the final signed AAB's merged manifest remains a release gate.
+The generated app manifest retains `INTERNET` for named remote features, `VIBRATE` for the app's haptic controls, `READ_EXTERNAL_STORAGE` for the existing pre-Android-13 gallery-picker path, and Health Connect Weight read/write. Point-of-use meal-image saving also retains `WRITE_EXTERNAL_STORAGE` only through API 32. `plugins/withEatlogMediaPermissions.js` applies `android:maxSdkVersion="32"` because Expo's generated base manifest can preserve an older write-removal directive even after the block is removed. Android 13 and newer save through MediaStore without a runtime photo-read prompt.
 
-Primary reference: [Expo permissions guide](https://docs.expo.dev/guides/permissions/#android).
+The merged release manifest is a release gate: the legacy write declaration must be capped at API 32, all Android 13 media-read permissions must be absent, and explicit `android.permissions` must remain limited to Health Connect Weight read/write. Camera, gallery selection, and Save image still require point-of-use device verification.
+
+Primary references: [Expo permissions guide](https://docs.expo.dev/guides/permissions/#android) and [Expo Media Library](https://docs.expo.dev/versions/v54.0.0/sdk/media-library/).
 
 ## iOS settings
 
-The evaluated production config uses the candidate bundle identifier, iPhone-only device family, the canonical 1024 by 1024 Eatlog icon, camera and photo-library purpose strings, and `ITSAppUsesNonExemptEncryption=false`. No microphone purpose string is generated. Eatlog uses standard HTTPS and platform cryptography and does not implement non-exempt encryption.
+The evaluated production config uses the candidate bundle identifier, iPhone-only device family, the canonical 1024 by 1024 Eatlog icon, camera and photo-library purpose strings, the add-only string `Allow Eatlog to save meal images to your photo library.`, and `ITSAppUsesNonExemptEncryption=false`. The add-only permission is requested only after Save image; native sharing requests no Photos permission. No microphone purpose string is generated. Eatlog uses standard HTTPS and platform cryptography and does not implement non-exempt encryption.
 
 The canonical icon is 1024 by 1024 with alpha fixed at 255 for every pixel. Visual inspection confirms the existing flat-white egg mask on the dark Eatlog background. Android adaptive and monochrome sources keep their required transparent layers.
 
@@ -61,3 +63,7 @@ The following fields remain deliberately absent:
 - STORE ACCOUNT: production Google Play submit profile until closed testing is complete.
 
 No credential filename, store record ID, or owner value is fabricated in runtime or EAS configuration.
+
+## Native binary boundary
+
+`expo-media-library` and `react-native-view-shot` add native modules, Android manifest declarations, and an iOS purpose string. Meal sharing therefore requires a new Android/iOS binary under the existing `runtimeVersion.policy: "appVersion"`. `expo.version` is raised to `1.2.0` so this binary has a different runtime from older `1.1.0` installs; the feature must not be published as an OTA update to those older runtimes.

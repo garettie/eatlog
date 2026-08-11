@@ -71,10 +71,12 @@ function SwipeRow({
   children,
   identity,
   onDelete,
+  onShare,
 }: {
   children: React.ReactNode;
   identity: string;
   onDelete: () => void;
+  onShare?: () => void;
 }) {
   const ref = React.useRef<Swipeable>(null);
   const hasActiveSwipe = React.useRef(false);
@@ -86,26 +88,51 @@ function SwipeRow({
   }, [identity]);
 
   const renderRightActions = () => (
-    <RectButton
-      onPress={() => {
-        onDelete();
-        ref.current?.close();
-      }}
-      style={{
-        backgroundColor: M3.errorContainer,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 72,
-        borderTopLeftRadius: 16,
-        borderBottomLeftRadius: 16,
-      }}
-      activeOpacity={0.7}
-      accessibilityRole="button"
-      accessibilityLabel="Delete entry"
-    >
-      <MaterialIcons name="delete-outline" size={18} color={M3.error} />
-      <Text className="text-m3-error text-xs font-semibold mt-1">Delete</Text>
-    </RectButton>
+    <View className="flex-row">
+      {onShare && (
+        <RectButton
+          onPress={() => {
+            ref.current?.reset();
+            hasActiveSwipe.current = false;
+            onShare();
+          }}
+          style={{
+            backgroundColor: M3.secondaryContainer,
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 72,
+            borderTopLeftRadius: 16,
+            borderBottomLeftRadius: 16,
+          }}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Share meal"
+        >
+          <MaterialIcons name="share" size={18} color={M3.onSecondaryContainer} />
+          <Text className="text-m3-on-secondary-container text-xs font-semibold mt-1">Share</Text>
+        </RectButton>
+      )}
+      <RectButton
+        onPress={() => {
+          onDelete();
+          ref.current?.close();
+        }}
+        style={{
+          backgroundColor: M3.errorContainer,
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 72,
+          borderTopLeftRadius: onShare ? 0 : 16,
+          borderBottomLeftRadius: onShare ? 0 : 16,
+        }}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Delete entry"
+      >
+        <MaterialIcons name="delete-outline" size={18} color={M3.error} />
+        <Text className="text-m3-error text-xs font-semibold mt-1">Delete</Text>
+      </RectButton>
+    </View>
   );
 
   return (
@@ -208,19 +235,37 @@ function MealRow({
   onEditMeal,
   onDeleteMeal,
   onViewPhoto,
+  onShareMeal,
 }: {
   meal: MealGroup;
   onEditMeal: (meal: MealGroup) => void;
   onDeleteMeal: (mealId: number) => void;
-  onViewPhoto: (uri: string, mealName: string) => void;
+  onViewPhoto: (meal: MealGroup) => void;
+  onShareMeal: (meal: MealGroup) => void;
 }) {
   const totalCalories = meal.components.reduce((s, c) => s + c.calories, 0);
   const totalP = meal.components.reduce((s, c) => s + c.protein_g, 0);
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
+  const hasPhoto = !!meal.photoUri;
+  const accessibilityActions = hasPhoto
+    ? [
+        { name: 'activate', label: 'Edit' },
+        { name: 'share', label: 'Share' },
+        { name: 'delete', label: 'Delete' },
+      ]
+    : [
+        { name: 'activate', label: 'Edit' },
+        { name: 'delete', label: 'Delete' },
+      ];
+
   return (
-    <SwipeRow identity={`meal-${meal.id}`} onDelete={() => onDeleteMeal(meal.id)}>
+    <SwipeRow
+      identity={`meal-${meal.id}`}
+      onDelete={() => onDeleteMeal(meal.id)}
+      onShare={hasPhoto ? () => onShareMeal(meal) : undefined}
+    >
       <NutritionCard
         name={meal.name}
         photoUri={meal.photoUri}
@@ -230,13 +275,16 @@ function MealRow({
         carbs={totalC}
         fat={totalF}
         onPress={() => onEditMeal(meal)}
-        accessibilityHint="Opens meal editor. Swipe left to delete."
-        accessibilityActions={[{ name: 'activate', label: 'Edit' }, { name: 'delete', label: 'Delete' }]}
+        accessibilityHint={hasPhoto
+          ? 'Opens meal editor. Swipe left for Share or Delete.'
+          : 'Opens meal editor. Swipe left to delete.'}
+        accessibilityActions={accessibilityActions}
         onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
-          else onEditMeal(meal);
+          if (event.nativeEvent.actionName === 'activate') onEditMeal(meal);
+          else if (event.nativeEvent.actionName === 'share' && hasPhoto) onShareMeal(meal);
+          else if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
         }}
-        onPressPhoto={(uri) => onViewPhoto(uri, meal.name)}
+        onPressPhoto={() => onViewPhoto(meal)}
       />
     </SwipeRow>
   );
@@ -257,13 +305,15 @@ export function JournalEntryRow({
   onDeleteFood,
   onDeleteMeal,
   onViewPhoto,
+  onShareMeal,
 }: {
   entry: JournalEntryKind;
   onEditFood: (food: FoodLog) => void;
   onEditMeal: (meal: MealGroup) => void;
   onDeleteFood: (food: FoodLog) => void;
   onDeleteMeal: (mealId: number) => void;
-  onViewPhoto: (uri: string, mealName: string) => void;
+  onViewPhoto: (meal: MealGroup) => void;
+  onShareMeal: (meal: MealGroup) => void;
 }) {
   if (entry.type === 'food' && entry.foodLog) {
     return <FoodRow food={entry.foodLog} onEdit={onEditFood} onDelete={onDeleteFood} />;
@@ -275,6 +325,7 @@ export function JournalEntryRow({
         onEditMeal={onEditMeal}
         onDeleteMeal={onDeleteMeal}
         onViewPhoto={onViewPhoto}
+        onShareMeal={onShareMeal}
       />
     );
   }

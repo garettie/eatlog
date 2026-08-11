@@ -10,6 +10,7 @@ These are source answers, not submitted console records. Reconcile them against 
 - No subscription, in-app purchase, receipt server, paywall, account, authentication, cloud database, ads, or third-party analytics.
 - Android ships first. Android and iOS purchases are separate.
 - Data is local-first. Online actions are Scan, Describe/re-estimation, USDA search/detail, and explicit Open Food Facts full search.
+- Meal sharing renders a JPEG locally. Save image writes it to the system photo library; Share sends it only to a destination the user selects in operating-system UI. Neither action uses an Eatlog backend or social publishing service.
 - Health Connect is Android-only and limited to Weight read/write. HealthKit and Apple Health are absent from v1.
 - Adults; general wellness; nutrition and weight values are estimates.
 
@@ -31,6 +32,7 @@ Additional draft answers:
 - Data is encrypted in transit with HTTPS.
 - Users can delete local data in the app without an account. Provider-side deletion rights and retention must be described from the final contracts; do not promise remote deletion without evidence.
 - Data is not sold and is not used for advertising or cross-app tracking.
+- User-directed meal-image saving and operating-system sharing are local device actions, not Eatlog backend collection. The user chooses any external share destination and its separate privacy terms apply after selection.
 - Service-provider processing by Cloudflare, Google, USDA, and Open Food Facts must be classified using the current console definitions at submission.
 - **STORE ACCOUNT:** Complete and save the final Data Safety questionnaire from the production app record.
 - **CREDENTIAL:** Confirm production Gemini and Cloudflare data handling, retention, and logging settings.
@@ -58,7 +60,8 @@ Suggested review explanation:
 
 Evidence required:
 
-- Generated manifest with only Weight read/write permissions and the Android 13 rationale/Android 14 usage activity wiring.
+- Generated manifest with Health Connect Weight read/write, legacy `READ_EXTERNAL_STORAGE`, and `WRITE_EXTERNAL_STORAGE` capped at API 32; no Android 13 media-read permission, microphone, or overlay permission may survive.
+- Android API 26 to 32 requests legacy write access only after Save image. Android API 33 and newer saves through MediaStore with no runtime media-read prompt.
 - Point-of-use screenshots from API 26/current Android and a Health Connect-capable physical device.
 - **STORE ACCOUNT:** Health Connect declaration and review submission.
 - **PHYSICAL DEVICE:** End-to-end permission, import, export, disconnect, and delete verification.
@@ -77,6 +80,7 @@ Conservative labels for the iOS binary:
 | Diagnostics | Worker keeps restricted operational route/status/latency fields | App Functionality | Not linked | No |
 
 - No third-party advertising or cross-company tracking.
+- Meal-image saving requests add-only Photos access at point of use. Native sharing requests no Photos permission and sends the generated JPEG only to the user-selected system destination.
 - No precise/coarse location, contacts, audio, messages, browsing history, payment information, or account contact information.
 - **CREDENTIAL:** Verify Google/Cloudflare processing and retention before final labels.
 - **STORE ACCOUNT:** Complete the current App Privacy questionnaire and save evidence.
@@ -85,7 +89,7 @@ Conservative labels for the iOS binary:
 
 - Intended audience: adults.
 - General wellness nutrition and weight logging; no medical treatment, diagnosis, gambling, contests, social feed, messaging, user-generated public content, violence, sexual content, drugs, alcohol promotion, unrestricted web access, or advertising.
-- Camera/gallery content is private and user-selected; it is not published to other users.
+- Camera/gallery content is private and user-selected. Eatlog publishes nothing itself; a generated meal image leaves Eatlog only when the user saves it locally or chooses a destination in the operating-system share sheet.
 - External links are limited to support, privacy, research, provider, and license pages.
 - Expected classification is a low age rating, but do not state a final rating before completing each store's current questionnaire.
 - **STORE ACCOUNT:** Complete Google content rating and Apple age-rating forms from the final metadata.
@@ -107,8 +111,9 @@ Reviewer path:
 4. Manual logging works without online services.
 5. Scan or Describe starts the requested Gemini estimate directly through the Eatlog Worker. Profile → Privacy explains the transmission and providers.
 6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly.
-7. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
-8. Profile → Backup and restore creates/restores archives; Profile → Export data creates non-restorable CSV; Delete all data uses two confirmations.
+7. In Diary, tap a meal photo and choose Share, or swipe a photo meal and choose Share immediately left of Delete. Select Summary, Macros, or Components, then use Save image or the operating-system Share sheet. Photo-less meals and standalone foods have no Share action.
+8. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
+9. Profile → Backup and restore creates/restores archives; Profile → Export data creates non-restorable CSV; Delete all data uses two confirmations.
 
 Provider explanation:
 

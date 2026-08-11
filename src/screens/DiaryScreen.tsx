@@ -38,6 +38,7 @@ import MealPhotoViewer from '../components/MealPhotoViewer';
 import { DURATION, EASING } from '../theme/motion';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { READING_MAX_WIDTH } from '../theme/layout';
+import { buildMealSharePayload, MealSharePayload } from '../utils/mealSharing';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
@@ -50,6 +51,11 @@ interface EditState {
   food: FoodLog | null;
   saving: boolean;
 }
+
+type MealMediaState = {
+  payload: MealSharePayload;
+  initialMode: 'photo' | 'share';
+} | null;
 
 interface MonthSummary {
   macros: DayMacros[];
@@ -112,7 +118,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
-  const [viewingPhoto, setViewingPhoto] = useState<{ uri: string; mealName: string } | null>(null);
+  const [mealMedia, setMealMedia] = useState<MealMediaState>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<MealType>>(new Set());
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
@@ -553,12 +559,22 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     onEditMeal(meal);
   }, [onEditMeal]);
 
-  const handleViewPhoto = useCallback((uri: string, mealName: string) => {
-    setViewingPhoto({ uri, mealName });
+  const openMealMedia = useCallback((meal: MealGroup, initialMode: 'photo' | 'share') => {
+    const payload = buildMealSharePayload(meal);
+    if (!payload) return;
+    setMealMedia({ payload, initialMode });
   }, []);
 
+  const handleViewPhoto = useCallback((meal: MealGroup) => {
+    openMealMedia(meal, 'photo');
+  }, [openMealMedia]);
+
+  const handleShareMeal = useCallback((meal: MealGroup) => {
+    openMealMedia(meal, 'share');
+  }, [openMealMedia]);
+
   const handleClosePhoto = useCallback(() => {
-    setViewingPhoto(null);
+    setMealMedia(null);
   }, []);
 
   const toggleSection = useCallback((meal: MealType) => {
@@ -709,8 +725,9 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       onDeleteFood={handleDeleteFood}
       onDeleteMeal={handleDeleteMeal}
       onViewPhoto={handleViewPhoto}
+      onShareMeal={handleShareMeal}
     />
-  ), [collapsedSections, handleDeleteFood, handleDeleteMeal, handleEditFood, handleEditMeal, handleViewPhoto, toggleSection]);
+  ), [collapsedSections, handleDeleteFood, handleDeleteMeal, handleEditFood, handleEditMeal, handleShareMeal, handleViewPhoto, toggleSection]);
 
   const handleSaveEdit = useCallback(async (grams: number): Promise<boolean> => {
     const food = edit.food;
@@ -838,9 +855,10 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       />
 
       <MealPhotoViewer
-        uri={viewingPhoto?.uri ?? null}
-        mealName={viewingPhoto?.mealName ?? ''}
+        payload={mealMedia?.payload ?? null}
+        initialMode={mealMedia?.initialMode ?? 'photo'}
         onClose={handleClosePhoto}
+        onImageSaved={() => showToast('Meal image saved.')}
       />
 
     </SafeAreaView>

@@ -11,7 +11,7 @@ Verified against source on 2026-08-11. This inventory describes the account-free
 | Food history and meals | Dates, meal type, food names, source identifiers, brands, preparation, portions, grams, calories and macros, meal relationships | App-private SQLite tables until deletion, reset, or app removal | Only content deliberately sent for an online lookup or estimate | Add, edit, delete, undo; included in backup and CSV export |
 | Weight history | Dates, scale and trend weight, revision, record origin, and Android Health Connect origin metadata | App-private SQLite until deletion, reset, or app removal | Android Health Connect records can cross the app boundary only after the user enables that connection | Add, edit, delete; included in backup and CSV export |
 | Health Connect state | Android-only enabled flag, last-sync time, exported-record IDs, revisions, and pending-delete flags | App-private SQLite; restored archives have device-specific connection state cleared | Only to Android Health Connect, not to Eatlog's Worker | Connect/disconnect; revoke in Android settings; reset attempts to remove Eatlog-written records |
-| Meal photos | App-private image files and SQLite file references | A successful Scan copies the selected image into app-private storage for review and a saved meal; saved files remain until meal-photo removal, reset, or app removal | A resized/compressed representation is sent when the user chooses Scan | Choose camera/gallery content, remove a meal photo, exclude photos from CSV, include referenced photos in backup, reset |
+| Meal photos | App-private image files and SQLite file references | A successful Scan copies the selected image into app-private storage for review and a saved meal; saved files remain until meal-photo removal, reset, or app removal | A resized/compressed representation is sent when the user chooses Scan; a locally rendered meal card leaves only through user-directed Save image or system sharing | Choose camera/gallery content, remove a meal photo, save a derived meal card to Photos/Gallery, share it to a selected destination, exclude photos from CSV, include referenced photos in backup, reset |
 | AI food cache | Normalized foods, brands, preparation, serving information, nutrition values, and Scan/Describe source | `food_cache` in SQLite until reset or app removal | No additional transmission; populated from a returned estimate | Included in database backup, excluded from human-readable CSV, removed by reset |
 | Pins | Keys for pinned foods | `pinned_foods` in SQLite until unpinned, reset, or app removal | No | Pin/unpin; included in database backup |
 | Online search cache | Recent USDA/Open Food Facts result sets and provider state | In process memory for a short TTL; ends when the app process ends | The original lookup already used the provider described below | Search cancellation, retry, or app close |
@@ -55,9 +55,10 @@ The v1 source has no app account, authentication, cloud database, cloud sync, re
 | --- | --- | --- | --- |
 | Camera | Android and iOS | User taps Scan with camera | Capture an image for the selected Scan action |
 | Photo library/system picker | Android and iOS | User taps Photo | Select one image for Scan |
+| Add to photo library | Android and iOS | User taps Save image in Share meal | Save one locally rendered 1080 by 1350 JPEG; Android API 26 to 32 uses legacy write access, Android API 33+ uses MediaStore without media-read permission, and iOS uses add-only access |
 | Health Connect Weight read/write | Android only | User opens Health Connect and chooses to connect or sync | Read Weight records and write Eatlog-entered Weight records only |
 | Files/document picker | Android and iOS | User starts restore | Select an Eatlog/legacy Marco backup archive; CSV is not accepted as restore input |
-| Share sheet | Android and iOS | User creates backup or CSV export | User selects the destination app or storage provider |
+| Share sheet | Android and iOS | User shares a meal image, backup, or CSV export | User selects the destination app or storage provider; meal sharing requests no photo-library permission |
 | Notifications, microphone, contacts, location, advertising ID | None | Not requested | Not part of v1 |
 
 HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigation, sync, privacy copy, and reset wording. Android backup metadata for Health Connect is ignored safely when restored on iOS.
@@ -67,6 +68,7 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 - A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. The installation identity is outside SQLite and never enters the archive.
 - Restore stages and validates the archive, file sizes and hashes, record counts, database integrity, foreign keys, schema version, and photo mappings before replacing live data. It rejects future schemas without mutation. A safety copy supports automatic rollback if replacement fails.
 - A CSV export is a zipped, human-readable set of profile, meal, component, weight, target, and adaptive-review CSV files plus a manifest. It contains no photos or Health Connect synchronization metadata and cannot be restored.
+- Meal sharing renders the selected Summary, Macros, or Components card on-device, writes a named JPEG only to temporary cache, and removes capture/cache files after the Save image or Share attempt. Save image adds the JPEG to Photos or Gallery; Share sends it only to the operating-system destination the user chooses. Eatlog has no sharing backend, public link, social feed, destination tracking, or source-EXIF transfer.
 - Backup and export files leave Eatlog only when the user invokes the system share sheet and chooses a destination. Eatlog cannot control a recipient app or cloud-storage provider after sharing.
 - Individual food logs, meals, and weights can be deleted in the app. Delete all data removes the SQLite data, meal photos, and temporary ownership files. On Android it first attempts to remove Weight records written by Eatlog from Health Connect and reports warnings before local deletion.
 - App removal is controlled by the operating system and removes app-private local storage. Copies the user exported or shared remain wherever the user placed them.
@@ -74,7 +76,7 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 ## Source evidence
 
 - Device database and migrations: `src/db/database.ts`
-- Meal-photo storage: `src/utils/mealPhotos.ts`
+- Meal-photo storage and local meal-card export: `src/utils/mealPhotos.ts`, `src/utils/mealSharing.ts`, and `src/components/MealShareComposer.tsx`
 - Scan/Describe client: `src/services/foodScan.ts`
 - USDA and Open Food Facts clients: `src/services/foodSearchRemote.ts`, `src/services/foodSearchEngine.ts`, and `src/hooks/useFoodSearchController.ts`
 - Health Connect: `src/services/healthConnect.ts`, `src/screens/DataSyncScreens.tsx`, and `src/navigation/TabNavigator.tsx`

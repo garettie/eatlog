@@ -8,6 +8,9 @@ const {
   buildPermissionsRationaleActivity,
   ensureHealthConnectManifest,
 } = require('./withEatlogHealthConnect');
+const {
+  ensureLegacyMediaWritePermission,
+} = require('./withEatlogMediaPermissions');
 
 function manifestFixture() {
   return {
@@ -33,10 +36,13 @@ function manifestFixture() {
   };
 }
 
-test('release config blocks unused Android template permissions', () => {
+test('release config keeps media access write-only', () => {
   assert.deepEqual(releaseConfig.android.blockedPermissions, [
     'android.permission.SYSTEM_ALERT_WINDOW',
-    'android.permission.WRITE_EXTERNAL_STORAGE',
+    'android.permission.READ_MEDIA_VISUAL_USER_SELECTED',
+    'android.permission.READ_MEDIA_IMAGES',
+    'android.permission.READ_MEDIA_VIDEO',
+    'android.permission.READ_MEDIA_AUDIO',
   ]);
   assert.deepEqual(releaseConfig.android.permissions, [
     'android.permission.health.READ_WEIGHT',
@@ -44,7 +50,40 @@ test('release config blocks unused Android template permissions', () => {
   ]);
   const imagePicker = releaseConfig.plugins.find((plugin) =>
     Array.isArray(plugin) && plugin[0] === 'expo-image-picker');
+  assert.equal(imagePicker[1].photosPermission, 'Allow Eatlog to access photos to scan meals.');
   assert.equal(imagePicker[1].microphonePermission, false);
+
+  const mediaLibrary = releaseConfig.plugins.find((plugin) =>
+    Array.isArray(plugin) && plugin[0] === 'expo-media-library');
+  assert.deepEqual(mediaLibrary[1], {
+    photosPermission: 'Allow Eatlog to access photos to scan meals.',
+    savePhotosPermission: 'Allow Eatlog to save meal images to your photo library.',
+    granularPermissions: [],
+  });
+  assert.ok(releaseConfig.plugins.includes('./plugins/withEatlogMediaPermissions'));
+});
+
+test('media permission setup restores only legacy write access through API 32', () => {
+  const manifest = {
+    manifest: {
+      'uses-permission': [{
+        $: {
+          'android:name': 'android.permission.WRITE_EXTERNAL_STORAGE',
+          'tools:node': 'remove',
+        },
+      }],
+    },
+  };
+
+  ensureLegacyMediaWritePermission(manifest);
+  ensureLegacyMediaWritePermission(manifest);
+
+  assert.deepEqual(manifest.manifest['uses-permission'], [{
+    $: {
+      'android:name': 'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android:maxSdkVersion': '32',
+    },
+  }]);
 });
 
 test('Health Connect manifest setup is exact and idempotent', () => {

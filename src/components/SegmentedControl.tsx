@@ -22,6 +22,7 @@ interface SegmentedControlProps<T extends string> {
   options: SegmentedOption<T>[];
   value: T;
   onChange: (v: T) => void;
+  disabled?: boolean;
 }
 
 /**
@@ -31,6 +32,7 @@ export default function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  disabled = false,
 }: SegmentedControlProps<T>) {
   const reduced = useReducedMotion();
   const selectedIndex = Math.max(
@@ -111,10 +113,11 @@ export default function SegmentedControl<T extends string>({
                 });
                 startTransition(() => onChange(opt.value));
               }}
+              disabled={disabled}
               accessibilityRole="radio"
               accessibilityLabel={opt.accessibilityLabel ?? opt.label}
-              accessibilityState={{ selected }}
-              className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
+              accessibilityState={{ selected, disabled }}
+              className={`flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
             >
               {opt.icon && (
                 <MaterialIcons

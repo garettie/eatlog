@@ -14,6 +14,7 @@ Use a release-candidate binary. Record the commit, app version/build, platform/O
 - Protein preference: Moderate
 - Manual food: `Synthetic rice bowl`, `500 kcal`, `25 g` protein, `70 g` carbs, `13 g` fat
 - Second food: `Synthetic toast`, `120 kcal`, `4 g` protein, `20 g` carbs, `3 g` fat
+- Meal-sharing photos: synthetic square, portrait, landscape, panorama, and rotated-orientation fixtures with no real person, location, or health information
 
 No real person, meal, photo, or health record may be used.
 
@@ -26,24 +27,38 @@ No real person, meal, photo, or health record may be used.
 3. Open Diary and select today. Open the synthetic entry, change its amount, and save.
    Expected: the entry and day totals update once. Swipe the entry to delete it, then use Undo in the toast.
    Expected: the entry disappears, Undo restores it, and totals return without duplication. Repeat delete without Undo and verify it stays deleted.
-4. Add the synthetic rice bowl and synthetic toast again so Diary contains data. Move between adjacent days and months, then return to today.
+4. Add the synthetic rice bowl and synthetic toast as one meal with a synthetic photo, and add a photo-less meal plus a standalone food. Move between adjacent days and months, then return to today.
    Expected: selection, date header, entries, and totals remain aligned; no stale row flashes or delayed transition appears. Capture Diary.
-5. Open Add → Log weight. Enter `65.0 kg`, select today’s date, and save.
+5. Tap the photo meal thumbnail.
+   Expected: the existing full-screen contained-photo viewer opens with Close, a centered one-line meal title, and Share. Capture the photo toolbar. Select Share and verify Summary opens in the same native modal; Android Back returns to the photo.
+6. In Share meal, swipe through Summary, Macros, and Components, then select each through the segmented control.
+   Expected: carousel page and selected control remain synchronized. Each card contains the complete uncropped photo, meal title, rounded nutrition display, Eatlog mark, and the selected template content. Components retain stored order and cap more than five rows as four names plus `+n more`. Capture each template.
+7. Return to Diary and swipe the photo meal.
+   Expected: Share appears immediately left of far-right Delete, both actions are 72dp wide, and selecting Share resets the row before opening Summary directly. Android Back dismisses to Diary. Capture both swipe actions. Photo-less meals and standalone foods remain Delete-only and expose no Share accessibility action.
+8. Save each selected template, repeating at least one save.
+   Expected: permission is requested only after Save image; a visible and announced `Meal image saved.` confirmation appears; the composer stays open; each JPEG is 1080 by 1350, upright, contains the full photo with tonal padding where needed, and contains no source location, camera model, filename, or capture timestamp metadata.
+9. Select Share, open the native share sheet for at least two available targets, then cancel it. Repeat once.
+   Expected: the selected template is attached as JPEG, no Photos permission is requested, cancellation returns to the same composer/template without success or error copy, and no stale busy state remains.
+10. Remove or invalidate a synthetic meal photo after its URI is stored, then open its viewer and swipe Share paths.
+    Expected: `This meal photo is no longer available.` replaces the preview, Save image and Share are disabled, and Close or Back remains available. Capture this error state.
+11. Repeat meal sharing offline, with reduced motion, in portrait and landscape, with the largest supported text, and with TalkBack or VoiceOver.
+    Expected: no network request is needed; programmatic template changes do not animate under reduced motion; safe areas, focus order, labels, selected/disabled/busy states, and footer actions remain usable.
+12. Open Add → Log weight. Enter `65.0 kg`, select today’s date, and save.
    Expected: the weight is saved once. Reopen the same date, change to `65.1 kg`, and update.
    Expected: one row remains for the date and Analytics reflects the update.
-6. Open Analytics and visit each available range or segment.
+13. Open Analytics and visit each available range or segment.
    Expected: logging consistency, calorie history, weight state, and plan state render without invalid numbers, overlap, or stale data. Empty or insufficient-evidence states are direct and actionable. Capture Analytics.
-7. Open Profile. Visit Personal details, Goal and rate, Nutrition targets, Units, How Eatlog works, Privacy, About, Licenses and attributions, Backup and restore, and Export data.
+14. Open Profile. Visit Personal details, Goal and rate, Nutrition targets, Units, How Eatlog works, Privacy, About, Licenses and attributions, Backup and restore, and Export data.
    Expected: every back action returns correctly; long copy scrolls; links appear only when valid release URLs are configured; no placeholder contact or URL appears. On iOS, no Health Connect control or wording appears. On Android, Health Connect appears only in its Android locations.
-8. Open Privacy.
+15. Open Privacy.
    Expected: local storage, remote Scan/Describe, USDA, explicit Open Food Facts search, installation-token/IP rate limiting, backup/export, and deletion behavior match the release policy. Ordinary logging screens contain no recurring privacy paragraph.
-9. Create a CSV export and dismiss or save the share sheet as directed by the platform run.
+16. Create a CSV export and dismiss or save the share sheet as directed by the platform run.
    Expected: cancellation does not claim a completed export. A saved archive contains readable CSV files and is rejected if selected as a restore source.
-10. Create an `.eatlog-backup`; first run with no meal photo, then with at least two synthetic meal photos where the device case permits.
+17. Create an `.eatlog-backup`; first run with no meal photo, then with at least two synthetic meal photos where the device case permits.
     Expected: cancellation during a cancellable stage reports cancellation. A completed archive previews the correct row/photo counts and restores only after both confirmations.
-11. Restore the backup, then verify Today, Diary, Analytics, Profile, weights, targets, and photos.
+18. Restore the backup, then verify Today, Diary, Analytics, Profile, weights, targets, and photos.
     Expected: restored values match the source; no prior-device Health Connect sync state is active. Run the corrupt and rollback cases from `DEVICE_MATRIX.md` before signing off.
-12. Open Profile → Delete all data. Cancel each confirmation once, then repeat and complete deletion.
+19. Open Profile → Delete all data. Cancel each confirmation once, then repeat and complete deletion.
     Expected: cancellation preserves all data. Completion returns Eatlog to onboarding and removes profile, logs, weights, targets, reviews, and meal photos. iOS shows no Health Connect wording; Android reports its Health Connect cleanup result accurately.
 
 ## Visual and accessibility pass
@@ -53,6 +68,7 @@ Repeat the core flow with the largest supported text size, screen reader enabled
 - Expected: text does not disappear behind controls; critical actions remain reachable by scrolling; labels and focus order describe the control and current state; touch targets are at least 48 points/dp where designed; keyboard focus does not hide active fields.
 - Expected: sheets respect the home indicator/navigation area; swipe-back, Android Back, backdrop taps, and discard gates do not lose edits silently.
 - Expected: long Unicode food names, five-digit calorie totals, loading, empty, error, offline, and rate-limit states remain readable.
+- Expected: meal-share controls expose Back/Close, template radio selection, Save image, Share, swipe Share/Delete, disabled, and busy semantics; the exported card remains 4:5 regardless of device orientation or font scale.
 
 ## Evidence record
 
@@ -64,6 +80,8 @@ For each run, store:
 - pass/fail for each numbered step;
 - real screenshot paths;
 - issue IDs and severity;
-- backup source platform/version/schema, destination platform/version/schema, and before/after photo counts.
+- backup source platform/version/schema, destination platform/version/schema, and before/after photo counts;
+- photo-toolbar, Summary, Macros, Components, swipe-action, and missing-photo screenshot paths;
+- generated JPEG dimensions, orientation, metadata-inspection result, and tested share targets.
 
 This repository has no executable device or existing UI automation harness in the current environment. The automated UI box stays unchecked until this script is run with captured evidence or a verified lightweight harness is added.

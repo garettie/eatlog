@@ -47,9 +47,11 @@ Eatlog does not use HealthKit or Apple Health in v1.
 
 ## Camera, photos, files, and sharing
 
-Eatlog asks for camera access only when you choose camera Scan. It opens the gallery/system photo picker only when you choose Photo. It opens the document picker only when you choose Restore and the system share sheet only when you choose Backup or Export.
+Eatlog asks for camera access only when you choose camera Scan. It opens the gallery/system photo picker only when you choose Photo. It opens the document picker only when you choose Restore.
 
-A restorable Eatlog backup contains a database snapshot and referenced meal photos. A human-readable CSV export contains profile and history tables but no photos or Health Connect synchronization metadata. CSV exports are not restorable. When you share a backup or export, the destination app or storage provider you choose controls its copy.
+When you choose Share meal, Eatlog renders the selected Summary, Macros, or Components card on your device as a temporary JPEG. Save image asks only for the platform access needed to add that image to Photos or Gallery. On current Android versions this does not request photo-read access; on iOS it uses add-only access. Share requests no Photos permission and opens the system share sheet so you choose the destination. Eatlog deletes its temporary generated files after the attempt and has no sharing backend, public link, social feed, or share tracking. A destination app or storage provider you choose controls its copy.
+
+A restorable Eatlog backup contains a database snapshot and referenced meal photos. A human-readable CSV export contains profile and history tables but no photos or Health Connect synchronization metadata. CSV exports are not restorable. Backup and Export also open the system share sheet only when you choose those actions, and the destination app or storage provider you choose controls its copy.
 
 ## Retention and deletion
 

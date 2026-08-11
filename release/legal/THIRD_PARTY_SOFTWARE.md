@@ -4,7 +4,7 @@ Generated from `package-lock.json` by `scripts/generate-third-party-notices.mjs`
 
 This inventory identifies production packages and their declared SPDX-style license expressions. Package copyright and license files remain authoritative. The bundled Onest font notice is preserved separately in `release/legal/ONEST-OFL-1.1.txt`.
 
-Production package records: 729
+Production package records: 736
 
 | Package | Version | Direct | License |
 | --- | --- | --- | --- |
@@ -258,6 +258,7 @@ Production package records: 729
 | babel-preset-jest | 29.6.3 | no | MIT |
 | balanced-match | 1.0.2 | no | MIT |
 | balanced-match | 4.0.4 | no | MIT |
+| base64-arraybuffer | 1.0.2 | no | MIT |
 | base64-js | 1.5.1 | no | MIT |
 | baseline-browser-mapping | 2.11.1 | no | Apache-2.0 |
 | better-opn | 3.0.2 | no | MIT |
@@ -310,6 +311,7 @@ Production package records: 729
 | convert-source-map | 2.0.0 | no | MIT |
 | core-js-compat | 3.49.0 | no | MIT |
 | cross-spawn | 7.0.6 | no | MIT |
+| css-line-break | 2.1.0 | no | MIT |
 | css-select | 5.2.2 | no | BSD-2-Clause |
 | css-tree | 1.1.3 | no | MIT |
 | css-what | 6.2.2 | no | BSD-2-Clause |
@@ -374,6 +376,7 @@ Production package records: 729
 | expo-json-utils | 0.15.0 | no | MIT |
 | expo-keep-awake | 15.0.8 | no | MIT |
 | expo-manifests | 1.0.11 | no | MIT |
+| expo-media-library | 18.2.1 | yes | MIT |
 | expo-modules-autolinking | 3.0.26 | no | MIT |
 | expo-modules-core | 3.0.30 | no | MIT |
 | expo-server | 1.0.7 | no | MIT |
@@ -421,6 +424,7 @@ Production package records: 729
 | hermes-parser | 0.32.0 | no | MIT |
 | hoist-non-react-statics | 3.3.2 | no | BSD-3-Clause |
 | hosted-git-info | 7.0.2 | no | ISC |
+| html2canvas | 1.4.1 | no | MIT |
 | http-errors | 2.0.1 | no | MIT |
 | https-proxy-agent | 7.0.6 | no | MIT |
 | ieee754 | 1.2.1 | no | BSD-3-Clause |
@@ -610,6 +614,7 @@ Production package records: 729
 | react-native-safe-area-context | 5.6.2 | yes | MIT |
 | react-native-screens | 4.16.0 | yes | MIT |
 | react-native-svg | 15.12.1 | yes | MIT |
+| react-native-view-shot | 4.0.3 | yes | MIT |
 | react-native-worklets | 0.5.1 | yes | MIT |
 | react-native-zip-archive | 8.0.1 | yes | MIT |
 | react-refresh | 0.14.2 | no | MIT |
@@ -683,6 +688,7 @@ Production package records: 729
 | terminal-link | 2.1.1 | no | MIT |
 | terser | 5.49.0 | no | BSD-2-Clause |
 | test-exclude | 6.0.0 | no | ISC |
+| text-segmentation | 1.0.3 | no | MIT |
 | thenify | 3.3.1 | no | MIT |
 | thenify-all | 1.6.0 | no | MIT |
 | throat | 5.0.0 | no | MIT |
@@ -708,6 +714,7 @@ Production package records: 729
 | use-sync-external-store | 1.6.0 | no | MIT |
 | util-deprecate | 1.0.2 | no | MIT |
 | utils-merge | 1.0.1 | no | MIT |
+| utrie | 1.0.2 | no | MIT |
 | uuid | 7.0.3 | no | MIT |
 | validate-npm-package-name | 5.0.1 | no | ISC |
 | vary | 1.1.2 | no | MIT |

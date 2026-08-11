@@ -2,7 +2,7 @@
   "expo": {
     "name": "Eatlog",
     "slug": "eatlog",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -30,7 +30,10 @@
       "softwareKeyboardLayoutMode": "pan",
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ],
       "permissions": [
         "android.permission.health.READ_WEIGHT",
@@ -69,6 +72,15 @@
           "microphonePermission": false
         }
       ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Eatlog to access photos to scan meals.",
+          "savePhotosPermission": "Allow Eatlog to save meal images to your photo library.",
+          "granularPermissions": []
+        }
+      ],
+      "./plugins/withEatlogMediaPermissions",
       "@react-native-community/datetimepicker"
     ],
     "extra": {
