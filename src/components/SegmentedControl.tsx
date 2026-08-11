@@ -70,7 +70,10 @@ export default function SegmentedControl<T extends string>({
   }, [options.length]);
 
   return (
-    <View className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden">
+    <View
+      className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden"
+      style={disabled ? { opacity: 0.38 } : undefined}
+    >
       <View
         className="flex-row relative"
         onLayout={(event) => {
@@ -117,7 +120,7 @@ export default function SegmentedControl<T extends string>({
               accessibilityRole="radio"
               accessibilityLabel={opt.accessibilityLabel ?? opt.label}
               accessibilityState={{ selected, disabled }}
-              className={`flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
+              className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
             >
               {opt.icon && (
                 <MaterialIcons

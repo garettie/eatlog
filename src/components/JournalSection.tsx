@@ -248,7 +248,7 @@ function MealRow({
   const totalC = meal.components.reduce((s, c) => s + c.carbs_g, 0);
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
-  const hasPhoto = !!meal.photoUri;
+  const hasPhoto = Boolean(meal.photoUri?.trim());
   const accessibilityActions = hasPhoto
     ? [
         { name: 'activate', label: 'Edit' },
@@ -268,7 +268,7 @@ function MealRow({
     >
       <NutritionCard
         name={meal.name}
-        photoUri={meal.photoUri}
+        photoUri={hasPhoto ? meal.photoUri : null}
         secondaryText={`${meal.components.length} ${meal.components.length === 1 ? 'item' : 'items'}`}
         calories={totalCalories}
         protein={totalP}
@@ -284,7 +284,7 @@ function MealRow({
           else if (event.nativeEvent.actionName === 'share' && hasPhoto) onShareMeal(meal);
           else if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
         }}
-        onPressPhoto={() => onViewPhoto(meal)}
+        onPressPhoto={hasPhoto ? () => onViewPhoto(meal) : undefined}
       />
     </SwipeRow>
   );

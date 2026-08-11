@@ -18,17 +18,23 @@ import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { useReducedMotion } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef, releaseCapture } from 'react-native-view-shot';
 
 import { M3 } from '../theme/tokens';
-import type { MealSharePayload, MealShareTemplateId } from '../utils/mealSharing';
+import {
+  getMealShareComponentRows,
+  getMealSharePreviewAccessibilityLabel,
+  type MealSharePayload,
+  type MealShareTemplateId,
+} from '../utils/mealSharing';
 import SegmentedControl from './SegmentedControl';
+import LogToast from './LogToast';
 
 interface MealShareComposerProps {
   payload: MealSharePayload;
   leadingAction: 'back' | 'close';
   onLeadingPress: () => void;
-  onImageSaved: () => void;
   onBusyChange: (busy: boolean) => void;
 }
 
@@ -91,9 +97,7 @@ function MealShareCard({
   onPhotoLoad: () => void;
   onPhotoError: () => void;
 }) {
-  const componentRows = payload.componentNames.length > 5
-    ? [...payload.componentNames.slice(0, 4), `+${payload.componentNames.length - 4} more`]
-    : payload.componentNames;
+  const componentRows = getMealShareComponentRows(payload.componentNames);
   const designWidth = 360;
   const designHeight = 450;
   const scale = width / designWidth;
@@ -194,22 +198,27 @@ export default function MealShareComposer({
   payload,
   leadingAction,
   onLeadingPress,
-  onImageSaved,
   onBusyChange,
 }: MealShareComposerProps) {
   const reducedMotion = useReducedMotion();
-  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight, fontScale } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
+  const headingRef = useRef<View>(null);
+  const initialFocusDoneRef = useRef(false);
+  const focusFrameRef = useRef<number | null>(null);
   const cardRefs = useRef<CardRefs>({ summary: null, macros: null, components: null });
   const operationRef = useRef<Exclude<Operation, null> | null>(null);
-  const saveConfirmationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [selectorHeight, setSelectorHeight] = useState(0);
+  const [footerHeight, setFooterHeight] = useState(0);
   const [carouselWidth, setCarouselWidth] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState<MealShareTemplateId>('summary');
   const [operation, setOperation] = useState<Operation>(null);
   const [carouselTransitioning, setCarouselTransitioning] = useState(false);
   const [photoUnavailable, setPhotoUnavailable] = useState(false);
-  const [saveConfirmationVisible, setSaveConfirmationVisible] = useState(false);
+  const [saveConfirmationId, setSaveConfirmationId] = useState(0);
   const [readiness, setReadiness] = useState<Readiness>({
     summary: false,
     macros: false,
@@ -217,7 +226,7 @@ export default function MealShareComposer({
   });
 
   useEffect(() => () => {
-    if (saveConfirmationTimerRef.current) clearTimeout(saveConfirmationTimerRef.current);
+    if (focusFrameRef.current != null) cancelAnimationFrame(focusFrameRef.current);
   }, []);
 
   const templates = useMemo(
@@ -226,21 +235,45 @@ export default function MealShareComposer({
       : ALL_TEMPLATES.filter((template) => template.value !== 'components'),
     [payload.componentNames.length],
   );
-  const pageWidth = carouselWidth || windowWidth;
-  const cardHeight = Math.max(0, Math.min((pageWidth - 32) * 1.25, bodyHeight - 72));
-  const cardWidth = cardHeight * 0.8;
+  const pageWidth = Math.max(1, carouselWidth || windowWidth);
+  const shortLayout = windowWidth > windowHeight
+    || windowHeight < Math.max(640, 480 * fontScale);
+  const maximumCardWidth = Math.max(1, pageWidth - 32);
+  const minimumCardWidth = Math.min(216, maximumCardWidth);
+  const measuredPreviewHeight = Math.max(0, bodyHeight - selectorHeight);
+  const shortPreviewHeight = Math.max(0, windowHeight - headerHeight - footerHeight - 32);
+  const preferredCardWidth = shortLayout
+    ? Math.min(320, Math.max(minimumCardWidth, shortPreviewHeight * 0.8))
+    : Math.max(minimumCardWidth, measuredPreviewHeight * 0.8);
+  const cardWidth = Math.min(maximumCardWidth, preferredCardWidth);
+  const cardHeight = cardWidth * 1.25;
+  const selectorContentWidth = Math.max(
+    maximumCardWidth,
+    templates.length * Math.max(112, Math.ceil(88 * fontScale)),
+  );
   const busy = operation != null;
   const navigationDisabled = busy || carouselTransitioning;
   const selectedReady = readiness[selectedTemplate] && cardRefs.current[selectedTemplate] != null;
   const actionsDisabled = navigationDisabled || photoUnavailable || !selectedReady;
 
+  const focusComposerHeading = () => {
+    if (initialFocusDoneRef.current || !headingRef.current) return;
+    initialFocusDoneRef.current = true;
+    focusFrameRef.current = requestAnimationFrame(() => {
+      if (headingRef.current) {
+        AccessibilityInfo.sendAccessibilityEvent(headingRef.current, 'focus');
+      }
+      focusFrameRef.current = null;
+    });
+  };
+
   const changeTemplate = (template: MealShareTemplateId) => {
     if (navigationDisabled) return;
     const index = templates.findIndex((item) => item.value === template);
     if (index < 0) return;
-    setSelectedTemplate(template);
     if (reducedMotion) {
       scrollRef.current?.scrollTo({ x: index * pageWidth, animated: false });
+      setSelectedTemplate(template);
       return;
     }
     setCarouselTransitioning(true);
@@ -328,11 +361,8 @@ export default function MealShareComposer({
 
       try {
         await MediaLibrary.saveToLibraryAsync(cacheUri);
-        onImageSaved();
+        setSaveConfirmationId((current) => current + 1);
         AccessibilityInfo.announceForAccessibility('Meal image saved.');
-        if (saveConfirmationTimerRef.current) clearTimeout(saveConfirmationTimerRef.current);
-        setSaveConfirmationVisible(true);
-        saveConfirmationTimerRef.current = setTimeout(() => setSaveConfirmationVisible(false), 4000);
       } catch {
         console.error('[meal-sharing:save] failed');
         Alert.alert('Couldn’t save the meal image.', 'Try again.');
@@ -385,9 +415,107 @@ export default function MealShareComposer({
     }
   };
 
+  const carousel = (
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      pagingEnabled
+      scrollEnabled={!busy}
+      showsHorizontalScrollIndicator={false}
+      decelerationRate="fast"
+      style={shortLayout ? { height: cardHeight, flexGrow: 0, marginVertical: 12 } : { flex: 1 }}
+      scrollEventThrottle={16}
+      onScroll={(event) => {
+        const index = Math.max(0, Math.min(
+          templates.length - 1,
+          Math.round(event.nativeEvent.contentOffset.x / pageWidth),
+        ));
+        const visibleTemplate = templates[index].value;
+        setSelectedTemplate((current) => current === visibleTemplate ? current : visibleTemplate);
+      }}
+      onScrollBeginDrag={() => setCarouselTransitioning(true)}
+      onMomentumScrollEnd={(event) => {
+        const index = Math.max(0, Math.min(
+          templates.length - 1,
+          Math.round(event.nativeEvent.contentOffset.x / pageWidth),
+        ));
+        setSelectedTemplate(templates[index].value);
+        setCarouselTransitioning(false);
+      }}
+      onScrollEndDrag={(event) => {
+        if (event.nativeEvent.velocity?.x === 0) {
+          const index = Math.max(0, Math.min(
+            templates.length - 1,
+            Math.round(event.nativeEvent.contentOffset.x / pageWidth),
+          ));
+          setSelectedTemplate(templates[index].value);
+          setCarouselTransitioning(false);
+        }
+      }}
+      onContentSizeChange={() => {
+        const index = templates.findIndex((template) => template.value === selectedTemplate);
+        if (index >= 0) scrollRef.current?.scrollTo({ x: index * pageWidth, animated: false });
+        setCarouselTransitioning(false);
+      }}
+    >
+      {templates.map((template) => {
+        const selected = template.value === selectedTemplate;
+        return (
+          <View
+            key={template.value}
+            accessible={selected}
+            accessibilityRole={selected ? 'image' : undefined}
+            accessibilityLabel={selected
+              ? getMealSharePreviewAccessibilityLabel(payload, template.value)
+              : undefined}
+            accessibilityElementsHidden={!selected}
+            importantForAccessibility={selected ? 'yes' : 'no-hide-descendants'}
+            className="items-center justify-center"
+            style={{ width: pageWidth, height: shortLayout ? cardHeight : '100%' }}
+          >
+            <MealShareCard
+              payload={payload}
+              template={template.value}
+              width={cardWidth}
+              height={cardHeight}
+              setRef={(view) => { cardRefs.current[template.value] = view; }}
+              onPhotoLoad={() => setReadiness((current) => ({ ...current, [template.value]: true }))}
+              onPhotoError={() => setPhotoUnavailable(true)}
+            />
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+
+  const templateSelector = (
+    <View
+      className="px-4 pb-2"
+      onLayout={(event) => setSelectorHeight(event.nativeEvent.layout.height)}
+    >
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ width: selectorContentWidth }}
+      >
+        <View style={{ width: selectorContentWidth }}>
+          <SegmentedControl
+            options={templates}
+            value={selectedTemplate}
+            onChange={changeTemplate}
+            disabled={navigationDisabled}
+          />
+        </View>
+      </ScrollView>
+    </View>
+  );
+
   return (
     <View className="flex-1 bg-m3-surface">
-      <View className="min-h-[64px] flex-row items-center px-2">
+      <View
+        className="min-h-[64px] flex-row items-center px-2 py-2"
+        onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+      >
         <Pressable
           onPress={onLeadingPress}
           disabled={busy}
@@ -398,7 +526,16 @@ export default function MealShareComposer({
         >
           <MaterialIcons name={leadingAction === 'back' ? 'arrow-back' : 'close'} size={24} color={M3.onSurface} />
         </Pressable>
-        <Text className="flex-1 text-center text-base font-semibold text-m3-on-surface">Share meal</Text>
+        <View
+          ref={headingRef}
+          accessible
+          accessibilityRole="header"
+          accessibilityLabel={`Share meal. ${selectedTemplate === 'summary' ? 'Summary' : selectedTemplate === 'macros' ? 'Macros' : 'Components'} template selected.`}
+          onLayout={focusComposerHeading}
+          className="flex-1 items-center"
+        >
+          <Text className="text-center text-base font-semibold text-m3-on-surface">Share meal</Text>
+        </View>
         <View className="h-12 w-12" />
       </View>
 
@@ -419,79 +556,45 @@ export default function MealShareComposer({
             <MaterialIcons name="broken-image" size={36} color={M3.onSurfaceVariant} />
             <Text className="text-center text-sm text-m3-on-surface-variant">This meal photo is no longer available.</Text>
           </View>
-        ) : cardHeight > 0 ? (
+        ) : shortLayout ? (
+          <ScrollView
+            className="flex-1"
+            nestedScrollEnabled
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 12 }}
+          >
+            {carousel}
+            {templateSelector}
+          </ScrollView>
+        ) : (
           <>
-            <ScrollView
-              ref={scrollRef}
-              horizontal
-              pagingEnabled
-              scrollEnabled={!busy}
-              showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
-              onScrollBeginDrag={() => setCarouselTransitioning(true)}
-              onMomentumScrollEnd={(event) => {
-                const index = Math.max(0, Math.min(
-                  templates.length - 1,
-                  Math.round(event.nativeEvent.contentOffset.x / pageWidth),
-                ));
-                setSelectedTemplate(templates[index].value);
-                setCarouselTransitioning(false);
-              }}
-              onScrollEndDrag={(event) => {
-                if (event.nativeEvent.velocity?.x === 0) {
-                  const index = Math.max(0, Math.min(
-                    templates.length - 1,
-                    Math.round(event.nativeEvent.contentOffset.x / pageWidth),
-                  ));
-                  setSelectedTemplate(templates[index].value);
-                  setCarouselTransitioning(false);
-                }
-              }}
-              onContentSizeChange={() => {
-                const index = templates.findIndex((template) => template.value === selectedTemplate);
-                if (index >= 0) scrollRef.current?.scrollTo({ x: index * pageWidth, animated: false });
-                setCarouselTransitioning(false);
-              }}
-            >
-              {templates.map((template) => (
-                <View key={template.value} className="items-center justify-center" style={{ width: pageWidth }}>
-                  <MealShareCard
-                    payload={payload}
-                    template={template.value}
-                    width={cardWidth}
-                    height={cardHeight}
-                    setRef={(view) => { cardRefs.current[template.value] = view; }}
-                    onPhotoLoad={() => setReadiness((current) => ({ ...current, [template.value]: true }))}
-                    onPhotoError={() => setPhotoUnavailable(true)}
-                  />
-                </View>
-              ))}
-            </ScrollView>
-            <View className="px-4 pb-2">
-              <SegmentedControl
-                options={templates}
-                value={selectedTemplate}
-                onChange={changeTemplate}
-                disabled={navigationDisabled}
-              />
-            </View>
+            {carousel}
+            {templateSelector}
           </>
-        ) : null}
+        )}
       </View>
 
-      {saveConfirmationVisible && (
+      {saveConfirmationId > 0 && (
         <View
-          className="absolute bottom-[84px] left-4 right-4 z-10 items-center"
+          className="absolute left-4 right-4 z-10"
+          style={{ bottom: footerHeight + 12 }}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
-          <View className="rounded-full border border-m3-outline-variant bg-m3-surface-container-highest px-4 py-3">
-            <Text className="text-sm font-medium text-m3-on-surface">Meal image saved.</Text>
-          </View>
+          <LogToast
+            key={saveConfirmationId}
+            message="Meal image saved."
+            tone="success"
+            onHide={() => setSaveConfirmationId(0)}
+          />
         </View>
       )}
 
-      <View className="flex-row gap-3 px-4 py-3 border-t border-m3-outline-variant bg-m3-surface-container-low">
+      <View
+        className="flex-row gap-3 px-4 pt-3 border-t border-m3-outline-variant bg-m3-surface-container-low"
+        style={{ paddingBottom: insets.bottom + 12 }}
+        onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+      >
         <Pressable
           onPress={() => void handleSave()}
           disabled={actionsDisabled}
@@ -499,12 +602,12 @@ export default function MealShareComposer({
           accessibilityLabel="Save image"
           accessibilityHint="Saves the selected meal image to your photo library"
           accessibilityState={{ disabled: actionsDisabled, busy: !photoUnavailable && (operation === 'capture-save' || !selectedReady) }}
-          className={`flex-1 min-h-[52px] flex-row items-center justify-center gap-2 rounded-full bg-m3-secondary-container px-4 active:opacity-80 ${actionsDisabled ? 'opacity-40' : ''}`}
+          className={`flex-1 min-h-[52px] flex-row items-center justify-center gap-2 rounded-full bg-m3-secondary-container px-4 py-2 active:opacity-80 ${actionsDisabled ? 'opacity-40' : ''}`}
         >
           {operation === 'capture-save'
             ? <ActivityIndicator color={M3.onSecondaryContainer} />
             : <MaterialIcons name="download" size={20} color={M3.onSecondaryContainer} />}
-          {operation !== 'capture-save' && <Text className="text-sm font-bold text-m3-on-secondary-container">Save image</Text>}
+          {operation !== 'capture-save' && <Text className="text-center text-sm font-bold text-m3-on-secondary-container">Save image</Text>}
         </Pressable>
         <Pressable
           onPress={() => void handleShare()}
@@ -513,12 +616,12 @@ export default function MealShareComposer({
           accessibilityLabel="Share"
           accessibilityHint="Opens the system share sheet with the selected meal image"
           accessibilityState={{ disabled: actionsDisabled, busy: !photoUnavailable && (operation === 'capture-share' || !selectedReady) }}
-          className={`flex-1 min-h-[52px] flex-row items-center justify-center gap-2 rounded-full bg-m3-primary px-4 active:opacity-90 ${actionsDisabled ? 'opacity-40' : ''}`}
+          className={`flex-1 min-h-[52px] flex-row items-center justify-center gap-2 rounded-full bg-m3-primary px-4 py-2 active:opacity-90 ${actionsDisabled ? 'opacity-40' : ''}`}
         >
           {operation === 'capture-share'
             ? <ActivityIndicator color={M3.onPrimary} />
             : <MaterialIcons name="share" size={20} color={M3.onPrimary} />}
-          {operation !== 'capture-share' && <Text className="text-sm font-bold text-m3-on-primary">Share</Text>}
+          {operation !== 'capture-share' && <Text className="text-center text-sm font-bold text-m3-on-primary">Share</Text>}
         </Pressable>
       </View>
     </View>

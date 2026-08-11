@@ -858,7 +858,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
         payload={mealMedia?.payload ?? null}
         initialMode={mealMedia?.initialMode ?? 'photo'}
         onClose={handleClosePhoto}
-        onImageSaved={() => showToast('Meal image saved.')}
       />
 
     </SafeAreaView>

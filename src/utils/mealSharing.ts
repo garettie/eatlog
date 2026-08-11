@@ -21,6 +21,23 @@ export interface MealSharePayload {
   componentHeading: 'Components' | 'Estimated components';
 }
 
+export function getMealShareComponentRows(componentNames: readonly string[]): string[] {
+  return componentNames.length > 5
+    ? [...componentNames.slice(0, 4), `+${componentNames.length - 4} more`]
+    : [...componentNames];
+}
+
+export function getMealSharePreviewAccessibilityLabel(
+  payload: MealSharePayload,
+  template: MealShareTemplateId,
+): string {
+  const nutrition = `${Math.round(payload.calories)} kilocalories. Protein ${Math.round(payload.protein)} grams. Carbohydrates ${Math.round(payload.carbs)} grams. Fat ${Math.round(payload.fat)} grams.`;
+  if (template === 'components') {
+    return `Components preview. ${payload.name}. ${nutrition} ${payload.componentHeading}: ${getMealShareComponentRows(payload.componentNames).join(', ')}.`;
+  }
+  return `${template === 'summary' ? 'Summary' : 'Macros'} preview. ${payload.name}. ${nutrition}`;
+}
+
 export function buildMealSharePayload(meal: ShareableMealInput): MealSharePayload | null {
   const photoUri = meal.photoUri?.trim();
   if (!photoUri) return null;

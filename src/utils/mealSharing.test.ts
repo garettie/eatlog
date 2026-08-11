@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { FoodLog } from '../db/database';
-import { buildMealSharePayload } from './mealSharing';
+import { buildMealSharePayload, getMealShareComponentRows, getMealSharePreviewAccessibilityLabel } from './mealSharing';
 
 function component(overrides: Partial<FoodLog> = {}): FoodLog {
   return {
@@ -135,4 +135,28 @@ test('falls back to Meal only for an empty trimmed name', () => {
     photoUri: 'file:///meal.jpg',
     components: [component()],
   })?.name, 'Meal');
+});
+
+test('describes the selected export template with the same visible component truncation', () => {
+  const payload = buildMealSharePayload({
+    id: 13,
+    name: 'Dinner',
+    photoUri: 'file:///meal.jpg',
+    components: [
+      component({ id: 1, name: 'One' }),
+      component({ id: 2, name: 'Two' }),
+      component({ id: 3, name: 'Three' }),
+      component({ id: 4, name: 'Four' }),
+      component({ id: 5, name: 'Five' }),
+      component({ id: 6, name: 'Six' }),
+    ],
+  });
+  assert.ok(payload);
+  assert.deepEqual(getMealShareComponentRows(payload.componentNames), ['One', 'Two', 'Three', 'Four', '+2 more']);
+  assert.equal(
+    getMealSharePreviewAccessibilityLabel(payload, 'components'),
+    'Components preview. Dinner. 741 kilocalories. Protein 27 grams. Carbohydrates 134 grams. Fat 7 grams. Components: One, Two, Three, Four, +2 more.',
+  );
+  assert.match(getMealSharePreviewAccessibilityLabel(payload, 'summary'), /^Summary preview\./);
+  assert.match(getMealSharePreviewAccessibilityLabel(payload, 'macros'), /^Macros preview\./);
 });
