@@ -17,9 +17,9 @@ This draft is not a live support page. Before publication, the owner must add th
 
 ## Online estimates or food search are unavailable
 
-Check that the device has an internet connection, then retry. Scan and Describe require the Eatlog Worker and Google Gemini. USDA search uses the Eatlog Worker. Open Food Facts runs only after you explicitly press Search and requires a release build with the provider contact configured. Manual logging, personal history, targets, and local analytics remain available without these services.
+Check that the device has an internet connection, then retry. Scan and Describe use Eatlog’s online estimation service. USDA search also runs online. Open Food Facts runs only after you press Search and requires a release build with provider contact details. Manual logging, personal history, targets, and local analytics remain available without these services.
 
-If an estimate is returned, review its foods, amounts, and nutrition before saving. Estimates and community food data can be incomplete or wrong.
+Review each estimate before saving it. Estimates and community food data can be incomplete or wrong.
 
 ## Camera or photo access is unavailable
 

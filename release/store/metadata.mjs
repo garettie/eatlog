@@ -35,7 +35,7 @@ Keep your data on your phone
 Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
 
 Online services and estimates
-Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose through the Eatlog Cloudflare Worker to Google Gemini. USDA searches use the Worker. Open Food Facts is contacted directly only when you run a full search. These features require internet access.
+Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose to online services for a nutrition estimate. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. These features require internet access.
 
 Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
 
@@ -66,7 +66,7 @@ KEEP YOUR DATA ON YOUR PHONE
 Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
 
 ONLINE SERVICES AND ESTIMATES
-Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose through the Eatlog Cloudflare Worker to Google Gemini. USDA searches use the Worker. Open Food Facts is contacted directly only when you run a full search. These features require internet access.
+Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose to online services for a nutrition estimate. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. These features require internet access.
 
 Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
 

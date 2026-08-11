@@ -245,29 +245,29 @@ export function HowEatlogWorksScreen() {
 export function PrivacyScreen() {
     const healthConnectAvailable = supportsHealthConnect(Platform.OS);
     const estimateCopy = serviceConfig.availability.gemini
-        ? 'When you choose Scan, Describe, or re-estimate, Eatlog sends the selected photo or text to the Eatlog Worker, which sends it to Google Gemini for an estimate. Cloudflare uses an app-scoped installation token and IP address for rate limiting.'
-        : 'Meal estimates are unavailable in this build.';
+        ? 'When you scan, describe, or re-estimate a meal, Eatlog sends the photo or text to a third-party AI service to create the estimate. The request passes through Eatlog’s online service, which uses an app-specific token and your IP address to prevent abuse.'
+        : 'This version of Eatlog can’t estimate meals.';
     const searchCopy = serviceConfig.availability.usda && serviceConfig.availability.openFoodFacts
-        ? 'Typing sends the query to the Eatlog Worker for USDA results. Pressing Search also sends it directly to Open Food Facts. Recent results stay briefly in memory.'
+        ? 'As you type, Eatlog looks for matches from USDA. Tap Search to include Open Food Facts. Eatlog keeps recent results in memory for a short time.'
         : serviceConfig.availability.usda
-            ? 'Typing sends the query to the Eatlog Worker for USDA results. Recent results stay briefly in memory.'
+            ? 'As you type, Eatlog looks for matches from USDA and keeps recent results in memory for a short time.'
             : serviceConfig.availability.openFoodFacts
-                ? 'Pressing Search sends the query directly to Open Food Facts. It does not run while you type.'
-                : 'Online food search is unavailable in this build.';
+                ? 'Eatlog searches Open Food Facts only after you tap Search, not while you type.'
+                : 'This version of Eatlog can’t search for food online.';
 
     return (
         <Screen>
             <PageIntro
                 title="Data storage and sharing"
-                detail="Eatlog stores your profile, logs, and meal photos on this phone. You don't need an account."
+                detail="Your profile, logs, and meal photos stay on this phone. You don’t need an account to use Eatlog."
             />
 
             <Callout
                 icon="verified-user"
                 title="Local by default"
                 detail={healthConnectAvailable
-                    ? 'Eatlog uses online services when you scan, describe, or search for food. You control exports and Health Connect.'
-                    : 'Eatlog uses online services when you scan, describe, or search for food. You control exports and deletion.'}
+                    ? 'Eatlog goes online only when you scan, describe, or search for food. You decide what to export and whether to connect Health Connect.'
+                    : 'Eatlog goes online only when you scan, describe, or search for food. You decide what to export or delete.'}
             />
 
             <View className="gap-3">
@@ -285,7 +285,7 @@ export function PrivacyScreen() {
                         <InfoRow
                             icon="health-and-safety"
                             title="Health Connect"
-                            detail="When you connect Health Connect, Eatlog reads weight records and writes your weigh-ins using the permissions you grant."
+                            detail="If you connect Health Connect, Eatlog can read weight records and add your weigh-ins. It only uses the permissions you approve."
                             last
                         />
                     </Card>
@@ -295,14 +295,14 @@ export function PrivacyScreen() {
             <View className="gap-3">
                 <SectionTitle title="Files and deletion" />
                 <Card className="overflow-hidden">
-                    <InfoRow icon="backup" title="Backups" detail="A backup includes your database and saved meal photos." />
-                    <InfoRow icon="file-download" title="CSV exports" detail="Eatlog exports readable history without photos or sync data." />
+                    <InfoRow icon="backup" title="Backups" detail="Your backup contains your Eatlog database and saved meal photos." />
+                    <InfoRow icon="file-download" title="CSV exports" detail="A CSV gives you a readable copy of your history. It doesn’t include photos or sync data." />
                     <InfoRow
                         icon="delete-outline"
                         title="Delete all data"
                         detail={healthConnectAvailable
-                            ? 'When you confirm deletion, Eatlog removes local data and meal photos, then tries to remove its Health Connect entries.'
-                            : 'When you confirm deletion, Eatlog removes local data and meal photos from this device.'}
+                            ? 'Delete all data removes everything Eatlog stores on this phone, including meal photos. Eatlog will also try to remove the entries it added to Health Connect.'
+                            : 'Delete all data removes everything Eatlog stores on this phone, including meal photos.'}
                         last
                     />
                 </Card>
@@ -313,9 +313,6 @@ export function PrivacyScreen() {
 
 export function AboutScreen() {
     const application = getApplicationInfo();
-    const geminiDetail = serviceConfig.availability.gemini
-        ? 'Meal estimates · Available'
-        : 'Meal estimates · Unavailable in this build';
     const usdaDetail = serviceConfig.availability.usda
         ? 'Food search · Available'
         : 'Food search · Unavailable in this build';
@@ -357,13 +354,6 @@ export function AboutScreen() {
                 <SectionTitle title="Data sources" detail="See which services this build can use." />
                 <Card className="overflow-hidden">
                     <LinkRow
-                        icon="auto-awesome"
-                        title="Google Gemini"
-                        detail={geminiDetail}
-                        external
-                        onPress={() => openExternalLink('Google Gemini', 'https://ai.google.dev/gemini-api/docs')}
-                    />
-                    <LinkRow
                         icon="science"
                         title="USDA FoodData Central"
                         detail={usdaDetail}
@@ -390,7 +380,7 @@ export function AttributionsScreen() {
         <Screen>
             <PageIntro
                 title="Licenses and attributions"
-                detail="Data, services, fonts, and open-source software used by Eatlog."
+                detail="The data, services, fonts, and open-source projects that help Eatlog work."
             />
 
             <Card className="overflow-hidden">
@@ -411,21 +401,21 @@ export function AttributionsScreen() {
                     <LinkRow
                         icon="public"
                         title="Open Food Facts reuse terms"
-                        detail="Database and content licenses"
+                        detail="See how its database, content, and images may be reused"
                         external
                         onPress={() => openExternalLink('Open Food Facts reuse terms', 'https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/')}
                     />
                     <LinkRow
                         icon="science"
                         title="USDA FoodData Central"
-                        detail="Data and API documentation"
+                        detail="Learn about its food data and API"
                         external
                         onPress={() => openExternalLink('USDA FoodData Central', 'https://fdc.nal.usda.gov/data-documentation.html')}
                     />
                     <LinkRow
                         icon="font-download"
                         title="Onest license"
-                        detail="SIL Open Font License 1.1"
+                        detail="Read the SIL Open Font License 1.1"
                         external
                         last
                         onPress={() => openExternalLink('Onest license', 'https://github.com/simpals/onest/blob/main/OFL.txt')}

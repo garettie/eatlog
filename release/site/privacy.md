@@ -65,7 +65,7 @@ Eatlog is intended for adults and general wellness use. Its nutrition and weight
 
 ## Data sources and licenses
 
-Open Food Facts database data is available under the Open Database License; individual database contents use the Database Contents License; product images use a Creative Commons Attribution-ShareAlike license. USDA FoodData Central is a U.S. government data source. Eatlog shows attributions for Google Gemini, Cloudflare, Open Food Facts, USDA, the bundled Onest font, third-party software, and Eatlog's 0BSD license in Profile → Licenses and attributions.
+Open Food Facts database data is available under the Open Database License; individual database contents use the Database Contents License; product images use a Creative Commons Attribution-ShareAlike license. USDA FoodData Central is a U.S. government data source. Eatlog shows attributions for Open Food Facts, USDA, the bundled Onest font, third-party software, and Eatlog's 0BSD license in Profile → Licenses and attributions.
 
 ## Contact
 
