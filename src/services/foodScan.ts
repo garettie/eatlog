@@ -3,14 +3,31 @@ import { buildFoodPortions, normalizeFoodName } from './foodSearchCore';
 import type { FoodResult } from './foodSearch';
 import { getInstallationToken, isInstallationToken } from './installIdentity';
 import {
-    type GeminiFoodEstimateResponse,
+    type FoodEstimateResponse,
     isRecognizedFoodEstimate,
     isUnrecognizedFoodEstimate,
-} from './foodScanPrompts';
+} from './foodScanContract';
 
 export interface DescribeResult {
     mealName: string;
     components: FoodResult[];
+    originalDescription?: string;
+}
+
+export interface EstimateContextComponent {
+    name: string;
+    estimatedGrams: number;
+}
+
+export interface MealClarificationInput {
+    name: string;
+    originalDescription?: string;
+    components: EstimateContextComponent[];
+    imageBase64?: string;
+}
+
+export interface ComponentClarificationInput extends MealClarificationInput {
+    mealName: string;
 }
 
 export type FoodEstimationFailureKind = 'unavailable' | 'network' | 'timeout' | 'provider' | 'invalid-response' | 'unrecognized';
@@ -19,6 +36,23 @@ export type FoodEstimationResult =
     | { ok: false; kind: FoodEstimationFailureKind; message: string };
 
 type EstimateOperation = 'scan' | 'describe' | 'clarify-meal' | 'clarify-component';
+const MAX_CONTEXT_COMPONENTS = 20;
+const MAX_CONTEXT_DESCRIPTION_LENGTH = 500;
+const MAX_CONTEXT_NAME_LENGTH = 120;
+const MAX_CONTEXT_GRAMS = 10_000;
+const MAX_CLARIFICATION_NAME_LENGTH = 200;
+
+interface EstimateContext {
+    originalDescription?: string;
+    mealName?: string;
+    components: EstimateContextComponent[];
+}
+
+interface EstimateInput {
+    text?: string;
+    imageBase64?: string;
+    context?: EstimateContext;
+}
 
 export interface FoodEstimateClientOptions {
     workerUrl: string;
@@ -45,8 +79,33 @@ function normalizeScanName(name: string): string {
     return lowered.replace(/(^|\s)\S/g, (character) => character.toUpperCase());
 }
 
+function buildEstimateContext(input: {
+    originalDescription?: string;
+    mealName?: string;
+    components: EstimateContextComponent[];
+}): EstimateContext | undefined {
+    const components = input.components
+        .map((component) => ({
+            name: component.name.trim().slice(0, MAX_CONTEXT_NAME_LENGTH),
+            estimatedGrams: component.estimatedGrams,
+        }))
+        .filter((component) => component.name
+            && Number.isFinite(component.estimatedGrams)
+            && component.estimatedGrams > 0
+            && component.estimatedGrams <= MAX_CONTEXT_GRAMS)
+        .slice(0, MAX_CONTEXT_COMPONENTS);
+    if (components.length === 0) return undefined;
+    const originalDescription = input.originalDescription?.trim().slice(0, MAX_CONTEXT_DESCRIPTION_LENGTH);
+    const mealName = input.mealName?.trim().slice(0, MAX_CONTEXT_NAME_LENGTH);
+    return {
+        ...(originalDescription ? { originalDescription } : {}),
+        ...(mealName ? { mealName } : {}),
+        components,
+    };
+}
+
 function mapComponents(
-    components: GeminiFoodEstimateResponse['components'],
+    components: FoodEstimateResponse['components'],
     source: 'scan' | 'describe',
     timestamp: number,
 ): FoodResult[] {
@@ -91,7 +150,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
 
     async function estimate(
         operation: EstimateOperation,
-        input: { text?: string; imageBase64?: string },
+        input: EstimateInput,
     ): Promise<FoodEstimationResult> {
         if (!options.workerUrl) return failure('unavailable');
         let installId: string;
@@ -116,15 +175,17 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             });
             if (!response.ok) return failure('provider');
             if (!(response.headers.get('content-type') ?? '').includes('application/json')) return failure('invalid-response');
-            const result = await response.json() as GeminiFoodEstimateResponse;
+            const result = await response.json() as FoodEstimateResponse;
             if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');
             if (!isRecognizedFoodEstimate(result)) return failure('invalid-response');
             const source = operation === 'scan' || input.imageBase64 ? 'scan' : 'describe';
+            const originalDescription = operation === 'describe' ? input.text : input.context?.originalDescription;
             return {
                 ok: true,
                 result: {
                     mealName: result.mealName.trim(),
                     components: mapComponents(result.components, source, now()),
+                    ...(originalDescription ? { originalDescription } : {}),
                 },
             };
         } catch (error) {
@@ -146,24 +207,20 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         return estimate('describe', { text: trimmed });
     }
 
-    async function clarifyMeal(options: {
-        name: string;
-        imageBase64?: string;
-    }): Promise<DescribeResult | null> {
+    async function clarifyMeal(options: MealClarificationInput): Promise<DescribeResult | null> {
         const result = await estimate('clarify-meal', {
-            text: options.name.trim(),
+            text: options.name.trim().slice(0, MAX_CLARIFICATION_NAME_LENGTH),
             imageBase64: options.imageBase64,
+            context: buildEstimateContext(options),
         });
         return result.ok ? result.result : null;
     }
 
-    async function clarifyComponent(options: {
-        name: string;
-        imageBase64?: string;
-    }): Promise<FoodResult | null> {
+    async function clarifyComponent(options: ComponentClarificationInput): Promise<FoodResult | null> {
         const result = await estimate('clarify-component', {
-            text: options.name.trim(),
+            text: options.name.trim().slice(0, MAX_CLARIFICATION_NAME_LENGTH),
             imageBase64: options.imageBase64,
+            context: buildEstimateContext(options),
         });
         return result.ok ? result.result.components[0] ?? null : null;
     }

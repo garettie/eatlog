@@ -58,10 +58,101 @@ test('Scan and Describe await the installation token and send the required heade
     assert.equal(requests[0].url, 'https://food.example.workers.dev/v1/estimate');
     assert.equal((requests[0].init?.headers as Record<string, string>)['X-Eatlog-Install-ID'], TOKEN);
     assert.deepEqual(JSON.parse(String(requests[0].init?.body)), { operation: 'describe', text: 'rice' });
-    if (result.ok) assert.equal(result.result.components[0].id, 'describe-42-0');
+    if (result.ok) {
+        assert.equal(result.result.components[0].id, 'describe-42-0');
+        assert.equal(result.result.originalDescription, 'rice');
+    }
 
     await client.scanFood('c3ludGhldGlj');
     assert.deepEqual(JSON.parse(String(requests[1].init?.body)), { operation: 'scan', imageBase64: 'c3ludGhldGlj' });
+});
+
+test('clarification sends source description and current component context', async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async (_input, init) => {
+            requests.push(JSON.parse(String(init?.body)));
+            return jsonResponse(recognizedEstimate());
+        }) as typeof fetch,
+    });
+    const context = {
+        originalDescription: 'one cup rice and chicken adobo',
+        components: [
+            { name: 'Rice', estimatedGrams: 180 },
+            { name: 'Chicken adobo', estimatedGrams: 150 },
+        ],
+    };
+
+    await client.clarifyMeal({
+        name: 'Chicken adobo with rice',
+        ...context,
+    });
+    await client.clarifyComponent({
+        name: 'Braised chicken thigh',
+        mealName: 'Chicken adobo with rice',
+        ...context,
+    });
+
+    assert.deepEqual(requests[0], {
+        operation: 'clarify-meal',
+        text: 'Chicken adobo with rice',
+        context,
+    });
+    assert.deepEqual(requests[1], {
+        operation: 'clarify-component',
+        text: 'Braised chicken thigh',
+        context: { ...context, mealName: 'Chicken adobo with rice' },
+    });
+});
+
+test('clarification context is capped before upload', async () => {
+    let requestBody: any;
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async (_input, init) => {
+            requestBody = JSON.parse(String(init?.body));
+            return jsonResponse(recognizedEstimate());
+        }) as typeof fetch,
+    });
+
+    await client.clarifyMeal({
+        name: 'Meal',
+        originalDescription: 'd'.repeat(1_000),
+        components: Array.from({ length: 25 }, (_, index) => ({
+            name: `${index}-${'n'.repeat(200)}`,
+            estimatedGrams: 100,
+        })),
+    });
+
+    assert.equal(requestBody.context.originalDescription.length, 500);
+    assert.equal(requestBody.context.components.length, 20);
+    assert.ok(requestBody.context.components.every((component: { name: string }) => component.name.length <= 120));
+    assert.ok(Buffer.byteLength(JSON.stringify(requestBody)) < 4_000);
+});
+
+test('clarification context mirrors the Worker gram boundary', async () => {
+    let requestBody: any;
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async (_input, init) => {
+            requestBody = JSON.parse(String(init?.body));
+            return jsonResponse(recognizedEstimate());
+        }) as typeof fetch,
+    });
+
+    await client.clarifyMeal({
+        name: 'Meal',
+        components: [
+            { name: 'Allowed', estimatedGrams: 10_000 },
+            { name: 'Too large', estimatedGrams: 10_000.1 },
+        ],
+    });
+
+    assert.deepEqual(requestBody.context.components, [{ name: 'Allowed', estimatedGrams: 10_000 }]);
 });
 
 test('identity failure and malformed injected tokens fail closed without upload or token leakage', async () => {

@@ -257,6 +257,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Gemini Flash-Lite rejects `maxItems` in Eatlog's `responseSchema`; omit it from the provider schema and enforce `MAX_COMPONENTS` after response normalization.
 - How Eatlog Works must keep research references visible inline; do not hide them behind an accordion or disclosure.
 - When a user requests a complete Impeccable command set, load and execute every named command playbook; never substitute `polish` as an umbrella workflow.
+- Food-estimation prompts must stay Worker-owned under a test-enforced request-size budget; clarification context sends only source text plus component names and grams.
 
 ---
 

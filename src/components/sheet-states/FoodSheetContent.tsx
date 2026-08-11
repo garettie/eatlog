@@ -11,7 +11,15 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 
-import { scanFood, clarifyComponent, clarifyMeal, type DescribeResult, type FoodEstimationFailureKind } from '../../services/foodScan';
+import {
+    scanFood,
+    clarifyComponent,
+    clarifyMeal,
+    type ComponentClarificationInput,
+    type DescribeResult,
+    type FoodEstimationFailureKind,
+    type MealClarificationInput,
+} from '../../services/foodScan';
 import { serviceConfig } from '../../config/services';
 import type { FoodResult } from '../../services/foodSearch';
 import { foodResultFromLog } from '../../services/foodSearchCore';
@@ -450,15 +458,15 @@ export default function FoodSheetContent({
     }, [transitionTo, resetToEntry]);
 
     const handleClarify = useCallback(
-        async (name: string): Promise<DescribeResult | null> => {
-            return clarifyMeal({ name, imageBase64: scanBase64Ref.current ?? undefined });
+        async (input: MealClarificationInput): Promise<DescribeResult | null> => {
+            return clarifyMeal({ ...input, imageBase64: scanBase64Ref.current ?? undefined });
         },
         [],
     );
 
     const handleClarifyComponent = useCallback(
-        async (name: string): Promise<FoodResult | null> => {
-            return clarifyComponent({ name, imageBase64: scanBase64Ref.current ?? undefined });
+        async (input: ComponentClarificationInput): Promise<FoodResult | null> => {
+            return clarifyComponent({ ...input, imageBase64: scanBase64Ref.current ?? undefined });
         },
         [],
     );

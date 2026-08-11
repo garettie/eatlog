@@ -21,7 +21,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { type MealType, saveMealWithComponents } from "../../db/database";
 import type { FoodResult } from "../../services/foodSearch";
-import type { DescribeResult } from "../../services/foodScan";
+import type {
+	ComponentClarificationInput,
+	DescribeResult,
+	EstimateContextComponent,
+	MealClarificationInput,
+} from "../../services/foodScan";
 import { EASING } from "../../theme/motion";
 import { defaultMealForNow } from "../../utils/calculations";
 import { useToday } from "../../hooks/useToday";
@@ -94,6 +99,20 @@ function toEditable(food: FoodResult): EditableComponent {
 	};
 }
 
+function toEstimateContext(components: EditableComponent[]): EstimateContextComponent[] {
+	return components
+		.map((component) => ({
+			name: component.food.name.trim(),
+			estimatedGrams: component.selection.grams,
+		}))
+		.filter(
+			(component) =>
+				component.name.length > 0 &&
+				Number.isFinite(component.estimatedGrams) &&
+				component.estimatedGrams > 0,
+		);
+}
+
 function formatCollapsedPortion(
 	component: EditableComponent,
 	serving: FoodResult["portions"][number] | null,
@@ -122,8 +141,8 @@ interface ReviewStateProps {
 		wasUpdate: boolean;
 		logDate: string;
 	}) => void;
-	onClarify: (name: string) => Promise<DescribeResult | null>;
-	onClarifyComponent: (name: string) => Promise<FoodResult | null>;
+	onClarify: (input: MealClarificationInput) => Promise<DescribeResult | null>;
+	onClarifyComponent: (input: ComponentClarificationInput) => Promise<FoodResult | null>;
 	editMealId?: number | null;
 	initialMeal?: MealType | null;
 	/** Diary date to write to (backfill); null = today. Preserves the original date when editing a meal. */
@@ -611,7 +630,11 @@ export default function ReviewState({
 		setClarifyError(null);
 		setClarifying(true);
 		try {
-			const newResult = await onClarify(name);
+			const newResult = await onClarify({
+				name,
+				originalDescription: result?.originalDescription,
+				components: toEstimateContext(components),
+			});
 			if (!newResult || newResult.components.length === 0) {
 				setClarifyError("Couldn't re-estimate. Try a different name.");
 				setClarifying(false);
@@ -628,7 +651,7 @@ export default function ReviewState({
 		} finally {
 			setClarifying(false);
 		}
-	}, [mealName, clarifying, onClarify, components, showUndo]);
+	}, [mealName, clarifying, onClarify, result?.originalDescription, components, showUndo]);
 
 	const handleClarifyComponent = useCallback(
 		async (component: EditableComponent) => {
@@ -637,7 +660,12 @@ export default function ReviewState({
 			setComponentClarifyError(null);
 			setClarifyingComponentId(component.food.id);
 			try {
-				const clarified = await onClarifyComponent(name);
+				const clarified = await onClarifyComponent({
+					name,
+					mealName: mealName.trim(),
+					originalDescription: result?.originalDescription,
+					components: toEstimateContext(components),
+				});
 				if (!clarified) {
 					setComponentClarifyError({
 						id: component.food.id,
@@ -677,7 +705,14 @@ export default function ReviewState({
 				setClarifyingComponentId(null);
 			}
 		},
-		[clarifyingComponentId, onClarifyComponent, showUndo],
+		[
+			clarifyingComponentId,
+			onClarifyComponent,
+			mealName,
+			result?.originalDescription,
+			components,
+			showUndo,
+		],
 	);
 
 	return (
