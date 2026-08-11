@@ -4,12 +4,9 @@ ijfw_schema: 1
 type: software
 primary_type: software
 secondary_types: []
-confidence: 0.943
-detected_at: 2026-08-01T06:44:21.319Z
+confidence: 0.907
+detected_at: 2026-07-29T01:14:49.485Z
 signals:
-  - kind: agents_md_frontmatter
-    weight: 0.9
-    value: software
   - kind: manifest
     weight: 0.9
     manifests: [package.json]
@@ -20,7 +17,7 @@ signals:
     weight: 0.7
     domain: software
     ratio: 1
-    count: 87
+    count: 70
 ---
 # AGENTS.md
 
