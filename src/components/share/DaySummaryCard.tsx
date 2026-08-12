@@ -5,7 +5,7 @@ import { M3 } from '../../theme/tokens';
 import { parseLocalISO } from '../../utils/calendar';
 import type { DaySummaryShareData } from '../../utils/shareCards';
 import {
-  BrandBadge,
+  BrandMark,
   CANVAS_PADDING,
   CaloriesFigure,
   LiquidMacroCapsule,
@@ -51,7 +51,7 @@ export default function DaySummaryCard({
               {displayDate(data.logDate)}
             </Text>
           </View>
-          {showBranding && <BrandBadge />}
+          {showBranding && <BrandMark />}
         </View>
 
         <View className="mt-9">

@@ -1,5 +1,5 @@
 import type React from 'react';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 
 import { M3, TYPE } from '../../theme/tokens';
 import type { ShareMacroValue } from '../../utils/shareCards';
@@ -43,31 +43,30 @@ export function StoryCanvas({
   );
 }
 
-export function BrandBadge({ dark = false }: { dark?: boolean }) {
+export function BrandMark({ dark = false }: { dark?: boolean }) {
   return (
     <View
-      className="min-h-[30px] flex-row items-center rounded-full px-3"
+      className="min-h-[32px] flex-row items-center gap-2 rounded-full px-2.5"
       style={{
         backgroundColor: dark ? `${M3.surfaceContainerLowest}d9` : M3.surfaceContainerHigh,
         borderColor: dark ? `${M3.primary}33` : M3.outlineVariant,
         borderWidth: 1,
       }}
+      accessible={false}
     >
-      <View className="flex-row items-center gap-2">
-        <Text
-          maxFontSizeMultiplier={1}
-          className="text-xs font-semibold"
-          style={{ color: dark ? M3.primary : M3.onSurface }}
-        >
-          Eatlog
-        </Text>
-        {dark && (
-          <View
-            className="rounded-full"
-            style={{ width: 6, height: 6, backgroundColor: M3.calories }}
-          />
-        )}
-      </View>
+      <Image
+        source={require('../../../assets/icon.png')}
+        resizeMode="contain"
+        fadeDuration={0}
+        style={{ width: 18, height: 18, borderRadius: 5 }}
+      />
+      <Text
+        maxFontSizeMultiplier={1}
+        className="text-xs font-semibold"
+        style={{ color: dark ? M3.primary : M3.onSurface }}
+      >
+        Eatlog
+      </Text>
     </View>
   );
 }
@@ -98,17 +97,18 @@ export function LiquidMacroCapsule({
         {Math.round(value.grams)}g
       </Text>
       <View
-        className="mt-3 w-[68px] overflow-hidden rounded-full border"
+        className="mt-3 w-[68px] justify-end overflow-hidden rounded-full border"
         style={{
           height,
           backgroundColor: M3.surfaceContainerHigh,
           borderColor: M3.outline,
         }}
       >
-        <View className="overflow-hidden rounded-full" style={{ flex: 1 }}>
-          <View style={{ flex: progress, backgroundColor: color }}>
-            <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.28)' }} />
-          </View>
+        <View
+          className="overflow-hidden rounded-full"
+          style={{ height: Math.round(height * progress), backgroundColor: color }}
+        >
+          <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.28)' }} />
         </View>
       </View>
       <Text maxFontSizeMultiplier={1} className="mt-3 text-sm font-semibold text-m3-on-surface">

@@ -1,12 +1,14 @@
 import React from 'react';
 import { Image, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { M3 } from '../../theme/tokens';
 import { parseLocalISO } from '../../utils/calendar';
+import { foodIcon } from '../../utils/foodIcons';
 import type { MealCardLayout, MealShareData } from '../../utils/shareCards';
 import {
-  BrandBadge,
+  BrandMark,
   CANVAS_PADDING,
   CaloriesFigure,
   LiquidMacroCapsule,
@@ -27,7 +29,7 @@ function displayTimestamp(data: MealShareData): string {
   return [meal, date, time].filter(Boolean).join(' · ');
 }
 
-function MealImage({
+function MealMedia({
   data,
   className,
   resizeMode,
@@ -40,6 +42,19 @@ function MealImage({
   onLoad?: () => void;
   onError?: () => void;
 }) {
+  if (!data.photoUri) {
+    return (
+      <View
+        className={`${className} items-center justify-center bg-m3-surface-container-high`}
+        onLayout={() => onLoad?.()}
+      >
+        <View className="h-12 w-12 items-center justify-center rounded-full bg-m3-surface-container-highest">
+          <MaterialCommunityIcons name={foodIcon(data.name)} size={24} color={M3.onSurfaceVariant} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <Image
       source={{ uri: data.photoUri }}
@@ -61,7 +76,7 @@ function FullBleedMeal({
 }: MealLayoutProps) {
   return (
     <View className="flex-1 bg-m3-surface-container-lowest">
-      <MealImage data={data} className="absolute inset-0 h-full w-full" resizeMode="cover" onLoad={onPhotoLoad} onError={onPhotoError} />
+      <MealMedia data={data} className="absolute inset-0 h-full w-full" resizeMode="cover" onLoad={onPhotoLoad} onError={onPhotoError} />
       <Svg
         pointerEvents="none"
         width={360}
@@ -79,7 +94,7 @@ function FullBleedMeal({
       </Svg>
       {showBranding && (
         <View className="absolute right-6 top-7">
-          <BrandBadge dark />
+          <BrandMark dark />
         </View>
       )}
       <View className="absolute bottom-0 left-0 right-0 px-6 pb-7">
@@ -119,10 +134,10 @@ function FramedMeal({
         <Text maxFontSizeMultiplier={1} className="flex-1 text-sm font-medium text-m3-on-surface-variant">
           {displayTimestamp(data)}
         </Text>
-        {showBranding && <BrandBadge />}
+        {showBranding && <BrandMark />}
       </View>
       <View className="mt-5 h-[334px] overflow-hidden rounded-3xl bg-m3-surface-container-high">
-        <MealImage data={data} className="h-full w-full" resizeMode="cover" onLoad={onPhotoLoad} onError={onPhotoError} />
+        <MealMedia data={data} className="h-full w-full" resizeMode="cover" onLoad={onPhotoLoad} onError={onPhotoError} />
       </View>
       <Text maxFontSizeMultiplier={1} className="mt-5 text-2xl font-bold text-m3-on-surface" numberOfLines={2}>
         {data.name}
@@ -159,11 +174,11 @@ function StatMeal({
       }}
     >
       <View className="min-h-[30px] items-end">
-        {showBranding && <BrandBadge />}
+        {showBranding && <BrandMark />}
       </View>
       <View className="mt-5 flex-row items-center gap-4">
         <View className="h-[78px] w-[78px] overflow-hidden rounded-2xl bg-m3-surface-container-high">
-          <MealImage data={data} className="h-full w-full" resizeMode="cover" onLoad={onPhotoLoad} onError={onPhotoError} />
+          <MealMedia data={data} className="h-full w-full" resizeMode="cover" onLoad={onPhotoLoad} onError={onPhotoError} />
         </View>
         <View className="min-w-0 flex-1">
           <Text maxFontSizeMultiplier={1} className="text-2xl font-bold text-m3-on-surface" numberOfLines={2}>
@@ -210,7 +225,7 @@ export default function MealCard({
 }) {
   return (
     <StoryCanvas width={width} height={height}>
-      {layout === 'full-bleed' ? (
+      {layout === 'photo' ? (
         <FullBleedMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
       ) : layout === 'framed' ? (
         <FramedMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />

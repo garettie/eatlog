@@ -1,7 +1,16 @@
 import type { DailyTarget, FoodLog, MealType } from '../db/database';
-import { addCalendarDays, parseLocalISO } from './calendar';
+import { parseLocalISO } from './calendar';
+import { buildLoggingHeatmap, type LoggingHeatmapModel } from './loggingHeatmap';
 
-export type MealCardLayout = 'full-bleed' | 'framed' | 'stat';
+export const SHARE_IMAGE = {
+  width: 1080,
+  height: 1920,
+  format: 'png',
+  mimeType: 'image/png',
+  extension: 'png',
+} as const;
+
+export type MealCardLayout = 'photo' | 'framed' | 'nutrition';
 
 export interface ShareMacroValue {
   grams: number;
@@ -21,7 +30,7 @@ export interface DaySummaryShareData {
 export interface MealShareData {
   mealId: number;
   name: string;
-  photoUri: string;
+  photoUri: string | null;
   logDate: string;
   loggedAt: string;
   mealType: MealType;
@@ -32,24 +41,16 @@ export interface MealShareData {
   fat: ShareMacroValue;
 }
 
-export interface StreakDay {
-  date: string;
-  complete: boolean;
-}
-
-export interface StreakShareData {
+export interface ConsistencyShareData extends LoggingHeatmapModel {
   endDate: string;
-  currentStreak: number;
-  longestStreak: number;
-  lastSevenDays: StreakDay[];
 }
 
 export type ShareContent =
   | { kind: 'day'; data: DaySummaryShareData }
   | { kind: 'meal'; data: MealShareData }
-  | { kind: 'streak'; data: StreakShareData };
+  | { kind: 'consistency'; data: ConsistencyShareData };
 
-export type ShareRequest = ShareContent | readonly ShareContent[];
+export type ShareRequest = ShareContent;
 
 interface MacroTotals {
   calories: number;
@@ -96,8 +97,8 @@ export function buildMealShareData(
   meal: ShareableMealInput,
   target: DailyTarget | null,
 ): MealShareData | null {
-  const photoUri = meal.photoUri?.trim();
-  if (!photoUri || meal.components.length === 0) return null;
+  if (meal.components.length === 0) return null;
+  const photoUri = meal.photoUri?.trim() || null;
 
   let calories = 0;
   let protein = 0;
@@ -128,47 +129,17 @@ export function buildMealShareData(
   };
 }
 
-export function buildStreakShareData(
+export function buildConsistencyShareData(
   endDate: string,
   loggedDates: readonly string[],
-): StreakShareData {
-  parseLocalISO(endDate);
-  const dates = [...new Set(loggedDates)]
-    .filter((date) => {
-      parseLocalISO(date);
-      return date <= endDate;
-    })
-    .sort();
-  const logged = new Set(dates);
-
-  let longestStreak = 0;
-  let run = 0;
-  let previous: string | null = null;
-  for (const date of dates) {
-    run = previous != null && addCalendarDays(previous, 1) === date ? run + 1 : 1;
-    longestStreak = Math.max(longestStreak, run);
-    previous = date;
-  }
-
-  let currentStreak = 0;
-  let cursor = logged.has(endDate) ? endDate : addCalendarDays(endDate, -1);
-  while (logged.has(cursor)) {
-    currentStreak += 1;
-    cursor = addCalendarDays(cursor, -1);
-  }
-
-  const lastSevenDays = Array.from({ length: 7 }, (_, index) => {
-    const date = addCalendarDays(endDate, index - 6);
-    return { date, complete: logged.has(date) };
-  });
-
-  return { endDate, currentStreak, longestStreak, lastSevenDays };
+): ConsistencyShareData {
+  return { endDate, ...buildLoggingHeatmap(endDate, loggedDates) };
 }
 
 export function shareContentKey(content: ShareContent): string {
   switch (content.kind) {
     case 'day': return `day-${content.data.logDate}`;
     case 'meal': return `meal-${content.data.mealId}`;
-    case 'streak': return `streak-${content.data.endDate}`;
+    case 'consistency': return `consistency-${content.data.endDate}`;
   }
 }
