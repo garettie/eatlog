@@ -87,20 +87,26 @@ export function LiquidMacroCapsule({
   height?: number;
 }) {
   const progress = Math.min(1, Math.max(0, value.percentOfGoal ?? 0));
+  const capsuleWidth = 32;
+  const capsuleRadius = 15;
+  const capsuleRight = capsuleWidth - 1;
+  const capsuleCenterX = capsuleWidth / 2;
   const innerHeight = height - 2;
-  const fillHeight = Math.round(innerHeight * progress);
+  const measuredFillHeight = Math.round(innerHeight * progress);
+  const fillHeight = measuredFillHeight > 0
+    ? Math.max(capsuleRadius * 2, measuredFillHeight)
+    : 0;
   const fillTop = 1 + innerHeight - fillHeight;
   const fillBottom = height - 1;
-  const fillRadiusY = Math.min(33, fillHeight / 2);
   const fillPath = fillHeight > 0
     ? [
-        `M 34 ${fillTop}`,
-        `A 33 ${fillRadiusY} 0 0 1 67 ${fillTop + fillRadiusY}`,
-        `V ${fillBottom - fillRadiusY}`,
-        `A 33 ${fillRadiusY} 0 0 1 34 ${fillBottom}`,
-        `A 33 ${fillRadiusY} 0 0 1 1 ${fillBottom - fillRadiusY}`,
-        `V ${fillTop + fillRadiusY}`,
-        `A 33 ${fillRadiusY} 0 0 1 34 ${fillTop}`,
+        `M ${capsuleCenterX} ${fillTop}`,
+        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 ${capsuleRight} ${fillTop + capsuleRadius}`,
+        `V ${fillBottom - capsuleRadius}`,
+        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 ${capsuleCenterX} ${fillBottom}`,
+        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 1 ${fillBottom - capsuleRadius}`,
+        `V ${fillTop + capsuleRadius}`,
+        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 ${capsuleCenterX} ${fillTop}`,
         'Z',
       ].join(' ')
     : null;
@@ -117,14 +123,14 @@ export function LiquidMacroCapsule({
       >
         {Math.round(value.grams)}g
       </Text>
-      <View className="mt-3 w-[68px]" style={{ height }}>
-        <Svg width={68} height={height} pointerEvents="none">
+      <View className="mt-3" style={{ width: capsuleWidth, height }}>
+        <Svg width={capsuleWidth} height={height} pointerEvents="none">
           <Rect
             x={0.5}
             y={0.5}
-            width={67}
+            width={capsuleWidth - 1}
             height={height - 1}
-            rx={33.5}
+            rx={capsuleWidth / 2 - 0.5}
             fill={M3.surfaceContainerHigh}
             stroke={M3.outline}
           />
