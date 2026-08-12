@@ -1,6 +1,6 @@
 import type React from 'react';
 import { Image, Text, View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { ClipPath, Defs, Path, Rect } from 'react-native-svg';
 
 import { M3, TYPE } from '../../theme/tokens';
 import type { ShareMacroValue } from '../../utils/shareCards';
@@ -87,29 +87,28 @@ export function LiquidMacroCapsule({
   height?: number;
 }) {
   const progress = Math.min(1, Math.max(0, value.percentOfGoal ?? 0));
-  const capsuleWidth = 32;
-  const capsuleRadius = 15;
+  const capsuleWidth = 68;
+  const capsuleRadius = 33;
+  const capsuleLeft = 1;
   const capsuleRight = capsuleWidth - 1;
   const capsuleCenterX = capsuleWidth / 2;
   const innerHeight = height - 2;
-  const measuredFillHeight = Math.round(innerHeight * progress);
-  const fillHeight = measuredFillHeight > 0
-    ? Math.max(capsuleRadius * 2, measuredFillHeight)
-    : 0;
-  const fillTop = 1 + innerHeight - fillHeight;
-  const fillBottom = height - 1;
-  const fillPath = fillHeight > 0
-    ? [
-        `M ${capsuleCenterX} ${fillTop}`,
-        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 ${capsuleRight} ${fillTop + capsuleRadius}`,
-        `V ${fillBottom - capsuleRadius}`,
-        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 ${capsuleCenterX} ${fillBottom}`,
-        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 1 ${fillBottom - capsuleRadius}`,
-        `V ${fillTop + capsuleRadius}`,
-        `A ${capsuleRadius} ${capsuleRadius} 0 0 1 ${capsuleCenterX} ${fillTop}`,
-        'Z',
-      ].join(' ')
-    : null;
+  const fillHeight = Math.round(innerHeight * progress);
+  const fillLevel = 1 + innerHeight - fillHeight;
+  const curveDepth = Math.min(16, fillHeight, Math.max(0, fillLevel - 1));
+  const fillPath = progress >= 1
+    ? `M ${capsuleLeft} 1 H ${capsuleRight} V ${height - 1} H ${capsuleLeft} Z`
+    : fillHeight > 0
+      ? [
+          `M ${capsuleLeft} ${fillLevel}`,
+          `C 10 ${fillLevel} 18 ${fillLevel - curveDepth} ${capsuleCenterX} ${fillLevel - curveDepth}`,
+          `C 50 ${fillLevel - curveDepth} 58 ${fillLevel} ${capsuleRight} ${fillLevel}`,
+          `V ${height}`,
+          `H ${capsuleLeft}`,
+          'Z',
+        ].join(' ')
+      : null;
+  const clipId = `macro-capsule-fill-${label.toLowerCase()}`;
   const percentLabel = value.percentOfGoal == null
     ? 'No goal'
     : `${Math.round(value.percentOfGoal * 100)}%`;
@@ -125,6 +124,17 @@ export function LiquidMacroCapsule({
       </Text>
       <View className="mt-3" style={{ width: capsuleWidth, height }}>
         <Svg width={capsuleWidth} height={height} pointerEvents="none">
+          <Defs>
+            <ClipPath id={clipId}>
+              <Rect
+                x={capsuleLeft}
+                y={1}
+                width={capsuleWidth - 2}
+                height={innerHeight}
+                rx={capsuleRadius}
+              />
+            </ClipPath>
+          </Defs>
           <Rect
             x={0.5}
             y={0.5}
@@ -132,9 +142,23 @@ export function LiquidMacroCapsule({
             height={height - 1}
             rx={capsuleWidth / 2 - 0.5}
             fill={M3.surfaceContainerHigh}
+          />
+          {fillPath && (
+            <Path
+              d={fillPath}
+              fill={color}
+              clipPath={`url(#${clipId})`}
+            />
+          )}
+          <Rect
+            x={0.5}
+            y={0.5}
+            width={capsuleWidth - 1}
+            height={height - 1}
+            rx={capsuleWidth / 2 - 0.5}
+            fill="none"
             stroke={M3.outline}
           />
-          {fillPath && <Path d={fillPath} fill={color} />}
         </Svg>
       </View>
       <Text maxFontSizeMultiplier={1} className="mt-3 text-sm font-semibold text-m3-on-surface">
