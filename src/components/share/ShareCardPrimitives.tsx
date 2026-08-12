@@ -1,5 +1,6 @@
 import type React from 'react';
 import { Image, Text, View } from 'react-native';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import { M3, TYPE } from '../../theme/tokens';
 import type { ShareMacroValue } from '../../utils/shareCards';
@@ -86,7 +87,23 @@ export function LiquidMacroCapsule({
   height?: number;
 }) {
   const progress = Math.min(1, Math.max(0, value.percentOfGoal ?? 0));
-  const fillHeight = Math.round(height * progress);
+  const innerHeight = height - 2;
+  const fillHeight = Math.round(innerHeight * progress);
+  const fillTop = 1 + innerHeight - fillHeight;
+  const fillBottom = height - 1;
+  const fillRadiusY = Math.min(33, fillHeight / 2);
+  const fillPath = fillHeight > 0
+    ? [
+        `M 34 ${fillTop}`,
+        `A 33 ${fillRadiusY} 0 0 1 67 ${fillTop + fillRadiusY}`,
+        `V ${fillBottom - fillRadiusY}`,
+        `A 33 ${fillRadiusY} 0 0 1 34 ${fillBottom}`,
+        `A 33 ${fillRadiusY} 0 0 1 1 ${fillBottom - fillRadiusY}`,
+        `V ${fillTop + fillRadiusY}`,
+        `A 33 ${fillRadiusY} 0 0 1 34 ${fillTop}`,
+        'Z',
+      ].join(' ')
+    : null;
   const percentLabel = value.percentOfGoal == null
     ? 'No goal'
     : `${Math.round(value.percentOfGoal * 100)}%`;
@@ -100,25 +117,19 @@ export function LiquidMacroCapsule({
       >
         {Math.round(value.grams)}g
       </Text>
-      <View
-        className="mt-3 w-[68px] overflow-hidden rounded-full border"
-        style={{
-          height,
-          backgroundColor: M3.surfaceContainerHigh,
-          borderColor: M3.outline,
-        }}
-      >
-        {fillHeight > 0 && (
-          <View
-            className="absolute bottom-0 left-0 right-0"
-            style={{
-              height: fillHeight,
-              backgroundColor: color,
-              borderTopLeftRadius: 34,
-              borderTopRightRadius: 34,
-            }}
+      <View className="mt-3 w-[68px]" style={{ height }}>
+        <Svg width={68} height={height} pointerEvents="none">
+          <Rect
+            x={0.5}
+            y={0.5}
+            width={67}
+            height={height - 1}
+            rx={33.5}
+            fill={M3.surfaceContainerHigh}
+            stroke={M3.outline}
           />
-        )}
+          {fillPath && <Path d={fillPath} fill={color} />}
+        </Svg>
       </View>
       <Text maxFontSizeMultiplier={1} className="mt-3 text-sm font-semibold text-m3-on-surface">
         {label}
