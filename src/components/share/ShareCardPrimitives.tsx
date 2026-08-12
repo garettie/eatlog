@@ -54,13 +54,15 @@ export function BrandMark({ dark = false }: { dark?: boolean }) {
       }}
       accessible={false}
     >
-      <Image
-        source={require('../../../assets/icon.png')}
-        resizeMode="contain"
-        fadeDuration={0}
-        style={{ width: 22, height: 22, borderRadius: 6 }}
-        accessible={false}
-      />
+      <View className="h-[22px] w-[22px] overflow-hidden">
+        <Image
+          source={require('../../../assets/adaptive-icon.png')}
+          resizeMode="contain"
+          fadeDuration={0}
+          style={{ position: 'absolute', width: 44, height: 44, left: -11, top: -11 }}
+          accessible={false}
+        />
+      </View>
       <Text
         maxFontSizeMultiplier={1}
         className="text-xs font-semibold"
@@ -107,7 +109,7 @@ export function LiquidMacroCapsule({
         }}
       >
         <View
-          className="overflow-hidden"
+          className="overflow-hidden rounded-full"
           style={{ height: fillHeight, backgroundColor: color }}
         >
           {fillHeight >= 8 && (

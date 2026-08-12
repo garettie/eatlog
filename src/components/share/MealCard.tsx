@@ -70,7 +70,6 @@ function MealMedia({
 
 function FullBleedMeal({
   data,
-  showBranding,
   onPhotoLoad,
   onPhotoError,
 }: MealLayoutProps) {
@@ -92,11 +91,9 @@ function FullBleedMeal({
         </Defs>
         <Rect x={0} y={0} width={360} height={640} fill="url(#meal-bottom-scrim)" />
       </Svg>
-      {showBranding && (
-        <View className="absolute right-6 top-7">
-          <BrandMark dark />
-        </View>
-      )}
+      <View className="absolute right-6 top-7">
+        <BrandMark dark />
+      </View>
       <View className="absolute bottom-0 left-0 right-0 px-6 pb-7">
         <Text maxFontSizeMultiplier={1} className="text-3xl font-bold text-white" numberOfLines={3}>
           {data.name}
@@ -117,7 +114,6 @@ function FullBleedMeal({
 
 function FramedMeal({
   data,
-  showBranding,
   onPhotoLoad,
   onPhotoError,
 }: MealLayoutProps) {
@@ -134,7 +130,7 @@ function FramedMeal({
         <Text maxFontSizeMultiplier={1} className="flex-1 text-sm font-medium text-m3-on-surface-variant">
           {displayTimestamp(data)}
         </Text>
-        {showBranding && <BrandMark />}
+        <BrandMark />
       </View>
       <View className="mt-5 h-[334px] overflow-hidden rounded-3xl bg-m3-surface-container-high">
         <MealMedia data={data} className="h-full w-full" resizeMode="cover" onLoad={onPhotoLoad} onError={onPhotoError} />
@@ -160,7 +156,6 @@ function FramedMeal({
 
 function NutritionMeal({
   data,
-  showBranding,
   onPhotoLoad,
   onPhotoError,
 }: MealLayoutProps) {
@@ -174,7 +169,7 @@ function NutritionMeal({
       }}
     >
       <View className="min-h-[30px] items-end">
-        {showBranding && <BrandMark />}
+        <BrandMark />
       </View>
       <View className="mt-5 flex-row items-center gap-4">
         <View className="h-[78px] w-[78px] overflow-hidden rounded-2xl bg-m3-surface-container-high">
@@ -205,7 +200,6 @@ function NutritionMeal({
 
 interface MealLayoutProps {
   data: MealShareData;
-  showBranding: boolean;
   onPhotoLoad?: () => void;
   onPhotoError?: () => void;
 }
@@ -213,7 +207,6 @@ interface MealLayoutProps {
 export default function MealCard({
   data,
   layout,
-  showBranding,
   width,
   height,
   onPhotoLoad,
@@ -226,11 +219,11 @@ export default function MealCard({
   return (
     <StoryCanvas width={width} height={height}>
       {layout === 'photo' ? (
-        <FullBleedMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
+        <FullBleedMeal data={data} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
       ) : layout === 'framed' ? (
-        <FramedMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
+        <FramedMeal data={data} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
       ) : (
-        <NutritionMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
+        <NutritionMeal data={data} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
       )}
     </StoryCanvas>
   );

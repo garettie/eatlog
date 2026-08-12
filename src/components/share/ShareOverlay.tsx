@@ -17,10 +17,6 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
 import { captureRef, releaseCapture } from 'react-native-view-shot';
 
-import {
-  getShareBrandingEnabled,
-  setShareBrandingEnabled,
-} from '../../db/database';
 import { M3 } from '../../theme/tokens';
 import {
   SHARE_IMAGE,
@@ -49,37 +45,6 @@ function deleteCacheFile(uri: string | null): void {
   } catch {}
 }
 
-function BrandMarkToggle({
-  value,
-  disabled,
-  onChange,
-}: {
-  value: boolean;
-  disabled: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      disabled={disabled}
-      accessibilityRole="switch"
-      accessibilityLabel="Eatlog mark"
-      accessibilityState={{ checked: value, disabled }}
-      accessibilityHint="Adds or removes the Eatlog mark on the exported meal card"
-      className={`min-h-[52px] flex-row items-center justify-between px-4 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
-    >
-      <Text className="text-sm font-semibold text-m3-on-surface">Eatlog mark</Text>
-      <View className="h-12 w-12 items-center justify-center">
-        <MaterialIcons
-          name={value ? 'check-box' : 'check-box-outline-blank'}
-          size={28}
-          color={value ? M3.primary : M3.onSurfaceVariant}
-        />
-      </View>
-    </Pressable>
-  );
-}
-
 function previewAccessibilityLabel(data: MealShareData, layout: MealCardLayout): string {
   return `${LAYOUT_LABELS[layout]} meal image preview. ${data.name}. ${Math.round(data.calories)} kilocalories. Protein ${Math.round(data.protein.grams)} grams, carbohydrates ${Math.round(data.carbs.grams)} grams, fat ${Math.round(data.fat.grams)} grams.`;
 }
@@ -95,9 +60,6 @@ export default function ShareOverlay({
   const cardRefs = useRef<Partial<Record<MealCardLayout, View | null>>>({});
   const operationRef = useRef<Exclude<ExportOperation, null> | null>(null);
   const [layout, setLayout] = useState<MealCardLayout>('photo');
-  const [showBranding, setShowBranding] = useState<boolean | null>(null);
-  const [brandingLoadError, setBrandingLoadError] = useState(false);
-  const [brandingSaving, setBrandingSaving] = useState(false);
   const [operation, setOperation] = useState<ExportOperation>(null);
   const [readyLayouts, setReadyLayouts] = useState<Set<MealCardLayout>>(() => new Set());
   const [photoFailed, setPhotoFailed] = useState(false);
@@ -119,28 +81,10 @@ export default function ShareOverlay({
   );
   const cardHeight = cardWidth * 16 / 9;
   const previewReady = meal != null
-    && showBranding != null
     && readyLayouts.has(activeLayout)
     && cardWidth > 0;
   const actionsDisabled = busy || !previewReady;
   const snapPoints = useMemo(() => ['92%'], []);
-
-  useEffect(() => {
-    let active = true;
-    void getShareBrandingEnabled()
-      .then((enabled) => {
-        if (!active) return;
-        setShowBranding(enabled);
-        setBrandingLoadError(false);
-      })
-      .catch((error) => {
-        console.error('[share-overlay] Eatlog mark preference load failed', error);
-        if (!active) return;
-        setShowBranding(false);
-        setBrandingLoadError(true);
-      });
-    return () => { active = false; };
-  }, []);
 
   useEffect(() => {
     const hasPhoto = meal?.photoUri != null;
@@ -185,26 +129,6 @@ export default function ShareOverlay({
       x: boundedIndex * carouselSize.width,
       animated,
     });
-  };
-
-  const changeBranding = async (enabled: boolean) => {
-    if (showBranding == null || brandingSaving || busy) return;
-    const previous = showBranding;
-    setShowBranding(enabled);
-    setBrandingSaving(true);
-    try {
-      await setShareBrandingEnabled(enabled);
-      setBrandingLoadError(false);
-    } catch (error) {
-      console.error('[share-overlay] Eatlog mark preference save failed', error);
-      setShowBranding(previous);
-      Alert.alert(
-        'Couldn’t update the Eatlog mark',
-        'Your previous setting is still active. Try the control again.',
-      );
-    } finally {
-      setBrandingSaving(false);
-    }
   };
 
   const beginOperation = (next: Exclude<ExportOperation, null>): boolean => {
@@ -422,7 +346,6 @@ export default function ShareOverlay({
                         <MealCard
                           data={photoFailed ? { ...meal, photoUri: null } : meal}
                           layout={cardLayout}
-                          showBranding={showBranding ?? false}
                           width={cardWidth}
                           height={cardHeight}
                           onPhotoLoad={() => markLayoutReady(cardLayout)}
@@ -470,19 +393,6 @@ export default function ShareOverlay({
               </Text>
             </View>
           )}
-
-          <View className="border-t border-m3-outline-variant">
-            <BrandMarkToggle
-              value={showBranding ?? false}
-              disabled={showBranding == null || busy || brandingSaving}
-              onChange={(enabled) => { void changeBranding(enabled); }}
-            />
-            {brandingLoadError && (
-              <Text className="px-4 pb-2 text-xs text-m3-error" accessibilityLiveRegion="polite">
-                The Eatlog mark preference couldn’t be loaded, so the mark is off for this card.
-              </Text>
-            )}
-          </View>
 
           <View className="flex-row gap-3 border-t border-m3-outline-variant bg-m3-surface-container px-4 pb-2 pt-3">
             <Pressable
