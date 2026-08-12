@@ -1,6 +1,6 @@
 import type React from 'react';
 import { Image, Text, View } from 'react-native';
-import Svg, { ClipPath, Defs, Path, Rect } from 'react-native-svg';
+import Svg, { ClipPath, Defs, Rect } from 'react-native-svg';
 
 import { M3, TYPE } from '../../theme/tokens';
 import type { ShareMacroValue } from '../../utils/shareCards';
@@ -90,24 +90,9 @@ export function LiquidMacroCapsule({
   const capsuleWidth = 68;
   const capsuleRadius = 33;
   const capsuleLeft = 1;
-  const capsuleRight = capsuleWidth - 1;
-  const capsuleCenterX = capsuleWidth / 2;
   const innerHeight = height - 2;
   const fillHeight = Math.round(innerHeight * progress);
   const fillLevel = 1 + innerHeight - fillHeight;
-  const curveDepth = Math.min(16, fillHeight, Math.max(0, fillLevel - 1));
-  const fillPath = progress >= 1
-    ? `M ${capsuleLeft} 1 H ${capsuleRight} V ${height - 1} H ${capsuleLeft} Z`
-    : fillHeight > 0
-      ? [
-          `M ${capsuleLeft} ${fillLevel}`,
-          `C 10 ${fillLevel} 18 ${fillLevel - curveDepth} ${capsuleCenterX} ${fillLevel - curveDepth}`,
-          `C 50 ${fillLevel - curveDepth} 58 ${fillLevel} ${capsuleRight} ${fillLevel}`,
-          `V ${height}`,
-          `H ${capsuleLeft}`,
-          'Z',
-        ].join(' ')
-      : null;
   const clipId = `macro-capsule-fill-${label.toLowerCase()}`;
   const percentLabel = value.percentOfGoal == null
     ? 'No goal'
@@ -143,9 +128,12 @@ export function LiquidMacroCapsule({
             rx={capsuleWidth / 2 - 0.5}
             fill={M3.surfaceContainerHigh}
           />
-          {fillPath && (
-            <Path
-              d={fillPath}
+          {fillHeight > 0 && (
+            <Rect
+              x={capsuleLeft}
+              y={fillLevel}
+              width={capsuleWidth - 2}
+              height={fillHeight}
               fill={color}
               clipPath={`url(#${clipId})`}
             />

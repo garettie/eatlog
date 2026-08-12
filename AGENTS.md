@@ -259,6 +259,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - When a user requests a complete Impeccable command set, load and execute every named command playbook; never substitute `polish` as an umbrella workflow.
 - Food-estimation prompts must stay Worker-owned under a test-enforced request-size budget; clarification context sends only source text plus component names and grams.
 - Sharing is meal-only: open it from an unbadged meal media rail or the meal swipe action, switch card styles with an unlabeled horizontal pager plus dots, and keep the Eatlog mark control and export actions visible without vertical scrolling.
+- Share-card nutrition bars keep a thick rounded outer capsule; render proportional fill with an exact flat top and inherit only the capsule's rounded bottom through clipping—never fake rounded fill caps or liquid waves.
 
 ---
 
