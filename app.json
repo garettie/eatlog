@@ -76,7 +76,7 @@
         "expo-media-library",
         {
           "photosPermission": "Allow Eatlog to access photos to scan meals.",
-          "savePhotosPermission": "Allow Eatlog to save meal images to your photo library.",
+          "savePhotosPermission": "Allow Eatlog to save share images to your photo library.",
           "granularPermissions": []
         }
       ],

@@ -1,0 +1,192 @@
+import type React from 'react';
+import { Text, View } from 'react-native';
+
+import { M3, TYPE } from '../../theme/tokens';
+import type { ShareMacroValue } from '../../utils/shareCards';
+
+export const STORY_DESIGN_WIDTH = 360;
+export const STORY_DESIGN_HEIGHT = 640;
+
+export function StoryCanvas({
+  width,
+  height,
+  children,
+  backgroundColor = M3.surfaceContainerLowest,
+}: {
+  width: number;
+  height: number;
+  children: React.ReactNode;
+  backgroundColor?: string;
+}) {
+  const scale = width / STORY_DESIGN_WIDTH;
+  return (
+    <View style={{ width, height, overflow: 'hidden', backgroundColor }}>
+      <View
+        style={{
+          position: 'absolute',
+          width: STORY_DESIGN_WIDTH,
+          height: STORY_DESIGN_HEIGHT,
+          left: (width - STORY_DESIGN_WIDTH) / 2,
+          top: (height - STORY_DESIGN_HEIGHT) / 2,
+          transform: [{ scale }],
+        }}
+      >
+        {children}
+      </View>
+    </View>
+  );
+}
+
+export function BrandBadge({ dark = false }: { dark?: boolean }) {
+  return (
+    <View
+      className="min-h-[30px] flex-row items-center rounded-full px-3"
+      style={{
+        backgroundColor: dark ? `${M3.surfaceContainerLowest}d9` : M3.surfaceContainerHigh,
+        borderColor: dark ? `${M3.primary}33` : M3.outlineVariant,
+        borderWidth: 1,
+      }}
+    >
+      <Text maxFontSizeMultiplier={1} className="text-xs font-bold text-m3-on-surface">Eatlog</Text>
+    </View>
+  );
+}
+
+export function LiquidMacroCapsule({
+  label,
+  value,
+  color,
+  height = 224,
+}: {
+  label: string;
+  value: ShareMacroValue;
+  color: string;
+  height?: number;
+}) {
+  const progress = Math.min(1, Math.max(0, value.percentOfGoal ?? 0));
+  const percentLabel = value.percentOfGoal == null
+    ? 'No goal'
+    : `${Math.round(value.percentOfGoal * 100)}%`;
+
+  return (
+    <View className="flex-1 items-center">
+      <Text
+        maxFontSizeMultiplier={1}
+        className="text-lg font-bold tabular-nums"
+        style={{ color }}
+      >
+        {Math.round(value.grams)}g
+      </Text>
+      <View
+        className="mt-3 w-[68px] overflow-hidden rounded-full border"
+        style={{
+          height,
+          backgroundColor: M3.surfaceContainerHigh,
+          borderColor: M3.outline,
+        }}
+      >
+        <View
+          className="absolute bottom-0 left-0 right-0"
+          style={{ height: `${progress * 100}%`, backgroundColor: color }}
+        >
+          <View className="h-1 w-full bg-white/30" />
+        </View>
+      </View>
+      <Text maxFontSizeMultiplier={1} className="mt-3 text-sm font-semibold text-m3-on-surface">
+        {label}
+      </Text>
+      <Text maxFontSizeMultiplier={1} className="mt-0.5 text-xs font-medium text-m3-on-surface-variant tabular-nums">
+        {percentLabel}
+      </Text>
+    </View>
+  );
+}
+
+export function CaloriesFigure({
+  calories,
+  targetCalories,
+  light = false,
+  compact = false,
+}: {
+  calories: number;
+  targetCalories: number | null;
+  light?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <View>
+      <View className="flex-row items-baseline gap-2">
+        <Text
+          maxFontSizeMultiplier={1}
+          className="tabular-nums"
+          style={{
+            color: light ? M3.primary : M3.calories,
+            fontFamily: TYPE.family.bold,
+            fontWeight: '400',
+            fontSize: compact ? 48 : 60,
+            lineHeight: compact ? 52 : 64,
+            letterSpacing: -1.2,
+          }}
+        >
+          {Math.round(calories).toLocaleString()}
+        </Text>
+        <Text
+          maxFontSizeMultiplier={1}
+          className="text-sm font-semibold"
+          style={{ color: light ? `${M3.primary}cc` : M3.onSurfaceVariant }}
+        >
+          kcal
+        </Text>
+      </View>
+      {targetCalories != null && (
+        <Text
+          maxFontSizeMultiplier={1}
+          className="mt-1 text-sm font-medium tabular-nums"
+          style={{ color: light ? `${M3.primary}cc` : M3.onSurfaceVariant }}
+        >
+          {Math.round(targetCalories).toLocaleString()} kcal daily target
+        </Text>
+      )}
+    </View>
+  );
+}
+
+export function MealMacroRow({
+  protein,
+  carbs,
+  fat,
+  light = false,
+}: {
+  protein: ShareMacroValue;
+  carbs: ShareMacroValue;
+  fat: ShareMacroValue;
+  light?: boolean;
+}) {
+  const macros = [
+    { label: 'Protein', value: protein.grams, color: M3.protein },
+    { label: 'Carbs', value: carbs.grams, color: M3.carbs },
+    { label: 'Fat', value: fat.grams, color: M3.fat },
+  ];
+  return (
+    <View className="flex-row gap-2">
+      {macros.map((macro) => (
+        <View
+          key={macro.label}
+          className="flex-1 rounded-2xl px-2 py-3"
+          style={{ backgroundColor: light ? `${M3.surfaceContainerLowest}b3` : `${macro.color}14` }}
+        >
+          <Text maxFontSizeMultiplier={1} className="text-xs font-semibold" style={{ color: macro.color }}>
+            {macro.label}
+          </Text>
+          <Text
+            maxFontSizeMultiplier={1}
+            className="mt-0.5 text-lg font-bold tabular-nums"
+            style={{ color: light ? M3.primary : M3.onSurface }}
+          >
+            {Math.round(macro.value)}g
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}

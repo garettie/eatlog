@@ -54,6 +54,7 @@ test('real sequential v4-to-current migration preserves every supported fixture 
     target_weight_kg: 65,
     analytics_intro_dismissed: 1,
   }]);
+  assert.deepEqual(rows(db, 'SELECT share_branding_enabled FROM profile'), [{ share_branding_enabled: 1 }]);
   assert.deepEqual(rows(db, 'SELECT id, effective_date, calculation_method FROM daily_targets ORDER BY id'), [
     { id: 5, effective_date: '2026-07-01', calculation_method: 'initial_estimate' },
     { id: 6, effective_date: '2026-07-29', calculation_method: 'adaptive' },
@@ -127,6 +128,11 @@ test('real fresh-database path reaches the complete current empty schema', async
     { name: 'weight_logs' },
   ]);
   assert.deepEqual(rows(db, 'SELECT enabled, last_sync_at FROM health_connect_state'), [{ enabled: 0, last_sync_at: null }]);
+  assert.deepEqual(rows(db, 'PRAGMA table_info(profile)').filter((column) => column.name === 'share_branding_enabled').map((column) => ({
+    name: column.name,
+    notnull: column.notnull,
+    dflt_value: column.dflt_value,
+  })), [{ name: 'share_branding_enabled', notnull: 1, dflt_value: '1' }]);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM profile').get()?.count, 0);
   assert.deepEqual(rows(db, 'PRAGMA foreign_key_check'), []);
   db.close();

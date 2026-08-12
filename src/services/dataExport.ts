@@ -41,12 +41,12 @@ export async function exportData(onProgress?: OwnershipProgressListener): Promis
     writeCsv(stage, 'profile.csv', [[
       'display_name', 'sex', 'height_cm', 'birth_date', 'activity_level', 'goal_type',
       'goal_rate_kg_per_week', 'protein_preference', 'weight_unit', 'target_weight_kg',
-      `target_weight_${unit}`, 'analytics_intro_dismissed', 'created_at',
+      `target_weight_${unit}`, 'analytics_intro_dismissed', 'share_branding_enabled', 'created_at',
     ], ...(profile ? [[
       profile.display_name, profile.sex, profile.height_cm, profile.birth_date, profile.activity_level,
       profile.goal_type, profile.goal_rate_kg_per_week, profile.protein_preference, unit,
       profile.target_weight_kg, profile.target_weight_kg == null ? null : fromKilograms(profile.target_weight_kg, unit),
-      profile.analytics_intro_dismissed, profile.created_at,
+      profile.analytics_intro_dismissed, profile.share_branding_enabled, profile.created_at,
     ]] : [])]);
 
     writeCsv(stage, 'meals.csv', [[

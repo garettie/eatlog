@@ -227,6 +227,7 @@ export interface MealGroup {
   id: number;
   name: string;
   photoUri?: string | null;
+  createdAt: string;
   components: FoodLog[];
 }
 
@@ -234,13 +235,11 @@ function MealRow({
   meal,
   onEditMeal,
   onDeleteMeal,
-  onViewPhoto,
   onShareMeal,
 }: {
   meal: MealGroup;
   onEditMeal: (meal: MealGroup) => void;
   onDeleteMeal: (mealId: number) => void;
-  onViewPhoto: (meal: MealGroup) => void;
   onShareMeal: (meal: MealGroup) => void;
 }) {
   const totalCalories = meal.components.reduce((s, c) => s + c.calories, 0);
@@ -284,7 +283,8 @@ function MealRow({
           else if (event.nativeEvent.actionName === 'share' && hasPhoto) onShareMeal(meal);
           else if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
         }}
-        onPressPhoto={hasPhoto ? () => onViewPhoto(meal) : undefined}
+        onPressPhoto={hasPhoto ? () => onShareMeal(meal) : undefined}
+        photoAccessibilityLabel={hasPhoto ? `Share ${meal.name}` : undefined}
       />
     </SwipeRow>
   );
@@ -304,7 +304,6 @@ export function JournalEntryRow({
   onEditMeal,
   onDeleteFood,
   onDeleteMeal,
-  onViewPhoto,
   onShareMeal,
 }: {
   entry: JournalEntryKind;
@@ -312,7 +311,6 @@ export function JournalEntryRow({
   onEditMeal: (meal: MealGroup) => void;
   onDeleteFood: (food: FoodLog) => void;
   onDeleteMeal: (mealId: number) => void;
-  onViewPhoto: (meal: MealGroup) => void;
   onShareMeal: (meal: MealGroup) => void;
 }) {
   if (entry.type === 'food' && entry.foodLog) {
@@ -324,7 +322,6 @@ export function JournalEntryRow({
         meal={entry.mealGroup}
         onEditMeal={onEditMeal}
         onDeleteMeal={onDeleteMeal}
-        onViewPhoto={onViewPhoto}
         onShareMeal={onShareMeal}
       />
     );

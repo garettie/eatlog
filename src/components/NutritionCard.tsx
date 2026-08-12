@@ -28,6 +28,7 @@ export interface NutritionCardProps {
   accessibilityActions?: Array<{ name: string; label: string }>;
   onAccessibilityAction?: (event: { nativeEvent: { actionName: string } }) => void;
   onPressPhoto?: (uri: string) => void;
+  photoAccessibilityLabel?: string;
   action?: React.ReactNode;
 }
 
@@ -44,6 +45,7 @@ export default function NutritionCard({
   accessibilityActions,
   onAccessibilityAction,
   onPressPhoto,
+  photoAccessibilityLabel,
   action,
 }: NutritionCardProps) {
   const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export default function NutritionCard({
                 onPressPhoto(photoUri);
               }}
               accessibilityRole="button"
-              accessibilityLabel={`View ${name} photo`}
+              accessibilityLabel={photoAccessibilityLabel ?? `View ${name} photo`}
               className="w-28 self-stretch overflow-hidden bg-m3-surface-container-highest active:opacity-80"
             >
               {photo}

@@ -40,6 +40,7 @@ export interface Profile {
   weight_unit: WeightUnit;
   target_weight_kg: number | null;
   analytics_intro_dismissed: number;
+  share_branding_enabled: number;
   created_at: string;
 }
 
@@ -212,6 +213,22 @@ export async function insertProfile(params: {
 async function setAnalyticsIntroDismissed(): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE profile SET analytics_intro_dismissed = 1 WHERE id = 1');
+}
+
+export async function getShareBrandingEnabled(): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ share_branding_enabled: number }>(
+    'SELECT share_branding_enabled FROM profile WHERE id = 1',
+  );
+  return row?.share_branding_enabled !== 0;
+}
+
+export async function setShareBrandingEnabled(enabled: boolean): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE profile SET share_branding_enabled = ? WHERE id = 1',
+    [enabled ? 1 : 0],
+  );
 }
 
 async function updateProfileWeightUnit(unit: WeightUnit): Promise<void> {
@@ -1477,6 +1494,21 @@ export async function getDailyCaloriesByDateRange(
   );
 }
 
+export async function getFoodLoggedDatesThrough(endISO: string): Promise<string[]> {
+  parseLocalISO(endISO);
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ log_date: string }>(
+    `SELECT log_date
+     FROM food_logs
+     WHERE log_date <= ?
+     GROUP BY log_date
+     HAVING SUM(calories) > 0
+     ORDER BY log_date ASC`,
+    [endISO],
+  );
+  return rows.map((row) => row.log_date);
+}
+
 export async function getDailyTargetsByDateRange(
   startISO: string,
   endISO: string,
@@ -1510,6 +1542,7 @@ export interface MealRow {
   log_date: string;
   meal_type: MealType;
   photo_uri: string | null;
+  created_at: string;
 }
 
 export async function getMealsByIds(ids: number[]): Promise<MealRow[]> {
@@ -1517,7 +1550,7 @@ export async function getMealsByIds(ids: number[]): Promise<MealRow[]> {
   const db = await getDb();
   const placeholders = ids.map(() => '?').join(',');
   return db.getAllAsync<MealRow>(
-    `SELECT id, name, log_date, meal_type, photo_uri FROM meals WHERE id IN (${placeholders})`,
+    `SELECT id, name, log_date, meal_type, photo_uri, created_at FROM meals WHERE id IN (${placeholders})`,
     ids
   );
 }

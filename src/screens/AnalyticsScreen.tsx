@@ -18,6 +18,7 @@ import {
   getDailyCaloriesByDateRange,
   getDailyTargetForDate,
   getDailyTargetsByDateRange,
+  getFoodLoggedDatesThrough,
   getProfile,
   getWeightLogsByDateRange,
 } from '../db/database';
@@ -40,6 +41,7 @@ import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
 import { formatWeight } from '../utils/weightUnits';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
+import { buildStreakShareData, type ShareRequest } from '../utils/shareCards';
 
 type RangeKey = '1M' | '3M' | '6M' | '1Y';
 
@@ -47,12 +49,14 @@ interface AnalyticsScreenProps {
   onOpenWeight: () => void;
   dataVersion: number;
   onDataChanged: (message: string) => void;
+  onShare: (request: ShareRequest) => void;
 }
 
 interface AnalyticsData {
   profile: Profile;
   chartWeights: WeightLog[];
   dailyCalories: Array<{ log_date: string; calories: number }>;
+  foodLoggedDates: string[];
   targetHistory: DailyTarget[];
   target: DailyTarget;
   endDate: string;
@@ -239,6 +243,7 @@ function AnalyticsScreen({
   onOpenWeight,
   dataVersion,
   onDataChanged,
+  onShare,
 }: AnalyticsScreenProps) {
   const reduced = useReducedMotion();
   const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
@@ -290,6 +295,7 @@ function AnalyticsScreen({
         const chartWeights = await getWeightLogsByDateRange(chartStartDate, endDate);
         const calorieHistoryStart = rangeDates('1Y', endDate).startDate;
         const dailyCalories = await getDailyCaloriesByDateRange(calorieHistoryStart, endDate);
+        const foodLoggedDates = await getFoodLoggedDatesThrough(endDate);
         const targetAtHistoryStart = await getDailyTargetForDate(chartStartDate);
         const targetsInHistory = await getDailyTargetsByDateRange(chartStartDate, endDate);
         const targetHistory = targetAtHistoryStart
@@ -308,7 +314,7 @@ function AnalyticsScreen({
         }
 
         if (!mountedRef.current || requestId !== requestRef.current) return;
-        setData({ profile, chartWeights, dailyCalories, targetHistory, target, endDate });
+        setData({ profile, chartWeights, dailyCalories, foodLoggedDates, targetHistory, target, endDate });
         hasDataRef.current = true;
         loadedDateRef.current = endDate;
         setRecommendation(nextRecommendation);
@@ -507,7 +513,7 @@ function AnalyticsScreen({
     progress,
     sufficientProgress,
   } = analyticsDerived!;
-  const foodLoggedDates = data.dailyCalories.map((day) => day.log_date);
+  const foodLoggedDates = data.foodLoggedDates;
   const weightLoggedDates = chartWeights.map((log) => log.log_date);
   const goalDistance = goalDistanceCopy(profile, latestWeight);
   const expectedGoalDate = expectedGoalDateCopy(profile, latestWeight);
@@ -880,9 +886,23 @@ function AnalyticsScreen({
           </View>
           </View>
           <Card className="p-5 gap-3">
-            <View>
-              <Text className="text-m3-on-surface font-bold text-base">Logging consistency</Text>
-              <Text className="text-m3-on-surface-variant text-xs mt-0.5">Last 30 days</Text>
+            <View className="flex-row items-center justify-between gap-3">
+              <View className="min-w-0 flex-1">
+                <Text className="text-m3-on-surface font-bold text-base">Logging consistency</Text>
+                <Text className="text-m3-on-surface-variant text-xs mt-0.5">Last 30 days</Text>
+              </View>
+              <Pressable
+                onPress={() => onShare({
+                  kind: 'streak',
+                  data: buildStreakShareData(data.endDate, foodLoggedDates),
+                })}
+                accessibilityRole="button"
+                accessibilityLabel="Share logging streak"
+                accessibilityHint="Opens a share image preview"
+                className="h-12 w-12 items-center justify-center rounded-full active:opacity-60"
+              >
+                <MaterialIcons name="ios-share" size={20} color={M3.onSurfaceVariant} />
+              </Pressable>
             </View>
             <View className="flex-row gap-4">
               <LoggingHeatmap kind="weight" loggedDates={weightLoggedDates} endDate={data.endDate} />

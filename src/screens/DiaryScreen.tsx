@@ -15,6 +15,7 @@ import {
   getFoodLogsByDateRange,
   getDailyTargetForDate,
   getDailyTargetsByDateRange,
+  getFoodLoggedDatesThrough,
   getMealsByIds,
   updateFoodLog,
   deleteFoodLog,
@@ -34,11 +35,16 @@ import WeekStrip from '../components/WeekStrip';
 import MacroRail from '../components/MacroRail';
 import { JournalEntryKind, JournalEntryRow, JournalSectionHeader, MealGroup } from '../components/JournalSection';
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
-import MealPhotoViewer from '../components/MealPhotoViewer';
 import { DURATION, EASING } from '../theme/motion';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { READING_MAX_WIDTH } from '../theme/layout';
-import { buildMealSharePayload, MealSharePayload } from '../utils/mealSharing';
+import {
+  buildDaySummaryShareData,
+  buildMealShareData,
+  buildStreakShareData,
+  type ShareContent,
+  type ShareRequest,
+} from '../utils/shareCards';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
@@ -51,11 +57,6 @@ interface EditState {
   food: FoodLog | null;
   saving: boolean;
 }
-
-type MealMediaState = {
-  payload: MealSharePayload;
-  initialMode: 'photo' | 'share';
-} | null;
 
 interface MonthSummary {
   macros: DayMacros[];
@@ -101,9 +102,10 @@ interface DiaryScreenProps {
   onDataChanged: () => void;
   dataVersion: number;
   showToast: (message: string, undo?: () => void) => void;
+  onShare: (request: ShareRequest) => void;
 }
 
-function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast }: DiaryScreenProps) {
+function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast, onShare }: DiaryScreenProps) {
   const reduced = useReducedMotion();
   const today = useToday();
   const initialDateRef = useRef(requestedDate?.date ?? todayISO());
@@ -117,8 +119,8 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const [dayTargetMap, setDayTargetMap] = useState<Map<string, DailyTarget>>(new Map());
   const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
+  const [streakLoggedDates, setStreakLoggedDates] = useState<string[] | null>(null);
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
-  const [mealMedia, setMealMedia] = useState<MealMediaState>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<MealType>>(new Set());
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
@@ -328,17 +330,26 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       });
   }, [fetchMonth, prefetchAdjacentMonths]);
 
+  const loadStreakDates = useCallback(async () => {
+    try {
+      setStreakLoggedDates(await getFoodLoggedDatesThrough(today));
+    } catch (error) {
+      console.error('[Diary] streak dates load failed', error);
+      setStreakLoggedDates(null);
+    }
+  }, [today]);
+
   const loadDayAndMonth = useCallback((date: string, anchor: Date, showLoading: boolean) => {
     const generation = ++loadingGenerationRef.current;
     if (showLoading) setLoading(true);
     setDayLoadError(false);
     setMonthLoadError(false);
-    void Promise.all([loadDay(date), loadMonth(anchor)]).finally(() => {
+    void Promise.all([loadDay(date), loadMonth(anchor), loadStreakDates()]).finally(() => {
       if (generation === loadingGenerationRef.current && (showLoading || loadingRef.current)) {
         setLoading(false);
       }
     });
-  }, [loadDay, loadMonth]);
+  }, [loadDay, loadMonth, loadStreakDates]);
 
   useFocusEffect(
     useCallback(() => {
@@ -471,6 +482,21 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const consumedCarbs = foodLogs.reduce((s, l) => s + l.carbs_g, 0);
   const consumedFat = foodLogs.reduce((s, l) => s + l.fat_g, 0);
 
+  const dayShareContent = useMemo<ShareContent>(() => ({
+    kind: 'day',
+    data: buildDaySummaryShareData(displayedDate, {
+      calories: consumedCals,
+      protein_g: consumedProtein,
+      carbs_g: consumedCarbs,
+      fat_g: consumedFat,
+    }, todayTarget ?? null),
+  }), [consumedCals, consumedCarbs, consumedFat, consumedProtein, displayedDate, todayTarget]);
+
+  const streakShareContent = useMemo<ShareContent | null>(() => streakLoggedDates == null ? null : ({
+    kind: 'streak',
+    data: buildStreakShareData(today, streakLoggedDates),
+  }), [streakLoggedDates, today]);
+
   const macroCells = useMemo(() => [
     { icon: 'local-fire-department', consumed: consumedCals, target: targetCalories, barColor: M3.calories, unit: 'kcal' as const },
     { letter: 'P', consumed: consumedProtein, target: targetProtein, barColor: M3.protein, unit: 'g' as const },
@@ -513,6 +539,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
             id: log.meal_id,
             name: mealRow?.name ?? 'Meal',
             photoUri: mealRow?.photo_uri ?? null,
+            createdAt: mealRow?.created_at ?? log.logged_at,
             components,
           },
         });
@@ -559,23 +586,21 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     onEditMeal(meal);
   }, [onEditMeal]);
 
-  const openMealMedia = useCallback((meal: MealGroup, initialMode: 'photo' | 'share') => {
-    const payload = buildMealSharePayload(meal);
-    if (!payload) return;
-    setMealMedia({ payload, initialMode });
-  }, []);
-
-  const handleViewPhoto = useCallback((meal: MealGroup) => {
-    openMealMedia(meal, 'photo');
-  }, [openMealMedia]);
+  const buildMealPayload = useCallback((meal: MealGroup) => {
+    const logDate = meal.components[0]?.log_date ?? displayedDate;
+    return buildMealShareData(meal, dayTargetMap.get(logDate) ?? null);
+  }, [dayTargetMap, displayedDate]);
 
   const handleShareMeal = useCallback((meal: MealGroup) => {
-    openMealMedia(meal, 'share');
-  }, [openMealMedia]);
-
-  const handleClosePhoto = useCallback(() => {
-    setMealMedia(null);
-  }, []);
+    const payload = buildMealPayload(meal);
+    if (!payload) return;
+    const contents: ShareContent[] = [
+      { kind: 'meal', data: payload },
+      dayShareContent,
+    ];
+    if (streakShareContent) contents.push(streakShareContent);
+    onShare(contents);
+  }, [buildMealPayload, dayShareContent, onShare, streakShareContent]);
 
   const toggleSection = useCallback((meal: MealType) => {
     setCollapsedSections((current) => {
@@ -587,10 +612,21 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   }, []);
 
   const diaryListHeader = useMemo(() => (
-    <View className="px-4 pb-1">
+    <View className="min-h-[48px] flex-row items-center justify-between gap-3 px-4 pb-1">
       <Text className="text-m3-on-surface text-sm font-bold">{formatDayHeader(displayedDate)}</Text>
+      <Pressable
+        onPress={() => onShare(streakShareContent
+          ? [dayShareContent, streakShareContent]
+          : dayShareContent)}
+        accessibilityRole="button"
+        accessibilityLabel={`Share ${formatDayHeader(displayedDate).toLowerCase()} summary`}
+        accessibilityHint="Opens a share image preview"
+        className="h-12 w-12 items-center justify-center rounded-full active:opacity-60"
+      >
+        <MaterialIcons name="ios-share" size={20} color={M3.onSurfaceVariant} />
+      </Pressable>
     </View>
-  ), [displayedDate]);
+  ), [dayShareContent, displayedDate, onShare, streakShareContent]);
 
   const emptyDiaryState = foodLogs.length === 0 ? (
     <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">
@@ -724,10 +760,9 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       onEditMeal={handleEditMeal}
       onDeleteFood={handleDeleteFood}
       onDeleteMeal={handleDeleteMeal}
-      onViewPhoto={handleViewPhoto}
       onShareMeal={handleShareMeal}
     />
-  ), [collapsedSections, handleDeleteFood, handleDeleteMeal, handleEditFood, handleEditMeal, handleShareMeal, handleViewPhoto, toggleSection]);
+  ), [collapsedSections, handleDeleteFood, handleDeleteMeal, handleEditFood, handleEditMeal, handleShareMeal, toggleSection]);
 
   const handleSaveEdit = useCallback(async (grams: number): Promise<boolean> => {
     const food = edit.food;
@@ -852,12 +887,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
         saving={edit.saving}
         onSave={handleSaveEdit}
         onClosed={handleEditClosed}
-      />
-
-      <MealPhotoViewer
-        payload={mealMedia?.payload ?? null}
-        initialMode={mealMedia?.initialMode ?? 'photo'}
-        onClose={handleClosePhoto}
       />
 
     </SafeAreaView>

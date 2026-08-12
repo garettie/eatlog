@@ -57,7 +57,7 @@ test('release config keeps media access write-only', () => {
     Array.isArray(plugin) && plugin[0] === 'expo-media-library');
   assert.deepEqual(mediaLibrary[1], {
     photosPermission: 'Allow Eatlog to access photos to scan meals.',
-    savePhotosPermission: 'Allow Eatlog to save meal images to your photo library.',
+    savePhotosPermission: 'Allow Eatlog to save share images to your photo library.',
     granularPermissions: [],
   });
   assert.ok(releaseConfig.plugins.includes('./plugins/withEatlogMediaPermissions'));

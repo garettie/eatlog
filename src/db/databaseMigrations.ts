@@ -1,7 +1,7 @@
 import { FOOD_LOG_DATA_TYPE_MIGRATION_SQL } from './foodLogDataTypeMigration';
 import { WEIGHT_ORIGIN_MIGRATION_SQL } from './weightOriginMigration';
 
-export const CURRENT_DATABASE_VERSION = 9;
+export const CURRENT_DATABASE_VERSION = 10;
 
 interface MigrationExecutor {
   execAsync(sql: string): Promise<void>;
@@ -330,5 +330,16 @@ export async function migrateDatabase(db: MigrationDatabase): Promise<void> {
 
   if (currentVersion === 8) {
     await db.withExclusiveTransactionAsync((txn) => txn.execAsync(FOOD_LOG_DATA_TYPE_MIGRATION_SQL));
+    currentVersion = 9;
+  }
+
+  if (currentVersion === 9) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync(`
+        ALTER TABLE profile ADD COLUMN share_branding_enabled INTEGER NOT NULL DEFAULT 1
+          CHECK (share_branding_enabled IN (0, 1));
+        PRAGMA user_version = 10;
+      `);
+    });
   }
 }
