@@ -7,9 +7,7 @@
     "extension": "png"
   },
   "contentKinds": [
-    "meal",
-    "day",
-    "consistency"
+    "meal"
   ],
   "mealStyles": [
     "photo",

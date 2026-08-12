@@ -17,10 +17,10 @@ Run the full `UI_SMOKE_SCRIPT.md` on every available target. One device may sati
 
 Run after Save image on A26, A36, ASAM, IMIN, and ICUR where available.
 
-1. Inspect Meal Photo, Framed, Nutrition, Day, and Logging consistency PNGs and confirm exact 1080 by 1920 dimensions.
+1. Inspect Meal Photo, Framed, and Nutrition PNGs and confirm exact 1080 by 1920 dimensions.
 2. Use square, portrait, landscape, panorama, and rotated-orientation synthetic sources. Confirm every result is upright and never stretched. Confirm Photo and Framed apply their intended cover crop, while Nutrition falls back cleanly when no photo is available.
 3. Inspect metadata and confirm source GPS/location, camera model, original filename, and capture timestamp are absent.
-4. Send one generated PNG through a messaging target that recompresses images. Confirm Onest text, meal title, calories, P/C/F labels, consistency blocks, and Eatlog mark remain legible.
+4. Send one generated PNG through a messaging target that recompresses images. Confirm Onest text, meal title, calories, P/C/F labels, and Eatlog mark remain legible.
 5. Repeat save/share twice and cancel once. Confirm no stale style, exposed swipe row, false success, blocked action, or generated cache attachment remains in later operations.
 
 ## Network and provider cases

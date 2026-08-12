@@ -1,6 +1,4 @@
 import type { DailyTarget, FoodLog, MealType } from '../db/database';
-import { parseLocalISO } from './calendar';
-import { buildLoggingHeatmap, type LoggingHeatmapModel } from './loggingHeatmap';
 import shareContract from './shareContract.json';
 
 export const SHARE_IMAGE = shareContract.image as {
@@ -19,15 +17,6 @@ export interface ShareMacroValue {
   percentOfGoal: number | null;
 }
 
-export interface DaySummaryShareData {
-  logDate: string;
-  calories: number;
-  targetCalories: number | null;
-  protein: ShareMacroValue;
-  carbs: ShareMacroValue;
-  fat: ShareMacroValue;
-}
-
 export interface MealShareData {
   mealId: number;
   name: string;
@@ -40,24 +29,6 @@ export interface MealShareData {
   protein: ShareMacroValue;
   carbs: ShareMacroValue;
   fat: ShareMacroValue;
-}
-
-export interface ConsistencyShareData extends LoggingHeatmapModel {
-  endDate: string;
-}
-
-export type ShareContent =
-  | { kind: 'day'; data: DaySummaryShareData }
-  | { kind: 'meal'; data: MealShareData }
-  | { kind: 'consistency'; data: ConsistencyShareData };
-
-export type ShareRequest = ShareContent;
-
-interface MacroTotals {
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
 }
 
 interface ShareableMealInput {
@@ -75,22 +46,6 @@ function macroValue(grams: number, goalGrams: number | null | undefined): ShareM
     grams: safeGrams,
     goalGrams: safeGoal,
     percentOfGoal: safeGoal == null ? null : safeGrams / safeGoal,
-  };
-}
-
-export function buildDaySummaryShareData(
-  logDate: string,
-  totals: MacroTotals,
-  target: DailyTarget | null,
-): DaySummaryShareData {
-  parseLocalISO(logDate);
-  return {
-    logDate,
-    calories: Math.abs(totals.calories),
-    targetCalories: target?.target_calories ?? null,
-    protein: macroValue(totals.protein_g, target?.target_protein_g),
-    carbs: macroValue(totals.carbs_g, target?.target_carbs_g),
-    fat: macroValue(totals.fat_g, target?.target_fat_g),
   };
 }
 
@@ -128,19 +83,4 @@ export function buildMealShareData(
     carbs: macroValue(carbs, target?.target_carbs_g),
     fat: macroValue(fat, target?.target_fat_g),
   };
-}
-
-export function buildConsistencyShareData(
-  endDate: string,
-  loggedDates: readonly string[],
-): ConsistencyShareData {
-  return { endDate, ...buildLoggingHeatmap(endDate, loggedDates) };
-}
-
-export function shareContentKey(content: ShareContent): string {
-  switch (content.kind) {
-    case 'day': return `day-${content.data.logDate}`;
-    case 'meal': return `meal-${content.data.mealId}`;
-    case 'consistency': return `consistency-${content.data.endDate}`;
-  }
 }

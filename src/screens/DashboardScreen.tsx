@@ -35,7 +35,6 @@ import { foodIcon } from '../utils/foodIcons';
 import { M3 } from '../theme/tokens';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
-import { buildDaySummaryShareData, type ShareRequest } from '../utils/shareCards';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -183,7 +182,6 @@ interface DashboardScreenProps {
   onOpenGallery: () => void;
   onOpenDescribe: () => void;
   onOpenDiaryDate: (date: string) => void;
-  onShare: (request: ShareRequest) => void;
   dataVersion: number;
 }
 
@@ -192,7 +190,6 @@ function DashboardScreen({
   onOpenGallery,
   onOpenDescribe,
   onOpenDiaryDate,
-  onShare,
   dataVersion,
 }: DashboardScreenProps) {
   const navigation = useNavigation<any>();
@@ -416,28 +413,14 @@ function DashboardScreen({
                 </View>
                 <Text className="text-m3-on-surface font-bold text-4xl tracking-tight leading-[44px]">Today</Text>
               </View>
-              <View className="flex-row items-center gap-1">
-                <Pressable
-                  onPress={() => onShare({
-                    kind: 'day',
-                    data: buildDaySummaryShareData(today, todayMacros, target),
-                  })}
-                  className="h-12 w-12 items-center justify-center rounded-full active:opacity-70"
-                  accessibilityRole="button"
-                  accessibilityLabel="Share today's summary"
-                  accessibilityHint="Opens a share image preview"
-                >
-                  <MaterialIcons name="share" size={22} color={M3.onSurface} />
-                </Pressable>
-                <Pressable
-                  onPress={() => navigation.navigate('Profile')}
-                  className="h-12 w-12 rounded-full bg-m3-surface-container-high items-center justify-center active:opacity-70"
-                  accessibilityRole="button"
-                  accessibilityLabel="Open profile"
-                >
-                  <Text className="text-m3-on-surface font-bold text-base">{profileInitial}</Text>
-                </Pressable>
-              </View>
+              <Pressable
+                onPress={() => navigation.navigate('Profile')}
+                className="h-12 w-12 rounded-full bg-m3-surface-container-high items-center justify-center active:opacity-70"
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
+              >
+                <Text className="text-m3-on-surface font-bold text-base">{profileInitial}</Text>
+              </Pressable>
             </View>
           </View>
 

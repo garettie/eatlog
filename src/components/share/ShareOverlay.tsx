@@ -9,52 +9,32 @@ import {
   Pressable,
   ScrollView,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
-import Reanimated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 import { captureRef, releaseCapture } from 'react-native-view-shot';
 
 import {
   getShareBrandingEnabled,
   setShareBrandingEnabled,
 } from '../../db/database';
-import { DURATION, EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
 import {
   SHARE_IMAGE,
   type MealCardLayout,
-  type ShareContent,
-  shareContentKey,
+  type MealShareData,
 } from '../../utils/shareCards';
 import LogToast from '../LogToast';
-import SegmentedControl from '../SegmentedControl';
 import Sheet from '../Sheet';
-import ConsistencyCard from './ConsistencyCard';
-import DaySummaryCard from './DaySummaryCard';
 import MealCard from './MealCard';
 
 type ExportOperation = null | 'save' | 'share';
 
-const LAYOUT_OPTIONS: Array<{
-  value: MealCardLayout;
-  label: string;
-  accessibilityLabel: string;
-}> = [
-  { value: 'photo', label: 'Photo', accessibilityLabel: 'Style, photo' },
-  { value: 'framed', label: 'Framed', accessibilityLabel: 'Style, framed photo' },
-  { value: 'nutrition', label: 'Nutrition', accessibilityLabel: 'Style, nutrition' },
-];
-
+const PHOTO_LAYOUTS: readonly MealCardLayout[] = ['photo', 'framed', 'nutrition'];
+const NUTRITION_LAYOUTS: readonly MealCardLayout[] = ['nutrition'];
 const LAYOUT_LABELS: Record<MealCardLayout, string> = {
   photo: 'Photo',
   framed: 'Framed photo',
@@ -78,20 +58,6 @@ function BrandMarkToggle({
   disabled: boolean;
   onChange: (value: boolean) => void;
 }) {
-  const reduced = useReducedMotion();
-  const selected = useSharedValue(value ? 1 : 0);
-
-  useEffect(() => {
-    selected.value = withTiming(value ? 1 : 0, {
-      duration: reduced ? 0 : DURATION.short,
-      easing: EASING.emphasized,
-    });
-  }, [reduced, selected, value]);
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: selected.value * 20 }],
-  }));
-
   return (
     <Pressable
       onPress={() => onChange(!value)}
@@ -99,73 +65,65 @@ function BrandMarkToggle({
       accessibilityRole="switch"
       accessibilityLabel="Eatlog mark"
       accessibilityState={{ checked: value, disabled }}
-      accessibilityHint="Adds the Eatlog name and egg mark to exported cards"
-      className={`min-h-[56px] flex-row items-center justify-between gap-4 rounded-2xl px-3 py-2 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
+      accessibilityHint="Adds or removes the Eatlog mark on the exported meal card"
+      className={`min-h-[52px] flex-row items-center justify-between px-4 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
     >
-      <View className="min-w-0 flex-1">
-        <Text className="text-sm font-semibold text-m3-on-surface">Eatlog mark</Text>
-        <Text className="mt-0.5 text-xs text-m3-on-surface-variant">Shown on exported cards</Text>
-      </View>
-      <View
-        className="h-7 w-12 rounded-full border p-0.5"
-        style={{
-          backgroundColor: value ? M3.primary : M3.surfaceContainerHighest,
-          borderColor: value ? M3.primary : M3.outline,
-        }}
-      >
-        <Reanimated.View
-          className="h-[22px] w-[22px] rounded-full"
-          style={[
-            { backgroundColor: value ? M3.onPrimary : M3.onSurfaceVariant },
-            thumbStyle,
-          ]}
+      <Text className="text-sm font-semibold text-m3-on-surface">Eatlog mark</Text>
+      <View className="h-12 w-12 items-center justify-center">
+        <MaterialIcons
+          name={value ? 'check-box' : 'check-box-outline-blank'}
+          size={28}
+          color={value ? M3.primary : M3.onSurfaceVariant}
         />
       </View>
     </Pressable>
   );
 }
 
-function previewAccessibilityLabel(content: ShareContent, layout: MealCardLayout): string {
-  if (content.kind === 'day') {
-    return `Daily summary image preview. ${Math.round(content.data.calories)} kilocalories. Protein ${Math.round(content.data.protein.grams)} grams, carbohydrates ${Math.round(content.data.carbs.grams)} grams, fat ${Math.round(content.data.fat.grams)} grams.`;
-  }
-  if (content.kind === 'meal') {
-    return `${LAYOUT_LABELS[layout]} meal image preview. ${content.data.name}. ${Math.round(content.data.calories)} kilocalories. Protein ${Math.round(content.data.protein.grams)} grams, carbohydrates ${Math.round(content.data.carbs.grams)} grams, fat ${Math.round(content.data.fat.grams)} grams.`;
-  }
-  return `Logging consistency image preview. ${content.data.currentWeekCount} of 7 days logged this week.`;
-}
-
-function overlayTitle(content: ShareContent): string {
-  if (content.kind === 'day') return 'Share day';
-  if (content.kind === 'meal') return 'Share meal';
-  return 'Share logging consistency';
+function previewAccessibilityLabel(data: MealShareData, layout: MealCardLayout): string {
+  return `${LAYOUT_LABELS[layout]} meal image preview. ${data.name}. ${Math.round(data.calories)} kilocalories. Protein ${Math.round(data.protein.grams)} grams, carbohydrates ${Math.round(data.carbs.grams)} grams, fat ${Math.round(data.fat.grams)} grams.`;
 }
 
 export default function ShareOverlay({
-  content,
+  meal,
   onClose,
 }: {
-  content: ShareContent | null;
+  meal: MealShareData | null;
   onClose: () => void;
 }) {
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const cardRef = useRef<View>(null);
+  const carouselRef = useRef<ScrollView>(null);
+  const cardRefs = useRef<Partial<Record<MealCardLayout, View | null>>>({});
   const operationRef = useRef<Exclude<ExportOperation, null> | null>(null);
   const [layout, setLayout] = useState<MealCardLayout>('photo');
   const [showBranding, setShowBranding] = useState<boolean | null>(null);
   const [brandingLoadError, setBrandingLoadError] = useState(false);
   const [brandingSaving, setBrandingSaving] = useState(false);
-  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [operation, setOperation] = useState<ExportOperation>(null);
-  const [cardReady, setCardReady] = useState(false);
+  const [readyLayouts, setReadyLayouts] = useState<Set<MealCardLayout>>(() => new Set());
   const [photoFailed, setPhotoFailed] = useState(false);
+  const [carouselSize, setCarouselSize] = useState({ width: 0, height: 0 });
   const [saveConfirmationId, setSaveConfirmationId] = useState(0);
 
   const busy = operation != null;
   const canCloseRef = useRef<() => boolean>(() => true);
   canCloseRef.current = () => !busy;
 
-  const requestKey = content == null ? 'share-closed' : shareContentKey(content);
+  const requestKey = meal == null ? 'share-closed' : `meal-${meal.mealId}`;
+  const photoAvailable = meal?.photoUri != null && !photoFailed;
+  const availableLayouts = photoAvailable ? PHOTO_LAYOUTS : NUTRITION_LAYOUTS;
+  const activeLayout = availableLayouts.includes(layout) ? layout : availableLayouts[0];
+  const layoutIndex = availableLayouts.indexOf(activeLayout);
+  const cardWidth = Math.max(
+    0,
+    Math.min(300, carouselSize.width - 32, (carouselSize.height - 8) * 9 / 16),
+  );
+  const cardHeight = cardWidth * 16 / 9;
+  const previewReady = meal != null
+    && showBranding != null
+    && readyLayouts.has(activeLayout)
+    && cardWidth > 0;
+  const actionsDisabled = busy || !previewReady;
+  const snapPoints = useMemo(() => ['92%'], []);
 
   useEffect(() => {
     let active = true;
@@ -185,27 +143,48 @@ export default function ShareOverlay({
   }, []);
 
   useEffect(() => {
-    const hasPhoto = content?.kind === 'meal' && content.data.photoUri != null;
-    setLayout(hasPhoto ? 'photo' : 'nutrition');
+    const hasPhoto = meal?.photoUri != null;
+    const initialLayout = hasPhoto ? 'photo' : 'nutrition';
+    setLayout(initialLayout);
     setPhotoFailed(false);
-    setCardReady(content != null && !hasPhoto);
-    setCustomizeOpen(false);
+    setReadyLayouts(new Set());
     setSaveConfirmationId(0);
   }, [requestKey]);
 
-  const sheetWidth = windowWidth >= 600 ? Math.min(windowWidth - 64, 720) : windowWidth;
-  const previewHeight = Math.max(260, Math.min(520, windowHeight * 0.92 - 260));
-  const cardWidth = Math.max(146, Math.min(300, sheetWidth - 80, previewHeight * 9 / 16));
-  const cardHeight = cardWidth * 16 / 9;
-  const photoAvailable = content?.kind === 'meal' && content.data.photoUri != null && !photoFailed;
-  const previewReady = cardReady && showBranding != null;
-  const actionsDisabled = busy || !previewReady;
-  const snapPoints = useMemo(() => ['92%'], []);
+  useEffect(() => {
+    if (carouselSize.width <= 0) return;
+    carouselRef.current?.scrollTo({
+      x: layoutIndex * carouselSize.width,
+      animated: false,
+    });
+  }, [carouselSize.width, layoutIndex, photoAvailable]);
 
-  const changeLayout = (nextLayout: MealCardLayout) => {
-    if (busy || !photoAvailable || nextLayout === layout) return;
-    setCardReady(false);
+  const markLayoutReady = (readyLayout: MealCardLayout) => {
+    setReadyLayouts((current) => {
+      if (current.has(readyLayout)) return current;
+      const next = new Set(current);
+      next.add(readyLayout);
+      return next;
+    });
+  };
+
+  const handlePhotoError = () => {
+    if (photoFailed) return;
+    setPhotoFailed(true);
+    setLayout('nutrition');
+    setReadyLayouts(new Set());
+    AccessibilityInfo.announceForAccessibility('Meal photo unavailable. Using the nutrition card.');
+  };
+
+  const selectLayout = (nextIndex: number, animated: boolean) => {
+    if (busy || carouselSize.width <= 0) return;
+    const boundedIndex = Math.max(0, Math.min(availableLayouts.length - 1, nextIndex));
+    const nextLayout = availableLayouts[boundedIndex];
     setLayout(nextLayout);
+    carouselRef.current?.scrollTo({
+      x: boundedIndex * carouselSize.width,
+      animated,
+    });
   };
 
   const changeBranding = async (enabled: boolean) => {
@@ -221,7 +200,7 @@ export default function ShareOverlay({
       setShowBranding(previous);
       Alert.alert(
         'Couldn’t update the Eatlog mark',
-        'Your previous setting is still active. Try the switch again.',
+        'Your previous setting is still active. Try the control again.',
       );
     } finally {
       setBrandingSaving(false);
@@ -241,14 +220,15 @@ export default function ShareOverlay({
   };
 
   const captureCard = async (): Promise<{ capturedUri: string; cacheUri: string }> => {
-    if (!cardRef.current || !previewReady) {
+    const activeCard = cardRefs.current[activeLayout];
+    if (!activeCard || !previewReady) {
       throw new Error('Share card is not ready');
     }
     let capturedUri: string | null = null;
     let cacheUri: string | null = null;
     try {
       const pixelRatio = PixelRatio.get();
-      capturedUri = await captureRef(cardRef.current, {
+      capturedUri = await captureRef(activeCard, {
         result: 'tmpfile',
         format: SHARE_IMAGE.format,
         quality: 1,
@@ -330,7 +310,7 @@ export default function ShareOverlay({
       cacheUri = captured.cacheUri;
       await Sharing.shareAsync(cacheUri, {
         mimeType: SHARE_IMAGE.mimeType,
-        dialogTitle: content ? overlayTitle(content) : 'Share Eatlog image',
+        dialogTitle: 'Share meal',
         UTI: 'public.png',
       });
     } catch (error) {
@@ -351,159 +331,158 @@ export default function ShareOverlay({
     }
   };
 
-  const optionSummary = content?.kind === 'meal'
-    ? `${photoAvailable ? LAYOUT_LABELS[layout] : 'Nutrition'} · Eatlog mark ${showBranding ? 'on' : 'off'}`
-    : `Eatlog mark ${showBranding ? 'on' : 'off'}`;
-
   return (
     <Sheet
-      visible={content != null}
+      visible={meal != null}
       snapPoints={snapPoints}
       stateKey={requestKey}
       canCloseRef={canCloseRef}
       onSheetClosed={onClose}
       enablePanDownToClose
     >
-      {content && (
+      {meal && (
         <View className="flex-1 bg-m3-surface-container">
-          <ScrollView
-            className="flex-1"
-            showsVerticalScrollIndicator={false}
-            nestedScrollEnabled
-            contentContainerStyle={{ paddingBottom: 20 }}
+          <View className="min-h-[52px] flex-row items-center px-2">
+            <Pressable
+              onPress={() => { if (!busy) onClose(); }}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Close share meal"
+              accessibilityState={{ disabled: busy }}
+              className={`h-12 w-12 items-center justify-center rounded-full active:opacity-60 ${busy ? 'opacity-40' : ''}`}
+            >
+              <MaterialIcons name="close" size={24} color={M3.onSurface} />
+            </Pressable>
+            <Text accessibilityRole="header" className="flex-1 text-center text-base font-semibold text-m3-on-surface">
+              Share meal
+            </Text>
+            <View className="h-12 w-12" />
+          </View>
+
+          <View
+            className="min-h-0 flex-1"
+            onLayout={(event) => {
+              const { width, height } = event.nativeEvent.layout;
+              setCarouselSize((current) => current.width === width && current.height === height
+                ? current
+                : { width, height });
+            }}
           >
-            <View className="min-h-[52px] flex-row items-center px-2">
-              <Pressable
-                onPress={() => { if (!busy) onClose(); }}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel={`Close ${overlayTitle(content).toLowerCase()}`}
-                accessibilityState={{ disabled: busy }}
-                className={`h-12 w-12 items-center justify-center rounded-full active:opacity-60 ${busy ? 'opacity-40' : ''}`}
+            {carouselSize.width > 0 && carouselSize.height > 0 && (
+              <ScrollView
+                ref={carouselRef}
+                horizontal
+                pagingEnabled
+                nestedScrollEnabled
+                scrollEnabled={!busy && availableLayouts.length > 1}
+                showsHorizontalScrollIndicator={false}
+                decelerationRate="fast"
+                bounces={false}
+                overScrollMode="never"
+                onMomentumScrollEnd={(event) => {
+                  const nextIndex = Math.max(
+                    0,
+                    Math.min(
+                      availableLayouts.length - 1,
+                      Math.round(event.nativeEvent.contentOffset.x / carouselSize.width),
+                    ),
+                  );
+                  setLayout(availableLayouts[nextIndex]);
+                }}
+                accessibilityRole="adjustable"
+                accessibilityLabel={previewAccessibilityLabel(meal, activeLayout)}
+                accessibilityValue={{
+                  min: 1,
+                  max: availableLayouts.length,
+                  now: layoutIndex + 1,
+                  text: `${LAYOUT_LABELS[activeLayout]}, ${layoutIndex + 1} of ${availableLayouts.length}`,
+                }}
+                accessibilityActions={[
+                  { name: 'decrement', label: 'Previous card style' },
+                  { name: 'increment', label: 'Next card style' },
+                ]}
+                onAccessibilityAction={(event) => {
+                  if (event.nativeEvent.actionName === 'increment') selectLayout(layoutIndex + 1, true);
+                  if (event.nativeEvent.actionName === 'decrement') selectLayout(layoutIndex - 1, true);
+                }}
               >
-                <MaterialIcons name="close" size={24} color={M3.onSurface} />
-              </Pressable>
-              <Text accessibilityRole="header" className="flex-1 text-center text-base font-semibold text-m3-on-surface">
-                {overlayTitle(content)}
-              </Text>
-              <View className="h-12 w-12" />
-            </View>
-
-            <View className="items-center px-4 py-2">
-              <View style={{ width: cardWidth, height: cardHeight }}>
-                <View
-                  ref={cardRef}
-                  collapsable={false}
-                  accessible
-                  accessibilityRole="image"
-                  accessibilityLabel={previewAccessibilityLabel(content, layout)}
-                  style={{ width: cardWidth, height: cardHeight }}
-                  onLayout={() => {
-                    if (content.kind !== 'meal' || !photoAvailable) setCardReady(true);
-                  }}
-                >
-                  {content.kind === 'day' ? (
-                    <DaySummaryCard data={content.data} showBranding={showBranding ?? false} width={cardWidth} height={cardHeight} />
-                  ) : content.kind === 'meal' ? (
-                    <MealCard
-                      data={photoFailed ? { ...content.data, photoUri: null } : content.data}
-                      layout={photoAvailable ? layout : 'nutrition'}
-                      showBranding={showBranding ?? false}
-                      width={cardWidth}
-                      height={cardHeight}
-                      onPhotoLoad={() => setCardReady(true)}
-                      onPhotoError={() => {
-                        setPhotoFailed(true);
-                        setLayout('nutrition');
-                        setCardReady(true);
-                        AccessibilityInfo.announceForAccessibility('Meal photo unavailable. Using the nutrition card.');
-                      }}
-                    />
-                  ) : (
-                    <ConsistencyCard data={content.data} showBranding={showBranding ?? false} width={cardWidth} height={cardHeight} />
-                  )}
-                </View>
-
-                {!previewReady && (
+                {availableLayouts.map((cardLayout) => (
                   <View
-                    className="absolute inset-0 items-center justify-center gap-3 rounded-3xl"
-                    style={{ backgroundColor: `${M3.surfaceContainerLowest}f2` }}
-                    accessibilityRole="progressbar"
-                    accessibilityLabel="Preparing share preview"
+                    key={cardLayout}
+                    className="items-center justify-center"
+                    style={{ width: carouselSize.width, height: carouselSize.height }}
                   >
-                    <ActivityIndicator color={M3.onSurface} />
-                    <Text className="text-sm font-medium text-m3-on-surface-variant">Preparing preview…</Text>
-                  </View>
-                )}
-              </View>
+                    <View style={{ width: cardWidth, height: cardHeight }}>
+                      <View
+                        ref={(view) => { cardRefs.current[cardLayout] = view; }}
+                        collapsable={false}
+                        accessible={false}
+                        style={{ width: cardWidth, height: cardHeight }}
+                      >
+                        <MealCard
+                          data={photoFailed ? { ...meal, photoUri: null } : meal}
+                          layout={cardLayout}
+                          showBranding={showBranding ?? false}
+                          width={cardWidth}
+                          height={cardHeight}
+                          onPhotoLoad={() => markLayoutReady(cardLayout)}
+                          onPhotoError={handlePhotoError}
+                        />
+                      </View>
 
-              {photoFailed && (
-                <View
-                  className="mt-3 flex-row items-center gap-2 rounded-full bg-m3-surface-container-high px-3 py-2"
-                  accessibilityLiveRegion="polite"
-                >
-                  <MaterialIcons name="image-not-supported" size={18} color={M3.onSurfaceVariant} />
-                  <Text className="text-xs font-medium text-m3-on-surface-variant">
-                    Photo unavailable · Using nutrition
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View className="px-4 pt-3">
-              <Pressable
-                onPress={() => setCustomizeOpen((open) => !open)}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel="Card options"
-                accessibilityHint={customizeOpen ? 'Hides card style and Eatlog mark options' : 'Shows card style and Eatlog mark options'}
-                accessibilityState={{ expanded: customizeOpen, disabled: busy }}
-                className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl px-3 active:opacity-70 ${busy ? 'opacity-40' : ''}`}
-              >
-                <View className="min-w-0 flex-1">
-                  <Text className="text-sm font-semibold text-m3-on-surface">Card options</Text>
-                  <Text className="mt-0.5 text-xs text-m3-on-surface-variant" numberOfLines={1}>
-                    {showBranding == null ? 'Loading Eatlog mark preference…' : optionSummary}
-                  </Text>
-                </View>
-                <MaterialIcons
-                  name={customizeOpen ? 'expand-less' : 'expand-more'}
-                  size={24}
-                  color={M3.onSurfaceVariant}
-                />
-              </Pressable>
-
-              {brandingLoadError && (
-                <Text className="px-3 pb-2 text-xs text-m3-error" accessibilityLiveRegion="polite">
-                  The Eatlog mark preference couldn’t be loaded, so the mark is off for this card.
-                </Text>
-              )}
-
-              {customizeOpen && (
-                <View className="gap-3 border-t border-m3-outline-variant px-3 pb-2 pt-4">
-                  {content.kind === 'meal' && photoAvailable && (
-                    <View className="gap-2">
-                      <Text className="text-xs font-semibold text-m3-on-surface-variant">Style</Text>
-                      <SegmentedControl
-                        options={LAYOUT_OPTIONS}
-                        value={layout}
-                        onChange={changeLayout}
-                        disabled={busy}
-                        accessibilityLabel="Card style"
-                      />
+                      {cardLayout === activeLayout && !previewReady && (
+                        <View
+                          className="absolute inset-0 items-center justify-center gap-3 rounded-3xl"
+                          style={{ backgroundColor: `${M3.surfaceContainerLowest}f2` }}
+                          accessibilityRole="progressbar"
+                          accessibilityLabel="Preparing share preview"
+                        >
+                          <ActivityIndicator color={M3.onSurface} />
+                          <Text className="text-sm font-medium text-m3-on-surface-variant">Preparing preview…</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                  {showBranding != null && (
-                    <BrandMarkToggle
-                      value={showBranding}
-                      disabled={busy || brandingSaving}
-                      onChange={(enabled) => { void changeBranding(enabled); }}
-                    />
-                  )}
-                </View>
-              )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          <View className="min-h-[24px] items-center justify-center">
+            <View className="flex-row items-center gap-2" accessible={false}>
+              {availableLayouts.map((cardLayout, index) => (
+                <View
+                  key={cardLayout}
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor: index === layoutIndex ? M3.primary : M3.outline,
+                  }}
+                />
+              ))}
             </View>
-          </ScrollView>
+          </View>
+
+          {photoFailed && (
+            <View className="min-h-[28px] flex-row items-center justify-center gap-2 px-4" accessibilityLiveRegion="polite">
+              <MaterialIcons name="image-not-supported" size={18} color={M3.onSurfaceVariant} />
+              <Text className="text-xs font-medium text-m3-on-surface-variant">
+                Photo unavailable · Meal details shown
+              </Text>
+            </View>
+          )}
+
+          <View className="border-t border-m3-outline-variant">
+            <BrandMarkToggle
+              value={showBranding ?? false}
+              disabled={showBranding == null || busy || brandingSaving}
+              onChange={(enabled) => { void changeBranding(enabled); }}
+            />
+            {brandingLoadError && (
+              <Text className="px-4 pb-2 text-xs text-m3-error" accessibilityLiveRegion="polite">
+                The Eatlog mark preference couldn’t be loaded, so the mark is off for this card.
+              </Text>
+            )}
+          </View>
 
           <View className="flex-row gap-3 border-t border-m3-outline-variant bg-m3-surface-container px-4 pb-2 pt-3">
             <Pressable
@@ -511,7 +490,7 @@ export default function ShareOverlay({
               disabled={actionsDisabled}
               accessibilityRole="button"
               accessibilityLabel="Save image"
-              accessibilityHint="Saves the visible share card to your photo library"
+              accessibilityHint="Saves the visible meal card to your photo library"
               accessibilityState={{ disabled: actionsDisabled, busy: operation === 'save' }}
               className={`min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full bg-m3-secondary-container px-3 active:opacity-80 ${actionsDisabled ? 'opacity-40' : ''}`}
             >
@@ -529,7 +508,7 @@ export default function ShareOverlay({
               disabled={actionsDisabled}
               accessibilityRole="button"
               accessibilityLabel="Share image"
-              accessibilityHint="Opens the system share menu with the visible image"
+              accessibilityHint="Opens the system share menu with the visible meal card"
               accessibilityState={{ disabled: actionsDisabled, busy: operation === 'share' }}
               className={`min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full bg-m3-primary px-3 active:opacity-90 ${actionsDisabled ? 'opacity-40' : ''}`}
             >

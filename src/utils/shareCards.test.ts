@@ -4,8 +4,6 @@ import test from 'node:test';
 import type { DailyTarget, FoodLog } from '../db/database';
 import {
   SHARE_IMAGE,
-  buildConsistencyShareData,
-  buildDaySummaryShareData,
   buildMealShareData,
 } from './shareCards';
 
@@ -49,21 +47,6 @@ function component(overrides: Partial<FoodLog> = {}): FoodLog {
   };
 }
 
-test('builds day totals with unclamped goal contributions', () => {
-  const data = buildDaySummaryShareData('2026-08-11', {
-    calories: 2450,
-    protein_g: 176,
-    carbs_g: 115,
-    fat_g: 70,
-  }, target);
-
-  assert.equal(data.calories, 2450);
-  assert.equal(data.targetCalories, 2200);
-  assert.equal(data.protein.percentOfGoal, 1.1);
-  assert.equal(data.carbs.percentOfGoal, 0.5);
-  assert.equal(data.fat.percentOfGoal, 1);
-});
-
 test('builds meal totals, creation timestamp, and daily-goal contribution from stored data', () => {
   const data = buildMealShareData({
     id: 7,
@@ -94,25 +77,6 @@ test('builds a nutrition-first meal card without a photo', () => {
 
 test('does not build a meal card without a component', () => {
   assert.equal(buildMealShareData({ id: 1, name: 'Meal', photoUri: 'file:///meal.jpg', components: [] }, target), null);
-});
-
-test('builds the rolling 30-day consistency model with the current-week summary', () => {
-  const data = buildConsistencyShareData('2026-08-12', [
-    '2026-08-01',
-    '2026-08-02',
-    '2026-08-03',
-    '2026-08-05',
-    '2026-08-09',
-    '2026-08-10',
-    '2026-08-11',
-    '2026-08-11',
-  ]);
-
-  assert.equal(data.endDate, '2026-08-12');
-  assert.equal(data.currentWeekCount, 2);
-  assert.equal(data.windowCount, 7);
-  assert.equal(data.rows.length, 3);
-  assert.deepEqual(data.rows.map((row) => row.length), [10, 10, 10]);
 });
 
 test('keeps the exported share image contract story-sized and lossless', () => {

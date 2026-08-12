@@ -41,7 +41,6 @@ import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
 import { formatWeight } from '../utils/weightUnits';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
-import { buildConsistencyShareData, type ShareRequest } from '../utils/shareCards';
 
 type RangeKey = '1M' | '3M' | '6M' | '1Y';
 
@@ -49,7 +48,6 @@ interface AnalyticsScreenProps {
   onOpenWeight: () => void;
   dataVersion: number;
   onDataChanged: (message: string) => void;
-  onShare: (request: ShareRequest) => void;
 }
 
 interface AnalyticsData {
@@ -243,7 +241,6 @@ function AnalyticsScreen({
   onOpenWeight,
   dataVersion,
   onDataChanged,
-  onShare,
 }: AnalyticsScreenProps) {
   const reduced = useReducedMotion();
   const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
@@ -886,23 +883,9 @@ function AnalyticsScreen({
           </View>
           </View>
           <Card className="p-5 gap-3">
-            <View className="flex-row items-center justify-between gap-3">
-              <View className="min-w-0 flex-1">
-                <Text className="text-m3-on-surface font-bold text-base">Logging consistency</Text>
-                <Text className="text-m3-on-surface-variant text-xs mt-0.5">Last 30 days</Text>
-              </View>
-              <Pressable
-                onPress={() => onShare({
-                  kind: 'consistency',
-                  data: buildConsistencyShareData(data.endDate, foodLoggedDates),
-                })}
-                accessibilityRole="button"
-                accessibilityLabel="Share logging consistency"
-                accessibilityHint="Opens a share image preview"
-                className="h-12 w-12 items-center justify-center rounded-full active:opacity-60"
-              >
-                <MaterialIcons name="share" size={20} color={M3.onSurfaceVariant} />
-              </Pressable>
+            <View>
+              <Text className="text-m3-on-surface font-bold text-base">Logging consistency</Text>
+              <Text className="text-m3-on-surface-variant text-xs mt-0.5">Last 30 days</Text>
             </View>
             <View className="flex-row gap-4">
               <LoggingHeatmap kind="weight" loggedDates={weightLoggedDates} endDate={data.endDate} />

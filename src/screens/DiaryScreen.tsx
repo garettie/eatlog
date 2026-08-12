@@ -38,10 +38,8 @@ import { DURATION, EASING } from '../theme/motion';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { READING_MAX_WIDTH } from '../theme/layout';
 import {
-  buildDaySummaryShareData,
   buildMealShareData,
-  type ShareContent,
-  type ShareRequest,
+  type MealShareData,
 } from '../utils/shareCards';
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
@@ -100,7 +98,7 @@ interface DiaryScreenProps {
   onDataChanged: () => void;
   dataVersion: number;
   showToast: (message: string, undo?: () => void) => void;
-  onShare: (request: ShareRequest) => void;
+  onShare: (meal: MealShareData) => void;
 }
 
 function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast, onShare }: DiaryScreenProps) {
@@ -470,16 +468,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const consumedCarbs = foodLogs.reduce((s, l) => s + l.carbs_g, 0);
   const consumedFat = foodLogs.reduce((s, l) => s + l.fat_g, 0);
 
-  const dayShareContent = useMemo<ShareContent>(() => ({
-    kind: 'day',
-    data: buildDaySummaryShareData(displayedDate, {
-      calories: consumedCals,
-      protein_g: consumedProtein,
-      carbs_g: consumedCarbs,
-      fat_g: consumedFat,
-    }, todayTarget ?? null),
-  }), [consumedCals, consumedCarbs, consumedFat, consumedProtein, displayedDate, todayTarget]);
-
   const macroCells = useMemo(() => [
     { icon: 'local-fire-department', consumed: consumedCals, target: targetCalories, barColor: M3.calories, unit: 'kcal' as const },
     { letter: 'P', consumed: consumedProtein, target: targetProtein, barColor: M3.protein, unit: 'g' as const },
@@ -577,7 +565,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const handleShareMeal = useCallback((meal: MealGroup) => {
     const payload = buildMealPayload(meal);
     if (!payload) return;
-    onShare({ kind: 'meal', data: payload });
+    onShare(payload);
   }, [buildMealPayload, onShare]);
 
   const toggleSection = useCallback((meal: MealType) => {
@@ -590,19 +578,10 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   }, []);
 
   const diaryListHeader = useMemo(() => (
-    <View className="min-h-[48px] flex-row items-center justify-between gap-3 px-4 pb-1">
+    <View className="min-h-[48px] justify-center px-4 pb-1">
       <Text className="text-m3-on-surface text-sm font-bold">{formatDayHeader(displayedDate)}</Text>
-      <Pressable
-        onPress={() => onShare(dayShareContent)}
-        accessibilityRole="button"
-        accessibilityLabel={`Share ${formatDayHeader(displayedDate).toLowerCase()} summary`}
-        accessibilityHint="Opens a share image preview"
-        className="h-12 w-12 items-center justify-center rounded-full active:opacity-60"
-      >
-        <MaterialIcons name="share" size={20} color={M3.onSurfaceVariant} />
-      </Pressable>
     </View>
-  ), [dayShareContent, displayedDate, onShare]);
+  ), [displayedDate]);
 
   const emptyDiaryState = foodLogs.length === 0 ? (
     <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">

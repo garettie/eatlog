@@ -78,7 +78,7 @@ for (const forbidden of [
 }
 assert.equal(/Apple Health|HealthKit/iu.test(metadata.apple.description), false, 'Apple public description must not claim Apple Health or HealthKit support.');
 
-assert.deepEqual(shareContract.contentKinds, ['meal', 'day', 'consistency']);
+assert.deepEqual(shareContract.contentKinds, ['meal']);
 assert.deepEqual(shareContract.mealStyles, ['photo', 'framed', 'nutrition']);
 assert.deepEqual(shareContract.image, {
   width: 1080,
@@ -96,6 +96,11 @@ for (const { path, text } of shareDocuments) {
     /\bgenerated JPEGs?\b/iu,
     /\bmeal JPEGs?\b/iu,
     /\b4:5\b/iu,
+    /\bCard options\b/u,
+    /Meal, Day, or Logging consistency/u,
+    /meal, day, or logging-consistency/u,
+    /Share Today’s Day card/u,
+    /Meal Photo, Framed, Nutrition, Day/u,
   ]) {
     assert.equal(legacyPattern.test(text), false, `${path} contains legacy share copy: ${legacyPattern}`);
   }
@@ -107,7 +112,7 @@ const expectedImageDescription = `${shareContract.image.width} by ${shareContrac
 assert.ok(reviewMaterial.includes(expectedImageDescription), 'Reviewer material must state the current share image contract.');
 assert.ok(dataInventory.includes(expectedImageDescription), 'Data inventory must state the current share image contract.');
 assert.ok(reviewMaterial.includes('Photo, Framed, and Nutrition'), 'Reviewer material must state the current meal styles.');
-assert.ok(reviewMaterial.includes('Logging consistency'), 'Reviewer material must state the current consistency card.');
+assert.ok(reviewMaterial.includes('without vertical scrolling'), 'Reviewer material must state the current share-sheet behavior.');
 
 console.log(JSON.stringify({
   google: {

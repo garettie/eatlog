@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { M3 } from '../theme/tokens';
 import { foodIcon } from '../utils/foodIcons';
@@ -93,12 +93,6 @@ export default function NutritionCard({
             className="w-28 self-stretch overflow-hidden bg-m3-surface-container-highest active:opacity-80"
           >
             {media}
-            <View
-              pointerEvents="none"
-              className="absolute bottom-2 right-2 h-9 w-9 items-center justify-center rounded-full border border-m3-outline-variant bg-m3-surface-container-lowest"
-            >
-              <MaterialIcons name="share" size={18} color={M3.onSurface} />
-            </View>
           </Pressable>
         ) : (
           <View className="w-28 self-stretch items-center justify-center">

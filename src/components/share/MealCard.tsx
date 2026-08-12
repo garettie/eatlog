@@ -144,7 +144,7 @@ function FramedMeal({
       </Text>
       <View className="mt-4 flex-row items-center gap-4">
         <View className="shrink-0">
-          <Text maxFontSizeMultiplier={1} className="text-2xl font-bold text-m3-calories tabular-nums">
+          <Text maxFontSizeMultiplier={1} className="text-2xl font-bold text-white tabular-nums">
             {Math.round(data.calories).toLocaleString()}
           </Text>
           <Text maxFontSizeMultiplier={1} className="text-xs font-medium text-m3-on-surface-variant">kcal</Text>

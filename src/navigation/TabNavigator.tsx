@@ -23,7 +23,7 @@ import { syncHealthConnectWeights } from '../services/healthConnect';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { NAVIGATION_RAIL_WIDTH, useResponsiveLayout } from '../theme/layout';
 import ShareOverlay from '../components/share/ShareOverlay';
-import type { ShareContent, ShareRequest } from '../utils/shareCards';
+import type { MealShareData } from '../utils/shareCards';
 
 function mealLabel(m: MealType): string {
     return m.charAt(0).toUpperCase() + m.slice(1);
@@ -55,7 +55,7 @@ const INITIAL: FoodSheetState = {
 export default function TabNavigator() {
     const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
     const [toast, setToast] = useState<{ message: string; tone?: LogToastTone; undo?: () => void | Promise<void> } | null>(null);
-    const [shareContent, setShareContent] = useState<ShareContent | null>(null);
+    const [shareMeal, setShareMeal] = useState<MealShareData | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
     const insets = useSafeAreaInsets();
     const { isMedium } = useResponsiveLayout();
@@ -323,12 +323,12 @@ export default function TabNavigator() {
         openEntry(activeTabRef.current === 'Diary' ? diaryDateRef.current : undefined);
     }, [openEntry]);
 
-    const openShare = useCallback((request: ShareRequest) => {
-        setShareContent(request);
+    const openShare = useCallback((meal: MealShareData) => {
+        setShareMeal(meal);
     }, []);
 
     const closeShare = useCallback(() => {
-        setShareContent(null);
+        setShareMeal(null);
     }, []);
 
     const renderTabBar = useCallback(
@@ -343,11 +343,10 @@ export default function TabNavigator() {
                 onOpenGallery={openGallery}
                 onOpenDescribe={openDescribe}
                 onOpenDiaryDate={handleDiaryDateChange}
-                onShare={openShare}
                 dataVersion={dataVersion}
             />
         ),
-        [dataVersion, handleDiaryDateChange, openCamera, openDescribe, openGallery, openShare],
+        [dataVersion, handleDiaryDateChange, openCamera, openDescribe, openGallery],
     );
 
     const renderDiary = useCallback(
@@ -380,10 +379,9 @@ export default function TabNavigator() {
                 onOpenWeight={openWeight}
                 dataVersion={dataVersion}
                 onDataChanged={handleDataChanged}
-                onShare={openShare}
             />
         ),
-        [dataVersion, handleDataChanged, openShare, openWeight],
+        [dataVersion, handleDataChanged, openWeight],
     );
 
     const renderProfile = useCallback(
@@ -463,7 +461,7 @@ export default function TabNavigator() {
                 />
             </Sheet>
 
-            <ShareOverlay content={shareContent} onClose={closeShare} />
+            <ShareOverlay meal={shareMeal} onClose={closeShare} />
 
             {toast && (
                 <View

@@ -111,7 +111,7 @@ Reviewer path:
 4. Manual logging works without online services.
 5. Scan or Describe starts the requested Gemini estimate directly through the Eatlog Worker. Profile → Privacy explains the transmission and providers.
 6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly.
-7. In Diary, tap the visible Share control on any meal image or food-icon rail, or swipe a meal and choose Share immediately left of Delete. Photo meals offer Photo, Framed, and Nutrition styles under Card options; photo-less meals use Nutrition. Use Save image or the operating-system Share menu. Today and Diary can share a Day card, Analytics can share Logging consistency, and standalone foods have no Share action.
+7. In Diary, tap any meal image or food-icon rail, or swipe a meal and choose Share immediately left of Delete. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; photo-less meals use Nutrition. The position dots, Eatlog mark control, Save image, and Share stay visible without vertical scrolling. Today, day summaries, Analytics, and standalone foods have no Share action.
 8. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
 9. Profile → Backup and restore creates/restores archives; Profile → Export data creates non-restorable CSV; Delete all data uses two confirmations.
 

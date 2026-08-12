@@ -84,6 +84,7 @@ export function LiquidMacroCapsule({
   height?: number;
 }) {
   const progress = Math.min(1, Math.max(0, value.percentOfGoal ?? 0));
+  const fillHeight = Math.round(height * progress);
   const percentLabel = value.percentOfGoal == null
     ? 'No goal'
     : `${Math.round(value.percentOfGoal * 100)}%`;
@@ -106,10 +107,12 @@ export function LiquidMacroCapsule({
         }}
       >
         <View
-          className="overflow-hidden rounded-full"
-          style={{ height: Math.round(height * progress), backgroundColor: color }}
+          className="overflow-hidden"
+          style={{ height: fillHeight, backgroundColor: color }}
         >
-          <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+          {fillHeight >= 8 && (
+            <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+          )}
         </View>
       </View>
       <Text maxFontSizeMultiplier={1} className="mt-3 text-sm font-semibold text-m3-on-surface">
@@ -140,7 +143,7 @@ export function CaloriesFigure({
           maxFontSizeMultiplier={1}
           className="tabular-nums"
           style={{
-            color: light ? M3.primary : M3.calories,
+            color: M3.primary,
             fontFamily: TYPE.family.bold,
             fontWeight: '400',
             fontSize: compact ? 48 : 60,

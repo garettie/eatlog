@@ -269,7 +269,7 @@ function MealRow({
         carbs={totalC}
         fat={totalF}
         onPress={() => onEditMeal(meal)}
-        accessibilityHint="Opens meal editor. Use the Share control on the meal image or icon, or swipe left for Share or Delete."
+        accessibilityHint="Opens meal editor. Tap the meal image or icon to share, or swipe left for Share or Delete."
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={(event) => {
           if (event.nativeEvent.actionName === 'activate') onEditMeal(meal);
