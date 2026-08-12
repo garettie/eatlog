@@ -94,13 +94,14 @@ function BrandingToggle({
       onPress={() => onChange(!value)}
       disabled={disabled}
       accessibilityRole="switch"
-      accessibilityLabel="Show Eatlog badge"
+      accessibilityLabel="Eatlog badge"
       accessibilityState={{ checked: value, disabled }}
-      className={`min-h-[52px] flex-row items-center justify-between gap-4 rounded-2xl px-1 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
+      accessibilityHint="Toggles the Eatlog badge on share cards"
+      className={`flex-row items-center justify-between gap-4 px-2 py-2.5 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
     >
       <View className="min-w-0 flex-1">
-        <Text className="text-sm font-semibold text-m3-on-surface">Show Eatlog badge</Text>
-        <Text className="mt-0.5 text-xs text-m3-on-surface-variant">Saved for future shares</Text>
+        <Text className="text-sm font-semibold text-m3-on-surface">Eatlog badge</Text>
+        <Text className="mt-0.5 text-xs text-m3-on-surface-variant">Shown on every card you post</Text>
       </View>
       <View
         className="h-7 w-12 rounded-full border p-0.5"
@@ -447,14 +448,19 @@ export default function ShareOverlay({
             )}
 
             <View className="px-4 pt-2">
-              <BrandingToggle
-                value={showBranding}
-                disabled={busy || brandingSaving}
-                onChange={(enabled) => { void changeBranding(enabled); }}
-              />
+              <View className="border-b border-m3-outline-variant pb-4 pt-1">
+                <BrandingToggle
+                  value={showBranding}
+                  disabled={busy || brandingSaving}
+                  onChange={(enabled) => { void changeBranding(enabled); }}
+                />
+              </View>
+              <Text className="pt-3 text-xs text-m3-placeholder">
+                To post a Story, choose Instagram from Share when it's available on your device.
+              </Text>
             </View>
 
-            <View className="mt-1 flex-row gap-3 border-t border-m3-outline-variant px-4 pt-3">
+            <View className="mt-2 flex-row gap-3 border-t border-m3-outline-variant px-4 pb-2 pt-4">
               <Pressable
                 onPress={() => { void handleSave(); }}
                 disabled={actionsDisabled}
@@ -492,9 +498,6 @@ export default function ShareOverlay({
                 )}
               </Pressable>
             </View>
-            <Text className="px-6 pt-2 text-center text-xs text-m3-on-surface-variant">
-              To post a Story, choose Instagram from Share when it’s available on your device.
-            </Text>
           </ScrollView>
 
           {saveConfirmationId > 0 && (

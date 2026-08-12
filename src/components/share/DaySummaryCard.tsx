@@ -6,6 +6,7 @@ import { parseLocalISO } from '../../utils/calendar';
 import type { DaySummaryShareData } from '../../utils/shareCards';
 import {
   BrandBadge,
+  CANVAS_PADDING,
   CaloriesFigure,
   LiquidMacroCapsule,
   StoryCanvas,
@@ -33,7 +34,14 @@ export default function DaySummaryCard({
 }) {
   return (
     <StoryCanvas width={width} height={height}>
-      <View className="flex-1 bg-m3-surface-container-lowest px-7 pb-8 pt-8">
+      <View
+        className="flex-1 bg-m3-surface-container-lowest"
+        style={{
+          paddingHorizontal: CANVAS_PADDING.horizontal,
+          paddingTop: CANVAS_PADDING.top,
+          paddingBottom: CANVAS_PADDING.bottom,
+        }}
+      >
         <View className="flex-row items-start justify-between gap-4">
           <View className="min-w-0 flex-1">
             <Text maxFontSizeMultiplier={1} className="text-3xl font-bold text-m3-on-surface">

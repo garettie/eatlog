@@ -7,6 +7,7 @@ import { parseLocalISO } from '../../utils/calendar';
 import type { MealCardLayout, MealShareData } from '../../utils/shareCards';
 import {
   BrandBadge,
+  CANVAS_PADDING,
   CaloriesFigure,
   LiquidMacroCapsule,
   MealMacroRow,
@@ -106,7 +107,14 @@ function FramedMeal({
   onPhotoError,
 }: MealLayoutProps) {
   return (
-    <View className="flex-1 bg-m3-surface-container-lowest px-6 pb-7 pt-7">
+    <View
+      className="flex-1 bg-m3-surface-container-lowest"
+      style={{
+        paddingHorizontal: CANVAS_PADDING.horizontal,
+        paddingTop: CANVAS_PADDING.top,
+        paddingBottom: CANVAS_PADDING.bottom,
+      }}
+    >
       <View className="min-h-[30px] flex-row items-center justify-between gap-3">
         <Text maxFontSizeMultiplier={1} className="flex-1 text-sm font-medium text-m3-on-surface-variant">
           {displayTimestamp(data)}
@@ -142,7 +150,14 @@ function StatMeal({
   onPhotoError,
 }: MealLayoutProps) {
   return (
-    <View className="flex-1 bg-m3-surface-container-lowest px-7 pb-8 pt-7">
+    <View
+      className="flex-1 bg-m3-surface-container-lowest"
+      style={{
+        paddingHorizontal: CANVAS_PADDING.horizontal,
+        paddingTop: CANVAS_PADDING.top,
+        paddingBottom: CANVAS_PADDING.bottom,
+      }}
+    >
       <View className="min-h-[30px] items-end">
         {showBranding && <BrandBadge />}
       </View>

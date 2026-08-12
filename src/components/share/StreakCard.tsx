@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { M3, TYPE } from '../../theme/tokens';
 import { parseLocalISO } from '../../utils/calendar';
 import type { StreakShareData } from '../../utils/shareCards';
-import { BrandBadge, StoryCanvas } from './ShareCardPrimitives';
+import { BrandBadge, CANVAS_PADDING, StoryCanvas } from './ShareCardPrimitives';
 
 function displayDate(dateISO: string): string {
   return parseLocalISO(dateISO).toLocaleDateString(undefined, {
@@ -28,7 +28,14 @@ export default function StreakCard({
   const completed = data.lastSevenDays.filter((day) => day.complete).length;
   return (
     <StoryCanvas width={width} height={height}>
-      <View className="flex-1 bg-m3-surface-container-lowest px-7 pb-8 pt-8">
+      <View
+        className="flex-1 bg-m3-surface-container-lowest"
+        style={{
+          paddingHorizontal: CANVAS_PADDING.horizontal,
+          paddingTop: CANVAS_PADDING.top,
+          paddingBottom: CANVAS_PADDING.bottom,
+        }}
+      >
         <View className="flex-row items-start justify-between gap-4">
           <View className="min-w-0 flex-1">
             <Text maxFontSizeMultiplier={1} className="text-3xl font-bold text-m3-on-surface">

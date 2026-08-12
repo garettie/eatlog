@@ -7,6 +7,12 @@ import type { ShareMacroValue } from '../../utils/shareCards';
 export const STORY_DESIGN_WIDTH = 360;
 export const STORY_DESIGN_HEIGHT = 640;
 
+export const CANVAS_PADDING = {
+  horizontal: 28,
+  top: 32,
+  bottom: 32,
+} as const;
+
 export function StoryCanvas({
   width,
   height,
@@ -47,7 +53,21 @@ export function BrandBadge({ dark = false }: { dark?: boolean }) {
         borderWidth: 1,
       }}
     >
-      <Text maxFontSizeMultiplier={1} className="text-xs font-bold text-m3-on-surface">Eatlog</Text>
+      <View className="flex-row items-center gap-2">
+        <Text
+          maxFontSizeMultiplier={1}
+          className="text-xs font-semibold"
+          style={{ color: dark ? M3.primary : M3.onSurface }}
+        >
+          Eatlog
+        </Text>
+        {dark && (
+          <View
+            className="rounded-full"
+            style={{ width: 6, height: 6, backgroundColor: M3.calories }}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -85,11 +105,10 @@ export function LiquidMacroCapsule({
           borderColor: M3.outline,
         }}
       >
-        <View
-          className="absolute bottom-0 left-0 right-0"
-          style={{ height: `${progress * 100}%`, backgroundColor: color }}
-        >
-          <View className="h-1 w-full bg-white/30" />
+        <View className="overflow-hidden rounded-full" style={{ flex: 1 }}>
+          <View style={{ flex: progress, backgroundColor: color }}>
+            <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+          </View>
         </View>
       </View>
       <Text maxFontSizeMultiplier={1} className="mt-3 text-sm font-semibold text-m3-on-surface">
@@ -163,9 +182,9 @@ export function MealMacroRow({
   light?: boolean;
 }) {
   const macros = [
-    { label: 'Protein', value: protein.grams, color: M3.protein },
-    { label: 'Carbs', value: carbs.grams, color: M3.carbs },
-    { label: 'Fat', value: fat.grams, color: M3.fat },
+    { label: 'Protein', value: protein, color: M3.protein },
+    { label: 'Carbs', value: carbs, color: M3.carbs },
+    { label: 'Fat', value: fat, color: M3.fat },
   ];
   return (
     <View className="flex-row gap-2">
@@ -183,8 +202,17 @@ export function MealMacroRow({
             className="mt-0.5 text-lg font-bold tabular-nums"
             style={{ color: light ? M3.primary : M3.onSurface }}
           >
-            {Math.round(macro.value)}g
+            {Math.round(macro.value.grams)}g
           </Text>
+          <View className="mt-2 h-1 overflow-hidden rounded-full" style={{ backgroundColor: M3.outlineVariant }}>
+            <View
+              style={{
+                height: 4,
+                width: `${Math.min(1, Math.max(0, macro.value.percentOfGoal ?? 0)) * 100}%`,
+                backgroundColor: macro.color,
+              }}
+            />
+          </View>
         </View>
       ))}
     </View>
