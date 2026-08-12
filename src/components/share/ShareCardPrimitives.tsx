@@ -1,6 +1,5 @@
 import type React from 'react';
 import { Image, Text, View } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
 
 import { M3, TYPE } from '../../theme/tokens';
 import type { ShareMacroValue } from '../../utils/shareCards';
@@ -87,9 +86,7 @@ export function LiquidMacroCapsule({
   height?: number;
 }) {
   const progress = Math.min(1, Math.max(0, value.percentOfGoal ?? 0));
-  const innerHeight = height - 2;
-  const fillHeight = Math.round(innerHeight * progress);
-  const fillRadius = Math.min(33, fillHeight / 2);
+  const fillHeight = Math.round(height * progress);
   const percentLabel = value.percentOfGoal == null
     ? 'No goal'
     : `${Math.round(value.percentOfGoal * 100)}%`;
@@ -103,30 +100,25 @@ export function LiquidMacroCapsule({
       >
         {Math.round(value.grams)}g
       </Text>
-      <View className="mt-3 w-[68px]" style={{ height }}>
-        <Svg width={68} height={height} pointerEvents="none">
-          <Rect x={1} y={1} width={66} height={innerHeight} rx={33} fill={M3.surfaceContainerHigh} />
-          {fillHeight > 0 && (
-            <Rect
-              x={1}
-              y={1 + innerHeight - fillHeight}
-              width={66}
-              height={fillHeight}
-              rx={fillRadius}
-              ry={fillRadius}
-              fill={color}
-            />
-          )}
-          <Rect
-            x={0.5}
-            y={0.5}
-            width={67}
-            height={height - 1}
-            rx={33.5}
-            fill="none"
-            stroke={M3.outline}
+      <View
+        className="mt-3 w-[68px] overflow-hidden rounded-full border"
+        style={{
+          height,
+          backgroundColor: M3.surfaceContainerHigh,
+          borderColor: M3.outline,
+        }}
+      >
+        {fillHeight > 0 && (
+          <View
+            className="absolute bottom-0 left-0 right-0"
+            style={{
+              height: fillHeight,
+              backgroundColor: color,
+              borderTopLeftRadius: 34,
+              borderTopRightRadius: 34,
+            }}
           />
-        </Svg>
+        )}
       </View>
       <Text maxFontSizeMultiplier={1} className="mt-3 text-sm font-semibold text-m3-on-surface">
         {label}
