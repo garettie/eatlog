@@ -87,6 +87,7 @@ export function LiquidMacroCapsule({
 }) {
   const progress = Math.min(1, Math.max(0, value.percentOfGoal ?? 0));
   const fillHeight = Math.round(height * progress);
+  const fillRadius = Math.min(34, fillHeight / 2);
   const percentLabel = value.percentOfGoal == null
     ? 'No goal'
     : `${Math.round(value.percentOfGoal * 100)}%`;
@@ -109,11 +110,11 @@ export function LiquidMacroCapsule({
         }}
       >
         <View
-          className="overflow-hidden rounded-full"
-          style={{ height: fillHeight, backgroundColor: color }}
+          className="overflow-hidden"
+          style={{ height: fillHeight, backgroundColor: color, borderRadius: fillRadius }}
         >
-          {fillHeight >= 8 && (
-            <View style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+          {fillHeight >= 16 && (
+            <View style={{ height: 4, marginTop: 8, backgroundColor: 'rgba(255,255,255,0.28)' }} />
           )}
         </View>
       </View>
