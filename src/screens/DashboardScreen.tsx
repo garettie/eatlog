@@ -414,7 +414,7 @@ function DashboardScreen({
                   <Text className="text-m3-on-surface-variant text-sm font-medium" numberOfLines={1}>{formattedDate}</Text>
                   {refreshing && <ActivityIndicator size="small" color={M3.onSurfaceVariant} accessibilityLabel="Refreshing today's totals" />}
                 </View>
-                <Text className="text-m3-on-surface font-bold text-4xl tracking-tight">Today</Text>
+                <Text className="text-m3-on-surface font-bold text-4xl tracking-tight leading-[44px]">Today</Text>
               </View>
               <View className="flex-row items-center gap-1">
                 <Pressable
