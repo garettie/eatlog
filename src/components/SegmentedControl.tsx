@@ -23,6 +23,7 @@ interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (v: T) => void;
   disabled?: boolean;
+  accessibilityLabel?: string;
 }
 
 /**
@@ -33,6 +34,7 @@ export default function SegmentedControl<T extends string>({
   value,
   onChange,
   disabled = false,
+  accessibilityLabel,
 }: SegmentedControlProps<T>) {
   const reduced = useReducedMotion();
   const selectedIndex = Math.max(
@@ -73,6 +75,8 @@ export default function SegmentedControl<T extends string>({
     <View
       className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden"
       style={disabled ? { opacity: 0.38 } : undefined}
+      accessibilityRole={accessibilityLabel ? 'radiogroup' : undefined}
+      accessibilityLabel={accessibilityLabel}
     >
       <View
         className="flex-row relative"

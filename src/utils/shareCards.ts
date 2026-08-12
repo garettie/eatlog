@@ -1,14 +1,15 @@
 import type { DailyTarget, FoodLog, MealType } from '../db/database';
 import { parseLocalISO } from './calendar';
 import { buildLoggingHeatmap, type LoggingHeatmapModel } from './loggingHeatmap';
+import shareContract from './shareContract.json';
 
-export const SHARE_IMAGE = {
-  width: 1080,
-  height: 1920,
-  format: 'png',
-  mimeType: 'image/png',
-  extension: 'png',
-} as const;
+export const SHARE_IMAGE = shareContract.image as {
+  width: number;
+  height: number;
+  format: 'png';
+  mimeType: 'image/png';
+  extension: 'png';
+};
 
 export type MealCardLayout = 'photo' | 'framed' | 'nutrition';
 

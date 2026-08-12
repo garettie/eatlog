@@ -6,22 +6,22 @@ Run the full `UI_SMOKE_SCRIPT.md` on every available target. One device may sati
 | --- | --- | --- | --- | --- |
 | A26 | Android API 26 | Clean install on API 26; clear app data before the run | Cold launch, process kill, Android Back from viewer/composer, camera grant/deny/cancel, gallery cancel, Save image legacy-write grant/deny/permanent-denial and Settings recovery, native meal share/cancel, offline logging, backup/export share | Core smoke passes; legacy write is requested only after Save image, saving and sharing work, cleanup leaves no stale busy state, and no unsupported API call, crash, dead permission screen, clipped sheet, or data loss occurs |
 | A36 | Current Google Android / API 36 | Clean Play-equivalent signed candidate on a Google device or emulator | Edge-to-edge/safe areas, no media-read prompt on Save image, Gallery result, multiple meal-image share targets and cancellation, composer background/resume, TalkBack, reduced motion, Health Connect Weight read/write only, grant/revoke/reconnect, background sync, predictive Back where available | Core smoke and Health Connect round trip pass; meal save/share works without media-read access; generated permissions match the binary |
-| ASAM | Current Samsung-class Android | Current One UI with battery optimization left at default | Camera/gallery providers, meal JPEG visibility in Samsung Gallery, Samsung and third-party share targets, share cancellation, Files picker, process recreation, Health Connect provider behavior | No OEM-only navigation, picker, Gallery, sharing, sync, or restore failure |
+| ASAM | Current Samsung-class Android | Current One UI with battery optimization left at default | Camera/gallery providers, share-card PNG visibility in Samsung Gallery, Samsung and third-party share targets, share cancellation, Files picker, process recreation, Health Connect provider behavior | No OEM-only navigation, picker, Gallery, sharing, sync, or restore failure |
 | ALOW | Small/constrained Android | Small screen, low-memory profile, largest font, reduced motion | Background during camera/picker, force process recreation, long names/totals, keyboard and sheet resizing | State recovers or fails safely; no hidden action, overlap, stale data, or false success |
 | IMIN | Minimum supported iOS | iPhone on the minimum evaluated deployment target (currently iOS 15.1; recheck the final config) | First camera permission, photo picker, Save image add-only prompt grant/deny/permanent-denial and Settings recovery, meal share cancellation, VoiceOver, native date modal, Files and share sheets, swipe-back, kill/relaunch | Core smoke passes; Save image uses the approved add-only purpose string, Share requests no Photos permission, and no Health Connect UI/copy/native access exists |
 | ICUR | Current production iOS | Physical iPhone on current iOS with signed TestFlight candidate | Photos save result, multiple meal-image share targets and cancellation, composer background/resume, safe areas, largest text, camera denial/retry, Files providers, VoiceOver | Core smoke passes with real Photos/files/sharing, selected composer state survives interruption, and no dead control or false completion occurs |
 | ISMALL | Small iPhone | Smallest supported iPhone display, largest text | Onboarding/Profile keyboard avoidance, tab/FAB geometry, every bottom sheet, date picker, long privacy/attribution copy | Every field/action remains visible or scroll-reachable; safe areas and focus order pass |
 | ILARGE | Large iPhone | Largest supported iPhone display | Responsive widths, sheet height, tab/FAB alignment, charts, empty/loading/error states | Content does not over-expand or width-cap incorrectly; gestures and touch targets pass |
 
-## Meal-image inspection
+## Share-image inspection
 
 Run after Save image on A26, A36, ASAM, IMIN, and ICUR where available.
 
-1. Inspect Summary, Macros, and Components JPEGs and confirm exact 1080 by 1350 dimensions.
-2. Use square, portrait, landscape, panorama, and rotated-orientation synthetic sources. Confirm every result is upright, contained without cropping or stretching, and uses solid tonal padding where aspect ratios differ.
+1. Inspect Meal Photo, Framed, Nutrition, Day, and Logging consistency PNGs and confirm exact 1080 by 1920 dimensions.
+2. Use square, portrait, landscape, panorama, and rotated-orientation synthetic sources. Confirm every result is upright and never stretched. Confirm Photo and Framed apply their intended cover crop, while Nutrition falls back cleanly when no photo is available.
 3. Inspect metadata and confirm source GPS/location, camera model, original filename, and capture timestamp are absent.
-4. Send one generated JPEG through a messaging target that recompresses images. Confirm Onest text, meal title, calories, P/C/F labels, components, and Eatlog mark remain legible.
-5. Repeat save/share twice and cancel once. Confirm no stale template, exposed swipe row, false success, blocked action, or generated cache attachment remains in later operations.
+4. Send one generated PNG through a messaging target that recompresses images. Confirm Onest text, meal title, calories, P/C/F labels, consistency blocks, and Eatlog mark remain legible.
+5. Repeat save/share twice and cancel once. Confirm no stale style, exposed swipe row, false success, blocked action, or generated cache attachment remains in later operations.
 
 ## Network and provider cases
 

@@ -248,22 +248,17 @@ function MealRow({
   const totalF = meal.components.reduce((s, c) => s + c.fat_g, 0);
 
   const hasPhoto = Boolean(meal.photoUri?.trim());
-  const accessibilityActions = hasPhoto
-    ? [
-        { name: 'activate', label: 'Edit' },
-        { name: 'share', label: 'Share' },
-        { name: 'delete', label: 'Delete' },
-      ]
-    : [
-        { name: 'activate', label: 'Edit' },
-        { name: 'delete', label: 'Delete' },
-      ];
+  const accessibilityActions = [
+    { name: 'activate', label: 'Edit' },
+    { name: 'share', label: 'Share' },
+    { name: 'delete', label: 'Delete' },
+  ];
 
   return (
     <SwipeRow
       identity={`meal-${meal.id}`}
       onDelete={() => onDeleteMeal(meal.id)}
-      onShare={hasPhoto ? () => onShareMeal(meal) : undefined}
+      onShare={() => onShareMeal(meal)}
     >
       <NutritionCard
         name={meal.name}
@@ -274,17 +269,15 @@ function MealRow({
         carbs={totalC}
         fat={totalF}
         onPress={() => onEditMeal(meal)}
-        accessibilityHint={hasPhoto
-          ? 'Opens meal editor. Swipe left for Share or Delete.'
-          : 'Opens meal editor. Swipe left to delete.'}
+        accessibilityHint="Opens meal editor. Use the Share control on the meal image or icon, or swipe left for Share or Delete."
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={(event) => {
           if (event.nativeEvent.actionName === 'activate') onEditMeal(meal);
-          else if (event.nativeEvent.actionName === 'share' && hasPhoto) onShareMeal(meal);
+          else if (event.nativeEvent.actionName === 'share') onShareMeal(meal);
           else if (event.nativeEvent.actionName === 'delete') onDeleteMeal(meal.id);
         }}
-        onPressPhoto={hasPhoto ? () => onShareMeal(meal) : undefined}
-        photoAccessibilityLabel={hasPhoto ? `Share ${meal.name}` : undefined}
+        onPressMedia={() => onShareMeal(meal)}
+        mediaAccessibilityLabel={`Share ${meal.name}`}
       />
     </SwipeRow>
   );

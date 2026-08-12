@@ -3,9 +3,10 @@ import test from 'node:test';
 
 import type { DailyTarget, FoodLog } from '../db/database';
 import {
+  SHARE_IMAGE,
+  buildConsistencyShareData,
   buildDaySummaryShareData,
   buildMealShareData,
-  buildStreakShareData,
 } from './shareCards';
 
 const target: DailyTarget = {
@@ -84,13 +85,19 @@ test('builds meal totals, creation timestamp, and daily-goal contribution from s
   assert.equal(data.protein.percentOfGoal, 0.15);
 });
 
-test('does not build a meal card without a real photo and component', () => {
-  assert.equal(buildMealShareData({ id: 1, name: 'Meal', photoUri: null, components: [component()] }, target), null);
+test('builds a nutrition-first meal card without a photo', () => {
+  const data = buildMealShareData({ id: 1, name: 'Meal', photoUri: null, components: [component()] }, target);
+  assert.ok(data);
+  assert.equal(data.photoUri, null);
+  assert.equal(data.calories, 123.45);
+});
+
+test('does not build a meal card without a component', () => {
   assert.equal(buildMealShareData({ id: 1, name: 'Meal', photoUri: 'file:///meal.jpg', components: [] }, target), null);
 });
 
-test('derives current, longest, and last-seven streak values with today grace', () => {
-  const data = buildStreakShareData('2026-08-12', [
+test('builds the rolling 30-day consistency model with the current-week summary', () => {
+  const data = buildConsistencyShareData('2026-08-12', [
     '2026-08-01',
     '2026-08-02',
     '2026-08-03',
@@ -101,13 +108,19 @@ test('derives current, longest, and last-seven streak values with today grace', 
     '2026-08-11',
   ]);
 
-  assert.equal(data.currentStreak, 3);
-  assert.equal(data.longestStreak, 3);
-  assert.deepEqual(data.lastSevenDays.map((day) => day.complete), [false, false, false, true, true, true, false]);
+  assert.equal(data.endDate, '2026-08-12');
+  assert.equal(data.currentWeekCount, 2);
+  assert.equal(data.windowCount, 7);
+  assert.equal(data.rows.length, 3);
+  assert.deepEqual(data.rows.map((row) => row.length), [10, 10, 10]);
 });
 
-test('a completed end date participates in the current streak', () => {
-  const data = buildStreakShareData('2026-08-12', ['2026-08-10', '2026-08-11', '2026-08-12']);
-  assert.equal(data.currentStreak, 3);
-  assert.equal(data.longestStreak, 3);
+test('keeps the exported share image contract story-sized and lossless', () => {
+  assert.deepEqual(SHARE_IMAGE, {
+    width: 1080,
+    height: 1920,
+    format: 'png',
+    mimeType: 'image/png',
+    extension: 'png',
+  });
 });

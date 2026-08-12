@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 import { M3 } from '../theme/tokens';
 import { foodIcon } from '../utils/foodIcons';
@@ -27,8 +27,8 @@ export interface NutritionCardProps {
   accessibilityHint: string;
   accessibilityActions?: Array<{ name: string; label: string }>;
   onAccessibilityAction?: (event: { nativeEvent: { actionName: string } }) => void;
-  onPressPhoto?: (uri: string) => void;
-  photoAccessibilityLabel?: string;
+  onPressMedia?: () => void;
+  mediaAccessibilityLabel?: string;
   action?: React.ReactNode;
 }
 
@@ -44,8 +44,8 @@ export default function NutritionCard({
   accessibilityHint,
   accessibilityActions,
   onAccessibilityAction,
-  onPressPhoto,
-  photoAccessibilityLabel,
+  onPressMedia,
+  mediaAccessibilityLabel,
   action,
 }: NutritionCardProps) {
   const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export default function NutritionCard({
     setFailedPhotoUri(null);
   }, [sourcePhotoUri]);
 
-  const photo = photoUri ? (
+  const media = photoUri ? (
     <Image
       source={{ uri: photoUri }}
       style={{ width: 112, flex: 1, objectFit: 'cover' }}
@@ -63,7 +63,13 @@ export default function NutritionCard({
       fadeDuration={0}
       onError={() => setFailedPhotoUri(photoUri)}
     />
-  ) : null;
+  ) : (
+    <View className="flex-1 items-center justify-center">
+      <View className="h-12 w-12 items-center justify-center rounded-full bg-m3-surface-container-highest">
+        <MaterialCommunityIcons name={foodIcon(name)} size={20} color={M3.onSurfaceVariant} />
+      </View>
+    </View>
+  );
 
   return (
     <View className="rounded-2xl overflow-hidden bg-m3-surface-container border border-m3-outline-variant/30">
@@ -76,29 +82,27 @@ export default function NutritionCard({
         onAccessibilityAction={onAccessibilityAction}
         className="flex-row items-stretch min-h-[112px] active:opacity-80"
       >
-        {photoUri ? (
-          onPressPhoto ? (
-            <Pressable
-              onPress={(event) => {
-                event.stopPropagation();
-                onPressPhoto(photoUri);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={photoAccessibilityLabel ?? `View ${name} photo`}
-              className="w-28 self-stretch overflow-hidden bg-m3-surface-container-highest active:opacity-80"
+        {onPressMedia ? (
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              onPressMedia();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={mediaAccessibilityLabel ?? `Share ${name}`}
+            className="w-28 self-stretch overflow-hidden bg-m3-surface-container-highest active:opacity-80"
+          >
+            {media}
+            <View
+              pointerEvents="none"
+              className="absolute bottom-2 right-2 h-9 w-9 items-center justify-center rounded-full border border-m3-outline-variant bg-m3-surface-container-lowest"
             >
-              {photo}
-            </Pressable>
-          ) : (
-            <View className="w-28 self-stretch overflow-hidden bg-m3-surface-container-highest">
-              {photo}
+              <MaterialIcons name="share" size={18} color={M3.onSurface} />
             </View>
-          )
+          </Pressable>
         ) : (
           <View className="w-28 self-stretch items-center justify-center">
-            <View className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center">
-              <MaterialCommunityIcons name={foodIcon(name)} size={20} color={M3.onSurfaceVariant} />
-            </View>
+            {media}
           </View>
         )}
         <View className="flex-1 min-w-0 px-5 py-5">

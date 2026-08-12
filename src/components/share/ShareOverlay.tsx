@@ -31,6 +31,7 @@ import {
 import { DURATION, EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
 import {
+  SHARE_IMAGE,
   type MealCardLayout,
   type ShareContent,
   shareContentKey,
@@ -38,25 +39,27 @@ import {
 import LogToast from '../LogToast';
 import SegmentedControl from '../SegmentedControl';
 import Sheet from '../Sheet';
+import ConsistencyCard from './ConsistencyCard';
 import DaySummaryCard from './DaySummaryCard';
 import MealCard from './MealCard';
-import StreakCard from './StreakCard';
 
 type ExportOperation = null | 'save' | 'share';
-type ShareContentKind = ShareContent['kind'];
 
-const CONTENT_PRIORITY: ShareContentKind[] = ['meal', 'day', 'streak'];
-const CONTENT_LABELS: Record<ShareContentKind, string> = {
-  meal: 'Meal',
-  day: 'Day',
-  streak: 'Streak',
-};
-
-const LAYOUT_OPTIONS: Array<{ value: MealCardLayout; label: string }> = [
-  { value: 'full-bleed', label: 'Full bleed' },
-  { value: 'framed', label: 'Framed' },
-  { value: 'stat', label: 'Stat' },
+const LAYOUT_OPTIONS: Array<{
+  value: MealCardLayout;
+  label: string;
+  accessibilityLabel: string;
+}> = [
+  { value: 'photo', label: 'Photo', accessibilityLabel: 'Style, photo' },
+  { value: 'framed', label: 'Framed', accessibilityLabel: 'Style, framed photo' },
+  { value: 'nutrition', label: 'Nutrition', accessibilityLabel: 'Style, nutrition' },
 ];
+
+const LAYOUT_LABELS: Record<MealCardLayout, string> = {
+  photo: 'Photo',
+  framed: 'Framed photo',
+  nutrition: 'Nutrition',
+};
 
 function deleteCacheFile(uri: string | null): void {
   if (!uri) return;
@@ -66,7 +69,7 @@ function deleteCacheFile(uri: string | null): void {
   } catch {}
 }
 
-function BrandingToggle({
+function BrandMarkToggle({
   value,
   disabled,
   onChange,
@@ -94,14 +97,14 @@ function BrandingToggle({
       onPress={() => onChange(!value)}
       disabled={disabled}
       accessibilityRole="switch"
-      accessibilityLabel="Eatlog badge"
+      accessibilityLabel="Eatlog mark"
       accessibilityState={{ checked: value, disabled }}
-      accessibilityHint="Toggles the Eatlog badge on share cards"
-      className={`flex-row items-center justify-between gap-4 px-2 py-2.5 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
+      accessibilityHint="Adds the Eatlog name and egg mark to exported cards"
+      className={`min-h-[56px] flex-row items-center justify-between gap-4 rounded-2xl px-3 py-2 active:opacity-70 ${disabled ? 'opacity-40' : ''}`}
     >
       <View className="min-w-0 flex-1">
-        <Text className="text-sm font-semibold text-m3-on-surface">Eatlog badge</Text>
-        <Text className="mt-0.5 text-xs text-m3-on-surface-variant">Shown on every card you post</Text>
+        <Text className="text-sm font-semibold text-m3-on-surface">Eatlog mark</Text>
+        <Text className="mt-0.5 text-xs text-m3-on-surface-variant">Shown on exported cards</Text>
       </View>
       <View
         className="h-7 w-12 rounded-full border p-0.5"
@@ -127,113 +130,99 @@ function previewAccessibilityLabel(content: ShareContent, layout: MealCardLayout
     return `Daily summary image preview. ${Math.round(content.data.calories)} kilocalories. Protein ${Math.round(content.data.protein.grams)} grams, carbohydrates ${Math.round(content.data.carbs.grams)} grams, fat ${Math.round(content.data.fat.grams)} grams.`;
   }
   if (content.kind === 'meal') {
-    return `${layout} meal image preview. ${content.data.name}. ${Math.round(content.data.calories)} kilocalories. Protein ${Math.round(content.data.protein.grams)} grams, carbohydrates ${Math.round(content.data.carbs.grams)} grams, fat ${Math.round(content.data.fat.grams)} grams.`;
+    return `${LAYOUT_LABELS[layout]} meal image preview. ${content.data.name}. ${Math.round(content.data.calories)} kilocalories. Protein ${Math.round(content.data.protein.grams)} grams, carbohydrates ${Math.round(content.data.carbs.grams)} grams, fat ${Math.round(content.data.fat.grams)} grams.`;
   }
-  return `Logging streak image preview. Current streak ${content.data.currentStreak} days. Longest streak ${content.data.longestStreak} days. ${content.data.lastSevenDays.filter((day) => day.complete).length} of the last 7 days logged.`;
+  return `Logging consistency image preview. ${content.data.currentWeekCount} of 7 days logged this week.`;
 }
 
 function overlayTitle(content: ShareContent): string {
   if (content.kind === 'day') return 'Share day';
   if (content.kind === 'meal') return 'Share meal';
-  return 'Share streak';
+  return 'Share logging consistency';
 }
 
 export default function ShareOverlay({
-  contents,
+  content,
   onClose,
 }: {
-  contents: readonly ShareContent[] | null;
+  content: ShareContent | null;
   onClose: () => void;
 }) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const cardRef = useRef<View>(null);
   const operationRef = useRef<Exclude<ExportOperation, null> | null>(null);
-  const [selectedKind, setSelectedKind] = useState<ShareContentKind>('meal');
-  const [layout, setLayout] = useState<MealCardLayout>('full-bleed');
-  const [showBranding, setShowBranding] = useState(true);
+  const [layout, setLayout] = useState<MealCardLayout>('photo');
+  const [showBranding, setShowBranding] = useState<boolean | null>(null);
+  const [brandingLoadError, setBrandingLoadError] = useState(false);
   const [brandingSaving, setBrandingSaving] = useState(false);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [operation, setOperation] = useState<ExportOperation>(null);
   const [cardReady, setCardReady] = useState(false);
-  const [photoUnavailable, setPhotoUnavailable] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const [saveConfirmationId, setSaveConfirmationId] = useState(0);
 
   const busy = operation != null;
   const canCloseRef = useRef<() => boolean>(() => true);
   canCloseRef.current = () => !busy;
 
-  const orderedContents = useMemo(() => {
-    const seen = new Set<ShareContentKind>();
-    return [...(contents ?? [])]
-      .sort((a, b) => CONTENT_PRIORITY.indexOf(a.kind) - CONTENT_PRIORITY.indexOf(b.kind))
-      .filter((item) => {
-        if (seen.has(item.kind)) return false;
-        seen.add(item.kind);
-        return true;
-      });
-  }, [contents]);
-  const content = orderedContents.find((item) => item.kind === selectedKind) ?? orderedContents[0] ?? null;
-  const contentOptions = useMemo(() => orderedContents.map((item) => ({
-    value: item.kind,
-    label: CONTENT_LABELS[item.kind],
-  })), [orderedContents]);
-  const requestKey = orderedContents.map(shareContentKey).join('|');
+  const requestKey = content == null ? 'share-closed' : shareContentKey(content);
 
   useEffect(() => {
     let active = true;
     void getShareBrandingEnabled()
       .then((enabled) => {
-        if (active) setShowBranding(enabled);
+        if (!active) return;
+        setShowBranding(enabled);
+        setBrandingLoadError(false);
       })
-      .catch((error) => console.error('[share-overlay] branding preference load failed', error));
+      .catch((error) => {
+        console.error('[share-overlay] Eatlog mark preference load failed', error);
+        if (!active) return;
+        setShowBranding(false);
+        setBrandingLoadError(true);
+      });
     return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    const firstContent = orderedContents[0] ?? null;
-    setSelectedKind(firstContent?.kind ?? 'meal');
-    setLayout('full-bleed');
-    setPhotoUnavailable(false);
-    setCardReady(firstContent?.kind !== 'meal' && firstContent != null);
+    const hasPhoto = content?.kind === 'meal' && content.data.photoUri != null;
+    setLayout(hasPhoto ? 'photo' : 'nutrition');
+    setPhotoFailed(false);
+    setCardReady(content != null && !hasPhoto);
+    setCustomizeOpen(false);
     setSaveConfirmationId(0);
   }, [requestKey]);
 
   const sheetWidth = windowWidth >= 600 ? Math.min(windowWidth - 64, 720) : windowWidth;
-  const reservedHeight = (contentOptions.length > 1 ? 60 : 0) + (content?.kind === 'meal' ? 272 : 212);
-  const previewHeight = Math.max(260, Math.min(520, windowHeight * 0.92 - reservedHeight));
+  const previewHeight = Math.max(260, Math.min(520, windowHeight * 0.92 - 260));
   const cardWidth = Math.max(146, Math.min(300, sheetWidth - 80, previewHeight * 9 / 16));
   const cardHeight = cardWidth * 16 / 9;
-  const actionsDisabled = busy || !cardReady || photoUnavailable;
-
-  const stateKey = content == null ? 'share-closed' : `share-${requestKey}`;
+  const photoAvailable = content?.kind === 'meal' && content.data.photoUri != null && !photoFailed;
+  const previewReady = cardReady && showBranding != null;
+  const actionsDisabled = busy || !previewReady;
   const snapPoints = useMemo(() => ['92%'], []);
 
   const changeLayout = (nextLayout: MealCardLayout) => {
-    if (busy || nextLayout === layout) return;
+    if (busy || !photoAvailable || nextLayout === layout) return;
     setCardReady(false);
-    setPhotoUnavailable(false);
     setLayout(nextLayout);
   };
 
-  const changeContent = (nextKind: ShareContentKind) => {
-    if (busy || nextKind === content?.kind) return;
-    const nextContent = orderedContents.find((item) => item.kind === nextKind);
-    if (!nextContent) return;
-    setPhotoUnavailable(false);
-    setCardReady(nextContent.kind !== 'meal');
-    setSelectedKind(nextKind);
-  };
-
   const changeBranding = async (enabled: boolean) => {
-    if (brandingSaving || busy) return;
+    if (showBranding == null || brandingSaving || busy) return;
     const previous = showBranding;
     setShowBranding(enabled);
     setBrandingSaving(true);
     try {
       await setShareBrandingEnabled(enabled);
+      setBrandingLoadError(false);
     } catch (error) {
-      console.error('[share-overlay] branding preference save failed', error);
+      console.error('[share-overlay] Eatlog mark preference save failed', error);
       setShowBranding(previous);
-      Alert.alert('Couldn’t save the branding preference.', 'Try again.');
+      Alert.alert(
+        'Couldn’t update the Eatlog mark',
+        'Your previous setting is still active. Try the switch again.',
+      );
     } finally {
       setBrandingSaving(false);
     }
@@ -252,7 +241,7 @@ export default function ShareOverlay({
   };
 
   const captureCard = async (): Promise<{ capturedUri: string; cacheUri: string }> => {
-    if (!cardRef.current || !cardReady || photoUnavailable) {
+    if (!cardRef.current || !previewReady) {
       throw new Error('Share card is not ready');
     }
     let capturedUri: string | null = null;
@@ -261,12 +250,12 @@ export default function ShareOverlay({
       const pixelRatio = PixelRatio.get();
       capturedUri = await captureRef(cardRef.current, {
         result: 'tmpfile',
-        format: 'png',
+        format: SHARE_IMAGE.format,
         quality: 1,
-        width: Platform.OS === 'ios' ? 1080 / pixelRatio : 1080,
-        height: Platform.OS === 'ios' ? 1920 / pixelRatio : 1920,
+        width: Platform.OS === 'ios' ? SHARE_IMAGE.width / pixelRatio : SHARE_IMAGE.width,
+        height: Platform.OS === 'ios' ? SHARE_IMAGE.height / pixelRatio : SHARE_IMAGE.height,
       });
-      const cacheFile = new File(Paths.cache, `eatlog-share-${Date.now()}.png`);
+      const cacheFile = new File(Paths.cache, `eatlog-share-${Date.now()}.${SHARE_IMAGE.extension}`);
       new File(capturedUri).copy(cacheFile);
       cacheUri = cacheFile.uri;
       return { capturedUri, cacheUri };
@@ -295,7 +284,10 @@ export default function ShareOverlay({
             ],
           );
         } else {
-          Alert.alert('Photo access is needed', 'Allow Eatlog to save this image to your photo library.');
+          Alert.alert(
+            'Photo access wasn’t allowed',
+            'Try Save image again and allow Eatlog to add the image to your photo library.',
+          );
         }
         return;
       }
@@ -308,7 +300,14 @@ export default function ShareOverlay({
       AccessibilityInfo.announceForAccessibility('Share image saved.');
     } catch (error) {
       console.error('[share-overlay] save failed', error);
-      Alert.alert('Couldn’t save the share image.', 'Try again.');
+      Alert.alert(
+        'Couldn’t save the image',
+        'The card wasn’t saved. Check the preview and try again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Try again', onPress: () => { void handleSave(); } },
+        ],
+      );
     } finally {
       if (capturedUri) releaseCapture(capturedUri);
       deleteCacheFile(capturedUri);
@@ -323,20 +322,27 @@ export default function ShareOverlay({
     let cacheUri: string | null = null;
     try {
       if (!await Sharing.isAvailableAsync()) {
-        Alert.alert('Sharing isn’t available on this device.');
+        Alert.alert('Sharing isn’t available', 'This device doesn’t currently offer a share destination.');
         return;
       }
       const captured = await captureCard();
       capturedUri = captured.capturedUri;
       cacheUri = captured.cacheUri;
       await Sharing.shareAsync(cacheUri, {
-        mimeType: 'image/png',
+        mimeType: SHARE_IMAGE.mimeType,
         dialogTitle: content ? overlayTitle(content) : 'Share Eatlog image',
         UTI: 'public.png',
       });
     } catch (error) {
       console.error('[share-overlay] share failed', error);
-      Alert.alert('Couldn’t share the image.', 'Try again.');
+      Alert.alert(
+        'Couldn’t open Share',
+        'The image is still available in this preview. Try sharing it again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Try again', onPress: () => { void handleShare(); } },
+        ],
+      );
     } finally {
       if (capturedUri) releaseCapture(capturedUri);
       deleteCacheFile(capturedUri);
@@ -345,11 +351,15 @@ export default function ShareOverlay({
     }
   };
 
+  const optionSummary = content?.kind === 'meal'
+    ? `${photoAvailable ? LAYOUT_LABELS[layout] : 'Nutrition'} · Eatlog mark ${showBranding ? 'on' : 'off'}`
+    : `Eatlog mark ${showBranding ? 'on' : 'off'}`;
+
   return (
     <Sheet
-      visible={orderedContents.length > 0}
+      visible={content != null}
       snapPoints={snapPoints}
-      stateKey={stateKey}
+      stateKey={requestKey}
       canCloseRef={canCloseRef}
       onSheetClosed={onClose}
       enablePanDownToClose
@@ -360,7 +370,7 @@ export default function ShareOverlay({
             className="flex-1"
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled
-            contentContainerStyle={{ paddingBottom: 16 }}
+            contentContainerStyle={{ paddingBottom: 20 }}
           >
             <View className="min-h-[52px] flex-row items-center px-2">
               <Pressable
@@ -379,30 +389,8 @@ export default function ShareOverlay({
               <View className="h-12 w-12" />
             </View>
 
-            {contentOptions.length > 1 && (
-              <View className="px-4 pb-2 pt-1">
-                <SegmentedControl
-                  options={contentOptions}
-                  value={content.kind}
-                  onChange={changeContent}
-                  disabled={busy}
-                />
-              </View>
-            )}
-
             <View className="items-center px-4 py-2">
-              {photoUnavailable ? (
-                <View
-                  className="items-center justify-center gap-3 rounded-3xl bg-m3-surface-container-high px-8"
-                  style={{ width: cardWidth, height: cardHeight }}
-                  accessibilityRole="alert"
-                >
-                  <MaterialIcons name="broken-image" size={36} color={M3.onSurfaceVariant} />
-                  <Text className="text-center text-sm text-m3-on-surface-variant">
-                    This meal photo is no longer available.
-                  </Text>
-                </View>
-              ) : (
+              <View style={{ width: cardWidth, height: cardHeight }}>
                 <View
                   ref={cardRef}
                   collapsable={false}
@@ -411,94 +399,150 @@ export default function ShareOverlay({
                   accessibilityLabel={previewAccessibilityLabel(content, layout)}
                   style={{ width: cardWidth, height: cardHeight }}
                   onLayout={() => {
-                    if (content.kind !== 'meal') setCardReady(true);
+                    if (content.kind !== 'meal' || !photoAvailable) setCardReady(true);
                   }}
                 >
                   {content.kind === 'day' ? (
-                    <DaySummaryCard data={content.data} showBranding={showBranding} width={cardWidth} height={cardHeight} />
+                    <DaySummaryCard data={content.data} showBranding={showBranding ?? false} width={cardWidth} height={cardHeight} />
                   ) : content.kind === 'meal' ? (
                     <MealCard
-                      data={content.data}
-                      layout={layout}
-                      showBranding={showBranding}
+                      data={photoFailed ? { ...content.data, photoUri: null } : content.data}
+                      layout={photoAvailable ? layout : 'nutrition'}
+                      showBranding={showBranding ?? false}
                       width={cardWidth}
                       height={cardHeight}
                       onPhotoLoad={() => setCardReady(true)}
                       onPhotoError={() => {
-                        setCardReady(false);
-                        setPhotoUnavailable(true);
+                        setPhotoFailed(true);
+                        setLayout('nutrition');
+                        setCardReady(true);
+                        AccessibilityInfo.announceForAccessibility('Meal photo unavailable. Using the nutrition card.');
                       }}
                     />
                   ) : (
-                    <StreakCard data={content.data} showBranding={showBranding} width={cardWidth} height={cardHeight} />
+                    <ConsistencyCard data={content.data} showBranding={showBranding ?? false} width={cardWidth} height={cardHeight} />
                   )}
+                </View>
+
+                {!previewReady && (
+                  <View
+                    className="absolute inset-0 items-center justify-center gap-3 rounded-3xl"
+                    style={{ backgroundColor: `${M3.surfaceContainerLowest}f2` }}
+                    accessibilityRole="progressbar"
+                    accessibilityLabel="Preparing share preview"
+                  >
+                    <ActivityIndicator color={M3.onSurface} />
+                    <Text className="text-sm font-medium text-m3-on-surface-variant">Preparing preview…</Text>
+                  </View>
+                )}
+              </View>
+
+              {photoFailed && (
+                <View
+                  className="mt-3 flex-row items-center gap-2 rounded-full bg-m3-surface-container-high px-3 py-2"
+                  accessibilityLiveRegion="polite"
+                >
+                  <MaterialIcons name="image-not-supported" size={18} color={M3.onSurfaceVariant} />
+                  <Text className="text-xs font-medium text-m3-on-surface-variant">
+                    Photo unavailable · Using nutrition
+                  </Text>
                 </View>
               )}
             </View>
 
-            {content.kind === 'meal' && (
-              <View className="px-4 pb-1 pt-3">
-                <SegmentedControl
-                  options={LAYOUT_OPTIONS}
-                  value={layout}
-                  onChange={changeLayout}
-                  disabled={busy || photoUnavailable}
-                />
-              </View>
-            )}
-
-            <View className="px-4 pt-2">
-              <View className="border-b border-m3-outline-variant pb-4 pt-1">
-                <BrandingToggle
-                  value={showBranding}
-                  disabled={busy || brandingSaving}
-                  onChange={(enabled) => { void changeBranding(enabled); }}
-                />
-              </View>
-              <Text className="pt-3 text-xs text-m3-placeholder">
-                To post a Story, choose Instagram from Share when it's available on your device.
-              </Text>
-            </View>
-
-            <View className="mt-2 flex-row gap-3 border-t border-m3-outline-variant px-4 pb-2 pt-4">
+            <View className="px-4 pt-3">
               <Pressable
-                onPress={() => { void handleSave(); }}
-                disabled={actionsDisabled}
+                onPress={() => setCustomizeOpen((open) => !open)}
+                disabled={busy}
                 accessibilityRole="button"
-                accessibilityLabel="Save image"
-                accessibilityHint="Saves the visible share card to your photo library"
-                accessibilityState={{ disabled: actionsDisabled, busy: operation === 'save' }}
-                className={`min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full bg-m3-secondary-container px-3 active:opacity-80 ${actionsDisabled ? 'opacity-40' : ''}`}
+                accessibilityLabel="Card options"
+                accessibilityHint={customizeOpen ? 'Hides card style and Eatlog mark options' : 'Shows card style and Eatlog mark options'}
+                accessibilityState={{ expanded: customizeOpen, disabled: busy }}
+                className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl px-3 active:opacity-70 ${busy ? 'opacity-40' : ''}`}
               >
-                {operation === 'save' ? (
-                  <ActivityIndicator color={M3.onSecondaryContainer} />
-                ) : (
-                  <>
-                    <MaterialIcons name="download" size={20} color={M3.onSecondaryContainer} />
-                    <Text className="text-sm font-bold text-m3-on-secondary-container">Save image</Text>
-                  </>
-                )}
+                <View className="min-w-0 flex-1">
+                  <Text className="text-sm font-semibold text-m3-on-surface">Card options</Text>
+                  <Text className="mt-0.5 text-xs text-m3-on-surface-variant" numberOfLines={1}>
+                    {showBranding == null ? 'Loading Eatlog mark preference…' : optionSummary}
+                  </Text>
+                </View>
+                <MaterialIcons
+                  name={customizeOpen ? 'expand-less' : 'expand-more'}
+                  size={24}
+                  color={M3.onSurfaceVariant}
+                />
               </Pressable>
-              <Pressable
-                onPress={() => { void handleShare(); }}
-                disabled={actionsDisabled}
-                accessibilityRole="button"
-                accessibilityLabel="Share image"
-                accessibilityHint="Opens the system share sheet with the visible image"
-                accessibilityState={{ disabled: actionsDisabled, busy: operation === 'share' }}
-                className={`min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full bg-m3-primary px-3 active:opacity-90 ${actionsDisabled ? 'opacity-40' : ''}`}
-              >
-                {operation === 'share' ? (
-                  <ActivityIndicator color={M3.onPrimary} />
-                ) : (
-                  <>
-                    <MaterialIcons name="share" size={20} color={M3.onPrimary} />
-                    <Text className="text-sm font-bold text-m3-on-primary">Share</Text>
-                  </>
-                )}
-              </Pressable>
+
+              {brandingLoadError && (
+                <Text className="px-3 pb-2 text-xs text-m3-error" accessibilityLiveRegion="polite">
+                  The Eatlog mark preference couldn’t be loaded, so the mark is off for this card.
+                </Text>
+              )}
+
+              {customizeOpen && (
+                <View className="gap-3 border-t border-m3-outline-variant px-3 pb-2 pt-4">
+                  {content.kind === 'meal' && photoAvailable && (
+                    <View className="gap-2">
+                      <Text className="text-xs font-semibold text-m3-on-surface-variant">Style</Text>
+                      <SegmentedControl
+                        options={LAYOUT_OPTIONS}
+                        value={layout}
+                        onChange={changeLayout}
+                        disabled={busy}
+                        accessibilityLabel="Card style"
+                      />
+                    </View>
+                  )}
+                  {showBranding != null && (
+                    <BrandMarkToggle
+                      value={showBranding}
+                      disabled={busy || brandingSaving}
+                      onChange={(enabled) => { void changeBranding(enabled); }}
+                    />
+                  )}
+                </View>
+              )}
             </View>
           </ScrollView>
+
+          <View className="flex-row gap-3 border-t border-m3-outline-variant bg-m3-surface-container px-4 pb-2 pt-3">
+            <Pressable
+              onPress={() => { void handleSave(); }}
+              disabled={actionsDisabled}
+              accessibilityRole="button"
+              accessibilityLabel="Save image"
+              accessibilityHint="Saves the visible share card to your photo library"
+              accessibilityState={{ disabled: actionsDisabled, busy: operation === 'save' }}
+              className={`min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full bg-m3-secondary-container px-3 active:opacity-80 ${actionsDisabled ? 'opacity-40' : ''}`}
+            >
+              {operation === 'save' ? (
+                <ActivityIndicator color={M3.onSecondaryContainer} />
+              ) : (
+                <>
+                  <MaterialIcons name="download" size={20} color={M3.onSecondaryContainer} />
+                  <Text className="text-sm font-bold text-m3-on-secondary-container">Save image</Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => { void handleShare(); }}
+              disabled={actionsDisabled}
+              accessibilityRole="button"
+              accessibilityLabel="Share image"
+              accessibilityHint="Opens the system share menu with the visible image"
+              accessibilityState={{ disabled: actionsDisabled, busy: operation === 'share' }}
+              className={`min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full bg-m3-primary px-3 active:opacity-90 ${actionsDisabled ? 'opacity-40' : ''}`}
+            >
+              {operation === 'share' ? (
+                <ActivityIndicator color={M3.onPrimary} />
+              ) : (
+                <>
+                  <MaterialIcons name="share" size={20} color={M3.onPrimary} />
+                  <Text className="text-sm font-bold text-m3-on-primary">Share</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
 
           {saveConfirmationId > 0 && (
             <View className="absolute bottom-20 left-4 right-4 z-10">

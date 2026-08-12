@@ -46,7 +46,7 @@ Primary references: [Expo permissions guide](https://docs.expo.dev/guides/permis
 
 ## iOS settings
 
-The evaluated production config uses the candidate bundle identifier, iPhone-only device family, the canonical 1024 by 1024 Eatlog icon, camera and photo-library purpose strings, the add-only string `Allow Eatlog to save meal images to your photo library.`, and `ITSAppUsesNonExemptEncryption=false`. The add-only permission is requested only after Save image; native sharing requests no Photos permission. No microphone purpose string is generated. Eatlog uses standard HTTPS and platform cryptography and does not implement non-exempt encryption.
+The evaluated production config uses the candidate bundle identifier, iPhone-only device family, the canonical 1024 by 1024 Eatlog icon, camera and photo-library purpose strings, the add-only string `Allow Eatlog to save share images to your photo library.`, and `ITSAppUsesNonExemptEncryption=false`. The add-only permission is requested only after Save image; native sharing requests no Photos permission. No microphone purpose string is generated. Eatlog uses standard HTTPS and platform cryptography and does not implement non-exempt encryption.
 
 The canonical icon is 1024 by 1024 with alpha fixed at 255 for every pixel. Visual inspection confirms the existing flat-white egg mask on the dark Eatlog background. Android adaptive and monochrome sources keep their required transparent layers.
 

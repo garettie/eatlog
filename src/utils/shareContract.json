@@ -1,0 +1,19 @@
+{
+  "image": {
+    "width": 1080,
+    "height": 1920,
+    "format": "png",
+    "mimeType": "image/png",
+    "extension": "png"
+  },
+  "contentKinds": [
+    "meal",
+    "day",
+    "consistency"
+  ],
+  "mealStyles": [
+    "photo",
+    "framed",
+    "nutrition"
+  ]
+}

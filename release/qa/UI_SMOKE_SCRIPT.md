@@ -29,20 +29,20 @@ No real person, meal, photo, or health record may be used.
    Expected: the entry disappears, Undo restores it, and totals return without duplication. Repeat delete without Undo and verify it stays deleted.
 4. Add the synthetic rice bowl and synthetic toast as one meal with a synthetic photo, and add a photo-less meal plus a standalone food. Move between adjacent days and months, then return to today.
    Expected: selection, date header, entries, and totals remain aligned; no stale row flashes or delayed transition appears. Capture Diary.
-5. Tap the photo meal thumbnail.
-   Expected: the existing full-screen contained-photo viewer opens with Close, a centered one-line meal title, and Share. Capture the photo toolbar. Select Share and verify Summary opens in the same native modal; Android Back returns to the photo.
-6. In Share meal, swipe through Summary, Macros, and Components, then select each through the segmented control.
-   Expected: carousel page and selected control remain synchronized. Each card contains the complete uncropped photo, meal title, rounded nutrition display, Eatlog mark, and the selected template content. Components retain stored order and cap more than five rows as four names plus `+n more`. Capture each template.
-7. Return to Diary and swipe the photo meal.
-   Expected: Share appears immediately left of far-right Delete, both actions are 72dp wide, and selecting Share resets the row before opening Summary directly. Android Back dismisses to Diary. Capture both swipe actions. Photo-less meals and standalone foods remain Delete-only and expose no Share accessibility action.
-8. Save each selected template, repeating at least one save.
-   Expected: permission is requested only after Save image; a visible and announced `Meal image saved.` confirmation appears; the composer stays open; each JPEG is 1080 by 1350, upright, contains the full photo with tonal padding where needed, and contains no source location, camera model, filename, or capture timestamp metadata.
+5. Tap the visible Share control on the photo meal’s image rail.
+   Expected: Share meal opens directly with a 9:16 Photo preview, persistent Save image and Share actions, and a collapsed Card options row. Android Back returns to Diary. Capture the default composer.
+6. Open Card options and select Photo, Framed, and Nutrition.
+   Expected: the live preview updates to each style without remount flicker; the selected style is announced; Photo and Framed use their intended cover crop without stretching; Nutrition keeps the meal title and nutrition legible. Toggle the Eatlog mark off and on, close Card options, and verify the summary reflects the current style and mark state. Capture each style.
+7. Return to Diary and swipe both the photo meal and the photo-less meal.
+   Expected: Share appears immediately left of far-right Delete, both actions are 72dp wide, and selecting Share resets the row before opening that meal directly. The visible Share control also appears on both meal media rails. The photo-less meal opens the Nutrition card with Save image and Share enabled. Standalone foods remain Delete-only and expose no Share action. Capture both swipe actions and the photo-less fallback.
+8. Save each selected style, repeating at least one save.
+   Expected: permission is requested only after Save image; a visible and announced `Share image saved.` confirmation appears; the composer stays open; each PNG is 1080 by 1920, upright, uses the intended crop, and contains no source location, camera model, original filename, or capture timestamp metadata.
 9. Select Share, open the native share sheet for at least two available targets, then cancel it. Repeat once.
-   Expected: the selected template is attached as JPEG, no Photos permission is requested, cancellation returns to the same composer/template without success or error copy, and no stale busy state remains.
-10. Remove or invalidate a synthetic meal photo after its URI is stored, then open its viewer and swipe Share paths.
-    Expected: `This meal photo is no longer available.` replaces the preview, Save image and Share are disabled, and Close or Back remains available. Capture this error state.
-11. Repeat meal sharing offline, with reduced motion, in portrait and landscape, with the largest supported text, and with TalkBack or VoiceOver.
-    Expected: no network request is needed; programmatic template changes do not animate under reduced motion; safe areas, focus order, labels, selected/disabled/busy states, and footer actions remain usable.
+   Expected: the selected card is attached as PNG, no Photos permission is requested, cancellation returns to the same composer/style without success or error copy, and no stale busy state remains.
+10. Remove or invalidate a synthetic meal photo after its URI is stored, then open Share from its visible media control and swipe action.
+    Expected: the composer announces `Meal photo unavailable. Using the nutrition card.`, shows the inline fallback status, renders Nutrition with the deterministic food icon, and keeps Save image and Share enabled. Capture the fallback state.
+11. Share Today’s Day card and Analytics’ Logging consistency card, then repeat every card type offline, with reduced motion, in portrait and landscape, with the largest supported text, and with TalkBack or VoiceOver.
+    Expected: each entry point opens only the requested artifact; Logging consistency uses the 30-day 10-by-3 block and visible `n/7 this week` summary; no network request is needed; safe areas, focus order, labels, expanded/disabled/busy states, and persistent footer actions remain usable.
 12. Open Add → Log weight. Enter `65.0 kg`, select today’s date, and save.
    Expected: the weight is saved once. Reopen the same date, change to `65.1 kg`, and update.
    Expected: one row remains for the date and Analytics reflects the update.
@@ -68,7 +68,7 @@ Repeat the core flow with the largest supported text size, screen reader enabled
 - Expected: text does not disappear behind controls; critical actions remain reachable by scrolling; labels and focus order describe the control and current state; touch targets are at least 48 points/dp where designed; keyboard focus does not hide active fields.
 - Expected: sheets respect the home indicator/navigation area; swipe-back, Android Back, backdrop taps, and discard gates do not lose edits silently.
 - Expected: long Unicode food names, five-digit calorie totals, loading, empty, error, offline, and rate-limit states remain readable.
-- Expected: meal-share controls expose Back/Close, template radio selection, Save image, Share, swipe Share/Delete, disabled, and busy semantics; the exported card remains 4:5 regardless of device orientation or font scale.
+- Expected: share controls expose Back/Close, Card options expansion, style radio selection where applicable, Eatlog mark switch, Save image, Share, swipe Share/Delete, disabled, loading, and busy semantics; the exported card remains 9:16 regardless of device orientation or font scale.
 
 ## Evidence record
 
@@ -81,7 +81,7 @@ For each run, store:
 - real screenshot paths;
 - issue IDs and severity;
 - backup source platform/version/schema, destination platform/version/schema, and before/after photo counts;
-- photo-toolbar, Summary, Macros, Components, swipe-action, and missing-photo screenshot paths;
-- generated JPEG dimensions, orientation, metadata-inspection result, and tested share targets.
+- default composer, Photo, Framed, Nutrition, Day, Logging consistency, swipe-action, and missing-photo fallback screenshot paths;
+- generated PNG dimensions, orientation, metadata-inspection result, and tested share targets.
 
 This repository has no executable device or existing UI automation harness in the current environment. The automated UI box stays unchecked until this script is run with captured evidence or a verified lightweight harness is added.

@@ -1,6 +1,26 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { storeMetadata as metadata } from '../release/store/metadata.mjs';
+
+const shareContract = JSON.parse(readFileSync(
+  new URL('../src/utils/shareContract.json', import.meta.url),
+  'utf8',
+));
+const shareDocumentPaths = [
+  '../release/store/REVIEW_MATERIAL.md',
+  '../release/privacy/DATA_INVENTORY.md',
+  '../release/site/privacy.md',
+  '../release/store/POLICY_WORKSHEETS.md',
+  '../release/qa/UI_SMOKE_SCRIPT.md',
+  '../release/qa/DEVICE_MATRIX.md',
+  '../release/OWNER_RELEASE_CHECKLIST.md',
+  '../release/config/NATIVE_CONFIGURATION.md',
+];
+const shareDocuments = shareDocumentPaths.map((path) => ({
+  path,
+  text: readFileSync(new URL(path, import.meta.url), 'utf8'),
+}));
 
 const characters = (value) => [...value].length;
 const bytes = (value) => Buffer.byteLength(value, 'utf8');
@@ -57,6 +77,37 @@ for (const forbidden of [
   assert.equal(forbidden.test(publicCopy), false, `Public store copy contains a forbidden or placeholder claim: ${forbidden}`);
 }
 assert.equal(/Apple Health|HealthKit/iu.test(metadata.apple.description), false, 'Apple public description must not claim Apple Health or HealthKit support.');
+
+assert.deepEqual(shareContract.contentKinds, ['meal', 'day', 'consistency']);
+assert.deepEqual(shareContract.mealStyles, ['photo', 'framed', 'nutrition']);
+assert.deepEqual(shareContract.image, {
+  width: 1080,
+  height: 1920,
+  format: 'png',
+  mimeType: 'image/png',
+  extension: 'png',
+});
+
+for (const { path, text } of shareDocuments) {
+  for (const legacyPattern of [
+    /1080\s+(?:by|x|×)\s+1350/iu,
+    /Summary, Macros, (?:and|or) Components/iu,
+    /MealShareComposer|mealSharing/iu,
+    /\bgenerated JPEGs?\b/iu,
+    /\bmeal JPEGs?\b/iu,
+    /\b4:5\b/iu,
+  ]) {
+    assert.equal(legacyPattern.test(text), false, `${path} contains legacy share copy: ${legacyPattern}`);
+  }
+}
+
+const reviewMaterial = shareDocuments.find(({ path }) => path.endsWith('/REVIEW_MATERIAL.md'))?.text ?? '';
+const dataInventory = shareDocuments.find(({ path }) => path.endsWith('/DATA_INVENTORY.md'))?.text ?? '';
+const expectedImageDescription = `${shareContract.image.width} by ${shareContract.image.height} ${shareContract.image.format.toUpperCase()}`;
+assert.ok(reviewMaterial.includes(expectedImageDescription), 'Reviewer material must state the current share image contract.');
+assert.ok(dataInventory.includes(expectedImageDescription), 'Data inventory must state the current share image contract.');
+assert.ok(reviewMaterial.includes('Photo, Framed, and Nutrition'), 'Reviewer material must state the current meal styles.');
+assert.ok(reviewMaterial.includes('Logging consistency'), 'Reviewer material must state the current consistency card.');
 
 console.log(JSON.stringify({
   google: {

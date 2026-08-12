@@ -41,7 +41,7 @@ import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
 import { formatWeight } from '../utils/weightUnits';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
-import { buildStreakShareData, type ShareRequest } from '../utils/shareCards';
+import { buildConsistencyShareData, type ShareRequest } from '../utils/shareCards';
 
 type RangeKey = '1M' | '3M' | '6M' | '1Y';
 
@@ -893,15 +893,15 @@ function AnalyticsScreen({
               </View>
               <Pressable
                 onPress={() => onShare({
-                  kind: 'streak',
-                  data: buildStreakShareData(data.endDate, foodLoggedDates),
+                  kind: 'consistency',
+                  data: buildConsistencyShareData(data.endDate, foodLoggedDates),
                 })}
                 accessibilityRole="button"
-                accessibilityLabel="Share logging streak"
+                accessibilityLabel="Share logging consistency"
                 accessibilityHint="Opens a share image preview"
                 className="h-12 w-12 items-center justify-center rounded-full active:opacity-60"
               >
-                <MaterialIcons name="ios-share" size={20} color={M3.onSurfaceVariant} />
+                <MaterialIcons name="share" size={20} color={M3.onSurfaceVariant} />
               </Pressable>
             </View>
             <View className="flex-row gap-4">

@@ -58,7 +58,8 @@ export function BrandMark({ dark = false }: { dark?: boolean }) {
         source={require('../../../assets/icon.png')}
         resizeMode="contain"
         fadeDuration={0}
-        style={{ width: 18, height: 18, borderRadius: 5 }}
+        style={{ width: 22, height: 22, borderRadius: 6 }}
+        accessible={false}
       />
       <Text
         maxFontSizeMultiplier={1}

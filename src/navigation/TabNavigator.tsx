@@ -55,7 +55,7 @@ const INITIAL: FoodSheetState = {
 export default function TabNavigator() {
     const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
     const [toast, setToast] = useState<{ message: string; tone?: LogToastTone; undo?: () => void | Promise<void> } | null>(null);
-    const [shareContents, setShareContents] = useState<ShareContent[] | null>(null);
+    const [shareContent, setShareContent] = useState<ShareContent | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
     const insets = useSafeAreaInsets();
     const { isMedium } = useResponsiveLayout();
@@ -324,12 +324,11 @@ export default function TabNavigator() {
     }, [openEntry]);
 
     const openShare = useCallback((request: ShareRequest) => {
-        const contents = Array.isArray(request) ? [...request] : [request as ShareContent];
-        if (contents.length > 0) setShareContents(contents);
+        setShareContent(request);
     }, []);
 
     const closeShare = useCallback(() => {
-        setShareContents(null);
+        setShareContent(null);
     }, []);
 
     const renderTabBar = useCallback(
@@ -464,7 +463,7 @@ export default function TabNavigator() {
                 />
             </Sheet>
 
-            <ShareOverlay contents={shareContents} onClose={closeShare} />
+            <ShareOverlay content={shareContent} onClose={closeShare} />
 
             {toast && (
                 <View

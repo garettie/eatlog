@@ -158,7 +158,7 @@ function FramedMeal({
   );
 }
 
-function StatMeal({
+function NutritionMeal({
   data,
   showBranding,
   onPhotoLoad,
@@ -230,7 +230,7 @@ export default function MealCard({
       ) : layout === 'framed' ? (
         <FramedMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
       ) : (
-        <StatMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
+        <NutritionMeal data={data} showBranding={showBranding} onPhotoLoad={onPhotoLoad} onPhotoError={onPhotoError} />
       )}
     </StoryCanvas>
   );

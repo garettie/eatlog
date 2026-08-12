@@ -427,7 +427,7 @@ function DashboardScreen({
                   accessibilityLabel="Share today's summary"
                   accessibilityHint="Opens a share image preview"
                 >
-                  <MaterialIcons name="ios-share" size={22} color={M3.onSurface} />
+                  <MaterialIcons name="share" size={22} color={M3.onSurface} />
                 </Pressable>
                 <Pressable
                   onPress={() => navigation.navigate('Profile')}
