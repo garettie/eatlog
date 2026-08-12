@@ -249,10 +249,6 @@ export default function ReviewState({
 	const effectiveLogDate = logDateOverrideRef.current
 		? logDate
 		: (logDateProp ?? today);
-	const hasAiEstimate = components.some(
-		(component) =>
-			component.food.source === "scan" || component.food.source === "describe",
-	);
 	const hasInvalidComponentName = components.some(
 		(component) => !component.food.name.trim(),
 	);
@@ -829,22 +825,6 @@ export default function ReviewState({
 				) : null}
 
 				<View className="pt-4 pb-6 items-center gap-2">
-					{hasAiEstimate ? (
-						<View
-							className="flex-row items-center justify-center gap-1.5 px-1"
-							accessible
-							accessibilityLabel="AI estimate. Review portions before logging."
-						>
-							<MaterialIcons
-								name="auto-awesome"
-								size={15}
-								color={M3.onSurfaceVariant}
-							/>
-							<Text className="text-m3-on-surface-variant text-sm text-center">
-								AI estimate · Review portions before logging
-							</Text>
-						</View>
-					) : null}
 					<View className="items-center">
 						<Text className="text-m3-on-surface text-4xl font-bold tabular-nums">
 							{totalMacros.calories}
@@ -861,9 +841,6 @@ export default function ReviewState({
 							fat={totalMacros.fat}
 						/>
 					</View>
-					<Text className="text-m3-on-surface-variant text-xs">
-						{totalMacros.totalGrams} g total
-					</Text>
 				</View>
 
 				{components.map((comp, idx) => {
@@ -900,9 +877,6 @@ export default function ReviewState({
 							>
 								{isExpanded ? (
 									<>
-										<Text className="text-compact text-m3-on-surface-variant font-semibold uppercase tracking-wider">
-											Food
-										</Text>
 										<View className="flex-row items-center gap-2">
 											<BottomSheetTextInput
 												value={comp.food.name}
@@ -986,9 +960,6 @@ export default function ReviewState({
 											)}
 
 										<View className="gap-2">
-											<Text className="text-compact text-m3-on-surface-variant font-semibold uppercase tracking-wider">
-												Portion
-											</Text>
 											<PortionStepper
 												unitMode={comp.selection.mode}
 												servings={servings}
@@ -1189,9 +1160,6 @@ export default function ReviewState({
 					<AddComponentSection onAdd={handleAddFoods} />
 				</Animated.View>
 				<View className="pt-6 pb-2 gap-3">
-					<Text className="text-xs text-m3-on-surface-variant font-semibold uppercase tracking-wider px-1">
-						Logging details
-					</Text>
 					<Pressable
 						onPress={() => setDateSelectorVisible(true)}
 						accessibilityRole="button"
