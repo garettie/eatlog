@@ -185,9 +185,10 @@ Boris Cherny (creator of Claude Code) keeps his team's file around 100 lines. Un
 ### Commands
 - Install: `npm install`
 - Build: `npx expo export --platform android --dev`
-- Test (all): `TODO` (no test suite configured)
-- Test (single file): `TODO`
+- Test (all): `env TMPDIR=/tmp npm test`
+- Test (single file): `env TMPDIR=/tmp npx tsx --test path/to/file.test.ts`
 - Lint: `TODO` (no linter configured)
+- Dead-code check: `npm run fallow:dead-code` (known baseline may fail)
 - Typecheck: `npx tsc --noEmit`
 - Run locally: `npx expo start`
 
@@ -223,7 +224,7 @@ Boris Cherny (creator of Claude Code) keeps his team's file around 100 lines. Un
 
 When the user corrects your approach, append a one-line rule here before ending the session. Write it concretely ("Always use X for Y"), never abstractly ("be careful with Y"). If an existing line already covers the correction, tighten it instead of adding a new one. Remove lines when the underlying issue goes away (model upgrades, refactors, process changes).
 
-- (empty)
+- Remote Gemini consent uses the shared full-screen onboarding/on-demand flow; persisted Okay consent must never reprompt unless the user withdraws it, decline keeps local Eatlog features usable, and the food-estimate service must fail closed before installation-token loading or `fetch`.
 
 - NativeWind `space-y-*` bug out inside ScrollViews — use flex `gap-*` on wrapper `<View>` instead
 - `react-native-date-picker` requires dev build, won't work with Expo Go — always confirm env constraints before installing native deps
@@ -258,7 +259,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - How Eatlog Works must keep research references visible inline; do not hide them behind an accordion or disclosure.
 - When a user requests a complete Impeccable command set, load and execute every named command playbook; never substitute `polish` as an umbrella workflow.
 - Food-estimation prompts must stay Worker-owned under a test-enforced request-size budget; clarification context sends only source text plus component names and grams.
-- Sharing is meal-only: open it from an unbadged meal media rail or the meal swipe action, switch card styles with an unlabeled horizontal pager plus dots, and keep the Eatlog mark control and export actions visible without vertical scrolling.
+- Sharing is meal-only: open it from an unbadged meal media rail or the meal swipe action, switch card styles with an unlabeled horizontal pager plus dots, and keep the permanent Eatlog mark and export actions visible without vertical scrolling; there is no mark toggle.
 - Share-card nutrition bars keep a thick rounded outer capsule; render proportional fill with an exact flat top and inherit only the capsule's rounded bottom through clipping—never fake rounded fill caps or liquid waves.
 
 ---

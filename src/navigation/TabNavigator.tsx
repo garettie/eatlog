@@ -110,13 +110,13 @@ export default function TabNavigator() {
     const openCamera = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'camera', fromBar: true, logDate: logDate ?? null });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'entry', pendingAction: 'camera', fromBar: true, logDate: logDate ?? null });
     }, []);
 
     const openGallery = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'scanning', pendingAction: 'gallery', fromBar: true, logDate: logDate ?? null });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'entry', pendingAction: 'gallery', fromBar: true, logDate: logDate ?? null });
     }, []);
 
     const openWeight = useCallback(() => {

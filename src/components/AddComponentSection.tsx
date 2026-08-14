@@ -7,6 +7,7 @@ import { loadFoodDetails, type FoodResult } from '../services/foodSearch';
 import { describeMeal } from '../services/foodScan';
 import { useFoodSearchController } from '../hooks/useFoodSearchController';
 import { M3 } from '../theme/tokens';
+import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
 import PrimaryButton from './PrimaryButton';
 import FoodSearchResultRow from './FoodSearchResultRow';
 
@@ -24,6 +25,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [describeText, setDescribeText] = useState('');
   const [isEstimating, setIsEstimating] = useState(false);
   const [describeError, setDescribeError] = useState<string | null>(null);
+  const { requestConsent } = useRemoteEstimateConsent();
 
   const [manualName, setManualName] = useState('');
   const [manualCal, setManualCal] = useState('');
@@ -65,6 +67,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const text = describeText.trim();
     if (!text) return;
     setDescribeError(null);
+    if (!await requestConsent()) return;
     setIsEstimating(true);
     try {
       const result = await describeMeal(text);
@@ -79,7 +82,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     } finally {
       setIsEstimating(false);
     }
-  }, [describeText, onAdd, reset]);
+  }, [describeText, onAdd, requestConsent, reset]);
 
   const handleManualAdd = useCallback(() => {
     if (!manualCanAdd) return;

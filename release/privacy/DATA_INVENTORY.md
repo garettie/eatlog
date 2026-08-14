@@ -16,6 +16,7 @@ Verified against source on 2026-08-11. This inventory describes the account-free
 | Pins | Keys for pinned foods | `pinned_foods` in SQLite until unpinned, reset, or app removal | No | Pin/unpin; included in database backup |
 | Online search cache | Recent USDA/Open Food Facts result sets and provider state | In process memory for a short TTL; ends when the app process ends | The original lookup already used the provider described below | Search cancellation, retry, or app close |
 | Installation identity | App-scoped random token, after M4 implementation | App-private persistence outside SQLite and backups | Sent to the Eatlog Worker for request throttling; never shown or logged | Regenerates after missing/corrupt state or app removal; excluded from backup and CSV |
+| Remote-estimate consent | Current version plus `accepted` or `declined` decision | App-private file outside SQLite until the user changes it, resets data, or removes the app | No | Okay enables Gemini estimates; Not now keeps local features usable; Profile → Privacy withdraws it; excluded from backup and CSV |
 
 SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals`, `food_logs`, `food_cache`, `pinned_foods`, `daily_targets`, `adaptive_reviews`, `health_connect_state`, `health_connect_weight_exports`, and `adaptive_intake_day_confirmations`.
 
@@ -23,7 +24,7 @@ SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals
 
 ### Scan, Describe, and re-estimation
 
-1. The user selects a camera/gallery image or enters text.
+1. The user selects Scan, Upload photo, Describe, clarification, or re-estimation and accepts the current online-estimate consent when required. A decline returns to the prior state without sending data.
 2. Scan sends a resized/compressed base64 image; Describe and re-estimation send the entered food or meal text. Requests also carry the app-scoped installation token.
 3. The Eatlog Cloudflare Worker validates the request, applies installation-token and IP-based rate limits, and sends the requested content to Google Gemini.
 4. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
@@ -65,10 +66,10 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 
 ## Backup, restore, export, sharing, deletion
 
-- A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. The installation identity is outside SQLite and never enters the archive.
+- A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. The installation identity and remote-estimate consent file are outside SQLite and never enter the archive.
 - Restore stages and validates the archive, file sizes and hashes, record counts, database integrity, foreign keys, schema version, and photo mappings before replacing live data. It rejects future schemas without mutation. A safety copy supports automatic rollback if replacement fails.
 - A CSV export is a zipped, human-readable set of profile, meal, component, weight, target, and adaptive-review CSV files plus a manifest. It contains no photos or Health Connect synchronization metadata and cannot be restored.
-- Sharing renders the selected meal card on-device as a 1080 by 1920 PNG, writes it only to temporary cache, and removes capture/cache files after the Save image or Share attempt. Save image adds the PNG to Photos or Gallery; Share sends it only to the operating-system destination the user chooses. Eatlog has no sharing backend, public link, social feed, destination tracking, or source-EXIF transfer.
+- Sharing renders the selected meal card on-device as a 1080 by 1920 PNG, writes it only to temporary cache, and removes capture/cache files after the Save image or Share attempt. Save image adds the PNG to Photos or Gallery; Share sends it only to the operating-system destination the user chooses. Every Photo, Framed, Nutrition, and photo-less fallback card permanently includes the Eatlog mark; no mark toggle exists. Eatlog has no sharing backend, public link, social feed, destination tracking, or source-EXIF transfer.
 - Backup and export files leave Eatlog only when the user invokes the system share sheet and chooses a destination. Eatlog cannot control a recipient app or cloud-storage provider after sharing.
 - Individual food logs, meals, and weights can be deleted in the app. Delete all data removes the SQLite data, meal photos, and temporary ownership files. On Android it first attempts to remove Weight records written by Eatlog from Health Connect and reports warnings before local deletion.
 - App removal is controlled by the operating system and removes app-private local storage. Copies the user exported or shared remain wherever the user placed them.
@@ -77,11 +78,15 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 
 - Device database and migrations: `src/db/database.ts`
 - Meal-photo storage and local share-card export: `src/utils/mealPhotos.ts`, `src/utils/shareContract.json`, `src/utils/shareCards.ts`, and `src/components/share/ShareOverlay.tsx`
-- Scan/Describe client: `src/services/foodScan.ts`
+- Scan/Describe client and consent boundary: `src/services/foodScan.ts`, `src/services/remoteEstimateConsent.ts`, `src/context/RemoteEstimateConsentContext.tsx`
 - USDA and Open Food Facts clients: `src/services/foodSearchRemote.ts`, `src/services/foodSearchEngine.ts`, and `src/hooks/useFoodSearchController.ts`
 - Health Connect: `src/services/healthConnect.ts`, `src/screens/DataSyncScreens.tsx`, and `src/navigation/TabNavigator.tsx`
 - Backup, restore, CSV, and reset: `src/services/dataBackup.ts`, `src/services/dataExport.ts`, and `src/services/dataReset.ts`
 - Worker gateway and rate limiting: `worker/src/index.ts` and `worker/wrangler.jsonc`
+
+## Current audit evidence
+
+Audited source base: `51836cb` on `main`, with the consent/release-contract implementation in the working tree. The current local test suite passed 246/246 and typecheck passed; no commit, signed binary, device run, production-service call, or store submission was performed.
 
 ## Release blockers for this inventory
 

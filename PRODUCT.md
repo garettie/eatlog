@@ -6,21 +6,21 @@
 
 ## Platform
 
-android
+Android-first public release with iOS v1 support
 
 ## Users
 
-The app owner and a small group of friends who sideload the APK. Personal use: one phone equals one person's data. The daily job is to check calorie/macro progress, log food with the least friction possible, and eventually calibrate targets against real weight trends. There are no shared accounts, social features, or cloud identities.
+Adults who want a local-first nutrition and weight log on Android or iOS. Personal use: one phone equals one person's data. The daily job is to check calorie/macro progress, log food with the least friction possible, and eventually calibrate targets against real weight trends. There are no shared accounts, social features, or cloud identities.
 
 ## Product Purpose
 
 Eatlog is a local-first calorie and macro tracker built around adaptive truth: targets can move from the starting calculator estimate to evidence-based weekly recommendations from logged intake and trend weight. The implemented product delivers the starting plan, scanner-first meal logging, diary review, daily weight check-ins, Analytics, and Accept/Keep adaptive reviews.
 
-The MVP is complete when users can also maintain the plan after onboarding, recover or export owned data, understand remote service use, and finish the daily loop on a verified Android APK. Profile is the fourth tab; backup, restore, export, and future sync live under Profile > Data & Sync. The center Add control remains a FAB trigger, not a tab.
+The MVP is complete when users can maintain the plan after onboarding, recover or export owned data, understand remote service use, and finish the daily loop on Android or iOS. Profile is the fourth tab; backup, restore, export, and future sync live under Profile > Data & Sync. The center Add control remains a FAB trigger, not a tab.
 
 ## Positioning
 
-MacroFactor-class premium UX at sideloaded-MVP scale. The differentiator is a fast scanner-first log flow: point the camera at a meal, review the components and portion, and log it. Real scan photos in the diary make that history feel personal; deterministic food icons make every non-photo entry immediately recognizable. Premium feel comes from cohesive Android-native behavior, honest calculations, and deliberate motion, not gamification.
+MacroFactor-class premium UX at public-release scale. The differentiator is a fast scanner-first log flow: point the camera at a meal, review the components and portion, and log it. Real scan photos in the diary make that history feel personal; deterministic food icons make every non-photo entry immediately recognizable. Premium feel comes from cohesive Android-native behavior, honest calculations, and deliberate motion, not gamification.
 
 ## Operating Context
 
@@ -34,22 +34,22 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | --- | --- | --- |
 | Onboarding and initial targets | Implemented | Strong first-run flow; needs an edit path and physical-device verification. |
 | Today | Implemented | Coherent daily summary with useful empty, loading, and error states. |
-| Food entry | Implemented with a release gap | Multiple fast paths work in source; camera/gallery estimation can fail without a preserved error and retry state. |
+| Food entry | Implemented | Camera, gallery, Describe, search, manual, review, re-estimation, and recovery paths are implemented; remote estimates require explicit consent. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
 | Weight and Analytics | Implemented | Range charting and adaptive reviews are substantial; plan-change semantics still need definition. |
-| Profile and Settings | Partially implemented | Profile plan editing and versioned targets are available. Data & Sync actions and help/detail routes remain. |
-| Data ownership | Missing | No backup, restore, portable export, or full reset exists. |
+| Profile and Settings | Implemented | Profile editing, privacy controls, backup/restore, CSV export, reset, Health Connect, help, and detail routes are available. |
+| Data ownership | Implemented | Backup, restore, CSV export, and guarded full reset are implemented; consent remains outside backup/export. |
 | Cloud sync | Not implemented | Post-MVP. Its eventual home is Profile > Data & Sync, not a top-level tab. |
-| Release readiness | Partial | TypeScript and 36 pure utility tests pass. Migration, camera, backup, accessibility, Back, and APK checks still require hardware coverage. |
+| Release readiness | Source-ready | TypeScript, migration, service, navigation, and release checks are automated; camera, backup, accessibility, Back, signed-binary, and store checks still require hardware or owner access. |
 
 ### Design health
 
-The implemented core scores **25/40, Acceptable** against Nielsen's usability heuristics. The product-specific visual language and daily loop are strong. Missing Profile editing, weak scan failure recovery, no data portability, and almost no permanent help keep it below release quality.
+The implemented core has a coherent visual language and daily loop. Source-level release hardening covers profile editing, scan recovery, data portability, privacy controls, service boundaries, and permanent help; device and store evidence remain separate release gates.
 
 ## Capabilities and Constraints
 
 **Working:**
-- Six-step onboarding with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware calculation/completion flow.
+- Six setup/calculation steps plus an optional final full-screen AI-estimate consent step when the build has an estimate Worker, with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware completion flow.
 - Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, scanner-first empty state, and calendar-accurate scale/trend/goal weight display.
 - Central entry bottom sheet: camera scan, gallery scan, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
 - Gemini vision/text meal estimation returning a named meal and per-100g component nutrition; clarification can re-estimate an edited scan/description.
@@ -59,13 +59,13 @@ The implemented core scores **25/40, Acceptable** against Nielsen's usability he
 - Material 3 Expressive dark system in NativeWind; real bundled Onest 400/500/600/700 files; tabular figures; shared Card, PrimaryButton, segmented controls, bottom sheets, macro pills, and ruler slider.
 - Purposeful Reanimated motion with reduced-motion handling; precise accessible ruler controls; Android bottom navigation with one central entry FAB.
 
-**Automated evidence as of 2026-07-29:** `npm run typecheck` passes. `npm test` passes 36 calculation, calendar, weight, unit, and adaptive recommendation tests when the test runner can create its local IPC socket. `npx expo export --platform android --dev` completes when Metro receives a writable temp directory. No database, service, navigation, component, or end-to-end tests exist yet.
+**Automated evidence:** `env TMPDIR=/tmp npm test` and `npm run typecheck` cover the current calculation, database/migration, service, navigation, plugin, release, and consent contracts. Android and iOS JavaScript exports remain local checks; device, signed-binary, provider-console, and store evidence remain owner gates.
 
-**MVP gaps:** complete backup/restore; CSV export; reset; service/privacy disclosures; calculation help; scan failure recovery; migration/integration tests; physical Android release matrix.
+**Release evidence still needed:** physical Android/iOS permission, accessibility, backup/restore, reset, share, and interruption matrix; signed release binaries; production-service verification; public policy/support publication; and store-console submission work.
 
-**Post-MVP:** cloud multi-device sync; barcode camera scanning; Health Connect/wearables; iOS; auth/accounts; notifications; social features; coach messaging; light theme; localization.
+**Post-MVP:** cloud multi-device sync; barcode camera scanning; offline food search; HealthKit/Apple Health; auth/accounts; notifications; social features; coach messaging; light theme; localization.
 
-**Hard constraints:** Android-only Expo managed workflow and EAS APK distribution; local-first/no backend; canonical app data remains on-device unless the user exports a file; Onest remains bundled; scanner is the primary path; no silent system-font fallback; no per-screen visual restyling outside the shared component vocabulary. Users never enter, view, or manage API keys.
+**Hard constraints:** Android-first cross-platform Expo managed workflow and EAS store distribution; local-first/no backend; canonical app data remains on-device unless the user exports a file; Onest remains bundled; scanner is the primary path; no silent system-font fallback; no per-screen visual restyling outside the shared component vocabulary. Users never enter, view, or manage API keys.
 
 ## MVP Completion Contract
 
@@ -77,7 +77,7 @@ The release candidate must satisfy all of these outcomes:
 4. Camera/gallery scan failures explain the problem and preserve a retry, search, describe, or manual fallback.
 5. Profile explains calculation, adaptive eligibility, network data use, version/build information, and data sources without exposing credentials.
 6. Cloud sync does not occupy a top-level tab or appear as a dead control. Its future entry point sits inside Data & Sync.
-7. A fresh install, an upgrade from database version 4, backup/restore, and the core logging matrix pass on a physical Android device and a signed APK.
+7. A fresh install, an upgrade from database version 4, backup/restore, and the core logging matrix pass on physical Android and iOS devices and signed store-equivalent binaries.
 
 ## Profile and Settings Scope
 
@@ -103,7 +103,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 ### Preferences
 
 - Metric or imperial measurement display.
-- Read-only AI and food-source status, network-use disclosure, and privacy copy.
+- AI estimate consent status, full-screen enable/decline flow, withdrawal control, food-source status, network-use disclosure, and privacy copy.
 - Developer-provisioned credentials stay outside the UI.
 - Do not add appearance, reminder, notification, or other inert settings during MVP.
 
@@ -137,7 +137,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 
 **Voice:** Precise, premium, confident. The product speaks like a serious training instrument, not a coach-bot. Copy is concise, direct, and transparent about estimates and adaptation.
 
-**Visual commitment:** Material 3 Expressive dark surfaces, Onest, meaningful nutrient color, hairline outlines, tonal elevation without card shadows, `rounded-3xl` screen surfaces, `rounded-2xl` diary entry cards, and `rounded-full` actions. Real scan media is flush inside its meal card; semantic icons are the fallback. Motion is responsive and reduced-motion safe.
+**Visual commitment:** Material 3 Expressive dark surfaces, Onest, meaningful nutrient color, hairline outlines, tonal elevation without card shadows, `rounded-3xl` screen surfaces, `rounded-2xl` diary entry cards, and `rounded-full` actions. Real scan media is flush inside its meal card; semantic icons are the fallback. Every share-card layout carries the permanent Eatlog mark; there is no mark toggle. Motion is responsive and reduced-motion safe.
 
 **Anti-references:**
 - Over-decorated fitness apps with gamification noise: confetti, streaks, badges, mascots, and fake celebration.

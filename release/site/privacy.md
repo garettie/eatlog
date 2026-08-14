@@ -17,13 +17,17 @@ Eatlog stores the information you enter during setup and use, including your dis
 
 Eatlog also stores an app-scoped random installation token outside its database to limit abuse of the online service. This file is not included in an Eatlog backup or CSV export.
 
+If the build has online meal estimates, Eatlog stores your current Gemini-estimate consent decision in a separate app-private file outside SQLite. The decision is not included in an Eatlog backup or CSV export. Delete all data clears it.
+
 ## When Eatlog sends data online
 
 Eatlog uses online services only for the actions described below.
 
 ### Scan, Describe, and re-estimation
 
-Choosing Scan, Describe, or re-estimation starts the online request. Eatlog sends the selected, resized photo or meal text through the Eatlog Cloudflare Worker to Google Gemini to produce a nutrition estimate. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the estimate before saving it.
+Before the first request, Eatlog shows a short choice: you can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA/Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. When enabled, Scan, Describe, clarification, and re-estimation require the current accepted consent version; Profile → Privacy lets you turn online estimates off.
+
+After consent, Eatlog sends the selected, resized photo or meal text through the Eatlog Cloudflare Worker to Google Gemini to produce a nutrition estimate. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the estimate before saving it.
 
 ### USDA FoodData Central
 
@@ -55,7 +59,7 @@ A restorable Eatlog backup contains a database snapshot and referenced meal phot
 
 ## Retention and deletion
 
-You can edit and delete individual logs in Eatlog. Delete all data removes the local database, meal photos, and temporary backup/export files. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and warns you if it cannot confirm that removal. Deleting the app removes its app-private storage, subject to operating-system behavior. Files you exported or shared remain in the locations you chose.
+You can edit and delete individual logs in Eatlog. Delete all data removes the local database, meal photos, remote-estimate consent, and temporary backup/export files. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and warns you if it cannot confirm that removal. Deleting the app removes its app-private storage, subject to operating-system behavior. Files you exported or shared remain in the locations you chose.
 
 The Eatlog Worker is designed to log operational fields only. It must not log request bodies, images, descriptions, search queries, prompts, provider responses, raw installation tokens, token hashes, IP addresses, headers, or secrets. Google, Cloudflare, USDA, Open Food Facts, and any share destination process data under their own terms and policies.
 

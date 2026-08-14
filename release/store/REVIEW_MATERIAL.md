@@ -6,9 +6,9 @@ Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the 
 
 1. Launch Eatlog and complete onboarding with the synthetic profile in `SCREENSHOT_PLAN.md`. The plan preview must pass the adult and nutrition-safety rules before it can be accepted.
 2. Open the center Add control. Choose Enter manually, enter the synthetic rice bowl, and save it. Today and Diary update immediately.
-3. Open Add again. Choose Scan a meal for the camera, Upload photo for the photo library, or Describe meal for text. Each action starts the requested remote estimate directly; use only non-sensitive test content.
+3. Open Add again. On a build with online estimates, the first AI action is preceded by the concise full-screen consent. Choose Okay to enable Scan, Upload photo, Describe meal, clarification, and re-estimation; choose Not now to continue without sending anything. A later explicit AI action can reopen the same choice. Use only non-sensitive test content.
 4. Review and edit every estimate before saving. The review result is an estimate, not a medical or guaranteed-accuracy result.
-5. In Diary, tap any meal image or food-icon rail, or swipe the meal and select Share immediately left of Delete. Share meal opens directly on a 9:16 preview. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; dots show the current position, and meals without an available photo use Nutrition automatically. The Eatlog mark control, Save image, and Share are all visible without vertical scrolling. Save image writes one 1080 by 1920 PNG to Photos or Gallery; Share opens the operating-system share menu so the reviewer chooses the destination. Standalone foods do not expose Share.
+5. In Diary, tap any meal image or food-icon rail, or swipe the meal and select Share immediately left of Delete. Share meal opens directly on a 9:16 preview. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; dots show the current position, and meals without an available photo use Nutrition automatically. The permanent Eatlog mark, Save image, and Share are all visible without vertical scrolling; no mark control or toggle exists. Save image writes one 1080 by 1920 PNG to Photos or Gallery; Share opens the operating-system share menu so the reviewer chooses the destination. Standalone foods do not expose Share.
 6. Open Search foods. Typing uses USDA through the Eatlog Worker when configured. Pressing Search also runs the explicit direct Open Food Facts full search.
 7. Add and update a weight. Open Analytics to inspect weight trend, calorie history, logging consistency, and any plan-review state. The user chooses Accept or Keep.
 8. Open Profile → Backup and restore. Create an `.eatlog-backup`, inspect a supported archive, and confirm twice before replacement. Open Export data to create readable, non-restorable CSV files.
@@ -22,7 +22,7 @@ Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the 
 
 ## Provider and privacy explanation
 
-- Scan, Describe, clarification, and re-estimation send only the user-selected photo or text through the Eatlog Cloudflare Worker to Google Gemini when the user invokes that action.
+- After the user chooses Okay, Scan, Describe, clarification, and re-estimation send only the user-selected photo or text through the Eatlog Cloudflare Worker to Google Gemini when the user invokes that action. Not now and withdrawal block later Gemini requests while leaving food search and local logging available.
 - USDA search and detail use the Worker. Open Food Facts is contacted directly only for explicit full search.
 - The app-scoped installation token is sent for throttling and is stored outside SQLite backups. The Worker stores only its salted hash for rate limiting.
 - Saved profile, target, log, meal, photo, and weight data stays local unless the user invokes a named remote feature or shares an export/backup.

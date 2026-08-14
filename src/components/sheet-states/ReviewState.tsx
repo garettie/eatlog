@@ -45,6 +45,8 @@ import {
 	todayISO,
 } from "../../utils/calendar";
 import { M3 } from "../../theme/tokens";
+import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
+import type { ClarificationOutcome } from "./FoodSheetContent";
 import { formatPortionLabel } from "../../utils/portionLabels";
 import {
 	buildFoodAmountOptions,
@@ -141,8 +143,8 @@ interface ReviewStateProps {
 		wasUpdate: boolean;
 		logDate: string;
 	}) => void;
-	onClarify: (input: MealClarificationInput) => Promise<DescribeResult | null>;
-	onClarifyComponent: (input: ComponentClarificationInput) => Promise<FoodResult | null>;
+	onClarify: (input: MealClarificationInput) => Promise<ClarificationOutcome<DescribeResult>>;
+	onClarifyComponent: (input: ComponentClarificationInput) => Promise<ClarificationOutcome<FoodResult>>;
 	editMealId?: number | null;
 	initialMeal?: MealType | null;
 	/** Diary date to write to (backfill); null = today. Preserves the original date when editing a meal. */
@@ -207,6 +209,7 @@ export default function ReviewState({
 	logDate: logDateProp,
 	onGoBack,
 }: ReviewStateProps) {
+	const { requestConsent } = useRemoteEstimateConsent();
 	const [mealName, setMealName] = useState(result?.mealName ?? "");
 	const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(
 		photoUri ?? null,
@@ -624,13 +627,16 @@ export default function ReviewState({
 		const name = mealName.trim();
 		if (!name || clarifying) return;
 		setClarifyError(null);
+		if (!await requestConsent()) return;
 		setClarifying(true);
 		try {
-			const newResult = await onClarify({
+			const clarification = await onClarify({
 				name,
 				originalDescription: result?.originalDescription,
 				components: toEstimateContext(components),
 			});
+			if (clarification.consentDeclined) return;
+			const newResult = clarification.result;
 			if (!newResult || newResult.components.length === 0) {
 				setClarifyError("Couldn't re-estimate. Try a different name.");
 				setClarifying(false);
@@ -647,21 +653,24 @@ export default function ReviewState({
 		} finally {
 			setClarifying(false);
 		}
-	}, [mealName, clarifying, onClarify, result?.originalDescription, components, showUndo]);
+	}, [mealName, clarifying, onClarify, requestConsent, result?.originalDescription, components, showUndo]);
 
 	const handleClarifyComponent = useCallback(
 		async (component: EditableComponent) => {
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
 			setComponentClarifyError(null);
+			if (!await requestConsent()) return;
 			setClarifyingComponentId(component.food.id);
 			try {
-				const clarified = await onClarifyComponent({
+				const clarification = await onClarifyComponent({
 					name,
 					mealName: mealName.trim(),
 					originalDescription: result?.originalDescription,
 					components: toEstimateContext(components),
 				});
+				if (clarification.consentDeclined) return;
+				const clarified = clarification.result;
 				if (!clarified) {
 					setComponentClarifyError({
 						id: component.food.id,
@@ -704,6 +713,7 @@ export default function ReviewState({
 		[
 			clarifyingComponentId,
 			onClarifyComponent,
+			requestConsent,
 			mealName,
 			result?.originalDescription,
 			components,

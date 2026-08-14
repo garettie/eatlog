@@ -37,6 +37,7 @@ import {
 	DataMaintenanceContext,
 	type MaintenanceTask,
 } from "./src/context/DataMaintenanceContext";
+import { RemoteEstimateConsentProvider } from "./src/context/RemoteEstimateConsentContext";
 import type {
 	OwnershipProgressEvent,
 	OwnershipResult,
@@ -306,7 +307,9 @@ export default function App() {
 						linking={navigationLinking}
 						theme={navigationTheme}
 					>
-						<RootNavigator />
+						<RemoteEstimateConsentProvider>
+							<RootNavigator />
+						</RemoteEstimateConsentProvider>
 					</NavigationContainer>
 				)}
 			</DataMaintenanceContext.Provider>

@@ -1,18 +1,24 @@
 # Eatlog final account-free release audit
 
-Audit date: 2026-08-10
+Audit date: 2026-08-14
 
-Branch: `codex/store-release-readiness`
+Branch: `main`
 
-Base: `622a0b2` (`origin/main` at task start)
+Audited source/config base: `51836cb` (working tree; no implementation commit was created)
 
-Audited source/config commit: `ba1cecc29d23b6c6a6dda8532e0a50249803302e`
+Current pass: remote-estimate consent and release-contract reconciliation
 
 ## Result
 
 All locally executable, account-free source work in M2 through M7 is implemented and has automated or static evidence. The branch is ready for final signed-binary and physical-device testing and for paid-account setup. It is not ready for store submission or public release: signed AAB/IPA evidence, final merged native artifacts, device runs, real screenshots, production-service checks, public URLs, owner identity/contact values, and store-console records remain unavailable.
 
 No EAS cloud build, EAS Submit, EAS Update publish, remote simulator, store upload, Worker deployment, secret rotation, quota/alert change, paid Gemini Scan, or other cost-bearing provider call ran during this audit.
+
+## Current consent/release-contract pass
+
+The current implementation is audited against source base `51836cb` plus the working-tree changes. It adds versioned app-private Gemini consent, a shared full-screen onboarding/on-demand flow, Profile → Privacy withdrawal, reset clearing, and a pre-token/pre-fetch client guard. Persisted Okay consent is reused without repeated prompts unless the user withdraws it; Not now completes onboarding and leaves local logging, food search, weight, Analytics, backup, export, sharing, and reset usable.
+
+Current automated evidence: `env TMPDIR=/tmp npm test` passed 246/246, `npm run typecheck` passed, `npm run store:metadata:check` passed, `npm run notices:check` passed, `npm run store:artwork:check` passed, and `git diff --check` passed. `npx expo install --check` passed, `npx expo-doctor` passed 18/18, `npx expo config --type public` passed, Android and iOS development exports passed (1,884 and 1,871 modules), and Android/iOS `npx expo prebuild --no-install` passed; generated native directories were removed after inspection. The Worker gate passed 20/20 tests, typecheck, Wrangler dry-run (34.01 KiB / 9.24 KiB gzip), and `npm audit --omit=dev` reported zero vulnerabilities. `npm run fallow:dead-code` still fails on the known baseline of 10 unused exports and 2 unused types, with no new findings. The current focused consent/storage/coordinator/food-estimate tests are included in the 246 total. The dated sections below are historical records and do not supersede this current working-tree audit.
 
 ## Clean-checkout root evidence
 

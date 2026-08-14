@@ -20,7 +20,7 @@ Run after Save image on A26, A36, ASAM, IMIN, and ICUR where available.
 1. Inspect Meal Photo, Framed, and Nutrition PNGs and confirm exact 1080 by 1920 dimensions.
 2. Use square, portrait, landscape, panorama, and rotated-orientation synthetic sources. Confirm every result is upright and never stretched. Confirm Photo and Framed apply their intended cover crop, while Nutrition falls back cleanly when no photo is available.
 3. Inspect metadata and confirm source GPS/location, camera model, original filename, and capture timestamp are absent.
-4. Send one generated PNG through a messaging target that recompresses images. Confirm Onest text, meal title, calories, P/C/F labels, and Eatlog mark remain legible.
+4. Send one generated PNG through a messaging target that recompresses images. Confirm Onest text, meal title, calories, P/C/F labels, and the permanent Eatlog mark remain legible; no mark toggle or state is exposed.
 5. Repeat save/share twice and cancel once. Confirm no stale style, exposed swipe row, false success, blocked action, or generated cache attachment remains in later operations.
 
 ## Network and provider cases
@@ -32,7 +32,8 @@ Run on A36 and ICUR with synthetic inputs only.
 3. HTTP error and malformed response through a controlled test harness: no partial garbage is logged; Open Food Facts failure does not erase USDA/local results and vice versa.
 4. Missing or invalid installation identity through a development fault injection: no request is sent and the feature reports unavailable without displaying/logging the token.
 5. Rate limit: response shows a retryable failure and honors `Retry-After`; no repeated automatic request loop occurs.
-6. First Scan/Describe: verify the action proceeds directly to the remote request without an intervening disclosure dialog and returns an editable estimate for synthetic input.
+6. Fresh onboarding: verify the concise AI meal-estimate consent appears before setup completes. Select Okay once, then verify Scan, Describe, clarification, and re-estimation proceed without another consent prompt. On a declined run, verify Not now enters Eatlog, sends no request or installation token, preserves local search/manual features, and a later explicit AI action reopens the full-screen choice before camera/gallery permission or transmission.
+7. With estimates enabled, turn them off from Profile → Privacy and invoke re-estimation. Verify the choice reappears before transmission; declining preserves the current edits and undo state.
 
 Do not run a cost-bearing Gemini Scan against production without owner approval.
 

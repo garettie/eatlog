@@ -6,7 +6,7 @@ No screenshot is complete until it is captured from a running release-candidate 
 
 - Google Play phone: seven portrait screenshots from the Android release candidate. Use a device/emulator resolution accepted by Play: 320–3840 px per side, with the long side no more than twice the short side. Target at least 1080×1920 to meet the four-screenshot recommendation format. PNG or JPEG, no alpha.
 - App Store iPhone: the same seven moments recaptured from the iOS release candidate. Target an accepted 6.9-inch portrait size such as 1320×2868; 6.5-inch sizes are the documented fallback when 6.9-inch assets are unavailable. PNG or JPEG, no alpha. No iPad set because `supportsTablet` is false.
-- Capture one to ten Apple screenshots and two to eight Play screenshots. Keep all seven when each tells a distinct part of the shipped flow.
+- Capture one to ten Apple screenshots and two to eight Play screenshots. Keep all seven when each tells a distinct part of the shipped flow. An onboarding-consent capture is optional and should be added only if it helps explain the permissions/data-use declaration.
 
 ## Synthetic seed
 
@@ -21,12 +21,12 @@ No screenshot is complete until it is captured from a running release-candidate 
 | Order | Screen and state | What must be visible | Alt text source |
 | --- | --- | --- | --- |
 | 1 | Today | Calorie/macro progress, one recent meal, center Add control | Today shows calorie and macro progress with the center Add control. |
-| 2 | Estimate review | Editable components, amounts, confidence, nutrition; no transmission disclosure overlay | Editable meal estimate lists food components, amounts, and nutrition. |
+| 2 | Estimate review after consent | Editable components, amounts, confidence, nutrition; no transmission disclosure overlay after the user chose Okay | Editable meal estimate lists food components, amounts, and nutrition. |
 | 3 | Food search | Useful common USDA results and the explicit full-search action/provider context | Food search shows common USDA results and explicit full-search options. |
 | 4 | Diary | Meals, totals, long synthetic food name, and one staged meal photo | Diary shows meals, entries, totals, and a saved meal photo. |
 | 5 | Analytics | Weight trend, calorie history, and 30-day logging consistency | Analytics shows weight trend, calorie history, and logging consistency. |
 | 6 | Plan review | Evidence and proposed target with Accept and Keep visible | Plan review shows a suggested change with Accept and Keep choices. |
-| 7 | Profile data ownership | Backup/restore, export, privacy, and delete-all entry points | Profile shows backup, export, privacy, and local data controls. |
+| 7 | Profile data ownership | Backup/restore, export, privacy with Enabled/Off estimate state, and delete-all entry points | Profile shows backup, export, privacy, and local data controls. |
 
 ## Capture checks
 

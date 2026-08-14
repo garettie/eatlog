@@ -28,6 +28,7 @@ import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos'
 import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
+import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
 
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
@@ -61,6 +62,7 @@ type FoodSheetFailureKind =
 
 const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     unavailable: 'Photo and description estimates are unavailable.',
+    'consent-required': 'Enable online estimates to use this.',
     network: 'Check your connection, then try again.',
     timeout: 'The estimate took too long. Try again.',
     provider: 'The estimation service could not complete this request.',
@@ -104,6 +106,11 @@ export interface WeightLoggedInfo {
     previousExport: HealthConnectWeightExport | null;
 }
 
+export interface ClarificationOutcome<T> {
+    result: T | null;
+    consentDeclined: boolean;
+}
+
 interface FoodSheetContentProps {
     state: FoodSheetState;
     setState: React.Dispatch<React.SetStateAction<FoodSheetState>>;
@@ -124,6 +131,7 @@ export default function FoodSheetContent({
     onGoBack,
 }: FoodSheetContentProps) {
     const reduced = useReducedMotion();
+    const { requestConsent } = useRemoteEstimateConsent();
     const scanRequestRef = useRef(0);
     const scanInFlightRef = useRef(false);
     const scanBase64Ref = useRef<string | null>(null);
@@ -234,6 +242,13 @@ export default function FoodSheetContent({
                 showScanError('unavailable', 'camera');
                 return;
             }
+            if (!await requestConsent()) {
+                if (requestId === scanRequestRef.current) {
+                    if (fromBarRef.current) resetToEntry();
+                    else transitionTo('entry', { pushHistory: false });
+                }
+                return;
+            }
 
             const permission = await ImagePicker.requestCameraPermissionsAsync().catch((error) => {
                 console.error('[FoodSheet] camera permission request failed', error);
@@ -297,7 +312,7 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [transitionTo, resetToEntry, setState, showScanError]);
+    }, [requestConsent, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleGallery = useCallback(async () => {
         if (scanInFlightRef.current) return;
@@ -307,6 +322,13 @@ export default function FoodSheetContent({
         try {
             if (!serviceConfig.availability.gemini) {
                 showScanError('unavailable', 'gallery');
+                return;
+            }
+            if (!await requestConsent()) {
+                if (requestId === scanRequestRef.current) {
+                    if (fromBarRef.current) resetToEntry();
+                    else transitionTo('entry', { pushHistory: false });
+                }
                 return;
             }
 
@@ -356,7 +378,7 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [transitionTo, resetToEntry, setState, showScanError]);
+    }, [requestConsent, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleDescribe = useCallback(() => {
         transitionTo('describe');
@@ -458,17 +480,25 @@ export default function FoodSheetContent({
     }, [transitionTo, resetToEntry]);
 
     const handleClarify = useCallback(
-        async (input: MealClarificationInput): Promise<DescribeResult | null> => {
-            return clarifyMeal({ ...input, imageBase64: scanBase64Ref.current ?? undefined });
+        async (input: MealClarificationInput): Promise<ClarificationOutcome<DescribeResult>> => {
+            if (!await requestConsent()) return { result: null, consentDeclined: true };
+            return {
+                result: await clarifyMeal({ ...input, imageBase64: scanBase64Ref.current ?? undefined }),
+                consentDeclined: false,
+            };
         },
-        [],
+        [requestConsent],
     );
 
     const handleClarifyComponent = useCallback(
-        async (input: ComponentClarificationInput): Promise<FoodResult | null> => {
-            return clarifyComponent({ ...input, imageBase64: scanBase64Ref.current ?? undefined });
+        async (input: ComponentClarificationInput): Promise<ClarificationOutcome<FoodResult>> => {
+            if (!await requestConsent()) return { result: null, consentDeclined: true };
+            return {
+                result: await clarifyComponent({ ...input, imageBase64: scanBase64Ref.current ?? undefined }),
+                consentDeclined: false,
+            };
         },
-        [],
+        [requestConsent],
     );
 
     const handleMealLogged = useCallback(
@@ -690,6 +720,8 @@ function EstimationErrorState({ kind, source, onRetry, onSearch, onDescribe, onM
                     ? 'Photo couldn’t be read'
                     : kind === 'unrecognized'
                         ? 'Food not recognized'
+                    : kind === 'consent-required'
+                        ? 'Online estimates disabled'
                     : `${source} estimate unavailable`;
 
     return (

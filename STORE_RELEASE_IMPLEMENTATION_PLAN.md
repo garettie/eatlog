@@ -63,7 +63,7 @@ Known release gaps:
 | Android permissions | Unused microphone permission requested | Generated manifest contains only required permissions |
 | iOS remote services | Scan, Describe, and USDA depend on Android ID | App-scoped installation identity works on Android and iOS |
 | iOS platform UI | Health Connect remains visible; no bundle identifier or store build | Android-only health UI hidden; signed TestFlight build passes |
-| Privacy | In-app summary exists | Public policy, in-app link, accurate network-use copy, store declarations, support contact |
+| Privacy | Consent, withdrawal, network-use copy, and source documents implemented | Public policy/support publication, provider-console review, and store declarations |
 | Store builds | Internal APK profiles only | Production AAB and IPA profiles with remote build numbers |
 | Native recovery | Backup code has defensive checks; full device restore path lacks release evidence | Backup, restore, rollback, reset, and cross-platform transfer pass on devices |
 | Migration evidence | Focused v7 to v8 and v8 to v9 tests | Fresh install and supported v4 to current upgrade pass |
@@ -78,7 +78,7 @@ Known release gaps:
 - [ ] A fresh adult user completes onboarding and receives a target that passes the defined safety policy.
 - [ ] Every target source uses the same guardrail layer: initial, profile recalculation, manual, and adaptive.
 - [ ] Cut, maintain, and bulk target direction rules reject contradictory target weights.
-- [ ] Scan, gallery, description, search, recent, pinned, and manual entry paths all finish in a saved log.
+- [ ] Scan, gallery, description, search, recent, pinned, and manual entry paths all finish in a saved log; Gemini estimate paths require the current accepted consent.
 - [ ] Provider and permission failures preserve Retry, Search, Describe, and Manual recovery paths.
 - [ ] Diary edit/delete/undo, weight entry, Analytics, and adaptive Accept/Keep behave as documented.
 - [ ] Backup, restore, CSV export, and delete-all complete without silent data loss.
@@ -377,8 +377,9 @@ Tasks:
 - [x] Expand the privacy screen to describe the Worker, installation token, IP/rate limiting, and direct Open Food Facts requests.
 - [x] Keep permanent Scan/Describe network-use disclosure in Profile and the privacy policy.
 - [x] Name Gemini as the recipient and state the purpose.
-- [x] Make Scan and Describe direct actions without a separate transmission confirmation.
-- [x] Do not store a Scan/Describe prompt-acceptance state.
+- [x] Add the concise full-screen consent to onboarding when the estimate Worker is configured, with the same on-demand screen for later AI actions.
+- [x] Persist versioned accepted/declined consent outside SQLite; accepted consent does not prompt again unless withdrawn.
+- [x] Keep Scan, Describe, clarification, and re-estimation behind the consent preflight and final service guard; keep food search independent.
 - [x] Update the permanent privacy copy after a material data-flow change.
 - [x] Keep search disclosure near explicit online search behavior.
 
@@ -637,7 +638,7 @@ Add focused tests for:
 - [x] Installation-token creation, persistence, corruption, and concurrency.
 - [x] Platform-specific Health Connect visibility and service guards.
 - [x] Open Food Facts endpoint, User-Agent, parsing, errors, and cancellation.
-- [x] Direct Scan/Describe request behavior without a first-use prompt.
+- [x] Consent storage, coordinator concurrency/dismissal, and direct Scan/Describe/clarification boundary behavior.
 
 ### M5.2 Add full supported migration evidence
 
@@ -898,7 +899,7 @@ Apple fields:
 Screenshot story:
 
 1. Today progress and fast Add entry.
-2. Scan or photo review with editable components.
+2. Consent-enabled Scan or photo review with editable components; no consent overlay after Okay.
 3. Food search with useful common results.
 4. Diary with meals and real photo treatment.
 5. Analytics weight trend and logging consistency.
@@ -925,9 +926,9 @@ Google notes/checks:
 Apple review notes:
 
 - [x] State that Eatlog is a paid upfront download with no login, subscription, in-app purchase, or extra paid feature.
-- [x] Explain that Scan and Describe send user-selected content to Gemini through the Eatlog Worker.
+- [x] Explain the Okay/Not now estimate-consent choice, the later explicit AI prompt, and that Scan/Describe send user-selected content to Gemini through the Eatlog Worker only after consent.
 - [x] Explain that all saved logs remain on device unless the user exports a file.
-- [x] Give a short path through onboarding, manual entry, scan, backup, and reset.
+- [x] Give a short path through onboarding, consent, manual entry, scan, backup, Privacy withdrawal, and reset.
 - [x] State that iOS v1 does not expose Health Connect or HealthKit.
 - [ ] Give reviewer support contact and time zone.
 
@@ -1297,7 +1298,7 @@ Recheck these before submission:
 - Changed policy/legal source: `release/privacy/DATA_INVENTORY.md`, `release/site/privacy.md`, `release/site/support.md`, `release/store/POLICY_WORKSHEETS.md`, `release/legal/`, `release/OWNER_INPUTS.md`, and root `LICENSE`.
 - Generated artifact: `release/legal/THIRD_PARTY_SOFTWARE.md` contains 729 unique production package/version license records from `package-lock.json`; `release/legal/ONEST-OFL-1.1.txt` preserves the bundled font notice. `scripts/generate-third-party-notices.mjs` makes the inventory reproducible and fails on missing or inconsistent license identifiers.
 - Provider decision: explicit Open Food Facts full search now uses the official Search-a-licious privacy-preserving `POST /search` interface and parses `hits`. The provider is disabled unless a valid owner-controlled support email produces `Eatlog/<version> (<support-email>)`; no contact was invented. Common/type-ahead mode remains USDA-only through the Worker, and cancellation/partial-provider behavior remains intact.
-- Disclosure decision: version 1 stores only `{version, accepted}` in an app-private file outside SQLite backups. Scan, Describe, AI fallback, and re-estimation all await the same first-use affirmative gate before transmission. Decline writes nothing, performs no provider call, and leaves the selected source unchanged. Material behavior/copy changes require a version increment.
+- Historical disclosure decision (superseded by Phase 8): version 1 stored only `{version, accepted}` in an app-private file outside SQLite backups. The current consent record stores `accepted` or `declined`, persists Not now, and uses the shared full-screen coordinator described below.
 - Commands and results: `npm test` passed 188/188; `npm run typecheck` passed; `npm run notices:check` passed; `git diff --check` passed; local Android and iOS JavaScript exports passed with artifacts `/tmp/eatlog-m2-android.JBeak1` and `/tmp/eatlog-m2-ios.YHpYQ8`. An initial typecheck found one test-only AbortSignal assertion error; the assertion was corrected and the recorded rerun passed.
 - Test evidence: disclosure acceptance/reuse/version/corruption/storage failure/cancellation; no-transmission decline; valid HTTPS/configured User-Agent; supported Open Food Facts request body, `hits` parsing, missing-contact fail-closed behavior, non-JSON error, and abort; required in-app attribution coverage. Existing timeout, provider partial failure, and caller-cancellation tests remain passing.
 - Visual/device result: **ENVIRONMENT LIMITATION** `adb devices -l` could not start the WSL ADB daemon (`could not install *smartsocket* listener: Operation not permitted`); no Android emulator executable, Xcode, or `xcrun` is available. No screenshot or physical permission result is claimed.
@@ -1326,7 +1327,7 @@ Recheck these before submission:
 - Worker contract: the existing 16-to-64 hexadecimal validator accepts the 32-character token. Rate-limit storage receives a salted SHA-256 digest, never the raw token. The Worker redaction test excludes the raw token, digest, headers, request inputs, provider bodies, and secrets.
 - Commands and results: focused identity/request tests passed 18/18; `env TMPDIR=/tmp npm test` passed 203/203; `npm run typecheck` passed after both code batches; Worker `npm test` passed 17/17; `npm run notices:check` passed; `git diff --check` passed. The first focused test attempt hit an **ENVIRONMENT LIMITATION** because sandboxed `tsx` could not create `/tmp/tsx-1000/15.pipe`; the approved local rerun passed and no network or paid service was used.
 - Artifact: `release/qa/IOS_SOURCE_AUDIT.md` maps each iOS-native surface to inspected source and the exact remaining physical check. Earlier branch artifacts already prove evaluated bundle IDs, iPhone-only configuration, camera/photo usage strings, absent microphone usage, and encryption configuration.
-- UX decision: the first-use Scan/Describe disclosure remains the only transmission gate. It is not repeated after acceptance, and no helper paragraph was added to the FAB, camera, gallery, Describe, search, review, or logging paths.
+- Historical UX decision (superseded by Phase 8): the earlier first-use Scan/Describe disclosure was the only transmission gate. The current implementation keeps the no-recurring-paragraph rule but adds onboarding/on-demand consent and Profile withdrawal.
 - Remaining M4 blockers: **PHYSICAL DEVICE** Android/iPhone permission, camera, picker, Files, sharing, interruption, layout, accessibility, cross-platform archive, and remote-service checks; **ENVIRONMENT LIMITATION** no Xcode, iOS Simulator, CocoaPods native aggregation, or signed-binary inspection; **CREDENTIAL / STORE ACCOUNT** no distribution certificate, provisioning profile, App Store record, or TestFlight build; **PAID SERVICE** no EAS cloud build or simulator was used. The final clean local iOS JavaScript export passed in Phase 7. M4 signed-build exit criteria remain unchecked.
 
 ### Phase 4 / M5 account-free evidence: 2026-08-10
@@ -1360,7 +1361,7 @@ Recheck these before submission:
 - Artwork result: `google-play-icon-512.png` is 512×512 RGBA, fully opaque, and 10,055 bytes; `google-play-feature-graphic-1024x500.png` is 1024×500 RGB with no alpha and centered focal bounds `(343,18)–(681,481)`; `apple-app-store-icon-1024.png` is 1024×1024 RGB with no alpha and pixel-equivalent color content to the canonical icon. Original-resolution visual inspection confirmed the same white egg, scale marks, red indicator, and dark background with no badge, rating, award, price, text, or claim.
 - Screenshot/reviewer decision: the shot list defines seven distinct Android and iPhone captures, exact current format/dimension guidance, synthetic seed data, alt text, safe-area/accessibility review, and a real-binary-only rule. No screenshot was generated, composited, platform-swapped, or claimed. Reviewer material covers onboarding, manual entry, the single first-use transmission gate, provider paths, Health Connect Weight-only use on Android, iOS platform exclusions, backup/export/restore/reset, and evidence recording.
 - Commands and results: final `npm run store:metadata:check` passed; `npm run store:artwork:generate` passed; `npm run store:artwork:check` passed; all four new `.mjs` files passed `node --check`; `npm test` passed 5 config-plugin tests plus 219 TypeScript tests; `npm run typecheck` passed; and `git diff --check` passed. The first metadata validation caught its own false-positive diagnosis rule and the first artwork validation caught unresolved external SVG images; both implementation defects were fixed before the recorded passing reruns. The lean-ctx wrapper blocked `env TMPDIR=/tmp npm test`; the identical test command without the unnecessary environment prefix passed.
-- UX decision: remote-processing details stay in store/reviewer/privacy material and the existing one-time affirmative gate. No recurring helper paragraph or disclosure was added to the FAB, Scan, Describe, review, or ordinary food-logging path.
+- Historical UX decision (superseded by Phase 8): remote-processing details stayed in release material and the existing one-time gate. Current source adds the shared onboarding/on-demand screen while keeping ordinary logging free of recurring helper paragraphs.
 - Remaining M7 blockers: **OWNER INPUT** public developer/legal name, support email and URLs, launch countries, preview-APK policy, reviewer contact/time zone, App Store SKU, copyright holder, and any EU trader decision; **STORE ACCOUNT** Play/App Store records, forms, agreements, paid-price evidence, country selection, payments/tax/banking, app signing, and uploads; **CREDENTIAL** signed release candidates and submission access; **PHYSICAL DEVICE / ENVIRONMENT LIMITATION** real Android/iPhone release screenshots and visual/device evidence; **PAID SERVICE** enrollment, final cloud builds, provider Scan capture if chosen, and submission. M7 account-free source is complete, but its record, screenshot, URL, and exit criteria remain unchecked.
 
 ### Phase 7 final account-free audit evidence: 2026-08-10
@@ -1376,3 +1377,12 @@ Recheck these before submission:
 - UI/device result: **ENVIRONMENT LIMITATION / PHYSICAL DEVICE** no runnable Android emulator/ADB daemon, Xcode, iOS Simulator, signed binary, or physical device was available. No screenshot, native system-flow result, cross-device restore, accessibility pass, or signed merged-manifest/privacy-manifest result is claimed. Exact manual evidence is in `release/qa/` and the real-binary-only shot plan remains in `release/store/SCREENSHOT_PLAN.md`.
 - Final decision: M2 through M7 account-free source work is complete. M8 through M10 remain unchecked. The branch is ready for final device testing and paid-account setup, not for store submission or public release. The single ordered owner path is `release/OWNER_RELEASE_CHECKLIST.md`.
 - Remaining release blockers: **OWNER INPUT** identity/contact/host/URLs/countries/reviewer/SKU/copyright/device/operations/budget values; **STORE ACCOUNT** enrollments, records, agreements, pricing, banking/tax, forms, tests, review, and rollout; **CREDENTIAL** signing/submission/two-factor and production-service console evidence; **PHYSICAL DEVICE** complete Android/iPhone/native recovery/accessibility/screenshot matrix; **PAID SERVICE** memberships, signed/cloud builds, approved provider use, hosting, submissions, and preview drills; **ENVIRONMENT LIMITATION** no local Android/iOS native runtime or Xcode aggregation. **IMPLEMENTATION DEFECT:** none remains open from the account-free automated/static audit.
+
+### Phase 8 / remote-estimate consent and release-contract evidence: 2026-08-14
+
+- Audited source base: `51836cb` on `main`, with the current implementation in the working tree. No commit, push, deploy, EAS build, store submission, provider secret change, or paid Gemini request was performed.
+- Consent source: `src/services/remoteEstimateConsent.ts`, `src/services/remoteEstimateConsentCoordinator.ts`, `src/context/RemoteEstimateConsentContext.tsx`, and `src/components/RemoteEstimateConsentContent.tsx`. The current versioned record stores `accepted` or `declined` outside SQLite; accepted Okay is reused without prompts until explicit withdrawal, while read/write failures fail closed.
+- Guarded source: `src/services/foodScan.ts`, onboarding, FoodSheetContent, DescribeInputState, SearchInputState, AddComponentSection, ReviewState, ProfileInfoScreens, TabNavigator, and `dataReset.ts`. Scan, Upload photo, Describe, AI search fallback, Add component description, meal clarification, and component clarification preflight through the provider; the client blocks before installation-token loading and `fetch`; USDA/Open Food Facts search remains independent.
+- Share contract: runtime branding remains permanent across Photo, Framed, Nutrition, and photo-less fallback cards. The release and QA documents contain no mark toggle contract; the untracked legacy `MEAL_SHARING_IMPLEMENTATION_PLAN.md` is marked Superseded.
+- Current automated result: `env TMPDIR=/tmp npm test` passed 246/246; `npm run typecheck`, `npm run store:metadata:check`, `npm run notices:check`, `npm run store:artwork:check`, and `git diff --check` passed. `npx expo install --check`, `npx expo-doctor` (18/18), public Expo config, Android/iOS development exports, and Android/iOS prebuilds passed; generated native directories were removed after inspection. Worker tests passed 20/20, Worker typecheck/dry-run passed, and Worker production audit reported zero vulnerabilities. `npm run fallow:dead-code` remains the known 10-unused-export/2-unused-type baseline with no new findings.
+- Remaining gates: **PHYSICAL DEVICE / ENVIRONMENT LIMITATION** onboarding/on-demand layout, Back/dismissal, accessibility, permission ordering, accepted no-reprompt, withdrawal, reset, and share visuals; **CREDENTIAL / STORE ACCOUNT** signed Android/iOS binaries, production service/provider-console review, public page publication, store forms, pricing, submission, and rollout. No signed-binary, device, production-service, or store readiness claim is made.

@@ -14,6 +14,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 
 import { serviceConfig } from "../../config/services";
+import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
 import { insertFoodLog, type MealType, setFoodPinned } from "../../db/database";
 import { describeMeal, type DescribeResult } from "../../services/foodScan";
 import { loadFoodDetails, type FoodResult } from "../../services/foodSearch";
@@ -66,6 +67,7 @@ export default function SearchInputState({
 	const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 	const [estimating, setEstimating] = useState(false);
 	const [estimateError, setEstimateError] = useState<string | null>(null);
+	const { requestConsent } = useRemoteEstimateConsent();
 
 	const handleFoodPress = useCallback(
 		async (food: FoodResult) => {
@@ -133,8 +135,9 @@ export default function SearchInputState({
 	const handleEstimate = useCallback(async () => {
 		const query = search.query.trim();
 		if (!query || estimating) return;
-		setEstimating(true);
 		setEstimateError(null);
+		if (!await requestConsent()) return;
+		setEstimating(true);
 		const result = await describeMeal(query);
 		setEstimating(false);
 		if (!result.ok) {
@@ -143,7 +146,7 @@ export default function SearchInputState({
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [estimating, onEstimateResult, search.query]);
+	}, [estimating, onEstimateResult, requestConsent, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow

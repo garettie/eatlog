@@ -20,8 +20,8 @@ No real person, meal, photo, or health record may be used.
 
 ## Core smoke flow
 
-1. Install fresh and launch. Complete About You, Height & Weight, Activity Level, Goal & Target Rate, and Protein Preference with the seed above. Select Calculate, review the result, then select Use these starting targets.
-   Expected: onboarding completes without clipping or keyboard obstruction; Today opens with zero intake and the calculated target. Kill and reopen the app; the profile remains.
+1. Install fresh and launch. Complete About You, Height & Weight, Activity Level, Goal & Target Rate, and Protein Preference with the seed above. Select Calculate and review the result. If the build has an estimate Worker, confirm the final `AI meal estimates` screen shows the exact disclosure and `Okay` / `Not now` actions; select `Okay` for this accepted-consent run. If the Worker is not configured, the existing six-step flow completes without the consent step.
+   Expected: onboarding completes without clipping or keyboard obstruction; Today opens with zero intake and the calculated target. Kill and reopen the app; the profile remains and an accepted consent does not prompt again.
 2. On Today, open the center Add control. Select Search foods, then Enter manually. Enter the synthetic rice bowl and select Log Entry.
    Expected: the entry appears once; Today calories and macros increase by the entered values; the Add sheet closes. Capture Today.
 3. Open Diary and select today. Open the synthetic entry, change its amount, and save.
@@ -30,9 +30,9 @@ No real person, meal, photo, or health record may be used.
 4. Add the synthetic rice bowl and synthetic toast as one meal with a synthetic photo, and add a photo-less meal plus a standalone food. Move between adjacent days and months, then return to today.
    Expected: selection, date header, entries, and totals remain aligned; no stale row flashes or delayed transition appears. Capture Diary.
 5. Tap the photo meal’s image rail, which has no overlaid Share badge.
-   Expected: Share meal opens directly with a 9:16 Photo preview. Position dots, the Eatlog mark control, Save image, and Share are visible together without vertical scrolling. Android Back returns to Diary. Capture the default composer.
+   Expected: Share meal opens directly with a 9:16 Photo preview. Position dots, the permanent Eatlog mark, Save image, and Share are visible together without vertical scrolling. There is no mark control or toggle. Android Back returns to Diary. Capture the default composer.
 6. Swipe the preview left and right through Photo, Framed, and Nutrition.
-   Expected: horizontal paging snaps to one style at a time, the active dot follows the visible card, and no style names appear in the interface. Photo and Framed use their intended cover crop without stretching; Nutrition keeps the meal title and nutrition legible. Toggle the Eatlog mark off and on and verify the visible preview updates. Capture each style.
+   Expected: horizontal paging snaps to one style at a time, the active dot follows the visible card, and no style names appear in the interface. Photo and Framed use their intended cover crop without stretching; Nutrition keeps the meal title and nutrition legible. The Eatlog mark remains visible in every style and exposes no control or toggle state. Capture each style.
 7. Return to Diary and swipe both the photo meal and the photo-less meal.
    Expected: Share appears immediately left of far-right Delete, both actions are 72dp wide, and selecting Share resets the row before opening that meal directly. Both meal media rails remain tappable without an overlaid Share badge. The photo-less meal opens the Nutrition card with Save image and Share enabled. Standalone foods remain Delete-only and expose no Share action. Capture both swipe actions and the photo-less fallback.
 8. Save each selected style, repeating at least one save.
@@ -51,15 +51,16 @@ No real person, meal, photo, or health record may be used.
 14. Open Profile. Visit Personal details, Goal and rate, Nutrition targets, Units, How Eatlog works, Privacy, About, Licenses and attributions, Backup and restore, and Export data.
    Expected: every back action returns correctly; long copy scrolls; links appear only when valid release URLs are configured; no placeholder contact or URL appears. On iOS, no Health Connect control or wording appears. On Android, Health Connect appears only in its Android locations.
 15. Open Privacy.
-   Expected: local storage, remote Scan/Describe, USDA, explicit Open Food Facts search, installation-token/IP rate limiting, backup/export, and deletion behavior match the release policy. Ordinary logging screens contain no recurring privacy paragraph.
-16. Create a CSV export and dismiss or save the share sheet as directed by the platform run.
+   Expected: local storage, Google Gemini estimate consent and withdrawal, remote Scan/Describe/clarification/re-estimation, USDA, explicit Open Food Facts search, installation-token/IP rate limiting, backup/export, and deletion behavior match the release policy. The screen shows `Enabled` or `Off`; enabling opens the same full-screen consent UI, and turning estimates off does not disable food search. Ordinary logging screens contain no recurring privacy paragraph.
+16. With estimates enabled, turn online estimates off in Privacy, open an existing meal, and choose re-estimation. Decline the consent screen.
+    Expected: no network error is shown, all meal/component edits and undo state remain, and a later explicit AI action may ask again. Create a CSV export and dismiss or save the share sheet as directed by the platform run.
    Expected: cancellation does not claim a completed export. A saved archive contains readable CSV files and is rejected if selected as a restore source.
 17. Create an `.eatlog-backup`; first run with no meal photo, then with at least two synthetic meal photos where the device case permits.
     Expected: cancellation during a cancellable stage reports cancellation. A completed archive previews the correct row/photo counts and restores only after both confirmations.
 18. Restore the backup, then verify Today, Diary, Analytics, Profile, weights, targets, and photos.
     Expected: restored values match the source; no prior-device Health Connect sync state is active. Run the corrupt and rollback cases from `DEVICE_MATRIX.md` before signing off.
 19. Open Profile → Delete all data. Cancel each confirmation once, then repeat and complete deletion.
-    Expected: cancellation preserves all data. Completion returns Eatlog to onboarding and removes profile, logs, weights, targets, reviews, and meal photos. iOS shows no Health Connect wording; Android reports its Health Connect cleanup result accurately.
+    Expected: cancellation preserves all data. Completion returns Eatlog to onboarding and removes profile, logs, weights, targets, reviews, meal photos, and the consent decision. iOS shows no Health Connect wording; Android reports its Health Connect cleanup result accurately. Onboarding requests a fresh consent decision.
 
 ## Visual and accessibility pass
 
@@ -68,7 +69,7 @@ Repeat the core flow with the largest supported text size, screen reader enabled
 - Expected: text does not disappear behind controls; critical actions remain reachable by scrolling; labels and focus order describe the control and current state; touch targets are at least 48 points/dp where designed; keyboard focus does not hide active fields.
 - Expected: sheets respect the home indicator/navigation area; swipe-back, Android Back, backdrop taps, and discard gates do not lose edits silently.
 - Expected: long Unicode food names, five-digit calorie totals, loading, empty, error, offline, and rate-limit states remain readable.
-- Expected: share controls expose Back/Close, horizontal adjustable preview semantics, Eatlog mark state, Save image, Share, swipe Share/Delete, disabled, loading, and busy semantics; the exported card remains 9:16 regardless of device orientation or font scale.
+- Expected: share controls expose Back/Close, horizontal adjustable preview semantics, the permanent Eatlog mark without toggle semantics, Save image, Share, swipe Share/Delete, disabled, loading, and busy semantics; the exported card remains 9:16 regardless of device orientation or font scale.
 
 ## Evidence record
 

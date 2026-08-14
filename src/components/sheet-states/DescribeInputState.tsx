@@ -4,6 +4,7 @@ import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-shee
 
 import { describeMeal, DescribeResult } from '../../services/foodScan';
 import { M3 } from '../../theme/tokens';
+import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
 import PrimaryButton from '../PrimaryButton';
 import SheetBackButton from './SheetBackButton';
 
@@ -20,6 +21,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<typeof BottomSheetTextInput>(null);
   const requestRef = useRef(0);
+  const { requestConsent } = useRemoteEstimateConsent();
 
   useEffect(() => () => { requestRef.current++; }, []);
 
@@ -27,8 +29,9 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
     const trimmed = text.trim();
     if (!trimmed) return;
     Keyboard.dismiss();
-    const requestId = ++requestRef.current;
     setError(null);
+    if (!await requestConsent()) return;
+    const requestId = ++requestRef.current;
     setLoading(true);
     try {
       const result = await describeMeal(trimmed);

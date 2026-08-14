@@ -35,7 +35,7 @@ Keep your data on your phone
 Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
 
 Online services and estimates
-Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose to online services for a nutrition estimate. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. These features require internet access.
+Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose to online services for a nutrition estimate after you choose Okay to enable online estimates. Not now keeps Eatlog usable without sending estimate data; a later explicit AI action can ask again. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. These features require internet access.
 
 Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
 
@@ -66,7 +66,7 @@ KEEP YOUR DATA ON YOUR PHONE
 Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
 
 ONLINE SERVICES AND ESTIMATES
-Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose to online services for a nutrition estimate. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. These features require internet access.
+Manual logging, saved history, and analytics work without a network connection. Scan and Describe send only the photo or text you choose to online services for a nutrition estimate after you choose Okay to enable online estimates. Not now keeps Eatlog usable without sending estimate data; a later explicit AI action can ask again. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. These features require internet access.
 
 Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
 
@@ -82,14 +82,14 @@ Eatlog is a one-time paid download. It has no subscriptions, in-app purchases, a
   reviewerNotes: {
     google: `Eatlog is a one-time paid download with no login, subscription, in-app purchase, or extra paid feature.
 
-Complete onboarding with synthetic adult data. Manual food entry works without a network connection. Open the center Add control: Scan a meal opens the camera, and Upload photo opens the photo library. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker when the user invokes that action. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
+Complete onboarding with synthetic adult data. If online estimates are configured, the final onboarding screen asks whether to enable AI meal estimates. Choose Okay to enable Scan, Upload photo, Describe, clarification, and re-estimation without repeated prompts; choose Not now to enter Eatlog without sending anything. A later explicit AI action can reopen the same choice. Manual food entry works without a network connection. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker after consent. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 
 Android only: Profile > Health Connect requests read and write access for Weight. Eatlog imports Weight into local history and exports only weights entered in Eatlog. No other Health Connect data type is requested.
 
 Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.`,
     apple: `Eatlog is a one-time paid download with no login, subscription, in-app purchase, or extra paid feature. Saved profiles, targets, logs, weights, and meal photos stay on device unless the user exports a file.
 
-Complete onboarding with synthetic adult data. Use the center Add control for manual entry, Scan a meal, or Upload photo. Scan a meal opens the camera; Upload photo opens the photo library. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker when the user invokes that action. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
+Complete onboarding with synthetic adult data. If online estimates are configured, the final onboarding screen asks whether to enable AI meal estimates. Choose Okay to enable Scan, Upload photo, Describe, clarification, and re-estimation without repeated prompts; choose Not now to enter Eatlog without sending anything. A later explicit AI action can reopen the same choice. Use the center Add control for manual entry, Scan a meal, or Upload photo. Scan a meal opens the camera; Upload photo opens the photo library. Scan and Describe send only user-selected content to Google Gemini through the Eatlog Worker after consent. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 
 Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.
 

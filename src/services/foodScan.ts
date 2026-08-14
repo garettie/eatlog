@@ -2,6 +2,7 @@ import { serviceConfig } from '../config/services';
 import { buildFoodPortions, normalizeFoodName } from './foodSearchCore';
 import type { FoodResult } from './foodSearch';
 import { getInstallationToken, isInstallationToken } from './installIdentity';
+import { hasRemoteEstimateConsent } from './remoteEstimateConsent';
 import {
     type FoodEstimateResponse,
     isRecognizedFoodEstimate,
@@ -30,7 +31,7 @@ export interface ComponentClarificationInput extends MealClarificationInput {
     mealName: string;
 }
 
-export type FoodEstimationFailureKind = 'unavailable' | 'network' | 'timeout' | 'provider' | 'invalid-response' | 'unrecognized';
+export type FoodEstimationFailureKind = 'unavailable' | 'consent-required' | 'network' | 'timeout' | 'provider' | 'invalid-response' | 'unrecognized';
 export type FoodEstimationResult =
     | { ok: true; result: DescribeResult }
     | { ok: false; kind: FoodEstimationFailureKind; message: string };
@@ -60,11 +61,13 @@ export interface FoodEstimateClientOptions {
     getInstallationToken?: () => string | Promise<string>;
     now?: () => number;
     timeoutMs?: number;
+    hasConsent?: () => boolean | Promise<boolean>;
 }
 
 function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
     const messages: Record<FoodEstimationFailureKind, string> = {
         unavailable: 'Estimates are unavailable in this build.',
+        'consent-required': 'Enable online estimates to use this.',
         network: 'Could not reach the estimation service. Check your connection and try again.',
         timeout: 'The estimation service took too long. Try again.',
         provider: 'The estimation service could not complete this request. Try again.',
@@ -147,12 +150,18 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const loadInstallationToken = options.getInstallationToken ?? getInstallationToken;
     const now = options.now ?? Date.now;
     const timeoutMs = options.timeoutMs ?? 22000;
+    const checkConsent = options.hasConsent ?? hasRemoteEstimateConsent;
 
     async function estimate(
         operation: EstimateOperation,
         input: EstimateInput,
     ): Promise<FoodEstimationResult> {
         if (!options.workerUrl) return failure('unavailable');
+        try {
+            if (!await checkConsent()) return failure('consent-required');
+        } catch {
+            return failure('consent-required');
+        }
         let installId: string;
         try {
             installId = await loadInstallationToken();

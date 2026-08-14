@@ -9,8 +9,8 @@ These are source answers, not submitted console records. Reconcile them against 
 - Eatlog is a PHP 299 one-time upfront purchase in the Philippines.
 - No subscription, in-app purchase, receipt server, paywall, account, authentication, cloud database, ads, or third-party analytics.
 - Android ships first. Android and iOS purchases are separate.
-- Data is local-first. Online actions are Scan, Describe/re-estimation, USDA search/detail, and explicit Open Food Facts full search.
-- Card sharing renders a 1080 by 1920 PNG locally. Save image writes it to the system photo library; Share sends it only to a destination the user selects in operating-system UI. Neither action uses an Eatlog backend or social publishing service.
+- Data is local-first. Online actions are Scan, Describe/clarification/re-estimation, USDA search/detail, and explicit Open Food Facts full search. Gemini estimate actions require the current accepted consent; food search remains separate.
+- Card sharing renders a 1080 by 1920 PNG locally with the permanent Eatlog mark. Save image writes it to the system photo library; Share sends it only to a destination the user selects in operating-system UI. Neither action uses an Eatlog backend or social publishing service, and no mark toggle exists.
 - Health Connect is Android-only and limited to Weight read/write. HealthKit and Apple Health are absent from v1.
 - Adults; general wellness; nutrition and weight values are estimates.
 
@@ -109,15 +109,15 @@ Reviewer path:
 2. Complete local onboarding with synthetic adult data.
 3. Use the center Add control; it is an action button, not a fifth tab.
 4. Manual logging works without online services.
-5. Scan or Describe starts the requested Gemini estimate directly through the Eatlog Worker. Profile → Privacy explains the transmission and providers.
-6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly.
-7. In Diary, tap any meal image or food-icon rail, or swipe a meal and choose Share immediately left of Delete. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; photo-less meals use Nutrition. The position dots, Eatlog mark control, Save image, and Share stay visible without vertical scrolling. Today, day summaries, Analytics, and standalone foods have no Share action.
+5. On a build with online estimates, onboarding shows the concise AI meal-estimate consent. Okay enables later Scan, Describe, clarification, and re-estimation without repeated prompts; Not now completes onboarding and sends nothing. A later explicit AI action reopens the same full-screen choice. Profile → Privacy shows Enabled/Off, names Google Gemini, and provides withdrawal.
+6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly; neither provider depends on Gemini consent.
+7. In Diary, tap any meal image or food-icon rail, or swipe a meal and choose Share immediately left of Delete. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; photo-less meals use Nutrition. The position dots, permanent Eatlog mark, Save image, and Share stay visible without vertical scrolling; no mark control or toggle state exists. Today, day summaries, Analytics, and standalone foods have no Share action.
 8. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
 9. Profile → Backup and restore creates/restores archives; Profile → Export data creates non-restorable CSV; Delete all data uses two confirmations.
 
 Provider explanation:
 
-- Gemini estimates and USDA requests use the owner-operated Cloudflare Worker.
+- After consent, Gemini estimates and USDA requests use the owner-operated Cloudflare Worker. Consent is client-side and the Worker remains a defensive boundary; the client blocks before installation-token loading or fetch when consent is absent.
 - Open Food Facts is a direct, explicit full-search provider and is attributed under ODbL/Database Contents License terms.
 - No account, paywall, subscription, in-app purchase, cloud sync, advertising, or telemetry is present.
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import Card from '../components/Card';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { serviceConfig } from '../config/services';
 import { getDatabaseVersion } from '../db/database';
+import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
 import { LEGAL_ATTRIBUTIONS } from '../services/legalAttributions';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
@@ -141,6 +142,49 @@ function InfoRow({ icon, title, detail, iconColor = M3.onSurfaceVariant, last = 
     );
 }
 
+function RemoteEstimateRow({
+    detail,
+    enabled,
+    busy,
+    onPress,
+    last = false,
+}: {
+    detail: string;
+    enabled: boolean;
+    busy: boolean;
+    onPress: () => void;
+    last?: boolean;
+}) {
+    return (
+        <View className={`min-h-[72px] gap-3 px-4 py-4 ${last ? '' : 'border-b border-m3-outline-variant/40'}`}>
+            <View className="flex-row items-start gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
+                    <MaterialIcons name="photo-camera" size={20} color={M3.onSurfaceVariant} />
+                </View>
+                <View className="min-w-0 flex-1 gap-0.5">
+                    <Text className="text-sm font-semibold text-m3-on-surface">Meal estimates</Text>
+                    <Text className="text-sm text-m3-on-surface-variant">{detail}</Text>
+                </View>
+            </View>
+            <View className="flex-row items-center justify-between gap-3 pl-[52px]">
+                <Text className="text-sm font-semibold text-m3-on-surface">{enabled ? 'Enabled' : 'Off'}</Text>
+                <Pressable
+                    onPress={onPress}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    accessibilityLabel={enabled ? 'Turn off online estimates' : 'Enable online estimates'}
+                    accessibilityState={{ disabled: busy, busy }}
+                    className={`min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-4 active:opacity-60 ${busy ? 'opacity-50' : ''}`}
+                >
+                    <Text className="text-xs font-semibold text-m3-on-surface">
+                        {enabled ? 'Turn off online estimates' : 'Enable online estimates'}
+                    </Text>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
+
 function DetailRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
     return (
         <View className={`min-h-[52px] flex-row items-center justify-between gap-4 py-3 ${last ? '' : 'border-b border-m3-outline-variant/40'}`}>
@@ -244,9 +288,23 @@ export function HowEatlogWorksScreen() {
 
 export function PrivacyScreen() {
     const healthConnectAvailable = supportsHealthConnect(Platform.OS);
+    const { decision, requestConsent, decline } = useRemoteEstimateConsent();
+    const [consentBusy, setConsentBusy] = useState(false);
+    const estimateEnabled = decision === 'accepted';
     const estimateCopy = serviceConfig.availability.gemini
-        ? 'When you scan, describe, or re-estimate a meal, Eatlog sends the photo or text to a third-party AI service to create the estimate. The request passes through Eatlog’s online service, which uses an app-specific token and your IP address to prevent abuse.'
+        ? 'When you scan, describe, or re-estimate a meal, Eatlog sends the photo or text to Google Gemini through Eatlog’s online service to create the estimate. The request uses an app-specific token and your IP address to prevent abuse.'
         : 'This version of Eatlog can’t estimate meals.';
+
+    const handleEstimatePrivacyAction = async () => {
+        if (consentBusy) return;
+        setConsentBusy(true);
+        try {
+            if (estimateEnabled) await decline();
+            else await requestConsent();
+        } finally {
+            setConsentBusy(false);
+        }
+    };
     const searchCopy = serviceConfig.availability.usda && serviceConfig.availability.openFoodFacts
         ? 'As you type, Eatlog looks for matches from USDA. Tap Search to include Open Food Facts. Eatlog keeps recent results in memory for a short time.'
         : serviceConfig.availability.usda
@@ -273,7 +331,16 @@ export function PrivacyScreen() {
             <View className="gap-3">
                 <SectionTitle title="Network requests" />
                 <Card className="overflow-hidden">
-                    <InfoRow icon="photo-camera" title="Meal estimates" detail={estimateCopy} />
+                    {serviceConfig.availability.gemini ? (
+                        <RemoteEstimateRow
+                            detail={estimateCopy}
+                            enabled={estimateEnabled}
+                            busy={consentBusy}
+                            onPress={() => { void handleEstimatePrivacyAction(); }}
+                        />
+                    ) : (
+                        <InfoRow icon="photo-camera" title="Meal estimates" detail={estimateCopy} />
+                    )}
                     <InfoRow icon="search" title="Food search" detail={searchCopy} last />
                 </Card>
             </View>

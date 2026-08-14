@@ -64,12 +64,17 @@ import {
   WELLNESS_DISCLAIMER,
 } from '../utils/nutritionSafety';
 import ResponsiveContent from '../components/ResponsiveContent';
+import RemoteEstimateConsentContent from '../components/RemoteEstimateConsentContent';
+import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
+import { serviceConfig } from '../config/services';
 import { FORM_MAX_WIDTH } from '../theme/layout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 type UnitSystem = 'metric' | 'imperial';
 
-const TOTAL_STEPS = 6;
+const CALCULATION_STEP = 6;
+const HAS_REMOTE_ESTIMATE_CONSENT = serviceConfig.availability.gemini;
+const TOTAL_STEPS = HAS_REMOTE_ESTIMATE_CONSENT ? 7 : CALCULATION_STEP;
 
 function StyledInput({
   label,
@@ -141,6 +146,7 @@ const CALC_LINES = [
 
 export default function OnboardingScreen({ navigation }: Props) {
   const reduced = useReducedMotion();
+  const { accept, decline } = useRemoteEstimateConsent();
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -174,6 +180,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [consentBusy, setConsentBusy] = useState(false);
 
   const [tdeeEstimate, setTdeeEstimate] = useState(0);
   const [computedTargets, setComputedTargets] = useState<{
@@ -458,7 +465,7 @@ export default function OnboardingScreen({ navigation }: Props) {
         goalRateKgPerWeek: goalRate,
       });
       setComputedTargets(targets);
-      goToStep(TOTAL_STEPS);
+      goToStep(CALCULATION_STEP);
     } catch (error) {
       setStepError(error instanceof Error ? error.message : 'Could not calculate a safe plan.');
     } finally {
@@ -472,7 +479,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   const savedRef = useRef(false);
 
   useEffect(() => {
-    if (step !== TOTAL_STEPS || !computedTargets) return;
+    if (step !== CALCULATION_STEP || !computedTargets) return;
     savedRef.current = false;
     setCalcStage(0);
     if (reduced) {
@@ -486,6 +493,33 @@ export default function OnboardingScreen({ navigation }: Props) {
       timers.forEach(clearTimeout);
     };
   }, [step, computedTargets]);
+
+  async function handleConsentAccept() {
+    if (consentBusy || isSubmitting) return;
+    setStepError(null);
+    setConsentBusy(true);
+    try {
+      if (!await accept()) {
+        setStepError('Eatlog could not save your privacy choice. Nothing was sent. Try again.');
+        return;
+      }
+      await handleSave();
+    } finally {
+      setConsentBusy(false);
+    }
+  }
+
+  async function handleConsentDecline() {
+    if (consentBusy || isSubmitting) return;
+    setStepError(null);
+    setConsentBusy(true);
+    try {
+      await decline();
+      await handleSave();
+    } finally {
+      setConsentBusy(false);
+    }
+  }
 
   async function handleSave() {
     if (savedRef.current || !computedTargets) return;
@@ -645,7 +679,7 @@ export default function OnboardingScreen({ navigation }: Props) {
               {step === 2 && (
                 <>
                   <StepHeader
-                    title="Height & Weight"
+                    title="Height &amp; Weight"
                     subtitle="Your starting point for the trend engine."
                   />
 
@@ -829,7 +863,7 @@ export default function OnboardingScreen({ navigation }: Props) {
               {step === 4 && (
                 <>
                   <StepHeader
-                    title="Goal & Target Rate"
+                    title="Goal &amp; Target Rate"
                     subtitle="Pick a pace you can sustain."
                   />
 
@@ -949,7 +983,7 @@ export default function OnboardingScreen({ navigation }: Props) {
               )}
 
               {/* ═══════════════ STEP 6 — Calculating ═════════════════════ */}
-              {step === 6 && (
+              {step === CALCULATION_STEP && (
                 <View className="items-center pt-14 gap-8">
                   <View className="w-16 h-16 rounded-full bg-m3-surface-container-high border border-m3-outline-variant/40 items-center justify-center">
                     <MaterialIcons name="auto-awesome" size={28} color={M3.primary} />
@@ -988,9 +1022,29 @@ export default function OnboardingScreen({ navigation }: Props) {
                         </Text>
                       </View>
                       <Text className="text-xs leading-4 text-m3-on-surface-variant">{ESTIMATE_DISCLAIMER}</Text>
-                      <PrimaryButton title="Use these starting targets" icon="check" onPress={() => void handleSave()} loading={isSubmitting} />
+                      <PrimaryButton
+                        title="Use these starting targets"
+                        icon="check"
+                        onPress={() => {
+                          if (HAS_REMOTE_ESTIMATE_CONSENT) goToStep(TOTAL_STEPS);
+                          else void handleSave();
+                        }}
+                        loading={isSubmitting}
+                      />
                     </View>
                   ) : null}
+                </View>
+              )}
+
+              {/* ═══════════════ STEP 7 — Estimate consent ═══════════════ */}
+              {step === TOTAL_STEPS && HAS_REMOTE_ESTIMATE_CONSENT && (
+                <View className="min-h-[520px] flex-1">
+                  <RemoteEstimateConsentContent
+                    busy={consentBusy || isSubmitting}
+                    error={stepError}
+                    onAccept={handleConsentAccept}
+                    onDecline={handleConsentDecline}
+                  />
                 </View>
               )}
             </Reanimated.View>
@@ -998,7 +1052,7 @@ export default function OnboardingScreen({ navigation }: Props) {
           </ScrollView>
 
           {/* ── Footer ────────────────────────────────────────────────── */}
-          {step < TOTAL_STEPS && (
+          {step < CALCULATION_STEP && (
             <View className="bg-m3-surface-container-low border-t border-m3-outline-variant/40 shrink-0">
               <ResponsiveContent maxWidth={FORM_MAX_WIDTH} className="px-7 py-5 gap-3">
               {stepError && (
