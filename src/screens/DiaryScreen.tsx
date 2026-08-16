@@ -407,8 +407,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
 
   const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
   const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
-  const currentMonth = getMonthStart(new Date());
-  const canGoNext = monthAnchor.getTime() < currentMonth.getTime();
 
   const selectDate = useCallback((iso: string) => {
     if (iso === selectedDateRef.current) return;
@@ -766,7 +764,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
         onSelectDate={selectDate}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
-        canGoNext={canGoNext}
         monthLabel={formatMonthLabel(monthAnchor)}
       />
 

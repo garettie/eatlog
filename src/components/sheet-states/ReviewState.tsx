@@ -39,7 +39,7 @@ import PrimaryButton from "../PrimaryButton";
 import DateSelector from "../DateSelector";
 import MealPhotoEditor from "../MealPhotoEditor";
 import {
-	formatDayHeader,
+	formatLogDateLabel,
 	isoFromDate,
 	parseLocalISO,
 	todayISO,
@@ -1173,7 +1173,7 @@ export default function ReviewState({
 					<Pressable
 						onPress={() => setDateSelectorVisible(true)}
 						accessibilityRole="button"
-						accessibilityLabel={`Log date, ${formatDayHeader(effectiveLogDate)}`}
+						accessibilityLabel={`Log date, ${formatLogDateLabel(effectiveLogDate)}`}
 						className="min-h-[48px] flex-row items-center rounded-2xl bg-m3-surface-container-high px-4 border border-m3-outline-variant/30 active:opacity-70"
 					>
 						<MaterialIcons name="event" size={18} color={M3.onSurfaceVariant} />
@@ -1181,8 +1181,11 @@ export default function ReviewState({
 							<Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider">
 								Date
 							</Text>
-							<Text className="text-m3-on-surface text-sm font-semibold">
-								{formatDayHeader(effectiveLogDate)}
+							<Text
+								numberOfLines={2}
+								className="text-m3-on-surface text-sm font-semibold"
+							>
+								{formatLogDateLabel(effectiveLogDate)}
 							</Text>
 						</View>
 						<MaterialIcons
@@ -1259,7 +1262,7 @@ export default function ReviewState({
 				visible={dateSelectorVisible}
 				value={parseLocalISO(effectiveLogDate)}
 				minimumDate={new Date(1900, 0, 1)}
-				maximumDate={parseLocalISO(todayISO())}
+				showTodayAction
 				onCancel={() => setDateSelectorVisible(false)}
 				onConfirm={(date) => {
 					setDateSelectorVisible(false);

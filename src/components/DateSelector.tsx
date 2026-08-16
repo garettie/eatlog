@@ -11,7 +11,8 @@ interface DateSelectorProps {
   visible: boolean;
   value: Date;
   minimumDate: Date;
-  maximumDate: Date;
+  maximumDate?: Date;
+  showTodayAction?: boolean;
   onCancel: () => void;
   onConfirm: (date: Date) => void;
 }
@@ -23,10 +24,10 @@ function dateOnly(date: Date): Date {
   return result;
 }
 
-function clampDate(date: Date, minimumDate: Date, maximumDate: Date): Date {
+function clampDate(date: Date, minimumDate: Date, maximumDate?: Date): Date {
   const time = date.getTime();
   if (time < minimumDate.getTime()) return new Date(minimumDate);
-  if (time > maximumDate.getTime()) return new Date(maximumDate);
+  if (maximumDate && time > maximumDate.getTime()) return new Date(maximumDate);
   return date;
 }
 
@@ -35,15 +36,21 @@ export default function DateSelector({
   value,
   minimumDate,
   maximumDate,
+  showTodayAction = false,
   onCancel,
   onConfirm,
 }: DateSelectorProps) {
   const insets = useSafeAreaInsets();
   const valueTime = value.getTime();
   const minimumTime = minimumDate.getTime();
-  const maximumTime = maximumDate.getTime();
+  const maximumTime = maximumDate?.getTime();
+  const todayTime = dateOnly(new Date()).getTime();
   const minDate = useMemo(() => dateOnly(new Date(minimumTime)), [minimumTime]);
-  const maxDate = useMemo(() => dateOnly(new Date(maximumTime)), [maximumTime]);
+  const maxDate = useMemo(
+    () => maximumTime == null ? undefined : dateOnly(new Date(maximumTime)),
+    [maximumTime],
+  );
+  const todayDate = useMemo(() => new Date(todayTime), [todayTime]);
   const [draftDate, setDraftDate] = useState(() => (
     clampDate(dateOnly(value), minDate, maxDate)
   ));
@@ -64,14 +71,22 @@ export default function DateSelector({
     DateTimePickerAndroid.open({
       value: clampDate(dateOnly(new Date(valueTime)), minDate, maxDate),
       mode: 'date',
-      display: 'spinner',
+      // Android OEM spinners can flicker when linked wheels reach a hard bound.
+      // Keep the wheel for unbounded meal dates and use the native bounded dialog
+      // for birth dates and weight dates.
+      display: maxDate ? 'default' : 'spinner',
       minimumDate: minDate,
       maximumDate: maxDate,
       positiveButton: { label: 'Set date' },
       negativeButton: { label: 'Cancel' },
+      neutralButton: showTodayAction ? { label: 'Today' } : undefined,
       onChange: (event, date) => {
         if (event.type === 'set' && date) {
           onConfirmRef.current(clampDate(dateOnly(date), minDate, maxDate));
+          return;
+        }
+        if (event.type === 'neutralButtonPressed' && showTodayAction) {
+          onConfirmRef.current(clampDate(todayDate, minDate, maxDate));
           return;
         }
         if (event.type === 'dismissed') onCancelRef.current();
@@ -81,7 +96,7 @@ export default function DateSelector({
     return () => {
       DateTimePickerAndroid.dismiss('date');
     };
-  }, [maxDate, minDate, valueTime, visible]);
+  }, [maxDate, minDate, showTodayAction, todayDate, valueTime, visible]);
 
   if (!visible || Platform.OS === 'android') return null;
 
@@ -118,7 +133,19 @@ export default function DateSelector({
               if (date) setDraftDate(clampDate(dateOnly(date), minDate, maxDate));
             }}
           />
-          <View className="flex-row justify-end gap-3">
+          <View className="flex-row items-center justify-end gap-3">
+            {showTodayAction ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Today"
+                onPress={() => onConfirm(clampDate(todayDate, minDate, maxDate))}
+                className="mr-auto min-h-[48px] justify-center rounded-full px-2 active:opacity-70"
+              >
+                <Text className="text-xs font-semibold text-m3-on-surface-variant">
+                  Today
+                </Text>
+              </Pressable>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cancel"

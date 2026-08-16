@@ -139,6 +139,17 @@ function isSameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
 }
 
+export function formatLogDateLabel(isoDate: string, referenceDate: Date = new Date()): string {
+  const date = parseLocalISO(isoDate);
+  const label = date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  return isSameDay(date, referenceDate) ? `Today · ${label}` : label;
+}
+
 export function isToday(d: Date): boolean {
   return isSameDay(d, new Date());
 }

@@ -4,10 +4,23 @@ import {
   addCalendarDays,
   addCalendarMonths,
   calendarDaysBetween,
+  formatLogDateLabel,
   formatLocalISO,
   normalizeLogDateInput,
   parseLocalISO,
 } from './calendar';
+
+test('log date labels identify today and show the selected weekday', () => {
+  const today = parseLocalISO('2026-08-16');
+  assert.equal(
+    formatLogDateLabel('2026-08-16', today),
+    'Today · Sunday, August 16, 2026',
+  );
+  assert.equal(
+    formatLogDateLabel('2026-08-17', today),
+    'Monday, August 17, 2026',
+  );
+});
 
 test('local ISO dates round-trip at local midnight', () => {
   const date = parseLocalISO('2026-07-28');

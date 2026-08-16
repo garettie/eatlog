@@ -17,7 +17,7 @@ import {
 import DateSelector from '../DateSelector';
 import PrimaryButton from '../PrimaryButton';
 import SegmentedControl from '../SegmentedControl';
-import { formatLocalISO, parseLocalISO, todayISO } from '../../utils/calendar';
+import { formatLocalISO, formatLogDateLabel, parseLocalISO, todayISO } from '../../utils/calendar';
 import { formatWeight, fromKilograms, parseWeightInput, toKilograms } from '../../utils/weightUnits';
 import { M3 } from '../../theme/tokens';
 import { useToday } from '../../hooks/useToday';
@@ -225,8 +225,8 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
         accessibilityLabel="Select weight date"
         className="min-h-[52px] px-4 rounded-2xl bg-m3-surface-container-high border border-m3-outline-variant/30 flex-row items-center justify-between active:opacity-70"
       >
-        <Text className="text-m3-on-surface text-sm font-semibold">
-          {parseLocalISO(effectiveDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+        <Text numberOfLines={2} className="flex-1 pr-3 text-m3-on-surface text-sm font-semibold">
+          {formatLogDateLabel(effectiveDate)}
         </Text>
         <MaterialIcons name="calendar-today" size={18} color={M3.onSurfaceVariant} />
       </Pressable>
@@ -283,6 +283,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
         value={parseLocalISO(effectiveDate)}
         minimumDate={birthDate}
         maximumDate={parseLocalISO(todayISO())}
+        showTodayAction
         onCancel={() => setDateSelectorVisible(false)}
         onConfirm={(date) => {
           setDateSelectorVisible(false);
