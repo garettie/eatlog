@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -87,6 +87,7 @@ export default function PortionStepper({
   const gramsValue = parsePositivePortionInput(gramsText);
   const servingsInvalid = servingsValue == null || servingsValue < MIN_SERVINGS;
   const gramsInvalid = gramsValue == null;
+  const editorInvalid = unitMode === 'servings' && hasServing ? servingsInvalid : gramsInvalid;
   const canDecrease = servings > MIN_SERVINGS;
   const totalGrams = grams;
   const servingDesc = servingSizeGrams
@@ -96,7 +97,12 @@ export default function PortionStepper({
   return (
     <View className="gap-3">
       {amountOptions.length > 0 && onAmountChange ? (
-        <View className="flex-row flex-wrap gap-2">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+        >
           {amountOptions.map((option) => {
             const selected = option.id === selectedAmountId;
             const unit = /ml\b/i.test(option.label) ? 'ml' : 'g';
@@ -119,16 +125,25 @@ export default function PortionStepper({
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       ) : null}
 
       {hasServing ? (
         <SegmentedControl
           options={[
-            { value: 'servings' as const, label: 'Servings' },
-            { value: 'grams' as const, label: 'Grams' },
+            {
+              value: 'servings' as const,
+              label: 'Servings',
+              accessibilityLabel: 'Servings, use household portions',
+            },
+            {
+              value: 'grams' as const,
+              label: 'Grams',
+              accessibilityLabel: 'Grams, enter weight directly',
+            },
           ]}
           value={unitMode}
+          tone="inset"
           onChange={(mode) => {
             onValidityChange?.(true);
             onModeChange(mode);
@@ -136,7 +151,7 @@ export default function PortionStepper({
         />
       ) : null}
 
-      <View className="bg-m3-surface-container rounded-2xl px-4 py-4 items-center gap-1.5">
+      <View className={`bg-m3-surface-container rounded-xl px-4 py-3 items-center gap-1.5 border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
         {unitMode === 'servings' && hasServing ? (
           <>
             <View className="flex-row items-center gap-5">
@@ -165,7 +180,7 @@ export default function PortionStepper({
                 accessibilityHint={servingsInvalid ? 'Invalid amount. Enter at least 0.1 serving.' : 'Enter at least 0.1 serving'}
                 keyboardType="numeric"
                 returnKeyType="done"
-                className={`w-16 min-h-[48px] text-center bg-transparent text-2xl font-bold tabular-nums py-1 rounded-xl border ${servingsInvalid ? 'text-m3-error border-m3-error' : 'text-m3-on-surface border-transparent'}`}
+                className={`w-16 min-h-[48px] text-center bg-transparent text-2xl font-bold tabular-nums py-1 ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
               />
               <Pressable
                 onPress={() => onServingsDelta(0.5)}
@@ -191,7 +206,7 @@ export default function PortionStepper({
           </>
         ) : (
           <>
-            <View className="flex-row items-center justify-center gap-3 w-full">
+            <View className="relative w-full min-h-[48px] items-center justify-center">
               <BottomSheetTextInput
                 value={gramsText}
                 onChangeText={handleGramsChange}
@@ -203,11 +218,16 @@ export default function PortionStepper({
                 accessibilityHint={gramsInvalid ? 'Invalid amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
                 keyboardType="numeric"
                 returnKeyType="done"
-                className={`w-28 min-h-[48px] text-center bg-m3-surface-container-high rounded-xl py-3 px-3 text-lg font-bold tabular-nums border ${gramsInvalid ? 'text-m3-error border-m3-error' : 'text-m3-on-surface border-m3-outline-variant/50'}`}
+                className={`w-full min-h-[48px] text-center bg-transparent py-2 px-12 text-2xl font-bold tabular-nums ${gramsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
               />
-              <Text className="text-m3-on-surface-variant text-sm font-semibold">
-                grams
-              </Text>
+              <View
+                pointerEvents="none"
+                className="absolute right-4 top-0 bottom-0 justify-center"
+              >
+                <Text className="text-m3-on-surface-variant text-base font-semibold">
+                  g
+                </Text>
+              </View>
             </View>
             {gramsInvalid ? (
               <Text

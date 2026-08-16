@@ -23,6 +23,7 @@ interface SegmentedControlProps<T extends string> {
   value: T;
   onChange: (v: T) => void;
   disabled?: boolean;
+  tone?: 'default' | 'inset';
 }
 
 /**
@@ -33,6 +34,7 @@ export default function SegmentedControl<T extends string>({
   value,
   onChange,
   disabled = false,
+  tone = 'default',
 }: SegmentedControlProps<T>) {
   const reduced = useReducedMotion();
   const selectedIndex = Math.max(
@@ -71,7 +73,7 @@ export default function SegmentedControl<T extends string>({
 
   return (
     <View
-      className="bg-m3-surface-container-high p-0.5 rounded-full border border-m3-outline-variant/30 overflow-hidden"
+      className={`${tone === 'inset' ? 'bg-m3-surface-container border-m3-outline-variant/50' : 'bg-m3-surface-container-high border-m3-outline-variant/30'} p-0.5 rounded-full border overflow-hidden`}
       style={disabled ? { opacity: 0.38 } : undefined}
     >
       <View

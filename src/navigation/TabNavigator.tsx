@@ -444,7 +444,11 @@ export default function TabNavigator() {
                 onGoBack={handleSheetGoBack}
                 onSheetClosed={handleCloseSheet}
                 sheetCloseRef={sheetCloseRef}
-                forceClose={!!sheet.fromBar && sheet.stateKey !== 'weight-input'}
+                forceClose={
+                    !!sheet.fromBar
+                    && sheet.stateKey !== 'weight-input'
+                    && sheet.stateKey !== 'review'
+                }
             >
                 <FoodSheetContent
                     state={sheet}

@@ -261,6 +261,8 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Food-estimation prompts must stay Worker-owned under a test-enforced request-size budget; clarification context sends only source text plus component names and grams.
 - Sharing is meal-only: open it from an unbadged meal media rail or the meal swipe action, switch card styles with an unlabeled horizontal pager plus dots, and keep the permanent Eatlog mark and export actions visible without vertical scrolling; there is no mark toggle.
 - Share-card nutrition bars keep a thick rounded outer capsule; render proportional fill with an exact flat top and inherit only the capsule's rounded bottom through clipping—never fake rounded fill caps or liquid waves.
+- Review-sheet component rows expose portion macros and editable nutrition after one expansion; never nest nutrition behind another disclosure, never repeat the editable food name in the expanded header, separate sections with tonal highlights, dividers, and one rounded outer container without explanatory filler copy, and keep expanded height in normal React Native layout without clipped Reanimated layout transitions or measurement-triggered auto-scroll.
+- Expanded review section titles share the same title role; the Servings/Grams control uses the shared white-thumb toggle with a contrasting inset track, and grams entry is one outlined tonal field whose value stays centered independently of its integrated `g` suffix.
 
 ---
 
