@@ -15,6 +15,7 @@ import {
   resetDatabaseConnection,
 } from '../db/database';
 import {
+  backupFileNameFromUri,
   type BackupFileEntry,
   createBackupManifestV2,
   validateBackupArchiveSizes,
@@ -33,14 +34,6 @@ import { assertBackupNotCancelled } from './backupCancellation';
 
 function nativePath(uri: string): string {
   return decodeURIComponent(uri.replace(/^file:\/\//, ''));
-}
-
-function baseName(uri: string): string {
-  const name = decodeURIComponent(uri.split('/').pop() ?? '');
-  if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
-    throw new Error('A meal photo has an invalid filename.');
-  }
-  return name;
 }
 
 function fileMetadata(file: File, archivePath: string): BackupFileEntry {
@@ -76,7 +69,7 @@ async function createBackup(
         await snapshot.runAsync('UPDATE meals SET photo_uri = NULL WHERE id = ?', [reference.mealId]);
         continue;
       }
-      const originalFileName = baseName(reference.uri);
+      const originalFileName = backupFileNameFromUri(reference.uri);
       const archivedName = `${reference.mealId}-${originalFileName}`;
       const destination = new File(photoStage, archivedName);
       await LegacyFileSystem.copyAsync({ from: source.uri, to: destination.uri });
@@ -137,7 +130,7 @@ export async function shareBackup(onProgress?: OwnershipProgressListener, signal
 
 async function validateStagedDatabase(databaseFile: File, manifest: ReturnType<typeof validateBackupManifest>): Promise<void> {
   const directory = new Directory(databaseFile.uri.slice(0, databaseFile.uri.lastIndexOf('/') + 1));
-  const db = await SQLite.openDatabaseAsync(baseName(databaseFile.uri), undefined, directory.uri);
+  const db = await SQLite.openDatabaseAsync(backupFileNameFromUri(databaseFile.uri), undefined, directory.uri);
   try {
     await validateBackupDatabase(db, manifest);
   } finally {
@@ -148,7 +141,7 @@ async function validateStagedDatabase(databaseFile: File, manifest: ReturnType<t
 function listExtractedFiles(directory: Directory, prefix = ''): string[] {
   const paths: string[] = [];
   for (const entry of directory.list()) {
-    const name = baseName(entry.uri);
+    const name = backupFileNameFromUri(entry.uri);
     const archivePath = prefix ? `${prefix}/${name}` : name;
     if (entry instanceof File) paths.push(archivePath);
     else paths.push(...listExtractedFiles(entry, archivePath));

@@ -81,6 +81,16 @@ export function todayISO(): string {
   return formatLocalISO(new Date());
 }
 
+export function normalizeLogDateInput(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    parseLocalISO(value);
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 export function isoFromDate(d: Date): string {
   return formatLocalISO(d);
 }

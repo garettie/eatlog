@@ -631,7 +631,7 @@ function DashboardScreen({
                 A photo is enough. Review the estimate before it reaches your diary.
               </Text>
               <Pressable
-                onPress={onOpenCamera}
+                onPress={() => onOpenCamera()}
                 accessibilityRole="button"
                 accessibilityLabel="Scan a meal with camera"
                 className="active:opacity-90"
@@ -643,7 +643,7 @@ function DashboardScreen({
               </Pressable>
               <View className="flex-row flex-wrap items-center justify-between gap-2">
                 <Pressable
-                  onPress={onOpenGallery}
+                  onPress={() => onOpenGallery()}
                   className="min-h-[48px] px-2 flex-row items-center justify-center gap-1.5 active:opacity-60"
                   accessibilityRole="button"
                   accessibilityLabel="Upload a photo from gallery"
@@ -652,7 +652,7 @@ function DashboardScreen({
                   <Text className="text-m3-on-surface-variant font-medium text-sm">Upload photo</Text>
                 </Pressable>
                 <Pressable
-                  onPress={onOpenDescribe}
+                  onPress={() => onOpenDescribe()}
                   className="min-h-[48px] px-2 flex-row items-center justify-center gap-1.5 active:opacity-60"
                   accessibilityRole="button"
                   accessibilityLabel="Describe a meal in words"

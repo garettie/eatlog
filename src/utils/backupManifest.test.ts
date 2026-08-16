@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  backupFileNameFromUri,
   createBackupManifestV2,
   isSupportedBackupFileName,
   isSafeArchivePath,
@@ -21,6 +22,11 @@ test('accepts Eatlog backups and legacy Marco backups', () => {
   assert.equal(isSupportedBackupFileName('backup.zip'), false);
   assert.equal(isSupportedBackupFileName('eatlog-export.csv'), false);
   assert.equal(isSupportedBackupFileName('eatlog-export.zip'), false);
+});
+
+test('reads extracted file and directory names from Expo file URIs', () => {
+  assert.equal(backupFileNameFromUri('file:///cache/eatlog-restore/photos/'), 'photos');
+  assert.equal(backupFileNameFromUri('file:///cache/eatlog-restore/database.sqlite'), 'database.sqlite');
 });
 
 const v1 = {

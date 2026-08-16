@@ -5,6 +5,7 @@ import {
   addCalendarMonths,
   calendarDaysBetween,
   formatLocalISO,
+  normalizeLogDateInput,
   parseLocalISO,
 } from './calendar';
 
@@ -18,6 +19,13 @@ test('strict local ISO parsing rejects malformed and impossible dates', () => {
   for (const value of ['2026-7-28', '2026-02-29', '2026-13-01', 'not-a-date']) {
     assert.throws(() => parseLocalISO(value), RangeError);
   }
+});
+
+test('log date input accepts local ISO strings and rejects press events', () => {
+  assert.equal(normalizeLogDateInput('2026-08-16'), '2026-08-16');
+  assert.equal(normalizeLogDateInput({ nativeEvent: { timestamp: 1 } }), null);
+  assert.equal(normalizeLogDateInput('undefined'), null);
+  assert.equal(normalizeLogDateInput('2026-02-30'), null);
 });
 
 test('calendar arithmetic includes leap day', () => {

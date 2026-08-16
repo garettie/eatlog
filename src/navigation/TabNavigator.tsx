@@ -15,7 +15,7 @@ import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey, type Log
 import type { MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
 import { deleteFoodLog, deleteMeal, restoreWeightSave, type MealType } from '../db/database';
-import { formatDayHeader, todayISO } from '../utils/calendar';
+import { formatDayHeader, normalizeLogDateInput, todayISO } from '../utils/calendar';
 import { foodResultFromLog } from '../services/foodSearchCore';
 import type { DescribeResult } from '../services/foodScan';
 import EatlogTabBar from './EatlogTabBar';
@@ -98,25 +98,25 @@ export default function TabNavigator() {
     const openEntry = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = false;
-        setSheet({ ...INITIAL, visible: true, logDate: logDate ?? null });
+        setSheet({ ...INITIAL, visible: true, logDate: normalizeLogDateInput(logDate) });
     }, []);
 
     const openDescribe = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'describe', fromBar: true, logDate: logDate ?? null });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'describe', fromBar: true, logDate: normalizeLogDateInput(logDate) });
     }, []);
 
     const openCamera = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'entry', pendingAction: 'camera', fromBar: true, logDate: logDate ?? null });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'entry', pendingAction: 'camera', fromBar: true, logDate: normalizeLogDateInput(logDate) });
     }, []);
 
     const openGallery = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'entry', pendingAction: 'gallery', fromBar: true, logDate: logDate ?? null });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'entry', pendingAction: 'gallery', fromBar: true, logDate: normalizeLogDateInput(logDate) });
     }, []);
 
     const openWeight = useCallback(() => {

@@ -84,6 +84,14 @@ export function isSupportedBackupFileName(name: string): boolean {
   return normalized.endsWith('.eatlog-backup') || normalized.endsWith('.marco-backup');
 }
 
+export function backupFileNameFromUri(uri: string): string {
+  const name = decodeURIComponent(uri.replace(/\/+$/, '').split('/').pop() ?? '');
+  if (!name || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
+    throw new Error('A meal photo has an invalid filename.');
+  }
+  return name;
+}
+
 export function isSafeArchivePath(path: unknown): path is string {
   if (typeof path !== 'string' || path.length === 0 || path.startsWith('/') || path.includes('\\')) return false;
   return path.split('/').every((part) => part.length > 0 && part !== '.' && part !== '..');
