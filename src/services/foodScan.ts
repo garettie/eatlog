@@ -42,6 +42,7 @@ const MAX_CONTEXT_DESCRIPTION_LENGTH = 500;
 const MAX_CONTEXT_NAME_LENGTH = 120;
 const MAX_CONTEXT_GRAMS = 10_000;
 const MAX_CLARIFICATION_NAME_LENGTH = 200;
+const MAX_SCAN_MEAL_TITLE_LENGTH = 120;
 
 interface EstimateContext {
     originalDescription?: string;
@@ -188,11 +189,14 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');
             if (!isRecognizedFoodEstimate(result)) return failure('invalid-response');
             const source = operation === 'scan' || input.imageBase64 ? 'scan' : 'describe';
-            const originalDescription = operation === 'describe' ? input.text : input.context?.originalDescription;
+            const providedMealTitle = operation === 'scan' ? input.text?.trim() : undefined;
+            const originalDescription = operation === 'describe' || operation === 'scan'
+                ? input.text
+                : input.context?.originalDescription;
             return {
                 ok: true,
                 result: {
-                    mealName: result.mealName.trim(),
+                    mealName: providedMealTitle || result.mealName.trim(),
                     components: mapComponents(result.components, source, now()),
                     ...(originalDescription ? { originalDescription } : {}),
                 },
@@ -205,9 +209,13 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         }
     }
 
-    async function scanFood(imageBase64: string): Promise<FoodEstimationResult> {
+    async function scanFood(imageBase64: string, mealTitle?: string): Promise<FoodEstimationResult> {
         if (!imageBase64.trim()) return failure('unrecognized');
-        return estimate('scan', { imageBase64 });
+        const title = mealTitle?.trim().slice(0, MAX_SCAN_MEAL_TITLE_LENGTH);
+        return estimate('scan', {
+            imageBase64,
+            ...(title ? { text: title } : {}),
+        });
     }
 
     async function describeMeal(text: string): Promise<FoodEstimationResult> {

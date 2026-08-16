@@ -32,6 +32,7 @@ import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentCon
 
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
+import PhotoMealTitleState from './PhotoMealTitleState';
 import ScanningState from './ScanningState';
 import ReviewState from './ReviewState';
 import SearchInputState from './SearchInputState';
@@ -43,6 +44,7 @@ import WeightInputState from './WeightInputState';
 export type FoodSheetStateKey =
     | 'entry'
     | 'describe'
+    | 'photo-title'
     | 'scanning'
     | 'permission-denied'
     | 'estimation-error'
@@ -121,6 +123,14 @@ interface FoodSheetContentProps {
     onGoBack: () => boolean;
 }
 
+interface PendingEstimatePhoto {
+    uri: string;
+    width: number;
+    height: number;
+    base64: string;
+    source: 'camera' | 'gallery';
+}
+
 export default function FoodSheetContent({
     state,
     setState,
@@ -135,6 +145,8 @@ export default function FoodSheetContent({
     const scanRequestRef = useRef(0);
     const scanInFlightRef = useRef(false);
     const scanBase64Ref = useRef<string | null>(null);
+    const pendingPhotoRef = useRef<PendingEstimatePhoto | null>(null);
+    const scanMealTitleRef = useRef('');
     const mealRequestRef = useRef(0);
     const fromBarRef = useRef(false);
     const previousStateKeyRef = useRef(state.stateKey);
@@ -144,6 +156,12 @@ export default function FoodSheetContent({
     const stateOffset = useSharedValue(0);
     const stateOpacity = useSharedValue(1);
     fromBarRef.current = !!state.fromBar;
+
+    const discardPendingPhoto = useCallback(() => {
+        pendingPhotoRef.current = null;
+        scanBase64Ref.current = null;
+        scanMealTitleRef.current = '';
+    }, []);
 
     const commitRenderedState = useCallback((stateKey: FoodSheetStateKey, requestId: number) => {
         if (requestId !== stateTransitionRequestRef.current) return;
@@ -205,8 +223,9 @@ export default function FoodSheetContent({
             scanRequestRef.current += 1;
             scanInFlightRef.current = false;
         }
+        if (!state.visible) discardPendingPhoto();
         previousStateKeyRef.current = state.stateKey;
-    }, [state.stateKey, state.visible]);
+    }, [discardPendingPhoto, state.stateKey, state.visible]);
     const transitionTo = useCallback(
         (stateKey: FoodSheetStateKey, opts?: { describeResult?: DescribeResult | null; pushHistory?: boolean }) => {
             const { describeResult, pushHistory = true } = opts ?? {};
@@ -231,6 +250,28 @@ export default function FoodSheetContent({
         },
         [setState],
     );
+
+    const queuePhotoForTitle = useCallback((
+        asset: ImagePicker.ImagePickerAsset,
+        base64: string,
+        source: 'camera' | 'gallery',
+    ) => {
+        scanBase64Ref.current = base64;
+        pendingPhotoRef.current = {
+            uri: asset.uri,
+            width: asset.width,
+            height: asset.height,
+            base64,
+            source,
+        };
+        scanInFlightRef.current = false;
+        setState((current) => ({
+            ...current,
+            stateKey: 'photo-title',
+            pendingAction: source,
+            estimationFailure: null,
+        }));
+    }, [setState]);
 
     const handleCamera = useCallback(async () => {
         if (scanInFlightRef.current) return;
@@ -291,28 +332,11 @@ export default function FoodSheetContent({
                 return;
             }
             if (requestId !== scanRequestRef.current) return;
-            scanBase64Ref.current = base64;
-            const scanResult = await scanFood(base64).catch((error) => {
-                console.error('[FoodSheet] camera estimate failed unexpectedly', error);
-                if (requestId === scanRequestRef.current) showScanError('provider', 'camera');
-                return null;
-            });
-            if (!scanResult || requestId !== scanRequestRef.current) return;
-            if (!scanResult.ok) {
-                showScanError(scanResult.kind, 'camera');
-                return;
-            }
-            const photoUri = await saveMealPhoto(asset.uri, asset.width, asset.height).catch((e) => {
-                console.error('[FoodSheet] camera photo save failed', e);
-                return null;
-            });
-            if (requestId !== scanRequestRef.current) return;
-            setState((s) => ({ ...s, photoUri }));
-            transitionTo('review', { describeResult: scanResult.result });
+            queuePhotoForTitle(asset, base64, 'camera');
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [requestConsent, transitionTo, resetToEntry, setState, showScanError]);
+    }, [queuePhotoForTitle, requestConsent, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleGallery = useCallback(async () => {
         if (scanInFlightRef.current) return;
@@ -357,32 +381,69 @@ export default function FoodSheetContent({
                 return;
             }
             if (requestId !== scanRequestRef.current) return;
-            scanBase64Ref.current = base64;
-            const scanResult = await scanFood(base64).catch((error) => {
-                console.error('[FoodSheet] gallery estimate failed unexpectedly', error);
-                if (requestId === scanRequestRef.current) showScanError('provider', 'gallery');
+            queuePhotoForTitle(asset, base64, 'gallery');
+        } finally {
+            if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
+        }
+    }, [queuePhotoForTitle, requestConsent, transitionTo, resetToEntry, setState, showScanError]);
+
+    const handlePhotoEstimate = useCallback(async (mealTitle: string) => {
+        if (scanInFlightRef.current) return;
+        const pendingPhoto = pendingPhotoRef.current;
+        if (!pendingPhoto) {
+            showScanError('photo-unreadable', state.pendingAction === 'gallery' ? 'gallery' : 'camera');
+            return;
+        }
+
+        scanInFlightRef.current = true;
+        const requestId = ++scanRequestRef.current;
+        scanMealTitleRef.current = mealTitle.trim();
+        transitionTo('scanning', { pushHistory: false });
+
+        try {
+            const scanResult = await scanFood(pendingPhoto.base64, mealTitle).catch((error) => {
+                console.error('[FoodSheet] photo estimate failed unexpectedly', error);
+                if (requestId === scanRequestRef.current) showScanError('provider', pendingPhoto.source);
                 return null;
             });
             if (!scanResult || requestId !== scanRequestRef.current) return;
             if (!scanResult.ok) {
-                showScanError(scanResult.kind, 'gallery');
+                showScanError(scanResult.kind, pendingPhoto.source);
                 return;
             }
-            const photoUri = await saveMealPhoto(asset.uri, asset.width, asset.height).catch((e) => {
-                console.error('[FoodSheet] gallery photo save failed', e);
+            const photoUri = await saveMealPhoto(
+                pendingPhoto.uri,
+                pendingPhoto.width,
+                pendingPhoto.height,
+            ).catch((error) => {
+                console.error('[FoodSheet] meal photo save failed', error);
                 return null;
             });
             if (requestId !== scanRequestRef.current) return;
-            setState((s) => ({ ...s, photoUri }));
-            transitionTo('review', { describeResult: scanResult.result });
+            pendingPhotoRef.current = null;
+            setState((current) => ({
+                ...current,
+                stateKey: 'review',
+                describeResult: scanResult.result,
+                photoUri,
+                pendingAction: null,
+                estimationFailure: null,
+            }));
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [requestConsent, transitionTo, resetToEntry, setState, showScanError]);
+    }, [setState, showScanError, state.pendingAction, transitionTo]);
+
+    const handlePhotoTitleBack = useCallback(() => {
+        discardPendingPhoto();
+        setState((current) => ({ ...current, pendingAction: null }));
+        onGoBack();
+    }, [discardPendingPhoto, onGoBack, setState]);
 
     const handleDescribe = useCallback(() => {
+        discardPendingPhoto();
         transitionTo('describe');
-    }, [transitionTo]);
+    }, [discardPendingPhoto, transitionTo]);
 
     const handleDescribeResult = useCallback(
         (result: DescribeResult) => {
@@ -394,8 +455,9 @@ export default function FoodSheetContent({
     );
 
     const handleSearch = useCallback(() => {
+        discardPendingPhoto();
         transitionTo('search');
-    }, [transitionTo]);
+    }, [discardPendingPhoto, transitionTo]);
 
     const handleRecentFoods = useCallback(() => {
         transitionTo('recent-foods');
@@ -437,8 +499,9 @@ export default function FoodSheetContent({
     }, [setState, transitionTo]);
 
     const handleManualEntry = useCallback(() => {
+        discardPendingPhoto();
         transitionTo('manual-input');
-    }, [transitionTo]);
+    }, [discardPendingPhoto, transitionTo]);
 
     const handleSingleLogComplete = useCallback(
         ({ logId, meal, name, calories, logDate }: { logId: number; meal: MealType; name: string; calories: number; logDate: string }) => {
@@ -472,12 +535,13 @@ export default function FoodSheetContent({
     const handleScanCancel = useCallback(() => {
         scanRequestRef.current += 1;
         scanInFlightRef.current = false;
+        discardPendingPhoto();
         if (fromBarRef.current) {
             resetToEntry();
             return;
         }
         transitionTo('entry', { pushHistory: false });
-    }, [transitionTo, resetToEntry]);
+    }, [discardPendingPhoto, transitionTo, resetToEntry]);
 
     const handleClarify = useCallback(
         async (input: MealClarificationInput): Promise<ClarificationOutcome<DescribeResult>> => {
@@ -565,6 +629,13 @@ export default function FoodSheetContent({
                 {renderedStateKey === 'describe' && (
                     <DescribeInputState onResult={handleDescribeResult} onBack={onGoBack} onSearch={handleSearch} onManualEntry={handleManualEntry} />
                 )}
+                {renderedStateKey === 'photo-title' && pendingPhotoRef.current && (
+                    <PhotoMealTitleState
+                        photoUri={pendingPhotoRef.current.uri}
+                        onEstimate={(mealTitle) => { void handlePhotoEstimate(mealTitle); }}
+                        onBack={handlePhotoTitleBack}
+                    />
+                )}
                 {renderedStateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
                 {renderedStateKey === 'permission-denied' && (
                     <PermissionDeniedState
@@ -581,19 +652,26 @@ export default function FoodSheetContent({
                         kind={state.estimationFailure ?? 'provider'}
                         source={state.pendingAction === 'gallery' ? 'Gallery' : 'Camera'}
                         onRetry={state.estimationFailure === 'unavailable' ? undefined : () => {
-                            const action = state.pendingAction;
                             skipHistoryRef.current = true;
+                            if (pendingPhotoRef.current) {
+                                void handlePhotoEstimate(scanMealTitleRef.current);
+                                return;
+                            }
+                            const action = state.pendingAction;
                             setState((s) => ({ ...s, stateKey: 'scanning', pendingAction: action, estimationFailure: null }));
                         }}
                         onSearch={() => {
+                            discardPendingPhoto();
                             skipHistoryRef.current = true;
                             setState((s) => ({ ...s, stateKey: 'search', pendingAction: null, estimationFailure: null }));
                         }}
                         onDescribe={() => {
+                            discardPendingPhoto();
                             skipHistoryRef.current = true;
                             setState((s) => ({ ...s, stateKey: 'describe', pendingAction: null, estimationFailure: null }));
                         }}
                         onManualEntry={() => {
+                            discardPendingPhoto();
                             skipHistoryRef.current = true;
                             setState((s) => ({ ...s, stateKey: 'manual-input', pendingAction: null, estimationFailure: null }));
                         }}

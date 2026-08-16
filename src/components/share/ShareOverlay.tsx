@@ -84,7 +84,7 @@ export default function ShareOverlay({
     && readyLayouts.has(activeLayout)
     && cardWidth > 0;
   const actionsDisabled = busy || !previewReady;
-  const snapPoints = useMemo(() => ['92%'], []);
+  const snapPoints = useMemo(() => ['100%'], []);
 
   useEffect(() => {
     const hasPhoto = meal?.photoUri != null;

@@ -224,6 +224,8 @@ export default function TabNavigator() {
         switch (sheet.stateKey) {
             case 'entry':
                 return ['60%'];
+            case 'photo-title':
+                return ['68%'];
             case 'scanning':
             case 'permission-denied':
                 return ['50%'];
@@ -231,17 +233,17 @@ export default function TabNavigator() {
                 return ['30%'];
             case 'review-loading':
             case 'review':
-                return ['92%'];
+                return ['100%'];
             case 'search':
             case 'recent-foods':
             case 'single-food-review':
-                return ['92%'];
+                return ['100%'];
             case 'weight-input':
                 return ['50%'];
             case 'manual-input':
-                return ['40%', '92%'];
+                return ['40%', '100%'];
             default:
-                return ['50%', '92%'];
+                return ['50%', '100%'];
         }
     }, [sheet.stateKey]);
 

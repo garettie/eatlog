@@ -22,7 +22,7 @@ Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the 
 
 ## Provider and privacy explanation
 
-- After the user chooses Okay, Scan, Describe, clarification, and re-estimation send only the user-selected photo or text through the Eatlog Cloudflare Worker to Google Gemini when the user invokes that action. Not now and withdrawal block later Gemini requests while leaving food search and local logging available.
+- After the user chooses Okay, Scan sends the user-selected photo and any optional meal title, while Describe, clarification, and re-estimation send user-entered text through the Eatlog Cloudflare Worker to Google Gemini when the user invokes that action. Not now and withdrawal block later Gemini requests while leaving food search and local logging available.
 - USDA search and detail use the Worker. Open Food Facts is contacted directly only for explicit full search.
 - The app-scoped installation token is sent for throttling and is stored outside SQLite backups. The Worker stores only its salted hash for rate limiting.
 - Saved profile, target, log, meal, photo, and weight data stays local unless the user invokes a named remote feature or shares an export/backup.

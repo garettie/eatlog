@@ -74,6 +74,27 @@ test('Scan and Describe await the installation token and send the required heade
     assert.deepEqual(JSON.parse(String(requests[1].init?.body)), { operation: 'scan', imageBase64: 'c3ludGhldGlj' });
 });
 
+test('Scan sends a trimmed meal title and preserves it for review', async () => {
+    let requestBody: Record<string, unknown> | null = null;
+    const client = createAcceptedClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async (_input, init) => {
+            requestBody = JSON.parse(String(init?.body));
+            return jsonResponse(recognizedEstimate());
+        }) as typeof fetch,
+    });
+
+    const result = await client.scanFood('c3ludGhldGlj', '  Chicken adobo with rice  ');
+
+    assert.deepEqual(requestBody, {
+        operation: 'scan',
+        imageBase64: 'c3ludGhldGlj',
+        text: 'Chicken adobo with rice',
+    });
+    assert.equal(result.ok && result.result.mealName, 'Chicken adobo with rice');
+});
+
 test('clarification sends source description and current component context', async () => {
     const requests: Array<Record<string, unknown>> = [];
     const client = createAcceptedClient({

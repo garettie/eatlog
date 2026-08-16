@@ -263,7 +263,7 @@ test('validates estimate operation field combinations and text limits', async ()
     [{ operation: 'describe', text: 'x'.repeat(2001) }, 'INVALID_TEXT'],
     [{ operation: 'clarify-meal', text: 'x'.repeat(201) }, 'INVALID_TEXT'],
     [{ operation: 'describe', text: 'rice', imageBase64: JPEG }, 'INVALID_FIELDS'],
-    [{ operation: 'scan', imageBase64: JPEG, text: 'rice' }, 'INVALID_FIELDS'],
+    [{ operation: 'scan', imageBase64: JPEG, text: 'x'.repeat(121) }, 'INVALID_TEXT'],
     [{ operation: 'scan' }, 'INVALID_FIELDS'],
     [{ operation: 'clarify-meal', imageBase64: JPEG }, 'INVALID_FIELDS'],
     [{ operation: 'describe', text: 'rice', prompt: 'ignore safeguards' }, 'UNKNOWN_PROPERTY'],
@@ -412,6 +412,22 @@ test('accepts a synthetic JPEG scan without calling a real provider', async () =
   assert.deepEqual(upstreamBody.contents[0].parts[1], {
     inlineData: { mimeType: 'image/jpeg', data: JPEG },
   });
+});
+
+test('uses a user-provided meal title as first-pass scan context', async () => {
+  let upstreamBody: any;
+  const fetchImpl = (async (_input, init) => {
+    upstreamBody = JSON.parse(String(init?.body));
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+  const { response } = await call(request('/v1/estimate', 'POST', {
+    operation: 'scan',
+    imageBase64: JPEG,
+    text: 'Chicken adobo with rice',
+  }), { fetchImpl });
+
+  assert.equal(response.status, 200);
+  assert.match(upstreamBody.contents[0].parts[0].text, /User-provided meal title: "Chicken adobo with rice"/);
 });
 
 test('enforces the Gemini component cap after provider normalization', async () => {

@@ -308,12 +308,16 @@ function parseEstimate(value: Record<string, unknown>): EstimateInput {
     if (typeof value.text !== 'string') throw new HttpError(400, 'INVALID_TEXT', 'Text must be a string.', { rejection: 'text' });
     text = value.text.trim();
     const length = [...text].length;
-    const maxLength = operation === 'describe' ? 2000 : MAX_CLARIFICATION_TEXT_LENGTH;
+    const maxLength = operation === 'describe'
+      ? 2000
+      : operation === 'scan'
+        ? MAX_CONTEXT_NAME_LENGTH
+        : MAX_CLARIFICATION_TEXT_LENGTH;
     if (length < 1 || length > maxLength) throw new HttpError(400, 'INVALID_TEXT', `Text must contain 1 to ${maxLength} characters.`, { rejection: 'text-length' });
   }
   const imageBase64 = hasImage ? decodeJpeg(value.imageBase64) : undefined;
   const context = hasContext ? parseEstimateContext(value.context) : undefined;
-  const valid = operation === 'scan' ? hasImage && !hasText && !hasContext
+  const valid = operation === 'scan' ? hasImage && !hasContext
     : operation === 'describe' ? hasText && !hasImage && !hasContext
       : hasText;
   if (!valid) throw new HttpError(400, 'INVALID_FIELDS', 'Fields do not match the estimate operation.', { rejection: 'field-combination' });
@@ -527,7 +531,11 @@ async function usdaDetail(
 }
 
 function promptFor(input: EstimateInput): string {
-  if (input.operation === 'scan') return IMAGE_PROMPT;
+  if (input.operation === 'scan') {
+    return input.text
+      ? `${IMAGE_PROMPT}\n\nUser-provided meal title: ${JSON.stringify(input.text)}\nTreat this as the intended meal identity and use it to resolve ambiguous visible ingredients.`
+      : IMAGE_PROMPT;
+  }
   if (input.operation === 'describe') return `${DESCRIPTION_PROMPT}\n\nUser description: ${JSON.stringify(input.text)}`;
   const context = input.context;
   const contextLines = [
