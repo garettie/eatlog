@@ -9,6 +9,11 @@ const dateSelectorSource = readFileSync(
   resolve(testDirectory, '../components/DateSelector.tsx'),
   'utf8',
 );
+const androidPickerStart = dateSelectorSource.indexOf('DateTimePickerAndroid.open');
+const androidPickerSource = dateSelectorSource.slice(
+  androidPickerStart,
+  dateSelectorSource.indexOf('return () =>', androidPickerStart),
+);
 const profileScreensSource = readFileSync(
   resolve(testDirectory, '../screens/ProfilePlanScreens.tsx'),
   'utf8',
@@ -18,17 +23,21 @@ const personalDetailsSource = profileScreensSource.slice(
   profileScreensSource.indexOf('export function UnitsScreen'),
 );
 
-test('Android date selection keeps an app-owned Set date action', () => {
-  assert.doesNotMatch(dateSelectorSource, /DateTimePickerAndroid/);
-  assert.match(dateSelectorSource, /accessibilityLabel="Set date"/);
+test('Android uses the native date wheel with explicit visible actions', () => {
+  assert.ok(androidPickerStart >= 0, 'Android should open the imperative native picker');
+  assert.match(androidPickerSource, /display: 'spinner'/);
+  assert.match(androidPickerSource, /positiveButton: \{ label: 'Set date' \}/);
+  assert.match(androidPickerSource, /negativeButton: \{ label: 'Cancel' \}/);
+  assert.match(androidPickerSource, /event\.type === 'set'/);
+  assert.match(
+    androidPickerSource,
+    /onConfirmRef\.current\(clampDate\(dateOnly\(date\), minDate, maxDate\)\)/,
+  );
 });
 
-test('Android date wheels settle and commit the centered row after every drag', () => {
-  assert.match(dateSelectorSource, /scrollEventThrottle=\{16\}/);
-  assert.match(dateSelectorSource, /onScroll=\{trackWheelOffset\}/);
-  assert.match(dateSelectorSource, /onScrollEndDrag=\{scheduleWheelSettle\}/);
-  assert.match(dateSelectorSource, /onMomentumScrollBegin=\{cancelWheelSettle\}/);
-  assert.match(dateSelectorSource, /onMomentumScrollEnd=\{settleWheel\}/);
+test('Android does not fall back to JavaScript scroll-wheel snapping', () => {
+  assert.doesNotMatch(dateSelectorSource, /function DateWheel/);
+  assert.doesNotMatch(dateSelectorSource, /snapToOffsets/);
 });
 
 test('personal details uses the shared date selector instead of a birth-date text field', () => {

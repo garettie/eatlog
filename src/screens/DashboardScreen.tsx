@@ -609,7 +609,7 @@ function DashboardScreen({
                     <Text className="text-m3-on-surface font-bold text-sm leading-4" numberOfLines={2}>
                       {recentFood.name}
                     </Text>
-                    <Text className="text-m3-on-surface-variant text-xs leading-4" numberOfLines={1}>
+                    <Text className="mt-0.5 text-m3-on-surface-variant text-xs leading-4" numberOfLines={1}>
                       Last logged · {Math.round(recentFood.calories)} kcal · {getRelativeTime(recentFood.logged_at)}
                     </Text>
                   </View>
