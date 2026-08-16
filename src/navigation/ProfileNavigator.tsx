@@ -52,6 +52,10 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
     () => <UnitsScreen onDataChanged={onDataChanged} />,
     [onDataChanged],
   );
+  const renderPersonalDetails = useCallback(
+    () => <PersonalDetailsScreen onDataChanged={onDataChanged} />,
+    [onDataChanged],
+  );
   const renderPlanPreview = useCallback(
     (props: NativeStackScreenProps<ProfileStackParamList, 'PlanPreview'>) => (
       <PlanPreviewScreen {...props} onDataChanged={onDataChanged} />
@@ -68,7 +72,9 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
       <Stack.Screen name="ProfileHome" options={PROFILE_HOME_OPTIONS}>
         {renderProfileHome}
       </Stack.Screen>
-      <Stack.Screen name="PersonalDetails" component={PersonalDetailsScreen} options={PERSONAL_DETAILS_OPTIONS} />
+      <Stack.Screen name="PersonalDetails" options={PERSONAL_DETAILS_OPTIONS}>
+        {renderPersonalDetails}
+      </Stack.Screen>
       <Stack.Screen name="GoalAndRate" component={GoalAndRateScreen} options={GOAL_AND_RATE_OPTIONS} />
       <Stack.Screen name="NutritionTargets" component={NutritionTargetsScreen} options={NUTRITION_TARGETS_OPTIONS} />
       <Stack.Screen name="Units" options={UNITS_OPTIONS}>

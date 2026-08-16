@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
-import DateTimePicker, {
-  DateTimePickerAndroid,
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { M3 } from '../theme/tokens';
 
@@ -22,8 +23,54 @@ interface DateSelectorProps {
   onConfirm: (date: Date) => void;
 }
 
+interface WheelItem {
+  value: number;
+  label: string;
+  accessibilityLabel: string;
+}
+
+interface DateWheelProps {
+  label: string;
+  items: WheelItem[];
+  selectedValue: number;
+  onChange: (value: number) => void;
+  className?: string;
+}
+
+const WHEEL_ROW_HEIGHT = 48;
+const WHEEL_PADDING = WHEEL_ROW_HEIGHT * 2;
+const WHEEL_HEIGHT = WHEEL_ROW_HEIGHT * 5;
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
 function dateOnly(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const result = new Date(0);
+  result.setHours(0, 0, 0, 0);
+  result.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+  return result;
+}
+
+function dateFromParts(year: number, month: number, day: number): Date {
+  const result = new Date(0);
+  result.setHours(0, 0, 0, 0);
+  result.setFullYear(year, month, day);
+  return result;
+}
+
+function daysInMonth(year: number, month: number): number {
+  return dateFromParts(year, month + 1, 0).getDate();
 }
 
 function clampDate(date: Date, minimumDate: Date, maximumDate: Date): Date {
@@ -31,6 +78,89 @@ function clampDate(date: Date, minimumDate: Date, maximumDate: Date): Date {
   if (time < minimumDate.getTime()) return new Date(minimumDate);
   if (time > maximumDate.getTime()) return new Date(maximumDate);
   return date;
+}
+
+function DateWheel({
+  label,
+  items,
+  selectedValue,
+  onChange,
+  className = 'flex-1',
+}: DateWheelProps) {
+  const scrollRef = useRef<ScrollView>(null);
+  const selectedIndex = Math.max(0, items.findIndex((item) => item.value === selectedValue));
+  const snapToOffsets = useMemo(
+    () => items.map((_item, index) => index * WHEEL_ROW_HEIGHT),
+    [items.length],
+  );
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: selectedIndex * WHEEL_ROW_HEIGHT, animated: false });
+  }, [selectedIndex]);
+
+  const settle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const rawIndex = Math.round(event.nativeEvent.contentOffset.y / WHEEL_ROW_HEIGHT);
+    const index = Math.max(0, Math.min(items.length - 1, rawIndex));
+    const normalizedOffset = index * WHEEL_ROW_HEIGHT;
+    if (Math.abs(event.nativeEvent.contentOffset.y - normalizedOffset) > 0.5) {
+      scrollRef.current?.scrollTo({ y: normalizedOffset, animated: false });
+    }
+    const item = items[index];
+    if (item && item.value !== selectedValue) onChange(item.value);
+  };
+
+  return (
+    <View className={className}>
+      <Text className="pb-2 text-center text-xs font-semibold text-m3-on-surface-variant">
+        {label}
+      </Text>
+      <View style={{ height: WHEEL_HEIGHT }}>
+        <View
+          pointerEvents="none"
+          className="absolute left-1 right-1 top-[96px] h-12 rounded-xl border border-m3-outline-variant/60 bg-m3-surface-container-highest"
+        />
+        <ScrollView
+          ref={scrollRef}
+          accessibilityLabel={`${label} picker`}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          overScrollMode="never"
+          decelerationRate="fast"
+          nestedScrollEnabled
+          snapToOffsets={snapToOffsets}
+          contentOffset={{ x: 0, y: selectedIndex * WHEEL_ROW_HEIGHT }}
+          contentContainerStyle={{ paddingVertical: WHEEL_PADDING }}
+          onMomentumScrollEnd={settle}
+          onScrollEndDrag={(event) => {
+            if (Math.abs(event.nativeEvent.velocity?.y ?? 0) < 0.05) settle(event);
+          }}
+        >
+          {items.map((item, index) => (
+            <Pressable
+              key={item.value}
+              accessibilityRole="button"
+              accessibilityLabel={item.accessibilityLabel}
+              accessibilityState={{ selected: item.value === selectedValue }}
+              onPress={() => {
+                scrollRef.current?.scrollTo({ y: index * WHEEL_ROW_HEIGHT, animated: true });
+                onChange(item.value);
+              }}
+              className="h-12 items-center justify-center"
+            >
+              <Text
+                className={item.value === selectedValue
+                  ? 'text-base font-semibold text-m3-on-surface'
+                  : 'text-sm text-m3-on-surface-variant'}
+                numberOfLines={1}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+    </View>
+  );
 }
 
 export default function DateSelector({
@@ -41,81 +171,91 @@ export default function DateSelector({
   onCancel,
   onConfirm,
 }: DateSelectorProps) {
-  const openRef = useRef(false);
-  const [draftDate, setDraftDate] = useState(() => dateOnly(value));
-  const cancelRef = useRef(onCancel);
-  const confirmRef = useRef(onConfirm);
-  cancelRef.current = onCancel;
-  confirmRef.current = onConfirm;
-
+  const insets = useSafeAreaInsets();
   const valueTime = value.getTime();
   const minimumTime = minimumDate.getTime();
   const maximumTime = maximumDate.getTime();
+  const minDate = useMemo(() => dateOnly(new Date(minimumTime)), [minimumTime]);
+  const maxDate = useMemo(() => dateOnly(new Date(maximumTime)), [maximumTime]);
+  const [draftDate, setDraftDate] = useState(() => (
+    clampDate(dateOnly(value), minDate, maxDate)
+  ));
 
   useEffect(() => {
-    if (Platform.OS !== 'android' || !visible || openRef.current) return;
-    openRef.current = true;
+    if (!visible) return;
+    setDraftDate(clampDate(dateOnly(new Date(valueTime)), minDate, maxDate));
+  }, [maxDate, minDate, valueTime, visible]);
 
-    const minDate = dateOnly(new Date(minimumTime));
-    const maxDate = dateOnly(new Date(maximumTime));
-    const selectedDate = clampDate(dateOnly(new Date(valueTime)), minDate, maxDate);
-
-    const handleChange = (event: DateTimePickerEvent, date?: Date) => {
-      openRef.current = false;
-      if (event.type === 'set' && date) {
-        confirmRef.current(dateOnly(date));
-      } else {
-        cancelRef.current();
-      }
-    };
-
-    DateTimePickerAndroid.open({
-      value: selectedDate,
-      mode: 'date',
-      display: 'calendar',
-      minimumDate: minDate,
-      maximumDate: maxDate,
-      positiveButton: { label: 'Set date', textColor: M3.primary },
-      negativeButton: { label: 'Cancel', textColor: M3.onSurfaceVariant },
-      onChange: handleChange,
+  const years = useMemo(() => Array.from(
+    { length: maxDate.getFullYear() - minDate.getFullYear() + 1 },
+    (_item, index) => {
+      const year = minDate.getFullYear() + index;
+      return { value: year, label: String(year), accessibilityLabel: String(year) };
+    },
+  ), [maxDate, minDate]);
+  const months = useMemo(() => {
+    const year = draftDate.getFullYear();
+    const firstMonth = year === minDate.getFullYear() ? minDate.getMonth() : 0;
+    const lastMonth = year === maxDate.getFullYear() ? maxDate.getMonth() : 11;
+    return Array.from({ length: lastMonth - firstMonth + 1 }, (_item, index) => {
+      const monthIndex = firstMonth + index;
+      const month = MONTHS[monthIndex];
+      return {
+        value: monthIndex,
+        label: month.slice(0, 3),
+        accessibilityLabel: month,
+      };
     });
-  }, [maximumTime, minimumTime, valueTime, visible]);
+  }, [draftDate, maxDate, minDate]);
+  const days = useMemo(() => {
+    const year = draftDate.getFullYear();
+    const month = draftDate.getMonth();
+    const firstDay = year === minDate.getFullYear() && month === minDate.getMonth()
+      ? minDate.getDate()
+      : 1;
+    const lastDay = year === maxDate.getFullYear() && month === maxDate.getMonth()
+      ? maxDate.getDate()
+      : daysInMonth(year, month);
+    return Array.from({ length: lastDay - firstDay + 1 }, (_item, index) => {
+      const day = firstDay + index;
+      return { value: day, label: String(day), accessibilityLabel: String(day) };
+    });
+  }, [draftDate, maxDate, minDate]);
 
-  useEffect(() => {
-    if (Platform.OS !== 'android' || visible) return;
-    openRef.current = false;
-    void DateTimePickerAndroid.dismiss('date');
-  }, [visible]);
+  const changeDraftPart = (part: 'year' | 'month' | 'day', selected: number) => {
+    setDraftDate((current) => {
+      const year = part === 'year' ? selected : current.getFullYear();
+      const month = part === 'month' ? selected : current.getMonth();
+      const requestedDay = part === 'day' ? selected : current.getDate();
+      const day = Math.min(requestedDay, daysInMonth(year, month));
+      return clampDate(dateFromParts(year, month, day), minDate, maxDate);
+    });
+  };
 
-  useEffect(() => {
-    if (Platform.OS !== 'ios' || !visible) return;
-    setDraftDate(clampDate(
-      dateOnly(new Date(valueTime)),
-      dateOnly(new Date(minimumTime)),
-      dateOnly(new Date(maximumTime)),
-    ));
-  }, [maximumTime, minimumTime, valueTime, visible]);
+  if (!visible) return null;
 
-  if (Platform.OS === 'ios' && visible) {
-    const minDate = dateOnly(new Date(minimumTime));
-    const maxDate = dateOnly(new Date(maximumTime));
-    return (
-      <Modal
-        visible
-        transparent
-        animationType="fade"
-        onRequestClose={onCancel}
-        statusBarTranslucent
-      >
-        <View className="flex-1 justify-end bg-black/60" accessibilityViewIsModal>
-          <Pressable
-            className="absolute inset-0"
-            accessibilityRole="button"
-            accessibilityLabel="Cancel date selection"
-            onPress={onCancel}
-          />
-          <View className="rounded-t-3xl bg-m3-surface-container-high px-5 pb-8 pt-5 gap-4">
-            <Text className="text-lg font-bold text-m3-on-surface">Select date</Text>
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
+      <View className="flex-1 justify-end bg-black/60" accessibilityViewIsModal>
+        <Pressable
+          className="absolute inset-0"
+          accessibilityRole="button"
+          accessibilityLabel="Cancel date selection"
+          onPress={onCancel}
+        />
+        <View
+          className="rounded-t-3xl bg-m3-surface-container-high px-5 pt-5 gap-4"
+          style={{ paddingBottom: Math.max(insets.bottom, 24) }}
+        >
+          <Text className="text-lg font-bold text-m3-on-surface">Select date</Text>
+          {Platform.OS === 'ios' ? (
             <DateTimePicker
               value={draftDate}
               mode="date"
@@ -128,27 +268,50 @@ export default function DateSelector({
                 if (date) setDraftDate(clampDate(dateOnly(date), minDate, maxDate));
               }}
             />
-            <View className="flex-row justify-end gap-3">
-              <Pressable
-                accessibilityRole="button"
-                onPress={onCancel}
-                className="min-h-[48px] justify-center rounded-full px-5 active:opacity-70"
-              >
-                <Text className="text-sm font-semibold text-m3-on-surface-variant">Cancel</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => onConfirm(draftDate)}
-                className="min-h-[48px] justify-center rounded-full bg-m3-primary px-6 active:opacity-80"
-              >
-                <Text className="text-sm font-semibold text-m3-on-primary">Set date</Text>
-              </Pressable>
+          ) : (
+            <View className="flex-row gap-2">
+              <DateWheel
+                label="Month"
+                className="flex-[1.35]"
+                items={months}
+                selectedValue={draftDate.getMonth()}
+                onChange={(month) => changeDraftPart('month', month)}
+              />
+              <DateWheel
+                label="Day"
+                items={days}
+                selectedValue={draftDate.getDate()}
+                onChange={(day) => changeDraftPart('day', day)}
+              />
+              <DateWheel
+                label="Year"
+                className="flex-[1.2]"
+                items={years}
+                selectedValue={draftDate.getFullYear()}
+                onChange={(year) => changeDraftPart('year', year)}
+              />
             </View>
+          )}
+          <View className="flex-row justify-end gap-3">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel"
+              onPress={onCancel}
+              className="min-h-[48px] justify-center rounded-full px-5 active:opacity-70"
+            >
+              <Text className="text-sm font-semibold text-m3-on-surface-variant">Cancel</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Set date"
+              onPress={() => onConfirm(draftDate)}
+              className="min-h-[48px] justify-center rounded-full bg-m3-primary px-6 active:opacity-80"
+            >
+              <Text className="text-sm font-semibold text-m3-on-primary">Set date</Text>
+            </Pressable>
           </View>
         </View>
-      </Modal>
-    );
-  }
-
-  return null;
+      </View>
+    </Modal>
+  );
 }

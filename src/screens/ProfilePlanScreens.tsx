@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Card from '../components/Card';
+import DateSelector from '../components/DateSelector';
 import GoalRateControl from '../components/GoalRateControl';
 import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
@@ -25,13 +27,14 @@ import {
     updateProfilePresentation,
 } from '../db/database';
 import { ageFromBirthDate, calcBMR, calcTDEE, calculateTargets, type MacroTargets } from '../utils/calculations';
-import { todayISO } from '../utils/calendar';
+import { formatLocalISO, parseLocalISO, todayISO } from '../utils/calendar';
 import { MANUAL_TARGET_CALORIE_TOLERANCE, macroCalories, validateManualTargets } from '../utils/planValidation';
 import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilograms } from '../utils/weightUnits';
 import { M3 } from '../theme/tokens';
 import { goalRateBounds, isGoalRateValid } from '../utils/goalRate';
 import {
     ESTIMATE_DISCLAIMER,
+    birthDateBounds,
     profileSafetyIssues,
     validateBirthDate,
     validateHeightCm,
@@ -144,11 +147,18 @@ function useProfile() {
     return { profile, error };
 }
 
-export function PersonalDetailsScreen() {
+export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => void }) {
     const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
     const { profile, error: loadError } = useProfile();
-    const [name, setName] = useState(''); const [sex, setSex] = useState<Sex>('male'); const [birthDate, setBirthDate] = useState('');
-    const [height, setHeight] = useState(''); const [heightInches, setHeightInches] = useState(''); const [activity, setActivity] = useState<ActivityLevel>('moderate'); const [error, setError] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+    const [name, setName] = useState('');
+    const [sex, setSex] = useState<Sex>('male');
+    const [birthDate, setBirthDate] = useState('');
+    const [birthDateSelectorVisible, setBirthDateSelectorVisible] = useState(false);
+    const [height, setHeight] = useState('');
+    const [heightInches, setHeightInches] = useState('');
+    const [activity, setActivity] = useState<ActivityLevel>('moderate');
+    const [error, setError] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
     useEffect(() => { if (profile) { setName(profile.display_name); setSex(profile.sex); setBirthDate(profile.birth_date); setHeight(profile.weight_unit === 'kg' ? String(profile.height_cm) : String(cmToFeetInches(profile.height_cm).feet)); setHeightInches(profile.weight_unit === 'kg' ? '' : String(cmToFeetInches(profile.height_cm).inches)); setActivity(profile.activity_level); } }, [profile]);
     const save = useCallback(async () => {
         if (!profile) return;
@@ -158,24 +168,77 @@ export function PersonalDetailsScreen() {
         const heightIssue = validateHeightCm(heightCm);
         if (heightIssue) { setError(heightIssue); return; }
         const next = toUpdate(profile, { display_name: name.trim(), sex, birth_date: birthDate, height_cm: heightCm, activity_level: activity });
-        const formulaChanged = sex !== profile.sex || birthDate !== profile.birth_date || heightCm !== profile.height_cm || activity !== profile.activity_level;
         setSaving(true); setError(null);
         try {
-            const latestWeight = await getLatestWeightLogOnOrBefore(todayISO());
-            const currentWeightKg = latestWeight?.trend_weight_kg != null && !validateWeightKg(latestWeight.trend_weight_kg, 'Trend weight')
-                ? latestWeight.trend_weight_kg
-                : latestWeight?.scale_weight_kg != null && !validateWeightKg(latestWeight.scale_weight_kg, 'Scale weight')
-                    ? latestWeight.scale_weight_kg
-                    : null;
-            const profileIssue = profileSafetyIssues(next, { currentWeightKg, requireCurrentWeight: true })[0];
-            if (profileIssue) throw new Error(profileIssue);
-            if (formulaChanged) navigation.navigate('PlanPreview', await calculatedPlan(profile, next));
-            else { await updateProfilePresentation(next); navigation.goBack(); }
+            await updateProfilePresentation(next);
+            onDataChanged();
+            navigation.goBack();
         } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save personal details.'); } finally { setSaving(false); }
-    }, [activity, birthDate, height, heightInches, name, navigation, profile, sex]);
+    }, [activity, birthDate, height, heightInches, name, navigation, onDataChanged, profile, sex]);
     if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
     const heightFields = profile.weight_unit === 'kg' ? <Field label="Height (cm)" value={height} onChangeText={setHeight} keyboardType="decimal-pad" /> : <View className="flex-row gap-3"><View className="flex-1"><Field label="Height (ft)" value={height} onChangeText={setHeight} keyboardType="numeric" /></View><View className="flex-1"><Field label="Height (in)" value={heightInches} onChangeText={setHeightInches} keyboardType="numeric" /></View></View>;
-    return <Screen><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1"><ScrollView className="flex-1" contentContainerClassName="p-6 gap-5" keyboardShouldPersistTaps="handled"><Card className="p-5 gap-5"><Field label="Display name" value={name} onChangeText={setName} /><SegmentedControl options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={sex} onChange={setSex} /><Field label="Birth date" value={birthDate} onChangeText={setBirthDate} />{heightFields}</Card><View className="gap-2"><Text className="text-m3-on-surface-variant text-xs font-semibold">Activity level</Text>{ACTIVITY_LEVEL_OPTIONS.map(({ value, title, subtitle }) => <TappableRow key={value} title={title} subtitle={subtitle} selected={activity === value} onPress={() => setActivity(value)} />)}</View>{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Continue to plan preview" onPress={() => void save()} loading={saving} /></ScrollView></KeyboardAvoidingView></Screen>;
+    const selectedBirthDate = parseLocalISO(birthDate || profile.birth_date);
+    const dateBounds = birthDateBounds();
+    return (
+        <Screen>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
+                <ScrollView
+                    className="flex-1"
+                    contentContainerClassName="p-6 gap-5"
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <Card className="p-5 gap-5">
+                        <Field label="Display name" value={name} onChangeText={setName} />
+                        <SegmentedControl options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={sex} onChange={setSex} />
+                        <View className="gap-2">
+                            <Text className="text-m3-on-surface-variant text-xs font-semibold">Birth date</Text>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel="Select birth date"
+                                accessibilityHint="Opens the date selector"
+                                onPress={() => setBirthDateSelectorVisible(true)}
+                                className="min-h-[48px] rounded-xl border border-m3-outline-variant/40 bg-m3-surface-container-high px-4 flex-row items-center justify-between active:opacity-70"
+                            >
+                                <Text className="text-m3-on-surface text-sm font-semibold">
+                                    {selectedBirthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                </Text>
+                                <MaterialIcons name="calendar-today" size={16} color={M3.onSurfaceVariant} />
+                            </Pressable>
+                        </View>
+                        {heightFields}
+                    </Card>
+                    <View className="gap-2">
+                        <Text className="text-m3-on-surface-variant text-xs font-semibold">Activity level</Text>
+                        {ACTIVITY_LEVEL_OPTIONS.map(({ value, title, subtitle }) => (
+                            <TappableRow
+                                key={value}
+                                title={title}
+                                subtitle={subtitle}
+                                selected={activity === value}
+                                onPress={() => setActivity(value)}
+                            />
+                        ))}
+                    </View>
+                </ScrollView>
+                <View className="border-t border-m3-outline-variant/30 px-6 pb-4 pt-3 gap-2">
+                    {error ? <Text accessibilityLiveRegion="assertive" className="text-m3-error text-sm">{error}</Text> : null}
+                    <PrimaryButton title="Save changes" onPress={() => void save()} loading={saving} />
+                </View>
+            </KeyboardAvoidingView>
+            <DateSelector
+                visible={birthDateSelectorVisible}
+                value={selectedBirthDate}
+                minimumDate={dateBounds.earliest}
+                maximumDate={dateBounds.latest}
+                onCancel={() => setBirthDateSelectorVisible(false)}
+                onConfirm={(date) => {
+                    setBirthDate(formatLocalISO(date));
+                    setError(null);
+                    setBirthDateSelectorVisible(false);
+                }}
+            />
+        </Screen>
+    );
 }
 
 export function UnitsScreen({ onDataChanged }: { onDataChanged: () => void }) {
