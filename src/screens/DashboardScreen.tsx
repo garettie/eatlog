@@ -606,10 +606,10 @@ function DashboardScreen({
                     <MaterialCommunityIcons name={foodIcon(recentFood.name)} size={18} color={M3.onSurfaceVariant} />
                   </View>
                   <View className="flex-1 min-w-0">
-                    <Text className="text-m3-on-surface font-bold text-sm" numberOfLines={2}>
+                    <Text className="text-m3-on-surface font-bold text-sm leading-4" numberOfLines={2}>
                       {recentFood.name}
                     </Text>
-                    <Text className="text-m3-on-surface-variant text-xs mt-0.5" numberOfLines={1}>
+                    <Text className="text-m3-on-surface-variant text-xs leading-4" numberOfLines={1}>
                       Last logged · {Math.round(recentFood.calories)} kcal · {getRelativeTime(recentFood.logged_at)}
                     </Text>
                   </View>

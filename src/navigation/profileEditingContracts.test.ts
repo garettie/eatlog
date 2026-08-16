@@ -23,6 +23,14 @@ test('Android date selection keeps an app-owned Set date action', () => {
   assert.match(dateSelectorSource, /accessibilityLabel="Set date"/);
 });
 
+test('Android date wheels settle and commit the centered row after every drag', () => {
+  assert.match(dateSelectorSource, /scrollEventThrottle=\{16\}/);
+  assert.match(dateSelectorSource, /onScroll=\{trackWheelOffset\}/);
+  assert.match(dateSelectorSource, /onScrollEndDrag=\{scheduleWheelSettle\}/);
+  assert.match(dateSelectorSource, /onMomentumScrollBegin=\{cancelWheelSettle\}/);
+  assert.match(dateSelectorSource, /onMomentumScrollEnd=\{settleWheel\}/);
+});
+
 test('personal details uses the shared date selector instead of a birth-date text field', () => {
   assert.match(personalDetailsSource, /<DateSelector/);
   assert.doesNotMatch(personalDetailsSource, /<Field label="Birth date"/);

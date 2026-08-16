@@ -9,10 +9,19 @@ const foodSheetSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/FoodSheetContent.tsx'),
   'utf8',
 );
+const tabNavigatorSource = readFileSync(
+  resolve(testDirectory, './TabNavigator.tsx'),
+  'utf8',
+);
 
 test('photo capture pauses for a meal title before the first scan request', () => {
   assert.match(foodSheetSource, /'photo-title'/);
   assert.match(foodSheetSource, /<PhotoMealTitleState/);
   assert.doesNotMatch(foodSheetSource, /scanFood\(base64\)/);
   assert.match(foodSheetSource, /scanFood\([^,]+,\s*mealTitle/);
+});
+
+test('sheet sizing changes keep the pending photo state mounted', () => {
+  assert.doesNotMatch(tabNavigatorSource, /const enableDynamicSizing/);
+  assert.doesNotMatch(tabNavigatorSource, /enableDynamicSizing=\{/);
 });

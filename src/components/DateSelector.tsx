@@ -40,6 +40,7 @@ interface DateWheelProps {
 const WHEEL_ROW_HEIGHT = 48;
 const WHEEL_PADDING = WHEEL_ROW_HEIGHT * 2;
 const WHEEL_HEIGHT = WHEEL_ROW_HEIGHT * 5;
+const WHEEL_SETTLE_DELAY = 100;
 const MONTHS = [
   'January',
   'February',
@@ -89,24 +90,66 @@ function DateWheel({
 }: DateWheelProps) {
   const scrollRef = useRef<ScrollView>(null);
   const selectedIndex = Math.max(0, items.findIndex((item) => item.value === selectedValue));
+  const latestOffsetRef = useRef(selectedIndex * WHEEL_ROW_HEIGHT);
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const interactingRef = useRef(false);
+  const waitingToSettleRef = useRef(false);
   const snapToOffsets = useMemo(
     () => items.map((_item, index) => index * WHEEL_ROW_HEIGHT),
     [items.length],
   );
 
   useEffect(() => {
+    if (interactingRef.current) return;
+    latestOffsetRef.current = selectedIndex * WHEEL_ROW_HEIGHT;
     scrollRef.current?.scrollTo({ y: selectedIndex * WHEEL_ROW_HEIGHT, animated: false });
   }, [selectedIndex]);
 
-  const settle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const rawIndex = Math.round(event.nativeEvent.contentOffset.y / WHEEL_ROW_HEIGHT);
+  useEffect(() => () => {
+    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+  }, []);
+
+  const cancelWheelSettle = () => {
+    if (!settleTimerRef.current) return;
+    clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = null;
+  };
+
+  const settleAtOffset = (offset: number) => {
+    cancelWheelSettle();
+    waitingToSettleRef.current = false;
+    interactingRef.current = false;
+    const rawIndex = Math.round(offset / WHEEL_ROW_HEIGHT);
     const index = Math.max(0, Math.min(items.length - 1, rawIndex));
     const normalizedOffset = index * WHEEL_ROW_HEIGHT;
-    if (Math.abs(event.nativeEvent.contentOffset.y - normalizedOffset) > 0.5) {
+    latestOffsetRef.current = normalizedOffset;
+    if (Math.abs(offset - normalizedOffset) > 0.5) {
       scrollRef.current?.scrollTo({ y: normalizedOffset, animated: false });
     }
     const item = items[index];
     if (item && item.value !== selectedValue) onChange(item.value);
+  };
+
+  const armWheelSettle = () => {
+    cancelWheelSettle();
+    settleTimerRef.current = setTimeout(() => {
+      settleAtOffset(latestOffsetRef.current);
+    }, WHEEL_SETTLE_DELAY);
+  };
+
+  const trackWheelOffset = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    latestOffsetRef.current = event.nativeEvent.contentOffset.y;
+    if (waitingToSettleRef.current) armWheelSettle();
+  };
+
+  const scheduleWheelSettle = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    latestOffsetRef.current = event.nativeEvent.contentOffset.y;
+    waitingToSettleRef.current = true;
+    armWheelSettle();
+  };
+
+  const settleWheel = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    settleAtOffset(event.nativeEvent.contentOffset.y);
   };
 
   return (
@@ -130,10 +173,16 @@ function DateWheel({
           snapToOffsets={snapToOffsets}
           contentOffset={{ x: 0, y: selectedIndex * WHEEL_ROW_HEIGHT }}
           contentContainerStyle={{ paddingVertical: WHEEL_PADDING }}
-          onMomentumScrollEnd={settle}
-          onScrollEndDrag={(event) => {
-            if (Math.abs(event.nativeEvent.velocity?.y ?? 0) < 0.05) settle(event);
+          scrollEventThrottle={16}
+          onScroll={trackWheelOffset}
+          onScrollBeginDrag={() => {
+            interactingRef.current = true;
+            waitingToSettleRef.current = false;
+            cancelWheelSettle();
           }}
+          onScrollEndDrag={scheduleWheelSettle}
+          onMomentumScrollBegin={cancelWheelSettle}
+          onMomentumScrollEnd={settleWheel}
         >
           {items.map((item, index) => (
             <Pressable
@@ -142,7 +191,11 @@ function DateWheel({
               accessibilityLabel={item.accessibilityLabel}
               accessibilityState={{ selected: item.value === selectedValue }}
               onPress={() => {
-                scrollRef.current?.scrollTo({ y: index * WHEEL_ROW_HEIGHT, animated: true });
+                cancelWheelSettle();
+                waitingToSettleRef.current = false;
+                interactingRef.current = false;
+                latestOffsetRef.current = index * WHEEL_ROW_HEIGHT;
+                scrollRef.current?.scrollTo({ y: index * WHEEL_ROW_HEIGHT, animated: false });
                 onChange(item.value);
               }}
               className="h-12 items-center justify-center"

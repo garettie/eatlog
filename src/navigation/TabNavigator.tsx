@@ -247,11 +247,6 @@ export default function TabNavigator() {
         }
     }, [sheet.stateKey]);
 
-    const enableDynamicSizing = useMemo(() => {
-        const states: FoodSheetStateKey[] = ['scanning', 'permission-denied', 'single-food-review'];
-        return states.includes(sheet.stateKey);
-    }, [sheet.stateKey]);
-
     const handleMealLogged = useCallback(
         (info: LoggedEntryInfo) => {
             setDataVersion((v) => v + 1);
@@ -444,7 +439,6 @@ export default function TabNavigator() {
             <Sheet
                 visible={sheet.visible}
                 snapPoints={snapPoints}
-                enableDynamicSizing={enableDynamicSizing}
                 stateKey={sheet.stateKey}
                 canCloseRef={canCloseRef}
                 onGoBack={handleSheetGoBack}
