@@ -59,7 +59,6 @@ import { formatPortionLabel } from "../../utils/portionLabels";
 import {
 	buildFoodAmountOptions,
 	initialPortionSelection,
-	MIN_SERVINGS,
 	selectFoodAmount,
 	selectedServing,
 	servingsForSelection,
@@ -431,24 +430,6 @@ export default function ReviewState({
 		);
 	}, []);
 
-	const updateServings = useCallback((idx: number, delta: number) => {
-		dirtyRef.current = true;
-		setComponents((previous) =>
-			previous.map((component, index) => {
-				if (index !== idx) return component;
-				const serving = selectedServing(component.food, component.selection);
-				const current = servingsForSelection(component.selection, serving);
-				return {
-					...component,
-					selection: setServingAmount(
-						component.selection,
-						Math.max(MIN_SERVINGS, current + delta),
-						serving,
-					),
-				};
-			}),
-		);
-	}, []);
 
 	const updateServingsFromText = useCallback((idx: number, value: number) => {
 		dirtyRef.current = true;
@@ -1199,9 +1180,6 @@ export default function ReviewState({
 															}
 															onModeChange={(mode) =>
 																updateUnitMode(idx, mode)
-															}
-															onServingsDelta={(delta) =>
-																updateServings(idx, delta)
 															}
 															onServingsSet={(value) =>
 																updateServingsFromText(idx, value)

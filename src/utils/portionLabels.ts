@@ -2,6 +2,45 @@ export type PortionUnit = 'g' | 'ml';
 
 const MEASUREMENT_SOURCE = '(\\d+(?:\\.\\d+)?)\\s*(g|grams?|ml|milliliters?)\\b';
 
+const COMPACT_SERVING_UNITS: Record<string, string> = {
+  bar: 'bar',
+  bottle: 'bottle',
+  bowl: 'bowl',
+  breast: 'breast',
+  bun: 'bun',
+  can: 'can',
+  cup: 'cup',
+  cups: 'cup',
+  drumstick: 'drumstick',
+  egg: 'egg',
+  eggs: 'egg',
+  fillet: 'fillet',
+  glass: 'glass',
+  link: 'link',
+  packet: 'packet',
+  patty: 'patty',
+  piece: 'piece',
+  pieces: 'piece',
+  plate: 'plate',
+  roll: 'roll',
+  sachet: 'sachet',
+  scoop: 'scoop',
+  serving: 'srv',
+  servings: 'srv',
+  slice: 'slice',
+  slices: 'slice',
+  stick: 'stick',
+  tablespoon: 'tbsp',
+  tablespoons: 'tbsp',
+  tbsp: 'tbsp',
+  teaspoon: 'tsp',
+  teaspoons: 'tsp',
+  thigh: 'thigh',
+  tortilla: 'tortilla',
+  tsp: 'tsp',
+  wrap: 'wrap',
+};
+
 function normalizedUnit(value: string): PortionUnit {
   return value.toLowerCase().startsWith('m') ? 'ml' : 'g';
 }
@@ -67,6 +106,22 @@ export function formatPortionLabel(
   return includesAmount(cleanLabel, weight, unit)
     ? cleanLabel
     : `${cleanLabel} · ${formattedWeight}`;
+}
+
+export function formatServingUnitLabel(label: string | null | undefined): string {
+  if (!label?.trim()) return 'srv';
+  const words: string[] = label
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(new RegExp(MEASUREMENT_SOURCE, 'gi'), ' ')
+    .toLowerCase()
+    .match(/[a-z]+(?:-[a-z]+)?/g) ?? [];
+  for (const word of words) {
+    const unit = COMPACT_SERVING_UNITS[word];
+    if (unit) return unit;
+  }
+  const ofIndex = words.indexOf('of');
+  const fallback = ofIndex > 0 ? words[ofIndex - 1] : words[words.length - 1];
+  return fallback && fallback.length <= 10 ? fallback : 'srv';
 }
 
 export function formatServingSummary(

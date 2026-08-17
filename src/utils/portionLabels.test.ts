@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { formatPortionLabel, formatServingSummary, parsePositivePortionInput } from './portionLabels';
+import {
+  formatPortionLabel,
+  formatServingSummary,
+  formatServingUnitLabel,
+  parsePositivePortionInput,
+} from './portionLabels';
 
 test('parses positive portion input strictly with either decimal separator', () => {
   assert.equal(parsePositivePortionInput('1.5'), 1.5);
@@ -27,6 +32,16 @@ test('adds a missing portion weight once', () => {
 test('removes repeated parenthetical weights from provider labels', () => {
   assert.equal(formatPortionLabel('1 serving (100g)(100g)', 100), '1 serving (100g)');
   assert.equal(formatPortionLabel('1 serving (100 g) · (100g)', 100), '1 serving (100g)');
+});
+
+test('derives a compact serving unit from provider and AI labels', () => {
+  assert.equal(formatServingUnitLabel('1 large egg (50 g)'), 'egg');
+  assert.equal(formatServingUnitLabel('1 slice of bread · 30g'), 'slice');
+  assert.equal(formatServingUnitLabel('1 piece chicken breast'), 'piece');
+  assert.equal(formatServingUnitLabel('1 cup (180g)'), 'cup');
+  assert.equal(formatServingUnitLabel('1 tablespoon'), 'tbsp');
+  assert.equal(formatServingUnitLabel('100 g'), 'srv');
+  assert.equal(formatServingUnitLabel(null), 'srv');
 });
 
 test('shows a distinct total only for multiple servings', () => {

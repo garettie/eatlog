@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
-import { MaterialIcons } from '@expo/vector-icons';
 
 import SegmentedControl from './SegmentedControl';
-import { M3 } from '../theme/tokens';
 import type { FoodAmountOption, PortionMode } from '../utils/portionSelection';
 import { MIN_SERVINGS } from '../utils/portionSelection';
-import { formatPortionLabel, formatServingSummary, parsePositivePortionInput } from '../utils/portionLabels';
+import {
+  formatPortionLabel,
+  formatServingUnitLabel,
+  parsePositivePortionInput,
+} from '../utils/portionLabels';
 
 interface PortionStepperProps {
   unitMode: PortionMode;
@@ -19,7 +21,6 @@ interface PortionStepperProps {
   selectedAmountId?: string;
   onAmountChange?: (option: FoodAmountOption) => void;
   onModeChange: (mode: PortionMode) => void;
-  onServingsDelta: (delta: number) => void;
   onServingsSet: (value: number) => void;
   onGramsSet: (value: number) => void;
   onValidityChange?: (valid: boolean) => void;
@@ -44,7 +45,6 @@ export default function PortionStepper({
   selectedAmountId,
   onAmountChange,
   onModeChange,
-  onServingsDelta,
   onServingsSet,
   onGramsSet,
   onValidityChange,
@@ -52,6 +52,7 @@ export default function PortionStepper({
   const [servingsText, setServingsText] = useState(formatServings(servings));
   const [gramsText, setGramsText] = useState(formatGrams(grams));
   const hasServing = servingSizeGrams != null && servingSizeGrams > 0;
+  const servingIndicator = formatServingUnitLabel(servingLabel);
 
   useEffect(() => {
     setServingsText(formatServings(servings));
@@ -88,11 +89,6 @@ export default function PortionStepper({
   const servingsInvalid = servingsValue == null || servingsValue < MIN_SERVINGS;
   const gramsInvalid = gramsValue == null;
   const editorInvalid = unitMode === 'servings' && hasServing ? servingsInvalid : gramsInvalid;
-  const canDecrease = servings > MIN_SERVINGS;
-  const totalGrams = grams;
-  const servingDesc = servingSizeGrams
-    ? formatServingSummary(servingLabel, servingSizeGrams, totalGrams)
-    : '';
 
   return (
     <View className="gap-3">
@@ -128,9 +124,9 @@ export default function PortionStepper({
         </ScrollView>
       ) : null}
 
-      <View className={`flex-row items-start ${hasServing ? 'gap-2' : ''}`}>
+      <View className={`flex-row items-center ${hasServing ? 'gap-2' : ''}`}>
         {hasServing ? (
-          <View className="w-[136px]">
+          <View className="flex-1 min-w-0">
             <SegmentedControl
               options={[
                 {
@@ -154,93 +150,55 @@ export default function PortionStepper({
           </View>
         ) : null}
 
-        <View className={`flex-1 min-w-0 bg-m3-surface-container rounded-xl px-2 py-1.5 items-center gap-1 border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
+        <View className={`${hasServing ? 'w-[104px] shrink-0' : 'flex-1'} h-[52px] bg-m3-surface-container rounded-xl px-2 items-center justify-center border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
           {unitMode === 'servings' && hasServing ? (
-            <>
-              <View className="w-full min-h-[48px] flex-row items-center justify-between">
-                <Pressable
-                  onPress={() => onServingsDelta(-0.5)}
-                  disabled={!canDecrease}
-                  accessibilityRole="button"
-                  accessibilityLabel="Decrease servings"
-                  accessibilityState={{ disabled: !canDecrease }}
-                  className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60 disabled:opacity-40"
-                >
-                  <MaterialIcons
-                    name="remove"
-                    size={20}
-                    color={canDecrease ? M3.onSurface : M3.onSurfaceVariant}
-                  />
-                </Pressable>
-                <BottomSheetTextInput
-                  value={servingsText}
-                  onChangeText={handleServingsChange}
-                  onBlur={() => {
-                    if (servingsText === '' || servingsInvalid) setServingsText(formatServings(servings));
-                    onValidityChange?.(true);
-                  }}
-                  accessibilityLabel="Servings"
-                  accessibilityHint={servingsInvalid ? 'Invalid amount. Enter at least 0.1 serving.' : 'Enter at least 0.1 serving'}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  className={`flex-1 min-w-0 min-h-[48px] text-center bg-transparent text-xl font-bold tabular-nums py-1 ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
-                />
-                <Pressable
-                  onPress={() => onServingsDelta(0.5)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Increase servings"
-                  className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
-                >
-                  <MaterialIcons name="add" size={20} color={M3.onSurface} />
-                </Pressable>
+            <View className="relative w-full h-full items-center justify-center">
+              <BottomSheetTextInput
+                value={servingsText}
+                onChangeText={handleServingsChange}
+                onBlur={() => {
+                  if (servingsText === '' || servingsInvalid) setServingsText(formatServings(servings));
+                  onValidityChange?.(true);
+                }}
+                accessibilityLabel="Servings"
+                accessibilityHint={servingsInvalid ? 'Invalid amount. Enter at least 0.1 serving.' : 'Enter at least 0.1 serving'}
+                keyboardType="numeric"
+                returnKeyType="done"
+                className={`w-full h-full text-center bg-transparent px-7 text-xl font-bold tabular-nums ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
+              />
+              <View
+                pointerEvents="none"
+                className="absolute right-2 top-0 bottom-0 justify-center"
+              >
+                <Text numberOfLines={1} className="text-m3-on-surface-variant text-compact font-semibold">
+                  {servingIndicator}
+                </Text>
               </View>
-              {servingsInvalid ? (
-                <Text
-                  className="px-1 text-m3-error text-xs text-center font-medium"
-                  accessibilityLiveRegion="polite"
-                >
-                  Enter at least 0.1 serving.
-                </Text>
-              ) : servingDesc ? (
-                <Text numberOfLines={2} className="px-1 text-m3-on-surface-variant text-xs text-center">
-                  {servingDesc}
-                </Text>
-              ) : null}
-            </>
+            </View>
           ) : (
-            <>
-              <View className="relative w-full min-h-[48px] items-center justify-center">
-                <BottomSheetTextInput
-                  value={gramsText}
-                  onChangeText={handleGramsChange}
-                  onBlur={() => {
-                    if (gramsInvalid) setGramsText(formatGrams(grams));
-                    onValidityChange?.(true);
-                  }}
-                  accessibilityLabel="Amount in grams"
-                  accessibilityHint={gramsInvalid ? 'Invalid amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  className={`w-full min-h-[48px] text-center bg-transparent py-2 px-9 text-xl font-bold tabular-nums ${gramsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
-                />
-                <View
-                  pointerEvents="none"
-                  className="absolute right-3 top-0 bottom-0 justify-center"
-                >
-                  <Text className="text-m3-on-surface-variant text-base font-semibold">
-                    g
-                  </Text>
-                </View>
-              </View>
-              {gramsInvalid ? (
-                <Text
-                  className="px-1 text-m3-error text-xs text-center font-medium"
-                  accessibilityLiveRegion="polite"
-                >
-                  Enter a number greater than zero.
+            <View className="relative w-full h-full items-center justify-center">
+              <BottomSheetTextInput
+                value={gramsText}
+                onChangeText={handleGramsChange}
+                onBlur={() => {
+                  if (gramsInvalid) setGramsText(formatGrams(grams));
+                  onValidityChange?.(true);
+                }}
+                accessibilityLabel="Amount in grams"
+                accessibilityHint={gramsInvalid ? 'Invalid amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
+                keyboardType="numeric"
+                returnKeyType="done"
+                className={`w-full h-full text-center bg-transparent px-7 text-xl font-bold tabular-nums ${gramsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
+              />
+              <View
+                pointerEvents="none"
+                className="absolute right-2 top-0 bottom-0 justify-center"
+              >
+                <Text className="text-m3-on-surface-variant text-base font-semibold">
+                  g
                 </Text>
-              ) : null}
-            </>
+              </View>
+            </View>
           )}
         </View>
       </View>

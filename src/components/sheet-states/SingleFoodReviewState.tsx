@@ -9,7 +9,6 @@ import { defaultMealForNow } from '../../utils/calculations';
 import {
   buildFoodAmountOptions,
   initialPortionSelection,
-  MIN_SERVINGS,
   selectFoodAmount,
   selectedServing,
   servingsForSelection,
@@ -120,17 +119,6 @@ export default function SingleFoodReviewState({
     [serving],
   );
 
-  const handleServingsDelta = useCallback((delta: number) => {
-    setSelection((current) => {
-      const currentServing = food ? selectedServing(food, current) : null;
-      const currentServings = servingsForSelection(current, currentServing);
-      return setServingAmount(
-        current,
-        Math.max(MIN_SERVINGS, currentServings + delta),
-        currentServing,
-      );
-    });
-  }, [food]);
 
   const handleServingsSet = useCallback((value: number) => {
     setSelection((current) =>
@@ -231,7 +219,6 @@ export default function SingleFoodReviewState({
               setPortionValid(true);
             }}
             onModeChange={handleModeChange}
-            onServingsDelta={handleServingsDelta}
             onServingsSet={handleServingsSet}
             onGramsSet={handleGramsSet}
             onValidityChange={setPortionValid}

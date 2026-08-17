@@ -118,24 +118,26 @@ test('component disclosures announce state and Undo respects accessibility timin
 });
 
 test('portion mode and amount editor share one contrasting control row', () => {
-  assert.match(portionStepperSource, /flex-row items-start/);
-  assert.match(portionStepperSource, /w-\[136px\]/);
+  assert.match(portionStepperSource, /flex-row items-center/);
+  assert.match(portionStepperSource, /<View className="flex-1 min-w-0">/);
   assert.match(portionStepperSource, /tone="inset"/);
   assert.match(segmentedControlSource, /tone === 'inset'/);
   assert.match(segmentedControlSource, /bg-m3-surface-container border-m3-outline-variant\/50/);
   assert.match(portionStepperSource, /const editorInvalid/);
-  assert.match(portionStepperSource, /flex-1 min-w-0 bg-m3-surface-container rounded-xl/);
-  assert.match(portionStepperSource, /bg-m3-primary-container/);
+  assert.match(portionStepperSource, /w-\[104px\] shrink-0/);
+  assert.match(portionStepperSource, /h-\[52px\] bg-m3-surface-container rounded-xl/);
+  assert.doesNotMatch(portionStepperSource, /onServingsDelta|formatServingSummary/);
   assert.match(portionStepperSource, />\s*g\s*<\/Text>/);
+  assert.match(portionStepperSource, /\{servingIndicator\}/);
   assert.match(reviewStateSource, /accessibilityLabel="Food name"/);
   assert.match(reviewStateSource, /font-medium tabular-nums rounded-xl/);
   assert.match(reviewStateSource, /Math\.abs\(servings - 1\) < 0\.001 \? serving\.grams : grams/);
 });
 
 test('grams editor centers the value independently of its suffix', () => {
-  assert.match(portionStepperSource, /className="relative w-full min-h-\[48px\] items-center justify-center"/);
-  assert.match(portionStepperSource, /w-full min-h-\[48px\] text-center bg-transparent/);
+  assert.match(portionStepperSource, /className="relative w-full h-full items-center justify-center"/);
+  assert.match(portionStepperSource, /w-full h-full text-center bg-transparent/);
   assert.match(portionStepperSource, /pointerEvents="none"/);
-  assert.match(portionStepperSource, /absolute right-3/);
+  assert.match(portionStepperSource, /absolute right-2/);
   assert.doesNotMatch(portionStepperSource, /w-28 min-h-\[48px\] text-right/);
 });
