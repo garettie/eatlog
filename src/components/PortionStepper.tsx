@@ -117,9 +117,9 @@ export default function PortionStepper({
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 accessibilityLabel={optionLabel.replace(' · ', ', ')}
-                className={`max-w-full min-h-[48px] justify-center rounded-full px-4 border border-m3-outline-variant/40 active:opacity-60 ${selected ? 'bg-m3-surface-container-highest' : 'bg-m3-surface-container'}`}
+                className={`max-w-full min-h-[48px] justify-center rounded-full px-4 border active:opacity-60 ${selected ? 'border-m3-primary/50 bg-m3-primary-container' : 'border-m3-outline-variant/40 bg-m3-surface-container'}`}
               >
-                <Text numberOfLines={2} className={`text-xs font-semibold ${selected ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+                <Text numberOfLines={2} className={`text-xs font-semibold ${selected ? 'text-m3-on-primary-container' : 'text-m3-on-surface-variant'}`}>
                   {optionLabel}
                 </Text>
               </Pressable>
@@ -128,117 +128,121 @@ export default function PortionStepper({
         </ScrollView>
       ) : null}
 
-      {hasServing ? (
-        <SegmentedControl
-          options={[
-            {
-              value: 'servings' as const,
-              label: 'Servings',
-              accessibilityLabel: 'Servings, use household portions',
-            },
-            {
-              value: 'grams' as const,
-              label: 'Grams',
-              accessibilityLabel: 'Grams, enter weight directly',
-            },
-          ]}
-          value={unitMode}
-          tone="inset"
-          onChange={(mode) => {
-            onValidityChange?.(true);
-            onModeChange(mode);
-          }}
-        />
-      ) : null}
+      <View className={`flex-row items-start ${hasServing ? 'gap-2' : ''}`}>
+        {hasServing ? (
+          <View className="w-[136px]">
+            <SegmentedControl
+              options={[
+                {
+                  value: 'servings' as const,
+                  label: 'Servings',
+                  accessibilityLabel: 'Servings, use household portions',
+                },
+                {
+                  value: 'grams' as const,
+                  label: 'Grams',
+                  accessibilityLabel: 'Grams, enter weight directly',
+                },
+              ]}
+              value={unitMode}
+              tone="inset"
+              onChange={(mode) => {
+                onValidityChange?.(true);
+                onModeChange(mode);
+              }}
+            />
+          </View>
+        ) : null}
 
-      <View className={`bg-m3-surface-container rounded-xl px-4 py-3 items-center gap-1.5 border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
-        {unitMode === 'servings' && hasServing ? (
-          <>
-            <View className="flex-row items-center gap-5">
-              <Pressable
-                onPress={() => onServingsDelta(-0.5)}
-                disabled={!canDecrease}
-                accessibilityRole="button"
-                accessibilityLabel="Decrease servings"
-                accessibilityState={{ disabled: !canDecrease }}
-                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60 disabled:opacity-40"
-              >
-                <MaterialIcons
-                  name="remove"
-                  size={20}
-                  color={canDecrease ? M3.onSurface : M3.onSurfaceVariant}
+        <View className={`flex-1 min-w-0 bg-m3-surface-container rounded-xl px-2 py-1.5 items-center gap-1 border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
+          {unitMode === 'servings' && hasServing ? (
+            <>
+              <View className="w-full min-h-[48px] flex-row items-center justify-between">
+                <Pressable
+                  onPress={() => onServingsDelta(-0.5)}
+                  disabled={!canDecrease}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease servings"
+                  accessibilityState={{ disabled: !canDecrease }}
+                  className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60 disabled:opacity-40"
+                >
+                  <MaterialIcons
+                    name="remove"
+                    size={20}
+                    color={canDecrease ? M3.onSurface : M3.onSurfaceVariant}
+                  />
+                </Pressable>
+                <BottomSheetTextInput
+                  value={servingsText}
+                  onChangeText={handleServingsChange}
+                  onBlur={() => {
+                    if (servingsText === '' || servingsInvalid) setServingsText(formatServings(servings));
+                    onValidityChange?.(true);
+                  }}
+                  accessibilityLabel="Servings"
+                  accessibilityHint={servingsInvalid ? 'Invalid amount. Enter at least 0.1 serving.' : 'Enter at least 0.1 serving'}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  className={`flex-1 min-w-0 min-h-[48px] text-center bg-transparent text-xl font-bold tabular-nums py-1 ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
                 />
-              </Pressable>
-              <BottomSheetTextInput
-                value={servingsText}
-                onChangeText={handleServingsChange}
-                onBlur={() => {
-                  if (servingsText === '' || servingsInvalid) setServingsText(formatServings(servings));
-                  onValidityChange?.(true);
-                }}
-                accessibilityLabel="Servings"
-                accessibilityHint={servingsInvalid ? 'Invalid amount. Enter at least 0.1 serving.' : 'Enter at least 0.1 serving'}
-                keyboardType="numeric"
-                returnKeyType="done"
-                className={`w-16 min-h-[48px] text-center bg-transparent text-2xl font-bold tabular-nums py-1 ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
-              />
-              <Pressable
-                onPress={() => onServingsDelta(0.5)}
-                accessibilityRole="button"
-                accessibilityLabel="Increase servings"
-                className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
-              >
-                <MaterialIcons name="add" size={20} color={M3.onSurface} />
-              </Pressable>
-            </View>
-            {servingsInvalid ? (
-              <Text
-                className="text-m3-error text-xs text-center font-medium"
-                accessibilityLiveRegion="polite"
-              >
-                Enter at least 0.1 serving.
-              </Text>
-            ) : servingDesc ? (
-              <Text className="text-m3-on-surface-variant text-xs text-center">
-                {servingDesc}
-              </Text>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <View className="relative w-full min-h-[48px] items-center justify-center">
-              <BottomSheetTextInput
-                value={gramsText}
-                onChangeText={handleGramsChange}
-                onBlur={() => {
-                  if (gramsInvalid) setGramsText(formatGrams(grams));
-                  onValidityChange?.(true);
-                }}
-                accessibilityLabel="Amount in grams"
-                accessibilityHint={gramsInvalid ? 'Invalid amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
-                keyboardType="numeric"
-                returnKeyType="done"
-                className={`w-full min-h-[48px] text-center bg-transparent py-2 px-12 text-2xl font-bold tabular-nums ${gramsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
-              />
-              <View
-                pointerEvents="none"
-                className="absolute right-4 top-0 bottom-0 justify-center"
-              >
-                <Text className="text-m3-on-surface-variant text-base font-semibold">
-                  g
-                </Text>
+                <Pressable
+                  onPress={() => onServingsDelta(0.5)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase servings"
+                  className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-60"
+                >
+                  <MaterialIcons name="add" size={20} color={M3.onSurface} />
+                </Pressable>
               </View>
-            </View>
-            {gramsInvalid ? (
-              <Text
-                className="text-m3-error text-xs text-center font-medium"
-                accessibilityLiveRegion="polite"
-              >
-                Enter a number greater than zero.
-              </Text>
-            ) : null}
-          </>
-        )}
+              {servingsInvalid ? (
+                <Text
+                  className="px-1 text-m3-error text-xs text-center font-medium"
+                  accessibilityLiveRegion="polite"
+                >
+                  Enter at least 0.1 serving.
+                </Text>
+              ) : servingDesc ? (
+                <Text numberOfLines={2} className="px-1 text-m3-on-surface-variant text-xs text-center">
+                  {servingDesc}
+                </Text>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <View className="relative w-full min-h-[48px] items-center justify-center">
+                <BottomSheetTextInput
+                  value={gramsText}
+                  onChangeText={handleGramsChange}
+                  onBlur={() => {
+                    if (gramsInvalid) setGramsText(formatGrams(grams));
+                    onValidityChange?.(true);
+                  }}
+                  accessibilityLabel="Amount in grams"
+                  accessibilityHint={gramsInvalid ? 'Invalid amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  className={`w-full min-h-[48px] text-center bg-transparent py-2 px-9 text-xl font-bold tabular-nums ${gramsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
+                />
+                <View
+                  pointerEvents="none"
+                  className="absolute right-3 top-0 bottom-0 justify-center"
+                >
+                  <Text className="text-m3-on-surface-variant text-base font-semibold">
+                    g
+                  </Text>
+                </View>
+              </View>
+              {gramsInvalid ? (
+                <Text
+                  className="px-1 text-m3-error text-xs text-center font-medium"
+                  accessibilityLiveRegion="polite"
+                >
+                  Enter a number greater than zero.
+                </Text>
+              ) : null}
+            </>
+          )}
+        </View>
       </View>
     </View>
   );

@@ -78,7 +78,7 @@ const FOOD_COMPONENT_SCHEMA = {
     fatPer100g: { type: 'number' },
     brand: { type: 'string', nullable: true },
     preparation: { type: 'string', nullable: true },
-    servingLabel: { type: 'string', nullable: true },
+    servingLabel: { type: 'string', nullable: true, description: 'Label for exactly one practical unit matching servingSizeGrams, or null.' },
     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
     confidenceReason: { type: 'string', nullable: true, description: 'Required concise uncertainty when confidence is low.' },
   },
@@ -107,7 +107,7 @@ mealName is the parent label. components are nutritionally material ingredient-l
 
 Include every stated or visible food. Infer only standard material hidden ingredients, marking each low confidence with a reason. Keep defensible entries when another part is uncertain; use unrecognized only when none is defensible. Examples: chicken adobo with rice => rice, chicken, material adobo sauce, oil; pork lumpia => pork, material vegetables, wrapper, absorbed oil; banana or labeled yogurt => one component.
 
-estimatedGrams is total edible amount; serving fields describe one practical unit. Prefer grams, then label mass, counts or measures, visual scale, then typical portion. Use prepared-state nutrients per 100g; convert label values as serving value * 100 / serving grams. Count caloric additions once; when oil or sauce is separate, base entries must exclude it. Use specific names and null unsupported brand or preparation. Use low confidence plus a concise reason for inferred or uncertain data. Check completeness, duplicates, parent-child overlap, and plausible amounts.`;
+estimatedGrams is total edible amount; serving fields describe exactly one practical unit. servingLabel must name one unit, such as "1 egg" or "1 cup", while servingSizeGrams is the grams in that one unit; represent consumed counts only through estimatedGrams. Prefer grams, then label mass, counts or measures, visual scale, then typical portion. Use prepared-state nutrients per 100g; convert label values as serving value * 100 / serving grams. Count caloric additions once; when oil or sauce is separate, base entries must exclude it. Use specific names and null unsupported brand or preparation. Use low confidence plus a concise reason for inferred or uncertain data. Check completeness, duplicates, parent-child overlap, and plausible amounts.`;
 
 const IMAGE_PROMPT = `Analyze the supplied JPEG for food logging.
 
@@ -556,6 +556,47 @@ function nullableText(value: unknown): string | null | undefined {
   return text ? text.slice(0, 300) : null;
 }
 
+function normalizeCountedServing(
+  estimatedGrams: number,
+  servingSizeGrams: number | null,
+  servingLabel: string | null,
+): { estimatedGrams: number; servingLabel: string | null } {
+  if (servingSizeGrams == null || servingLabel == null) {
+    return { estimatedGrams, servingLabel };
+  }
+  const match = /^(\d+(?:\.\d+)?)\s+([a-z][a-z -]*)$/i.exec(servingLabel);
+  if (!match) return { estimatedGrams, servingLabel };
+  const quantity = Number(match[1]);
+  if (!Number.isFinite(quantity) || quantity <= 1 || quantity > 100) {
+    return { estimatedGrams, servingLabel };
+  }
+
+  const words = match[2].trim().split(/\s+/);
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index];
+    const singular =
+      /ies$/i.test(word) && word.length > 3
+        ? `${word.slice(0, -3)}y`
+        : /(ches|shes|sses|xes|zes)$/i.test(word)
+          ? word.slice(0, -2)
+          : /s$/i.test(word) && !/ss$/i.test(word)
+            ? word.slice(0, -1)
+            : word;
+    if (singular === word) continue;
+    words[index] = singular;
+    break;
+  }
+
+  const consumedGrams = quantity * servingSizeGrams;
+  if (!Number.isFinite(consumedGrams) || consumedGrams <= 0) {
+    return { estimatedGrams, servingLabel };
+  }
+  return {
+    estimatedGrams: consumedGrams,
+    servingLabel: `1 ${words.join(' ')}`,
+  };
+}
+
 function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const result = value as Record<string, unknown>;
@@ -588,10 +629,24 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
     const preparation = nullableText(component.preparation);
     const servingLabel = nullableText(component.servingLabel);
     if (brand === undefined || preparation === undefined || servingLabel === undefined || confidenceReason === undefined) return null;
+    const normalizedServing = normalizeCountedServing(
+      estimatedGrams,
+      servingSizeGrams,
+      servingLabel,
+    );
     return {
-      name: component.name.trim().slice(0, 200), estimatedGrams, servingSizeGrams,
-      caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g,
-      brand, preparation, servingLabel, confidence, confidenceReason,
+      name: component.name.trim().slice(0, 200),
+      estimatedGrams: normalizedServing.estimatedGrams,
+      servingSizeGrams,
+      caloriesPer100g,
+      proteinPer100g,
+      carbsPer100g,
+      fatPer100g,
+      brand,
+      preparation,
+      servingLabel: normalizedServing.servingLabel,
+      confidence,
+      confidenceReason,
     };
   });
   if (components.some((component) => component == null)) return null;

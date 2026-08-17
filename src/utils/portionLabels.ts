@@ -42,7 +42,10 @@ function cleanDuplicateMeasurements(label: string): string {
     );
   }
 
-  return cleaned;
+  return cleaned.replace(
+    new RegExp(MEASUREMENT_SOURCE, 'gi'),
+    (_match, value, unit) => `${value}${normalizedUnit(unit)}`,
+  );
 }
 
 function includesAmount(label: string, value: number, unit: PortionUnit): boolean {

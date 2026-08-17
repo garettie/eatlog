@@ -10,19 +10,21 @@ import Animated, {
 import { MealType } from '../db/database';
 import { DURATION, EASING } from '../theme/motion';
 
-const MEALS: { label: string; value: MealType }[] = [
-  { label: 'Breakfast', value: 'breakfast' },
-  { label: 'Lunch', value: 'lunch' },
-  { label: 'Dinner', value: 'dinner' },
-  { label: 'Snack', value: 'snack' },
+const MEALS: { label: string; compactLabel: string; value: MealType }[] = [
+  { label: 'Breakfast', compactLabel: 'Bfast', value: 'breakfast' },
+  { label: 'Lunch', compactLabel: 'Lunch', value: 'lunch' },
+  { label: 'Dinner', compactLabel: 'Dinner', value: 'dinner' },
+  { label: 'Snack', compactLabel: 'Snack', value: 'snack' },
 ];
 
 interface MealSelectorProps {
   value: MealType;
   onChange: (meal: MealType) => void;
+  compact?: boolean;
+  disabled?: boolean;
 }
 
-export default function MealSelector({ value, onChange }: MealSelectorProps) {
+export default function MealSelector({ value, onChange, compact = false, disabled = false }: MealSelectorProps) {
   const reduced = useReducedMotion();
   const selectedIndex = Math.max(0, MEALS.findIndex((meal) => meal.value === value));
   const trackWidth = useSharedValue(0);
@@ -58,6 +60,7 @@ export default function MealSelector({ value, onChange }: MealSelectorProps) {
 
   return (
     <View
+      style={disabled ? { opacity: 0.38 } : undefined}
       className="flex-row bg-m3-surface-container-high rounded-full p-0.5 border border-m3-outline-variant/30 relative overflow-hidden"
       onLayout={(event) => {
         const nextWidth = event.nativeEvent.layout.width;
@@ -90,16 +93,18 @@ export default function MealSelector({ value, onChange }: MealSelectorProps) {
               });
               startTransition(() => onChange(m.value));
             }}
+            disabled={disabled}
             accessibilityRole="button"
-            accessibilityLabel={`${m.label} meal`}
-            accessibilityState={{ selected }}
+            accessibilityState={{ selected, disabled }}
             className="flex-1 min-h-[48px] px-1 rounded-full items-center justify-center z-10 active:opacity-70"
           >
             <Text
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
               className={`text-xs font-semibold ${selected ? 'text-m3-on-primary' : 'text-m3-on-surface-variant'}`}
             >
-              {m.label}
+              {compact ? m.compactLabel : m.label}
             </Text>
           </Pressable>
         );

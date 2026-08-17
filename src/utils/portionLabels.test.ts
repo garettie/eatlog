@@ -15,7 +15,7 @@ test('parses positive portion input strictly with either decimal separator', () 
 
 test('does not append a weight already present in a portion label', () => {
   assert.equal(formatPortionLabel('1 cup (180g)', 180), '1 cup (180g)');
-  assert.equal(formatPortionLabel('100 g', 100), '100 g');
+  assert.equal(formatPortionLabel('100 g', 100), '100g');
   assert.equal(formatPortionLabel('1 glass (250ml)', 250, 'ml'), '1 glass (250ml)');
 });
 

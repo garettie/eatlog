@@ -135,6 +135,34 @@ const recognized = {
   }],
 };
 
+test('normalizes a counted serving label to one unit and the consumed total', async () => {
+  const countedEggs = {
+    ...recognized,
+    mealName: 'Eggs',
+    components: [{
+      ...recognized.components[0],
+      name: 'Eggs',
+      estimatedGrams: 50,
+      servingSizeGrams: 50,
+      servingLabel: '2 eggs',
+    }],
+  };
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: '2 eggs' }),
+    { fetchImpl: (async () => geminiResponse(countedEggs)) as typeof fetch },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    {
+      estimatedGrams: body.components[0].estimatedGrams,
+      servingSizeGrams: body.components[0].servingSizeGrams,
+      servingLabel: body.components[0].servingLabel,
+    },
+    { estimatedGrams: 100, servingSizeGrams: 50, servingLabel: '1 egg' },
+  );
+});
+
 test('allows only documented routes and exact methods', async () => {
   const fetchImpl = (async () => jsonResponse({ foods: [usdaFood()] })) as typeof fetch;
   const cases: Array<[string, string, number, string | null]> = [

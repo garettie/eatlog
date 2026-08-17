@@ -159,11 +159,14 @@ function formatCollapsedPortion(
 	serving: FoodResult["portions"][number] | null,
 ): string {
 	const grams = Math.round(component.selection.grams * 10) / 10;
-	if (!serving || component.selection.mode !== "servings") return `${grams} g`;
+	if (!serving || component.selection.mode !== "servings") return `${grams}g`;
 
 	const servings = servingsForSelection(component.selection, serving);
 	const servingsLabel = String(Math.round(servings * 100) / 100);
-	const servingLabel = formatPortionLabel(serving.label, serving.grams);
+	const servingLabel = formatPortionLabel(
+		serving.label,
+		Math.abs(servings - 1) < 0.001 ? serving.grams : grams,
+	);
 	return Math.abs(servings - 1) < 0.001
 		? servingLabel
 		: `${servingsLabel} × ${servingLabel}`;
@@ -272,12 +275,14 @@ export default function ReviewState({
 		(result?.components ?? []).map(toEditable),
 	);
 	const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+	const [nutritionExpandedIds, setNutritionExpandedIds] = useState<Set<string>>(
+		() => new Set(),
+	);
 	const [meal, setMeal] = useState<MealType>(
 		() => initialMeal ?? defaultMealForNow(),
 	);
 	const [logDate, setLogDate] = useState(() => logDateProp ?? todayISO());
 	const [dateSelectorVisible, setDateSelectorVisible] = useState(false);
-	const [destinationEditorVisible, setDestinationEditorVisible] = useState(false);
 	const [logging, setLogging] = useState(false);
 	const [logError, setLogError] = useState<string | null>(null);
 	const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
@@ -305,6 +310,13 @@ export default function ReviewState({
 	const effectiveLogDate = logDateOverrideRef.current
 		? logDate
 		: (logDateProp ?? today);
+	const compactLogDateLabel =
+		effectiveLogDate === today
+			? "Today"
+			: parseLocalISO(effectiveLogDate).toLocaleDateString("en-US", {
+					month: "short",
+					day: "numeric",
+				});
 	const hasInvalidComponentName = components.some(
 		(component) => !component.food.name.trim(),
 	);
@@ -334,7 +346,7 @@ export default function ReviewState({
 			setMealName(result.mealName);
 			setComponents(result.components.map(toEditable));
 			setExpandedIds(new Set());
-			setDestinationEditorVisible(false);
+			setNutritionExpandedIds(new Set());
 			dirtyRef.current = false;
 			loggedRef.current = false;
 			setUndoAction(null);
@@ -565,6 +577,11 @@ export default function ReviewState({
 				next.delete(component.food.id);
 				return next;
 			});
+			setNutritionExpandedIds((current) => {
+				const next = new Set(current);
+				next.delete(component.food.id);
+				return next;
+			});
 		},
 		[components, showUndo],
 	);
@@ -644,7 +661,6 @@ export default function ReviewState({
 			return;
 		}
 		setLogError(null);
-		setDestinationEditorVisible(false);
 		setLogging(true);
 		try {
 			const saved = await saveMealWithComponents({
@@ -951,6 +967,7 @@ export default function ReviewState({
 							<View className="overflow-hidden rounded-2xl bg-m3-surface-container border border-m3-outline-variant/40">
 								{components.map((comp, idx) => {
 									const isExpanded = expandedIds.has(comp.food.id);
+									const nutritionExpanded = nutritionExpandedIds.has(comp.food.id);
 									const serving = selectedServing(comp.food, comp.selection);
 									const servings = servingsForSelection(comp.selection, serving);
 									const amountOptions = buildFoodAmountOptions(comp.food);
@@ -992,115 +1009,111 @@ export default function ReviewState({
 									return (
 										<View
 											key={comp.food.id}
-											className={`${idx > 0 ? "border-t border-m3-outline-variant/40" : ""} ${isExpanded ? "bg-m3-surface-container-high" : ""}`}
+											className={`${idx > 0 ? "border-t border-m3-outline-variant/70" : ""} ${isExpanded ? "bg-m3-surface-container-high" : ""}`}
 										>
-											{isExpanded ? (
-												<View className="min-h-[72px] flex-row items-start gap-2 px-4 py-3">
-													<View className="flex-1 min-w-0 gap-1">
-														<BottomSheetTextInput
-															value={comp.food.name}
-															onChangeText={(text) => {
-																updateName(idx, text);
-																setComponentClarifyError((current) =>
-																	current?.id === comp.food.id ? null : current,
-																);
-															}}
-															editable={!logging}
-															multiline
-															numberOfLines={2}
-															maxLength={120}
-															textAlignVertical="center"
-															accessibilityLabel="Food name"
-															accessibilityHint={
-																!comp.food.name.trim()
-																	? "Required before logging"
-																	: undefined
-															}
-															className={`min-h-[48px] max-h-24 rounded-xl border bg-m3-surface-container px-3 py-3 text-m3-on-surface text-base font-medium ${comp.food.name.trim() ? "border-m3-outline-variant/50" : "border-m3-error"}`}
-														/>
-														{componentContext ? (
+											<View className="relative">
+												{!isExpanded ? (
+													<Pressable
+														onPress={() => toggleComponent(comp, false)}
+														accessibilityRole="button"
+														accessibilityLabel={`${comp.food.name.trim() || "Unnamed food"}, ${portionSummary}, ${cal} calories`}
+														accessibilityHint="Opens food details and portion controls"
+														accessibilityState={{ expanded: false }}
+														className="absolute inset-0 active:bg-m3-surface-container-high active:opacity-70"
+													/>
+												) : null}
+												<View
+													pointerEvents={isExpanded ? "auto" : "none"}
+													className={`min-h-[72px] flex-row gap-2 px-4 py-3 ${isExpanded ? "items-start" : "items-center"}`}
+												>
+													{isExpanded ? (
+														<View className="flex-1 min-w-0 gap-1">
+															<BottomSheetTextInput
+																value={comp.food.name}
+																onChangeText={(text) => {
+																	updateName(idx, text);
+																	setComponentClarifyError((current) =>
+																		current?.id === comp.food.id ? null : current,
+																	);
+																}}
+																editable={!logging}
+																multiline
+																numberOfLines={2}
+																maxLength={120}
+																textAlignVertical="center"
+																accessibilityLabel="Food name"
+																accessibilityHint={
+																	!comp.food.name.trim()
+																		? "Required before logging"
+																		: undefined
+																}
+																className={`min-h-[48px] max-h-24 rounded-xl border bg-m3-surface-container px-3 py-3 text-m3-on-surface text-base font-medium ${comp.food.name.trim() ? "border-m3-outline-variant/50" : "border-m3-error"}`}
+															/>
+															{!comp.food.name.trim() ? (
+																<Text
+																	className="text-m3-error text-xs px-1"
+																	accessibilityLiveRegion="polite"
+																>
+																	Food name is required.
+																</Text>
+															) : null}
+														</View>
+													) : (
+														<View className="flex-1 min-w-0">
 															<Text
 																numberOfLines={2}
-																className="text-m3-on-surface-variant text-xs px-1"
+																className={`text-base font-medium ${comp.food.name.trim() ? "text-m3-on-surface" : "text-m3-error"}`}
 															>
-																{componentContext}
+																{comp.food.name.trim() || "Unnamed food"}
 															</Text>
-														) : null}
-														{!comp.food.name.trim() ? (
 															<Text
-																className="text-m3-error text-xs px-1"
-																accessibilityLiveRegion="polite"
+																numberOfLines={2}
+																className="mt-1 text-m3-on-surface-variant text-xs"
 															>
-																Food name is required.
+																{metadata}
 															</Text>
-														) : null}
-													</View>
+															{reviewStatus ? (
+																<View className="mt-1.5 flex-row items-center gap-1.5">
+																	<MaterialIcons
+																		name={
+																			reviewStatus.isError
+																				? "error-outline"
+																				: "info-outline"
+																		}
+																		size={14}
+																		color={
+																			reviewStatus.isError
+																				? M3.error
+																				: M3.onSecondaryContainer
+																		}
+																	/>
+																	<Text
+																		className={`text-compact font-semibold ${reviewStatus.isError ? "text-m3-error" : "text-m3-on-secondary-container"}`}
+																	>
+																		{reviewStatus.label}
+																	</Text>
+																</View>
+															) : null}
+														</View>
+													)}
 													<Pressable
 														onPress={() => toggleComponent(comp, true)}
+														pointerEvents={isExpanded ? "auto" : "none"}
+														accessible={isExpanded}
 														accessibilityRole="button"
 														accessibilityLabel={`Collapse ${comp.food.name.trim() || "unnamed food"} details`}
-														accessibilityState={{ expanded: true }}
-														className="min-w-[72px] min-h-[48px] items-end justify-center active:opacity-60"
+														accessibilityState={{ expanded: isExpanded }}
+														className={`${isExpanded ? "w-12" : "min-w-[72px]"} min-h-[48px] items-end justify-center active:opacity-60`}
 													>
-														<Text className="text-m3-on-surface text-sm font-semibold tabular-nums">
-															{cal} kcal
-														</Text>
-														<DisclosureChevron expanded />
+														{!isExpanded ? (
+															<Text className="text-m3-on-surface text-sm font-semibold tabular-nums">
+																{cal} kcal
+															</Text>
+														) : null}
+														<DisclosureChevron expanded={isExpanded} />
 													</Pressable>
 												</View>
-											) : (
-												<Pressable
-													onPress={() => toggleComponent(comp, false)}
-													accessibilityRole="button"
-													accessibilityLabel={`${comp.food.name.trim() || "Unnamed food"}, ${portionSummary}, ${cal} calories`}
-													accessibilityHint="Opens food details and portion controls"
-													accessibilityState={{ expanded: false }}
-													className="min-h-[72px] flex-row items-center gap-3 px-4 py-3 active:bg-m3-surface-container-high active:opacity-70"
-												>
-													<View className="flex-1 min-w-0">
-														<Text
-															numberOfLines={2}
-															className={`text-base font-medium ${comp.food.name.trim() ? "text-m3-on-surface" : "text-m3-error"}`}
-														>
-															{comp.food.name.trim() || "Unnamed food"}
-														</Text>
-														<Text
-															numberOfLines={2}
-															className="mt-1 text-m3-on-surface-variant text-xs"
-														>
-															{metadata}
-														</Text>
-														{reviewStatus ? (
-															<View className="mt-1.5 flex-row items-center gap-1.5">
-																<MaterialIcons
-																	name={
-																		reviewStatus.isError
-																			? "error-outline"
-																			: "info-outline"
-																	}
-																	size={14}
-																	color={
-																		reviewStatus.isError
-																			? M3.error
-																			: M3.onSecondaryContainer
-																	}
-																/>
-																<Text
-																	className={`text-compact font-semibold ${reviewStatus.isError ? "text-m3-error" : "text-m3-on-secondary-container"}`}
-																>
-																	{reviewStatus.label}
-																</Text>
-															</View>
-														) : null}
-													</View>
-													<View className="flex-shrink-0 items-end gap-1">
-														<Text className="text-m3-on-surface text-sm font-semibold tabular-nums">
-															{cal} kcal
-														</Text>
-														<DisclosureChevron expanded={false} />
-													</View>
-												</Pressable>
-											)}
+											</View>
 
 											{isExpanded ? (
 												<View>
@@ -1170,14 +1183,9 @@ export default function ReviewState({
 													) : null}
 
 													<View className="border-t border-m3-outline-variant/50 px-4 py-4 gap-3">
-														<View className="flex-row items-center justify-between gap-3">
-															<Text className="text-m3-on-surface text-sm font-semibold">
-																Portion
-															</Text>
-															<Text className="text-m3-on-surface-variant text-compact font-medium">
-																Calculated live
-															</Text>
-														</View>
+														<Text className="text-m3-on-surface text-sm font-semibold">
+															Portion
+														</Text>
 														<PortionStepper
 															unitMode={comp.selection.mode}
 															servings={servings}
@@ -1250,98 +1258,124 @@ export default function ReviewState({
 														</View>
 													</View>
 
-													<View className="border-t border-m3-outline-variant/50 px-4 py-4 gap-3">
-														<View className="min-h-[32px] flex-row items-center justify-between gap-2">
-															<Text className="text-m3-on-surface text-sm font-semibold">
+													<View className="border-t border-m3-outline-variant/50">
+														<Pressable
+															onPress={() =>
+																setNutritionExpandedIds((current) => {
+																	const next = new Set(current);
+																	if (nutritionExpanded) {
+																		next.delete(comp.food.id);
+																	} else {
+																		next.add(comp.food.id);
+																	}
+																	return next;
+																})
+															}
+															accessibilityRole="button"
+															accessibilityLabel={`Nutrition values, ${nutritionAccessibilityBasis}`}
+															accessibilityHint={
+																nutritionExpanded
+																	? "Hides editable nutrition values"
+																	: "Shows editable nutrition values"
+															}
+															accessibilityState={{ expanded: nutritionExpanded }}
+															className="min-h-[56px] flex-row items-center gap-2 px-4 active:bg-m3-surface-container active:opacity-70"
+														>
+															<Text className="flex-1 text-m3-on-surface text-sm font-semibold">
 																Nutrition values
 															</Text>
 															<Text
-																numberOfLines={2}
+																numberOfLines={1}
 																className="text-m3-on-surface-variant text-xs font-semibold"
 															>
 																{nutritionBasis}
 															</Text>
-														</View>
-														<View className="flex-row flex-wrap gap-3">
-															{(
-																[
-																	"calories",
-																	"protein",
-																	"carbs",
-																	"fat",
-																] as const
-															).map((field) => {
-																const displayValue =
-																	perServingMul === 1
-																		? comp.per100g[field]
-																		: field === "calories"
-																			? Math.round(
-																					comp.per100g[field] *
-																						perServingMul,
-																				)
-																			: Math.round(
-																					comp.per100g[field] *
-																						perServingMul *
-																						10,
-																				) / 10;
-																const fieldLabel =
-																	field === "calories"
-																		? "Calories"
-																		: field === "protein"
-																			? "Protein"
-																			: field === "carbs"
-																				? "Carbs"
-																				: "Fat";
-																const fieldColor =
-																	field === "protein"
-																		? "text-m3-protein"
-																		: field === "carbs"
-																			? "text-m3-carbs"
-																			: field === "fat"
-																				? "text-m3-fat"
-																				: "text-m3-calories";
+															<DisclosureChevron expanded={nutritionExpanded} />
+														</Pressable>
+														{nutritionExpanded ? (
+															<View className="px-4 pt-1 pb-4">
+																<View className="flex-row flex-wrap gap-3">
+																	{(
+																		[
+																			"calories",
+																			"protein",
+																			"carbs",
+																			"fat",
+																		] as const
+																	).map((field) => {
+																		const displayValue =
+																			perServingMul === 1
+																				? comp.per100g[field]
+																				: field === "calories"
+																					? Math.round(
+																							comp.per100g[field] *
+																								perServingMul,
+																						)
+																					: Math.round(
+																							comp.per100g[field] *
+																								perServingMul *
+																								10,
+																						) / 10;
+																		const fieldLabel =
+																			field === "calories"
+																				? "Calories"
+																				: field === "protein"
+																					? "Protein"
+																					: field === "carbs"
+																						? "Carbs"
+																						: "Fat";
+																		const fieldColor =
+																			field === "protein"
+																				? "text-m3-protein"
+																				: field === "carbs"
+																					? "text-m3-carbs"
+																					: field === "fat"
+																						? "text-m3-fat"
+																						: "text-m3-calories";
 
-																return (
-																	<View
-																		key={field}
-																		className="min-w-[132px] flex-1 gap-1.5"
-																	>
-																		<Text
-																			className={`text-xs font-semibold ${fieldColor}`}
-																		>
-																			{fieldLabel} ·{" "}
-																			{field === "calories"
-																				? "kcal"
-																				: "g"}
-																		</Text>
-																		<MacroTextInput
-																			value={displayValue}
-																			label={`${fieldLabel} ${nutritionAccessibilityBasis}${field === "calories" ? ", kilocalories" : ", grams"}`}
-																			onValueChange={(value) => {
-																				const per100gValue =
-																					perServingMul === 1
-																						? value
-																						: field === "calories"
-																							? Math.round(
-																									value /
-																										perServingMul,
-																								)
-																							: Math.round(
-																									(value /
-																										perServingMul) *
-																										10,
-																								) / 10;
-																				updatePer100g(
-																					idx,
-																					field,
-																					per100gValue,
-																				);
-																			}}
-																		/>
-																	</View>
-																);
-															})}
-														</View>
+																		return (
+																			<View
+																				key={field}
+																				className="min-w-[132px] flex-1 gap-1.5"
+																			>
+																				<Text
+																					className={`text-xs font-semibold ${fieldColor}`}
+																				>
+																					{fieldLabel} ·{" "}
+																					{field === "calories"
+																						? "kcal"
+																						: "g"}
+																				</Text>
+																				<MacroTextInput
+																					value={displayValue}
+																					label={`${fieldLabel} ${nutritionAccessibilityBasis}${field === "calories" ? ", kilocalories" : ", grams"}`}
+																					onValueChange={(value) => {
+																						const per100gValue =
+																							perServingMul === 1
+																								? value
+																								: field === "calories"
+																									? Math.round(
+																											value /
+																												perServingMul,
+																										)
+																									: Math.round(
+																											(value /
+																												perServingMul) *
+																												10,
+																										) / 10;
+																						updatePer100g(
+																							idx,
+																							field,
+																							per100gValue,
+																						);
+																					}}
+																				/>
+																			</View>
+																		);
+																	})}
+																</View>
+															</View>
+														) : null}
 													</View>
 
 													<View className="min-h-[56px] border-t border-m3-outline-variant/50 px-4 pt-2 flex-row items-center justify-between gap-3">
@@ -1429,62 +1463,36 @@ export default function ReviewState({
 						</Pressable>
 					</Animated.View>
 				) : null}
-				{destinationEditorVisible ? (
-					<View className="gap-2 pb-1">
-						<Pressable
-							onPress={() => setDateSelectorVisible(true)}
-							disabled={logging}
-							accessibilityRole="button"
-							accessibilityLabel={`Log date, ${formatLogDateLabel(effectiveLogDate)}`}
-							className="min-h-[48px] flex-row items-center rounded-xl bg-m3-surface-container-high px-4 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50"
+				<View className="flex-row items-center gap-2">
+					<Pressable
+						onPress={() => setDateSelectorVisible(true)}
+						disabled={logging}
+						accessibilityRole="button"
+						accessibilityLabel={`Log date, ${formatLogDateLabel(effectiveLogDate)}`}
+						accessibilityState={{ disabled: logging }}
+						className="min-w-[88px] min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-3 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50"
+					>
+						<MaterialIcons
+							name="event"
+							size={17}
+							color={M3.onSurfaceVariant}
+						/>
+						<Text
+							numberOfLines={1}
+							className="text-m3-on-surface text-xs font-semibold"
 						>
-							<MaterialIcons
-								name="event"
-								size={18}
-								color={M3.onSurfaceVariant}
-							/>
-							<Text
-								numberOfLines={2}
-								className="flex-1 ml-3 text-m3-on-surface text-sm font-semibold"
-							>
-								{formatLogDateLabel(effectiveLogDate)}
-							</Text>
-							<MaterialIcons
-								name="chevron-right"
-								size={20}
-								color={M3.onSurfaceVariant}
-							/>
-						</Pressable>
+							{compactLogDateLabel}
+						</Text>
+					</Pressable>
+					<View className="flex-1 min-w-0">
 						<MealSelector
 							value={meal}
-							onChange={(nextMeal) => {
-								handleMealChange(nextMeal);
-								setDestinationEditorVisible(false);
-							}}
+							compact
+							disabled={logging}
+							onChange={handleMealChange}
 						/>
 					</View>
-				) : null}
-				<Pressable
-					onPress={() =>
-						setDestinationEditorVisible((visible) => !visible)
-					}
-					disabled={logging}
-					accessibilityRole="button"
-					accessibilityLabel={`${meal} meal, ${formatLogDateLabel(effectiveLogDate)}`}
-					accessibilityHint={
-						destinationEditorVisible
-							? "Hides meal and date controls"
-							: "Shows meal and date controls"
-					}
-					accessibilityState={{ expanded: destinationEditorVisible }}
-					className="min-h-[48px] flex-row items-center rounded-xl bg-m3-surface-container-high px-4 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50"
-				>
-					<Text className="flex-1 text-m3-on-surface text-sm font-semibold">
-						{meal.charAt(0).toUpperCase() + meal.slice(1)} ·{" "}
-						{formatLogDateLabel(effectiveLogDate)}
-					</Text>
-					<DisclosureChevron expanded={destinationEditorVisible} />
-				</Pressable>
+				</View>
 				{logError ? (
 					<Text
 						className="text-m3-error text-xs font-medium"
@@ -1515,7 +1523,6 @@ export default function ReviewState({
 				onCancel={() => setDateSelectorVisible(false)}
 				onConfirm={(date) => {
 					setDateSelectorVisible(false);
-					setDestinationEditorVisible(false);
 					const nextDate = isoFromDate(date);
 					logDateOverrideRef.current = true;
 					if (nextDate === logDate) return;
