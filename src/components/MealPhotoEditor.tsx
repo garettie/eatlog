@@ -80,7 +80,7 @@ export default function MealPhotoEditor({
   }, [busy, disabled, pickPhoto]);
 
   return (
-    <View className="px-5 pb-2 gap-2">
+    <View className="gap-2">
       {value ? (
         <View className="min-h-[88px] flex-row items-center gap-3 rounded-2xl bg-m3-surface-container-high px-3 py-2 border border-m3-outline-variant/30">
           {failedPreviewUri === value ? (
@@ -105,6 +105,7 @@ export default function MealPhotoEditor({
             disabled={busy || disabled}
             accessibilityRole="button"
             accessibilityLabel="Replace meal photo"
+            accessibilityState={{ disabled: busy || disabled, busy }}
             className="min-h-[48px] justify-center px-2 active:opacity-60"
           >
             {busy ? (
@@ -118,6 +119,7 @@ export default function MealPhotoEditor({
             disabled={busy || disabled}
             accessibilityRole="button"
             accessibilityLabel="Remove meal photo"
+            accessibilityState={{ disabled: busy || disabled, busy }}
             className="h-12 w-12 items-center justify-center rounded-full active:opacity-60"
           >
             <MaterialIcons name="delete-outline" size={19} color={M3.error} />
@@ -129,6 +131,7 @@ export default function MealPhotoEditor({
           disabled={busy || disabled}
           accessibilityRole="button"
           accessibilityLabel="Add meal photo"
+          accessibilityState={{ disabled: busy || disabled, busy }}
           className="min-h-[52px] flex-row items-center justify-center gap-2 rounded-2xl bg-m3-surface-container-high border border-m3-outline-variant/30 active:opacity-70"
         >
           {busy ? (

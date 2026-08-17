@@ -122,12 +122,12 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       <Pressable
         onPress={() => setMode('describe')}
         accessibilityRole="button"
-        accessibilityLabel="Add component"
+        accessibilityLabel="Add food"
         accessibilityHint="Opens a description estimate, with search and manual entry available as fallbacks"
-        className="min-h-[56px] flex-row items-center justify-center gap-2 rounded-2xl bg-m3-surface-container border border-m3-outline-variant/30 active:opacity-60"
+        className="min-h-[52px] flex-row items-center justify-center gap-2 active:opacity-60"
       >
         <MaterialIcons name="add-circle-outline" size={20} color={M3.onSurface} />
-        <Text className="text-m3-on-surface text-sm font-semibold">Add component</Text>
+        <Text className="text-m3-on-surface text-sm font-semibold">Add food</Text>
       </Pressable>
     );
   }
@@ -138,7 +138,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <Pressable
           onPress={() => setMode('search')}
           accessibilityRole="button"
-          accessibilityLabel="Search component"
+          accessibilityLabel="Search for food"
           accessibilityState={{ selected: mode === 'search' }}
           className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'search' ? 'bg-m3-surface-container-highest' : ''}`}
         >
@@ -152,7 +152,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
         <Pressable
           onPress={() => setMode('describe')}
           accessibilityRole="button"
-          accessibilityLabel="Describe component"
+          accessibilityLabel="Describe food"
           accessibilityState={{ selected: mode === 'describe' }}
           className={`flex-1 min-h-[48px] rounded-full items-center justify-center active:opacity-70 ${mode === 'describe' ? 'bg-m3-surface-container-highest' : ''}`}
         >
@@ -177,7 +177,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             </Text>
           </View>
         </Pressable>
-        <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel adding component" className="w-12 h-12 items-center justify-center active:opacity-60">
+        <Pressable onPress={reset} accessibilityRole="button" accessibilityLabel="Cancel adding food" className="w-12 h-12 items-center justify-center active:opacity-60">
           <MaterialIcons name="close" size={18} color={M3.onSurfaceVariant} />
         </Pressable>
       </View>
