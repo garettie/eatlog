@@ -14,7 +14,9 @@ import RulerSlider from '../components/RulerSlider';
 import SegmentedControl from '../components/SegmentedControl';
 import TappableRow from '../components/TappableRow';
 import {
+    CurrentPlanChangedError,
     type ActivityLevel,
+    type DailyTarget,
     type DailyTargetInput,
     type GoalType,
     getDailyTargetForDate,
@@ -23,10 +25,11 @@ import {
     type Profile,
     type ProfileUpdate,
     type Sex,
+    type WeightLog,
     updateProfileAndPlan,
     updateProfilePresentation,
 } from '../db/database';
-import { ageFromBirthDate, calcBMR, calcTDEE, calculateTargets, type MacroTargets } from '../utils/calculations';
+import { calcBMR, calcTDEE, calculateTargets, type MacroTargets } from '../utils/calculations';
 import { formatLocalISO, parseLocalISO, todayISO } from '../utils/calendar';
 import { MANUAL_TARGET_CALORIE_TOLERANCE, macroCalories, validateManualTargets } from '../utils/planValidation';
 import { cmToFeetInches, feetInchesToCm, formatHeight, fromKilograms, toKilograms } from '../utils/weightUnits';
@@ -34,6 +37,7 @@ import { M3 } from '../theme/tokens';
 import { goalRateBounds, isGoalRateValid } from '../utils/goalRate';
 import {
     ESTIMATE_DISCLAIMER,
+    ageOnDate,
     birthDateBounds,
     profileSafetyIssues,
     validateBirthDate,
@@ -56,7 +60,7 @@ export type ProfileStackParamList = {
     HowEatlogWorks: undefined;
     About: undefined;
     Attributions: undefined;
-    PlanPreview: { profile: ProfileUpdate; target: DailyTargetInput };
+    PlanPreview: { profile: ProfileUpdate; target: DailyTargetInput; baselineTarget: DailyTarget };
 };
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'PlanPreview'> & { onDataChanged: () => void };
@@ -115,18 +119,32 @@ function toUpdate(profile: Profile, overrides: Partial<ProfileUpdate> = {}): Pro
     };
 }
 
-async function calculatedPlan(profile: Profile, overrides: Partial<ProfileUpdate> = {}): Promise<{ profile: ProfileUpdate; target: DailyTargetInput }> {
-    const nextProfile = toUpdate(profile, overrides);
-    const weight = await getLatestWeightLogOnOrBefore(todayISO());
-    const weightKg = weight?.trend_weight_kg != null && !validateWeightKg(weight.trend_weight_kg, 'Trend weight')
-        ? weight.trend_weight_kg
-        : weight?.scale_weight_kg != null && !validateWeightKg(weight.scale_weight_kg, 'Scale weight')
-            ? weight.scale_weight_kg
-        : null;
+function preferredWeightKg(
+    weight: WeightLog | null,
+): number | null {
+    if (weight?.trend_weight_kg != null && !validateWeightKg(weight.trend_weight_kg, 'Trend weight')) {
+        return weight.trend_weight_kg;
+    }
+    if (weight?.scale_weight_kg != null && !validateWeightKg(weight.scale_weight_kg, 'Scale weight')) {
+        return weight.scale_weight_kg;
+    }
+    return null;
+}
+
+async function prepareCalculatedPlan(
+    nextProfile: ProfileUpdate,
+    effectiveDate = todayISO(),
+): Promise<ProfileStackParamList['PlanPreview']> {
+    const [baselineTarget, weight] = await Promise.all([
+        getDailyTargetForDate(effectiveDate),
+        getLatestWeightLogOnOrBefore(effectiveDate),
+    ]);
+    if (!baselineTarget) throw new Error('Current target is unavailable.');
+    const weightKg = preferredWeightKg(weight);
     const profileIssue = profileSafetyIssues(nextProfile, { currentWeightKg: weightKg, requireCurrentWeight: true })[0];
     if (profileIssue) throw new Error(profileIssue);
     if (weightKg == null) throw new Error('Add a valid weight check-in before recalculating targets.');
-    const tdee = calcTDEE(calcBMR({ sex: nextProfile.sex, weight_kg: weightKg, height_cm: nextProfile.height_cm, age: ageFromBirthDate(nextProfile.birth_date) }), nextProfile.activity_level);
+    const tdee = calcTDEE(calcBMR({ sex: nextProfile.sex, weight_kg: weightKg, height_cm: nextProfile.height_cm, age: ageOnDate(nextProfile.birth_date, effectiveDate) }), nextProfile.activity_level);
     const macros = calculateTargets({
         tdeeKcal: tdee,
         goalType: nextProfile.goal_type,
@@ -136,8 +154,70 @@ async function calculatedPlan(profile: Profile, overrides: Partial<ProfileUpdate
     });
     return {
         profile: nextProfile,
-        target: { effective_date: todayISO(), tdee_estimate: Math.round(tdee), target_calories: macros.targetCalories, target_protein_g: macros.targetProteinG, target_fat_g: macros.targetFatG, target_carbs_g: macros.targetCarbsG, calculation_method: 'profile_recalculation' },
+        target: { effective_date: effectiveDate, tdee_estimate: Math.round(tdee), target_calories: macros.targetCalories, target_protein_g: macros.targetProteinG, target_fat_g: macros.targetFatG, target_carbs_g: macros.targetCarbsG, calculation_method: 'profile_recalculation' },
+        baselineTarget,
     };
+}
+
+async function calculatedPlan(
+    profile: Profile,
+    overrides: Partial<ProfileUpdate> = {},
+): Promise<ProfileStackParamList['PlanPreview']> {
+    return prepareCalculatedPlan(toUpdate(profile, overrides));
+}
+
+async function prepareManualPlan(
+    profile: ProfileUpdate,
+    targets: MacroTargets,
+    effectiveDate = todayISO(),
+): Promise<ProfileStackParamList['PlanPreview']> {
+    const current = await getDailyTargetForDate(effectiveDate);
+    if (!current) throw new Error('Current target is unavailable.');
+    const currentWeightKg = preferredWeightKg(await getLatestWeightLogOnOrBefore(effectiveDate));
+    if (currentWeightKg == null) throw new Error('Add a valid weight check-in before editing targets.');
+    const validation = validateManualTargets(targets, {
+        goalType: profile.goal_type,
+        referenceWeightKg: currentWeightKg,
+        tdeeEstimate: current.tdee_estimate,
+    });
+    if (validation) throw new Error(validation);
+    return {
+        profile,
+        target: {
+            effective_date: effectiveDate,
+            tdee_estimate: current.tdee_estimate,
+            target_calories: targets.targetCalories,
+            target_protein_g: targets.targetProteinG,
+            target_fat_g: targets.targetFatG,
+            target_carbs_g: targets.targetCarbsG,
+            calculation_method: 'manual',
+        },
+        baselineTarget: current,
+    };
+}
+
+function samePlanTarget(left: DailyTargetInput, right: DailyTargetInput): boolean {
+    return left.effective_date === right.effective_date
+        && left.tdee_estimate === right.tdee_estimate
+        && left.target_calories === right.target_calories
+        && left.target_protein_g === right.target_protein_g
+        && left.target_fat_g === right.target_fat_g
+        && left.target_carbs_g === right.target_carbs_g
+        && left.calculation_method === right.calculation_method;
+}
+
+async function refreshPlanPreview(
+    params: ProfileStackParamList['PlanPreview'],
+): Promise<ProfileStackParamList['PlanPreview']> {
+    const proposed = params.target;
+    return proposed.calculation_method === 'manual'
+        ? prepareManualPlan(params.profile, {
+            targetCalories: proposed.target_calories,
+            targetProteinG: proposed.target_protein_g,
+            targetFatG: proposed.target_fat_g,
+            targetCarbsG: proposed.target_carbs_g,
+        })
+        : prepareCalculatedPlan(params.profile);
 }
 
 function useProfile() {
@@ -168,9 +248,20 @@ export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => 
         const heightIssue = validateHeightCm(heightCm);
         if (heightIssue) { setError(heightIssue); return; }
         const next = toUpdate(profile, { display_name: name.trim(), sex, birth_date: birthDate, height_cm: heightCm, activity_level: activity });
+        const calculationChanged = next.sex !== profile.sex
+            || next.birth_date !== profile.birth_date
+            || next.height_cm !== profile.height_cm
+            || next.activity_level !== profile.activity_level;
         setSaving(true); setError(null);
         try {
-            await updateProfilePresentation(next);
+            if (calculationChanged) {
+                navigation.navigate('PlanPreview', await prepareCalculatedPlan(next));
+                return;
+            }
+            await updateProfilePresentation({
+                display_name: next.display_name,
+                weight_unit: next.weight_unit,
+            });
             onDataChanged();
             navigation.goBack();
         } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save personal details.'); } finally { setSaving(false); }
@@ -250,7 +341,7 @@ export function UnitsScreen({ onDataChanged }: { onDataChanged: () => void }) {
         setUnit(profile.weight_unit);
         void getLatestWeightLogOnOrBefore(todayISO()).then((weight) => setWeightKg(weight?.scale_weight_kg ?? null)).catch(() => setWeightKg(null));
     }, [profile]);
-    const save = useCallback(async () => { if (!profile || unit === profile.weight_unit) { navigation.goBack(); return; } setSaving(true); try { await updateProfilePresentation(toUpdate(profile, { weight_unit: unit })); onDataChanged(); navigation.goBack(); } finally { setSaving(false); } }, [navigation, onDataChanged, profile, unit]);
+    const save = useCallback(async () => { if (!profile || unit === profile.weight_unit) { navigation.goBack(); return; } setSaving(true); try { await updateProfilePresentation({ display_name: profile.display_name, weight_unit: unit }); onDataChanged(); navigation.goBack(); } finally { setSaving(false); } }, [navigation, onDataChanged, profile, unit]);
     if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{error}</Text></View></Screen>;
     return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><SegmentedControl options={[{ value: 'kg', label: 'Metric' }, { value: 'lb', label: 'Imperial' }]} value={unit} onChange={setUnit} /><Card className="p-5 gap-4"><Text className="text-m3-on-surface font-semibold">Preview</Text><View className="gap-3"><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Height</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{formatHeight(profile.height_cm, unit)}</Text></View><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Weight</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{weightKg == null ? 'Not logged' : `${fromKilograms(weightKg, unit).toFixed(1)} ${unit}`}</Text></View></View></Card><PrimaryButton title="Save units" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
 }
@@ -400,21 +491,7 @@ export function NutritionTargetsScreen() {
         if (!profile) return; setSaving(true); setError(null); try {
             if (mode === 'calculated') { navigation.navigate('PlanPreview', await calculatedPlan(profile)); return; }
             const targets: MacroTargets = { targetCalories: Number(calories), targetProteinG: Number(protein), targetFatG: Number(fat), targetCarbsG: Number(carbs) };
-            const current = await getDailyTargetForDate(todayISO()); if (!current) throw new Error('Current target is unavailable.');
-            const latestWeight = await getLatestWeightLogOnOrBefore(todayISO());
-            const currentWeightKg = latestWeight?.trend_weight_kg != null && !validateWeightKg(latestWeight.trend_weight_kg, 'Trend weight')
-                ? latestWeight.trend_weight_kg
-                : latestWeight?.scale_weight_kg != null && !validateWeightKg(latestWeight.scale_weight_kg, 'Scale weight')
-                    ? latestWeight.scale_weight_kg
-                    : null;
-            if (currentWeightKg == null) throw new Error('Add a valid weight check-in before editing targets.');
-            const validation = validateManualTargets(targets, {
-                goalType: profile.goal_type,
-                referenceWeightKg: currentWeightKg,
-                tdeeEstimate: current.tdee_estimate,
-            });
-            if (validation) { setError(validation); return; }
-            navigation.navigate('PlanPreview', { profile: toUpdate(profile), target: { effective_date: todayISO(), tdee_estimate: current.tdee_estimate, target_calories: targets.targetCalories, target_protein_g: targets.targetProteinG, target_fat_g: targets.targetFatG, target_carbs_g: targets.targetCarbsG, calculation_method: 'manual' } });
+            navigation.navigate('PlanPreview', await prepareManualPlan(toUpdate(profile), targets));
         } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not prepare targets.'); } finally { setSaving(false); }
     }, [calories, carbs, fat, mode, navigation, profile, protein]);
     if (!profile) return <Screen><View className="flex-1 items-center justify-center"><ActivityIndicator color={M3.onSurfaceVariant} /><Text className="text-m3-error text-sm mt-3">{loadError}</Text></View></Screen>;
@@ -425,9 +502,39 @@ export function NutritionTargetsScreen() {
 function TargetCard({ label, target }: { label: string; target: DailyTargetInput }) { return <Card className="p-5 gap-2"><Text className="text-m3-on-surface-variant text-xs font-semibold">{label}</Text><Text className="text-m3-on-surface text-3xl font-bold tabular-nums">{Math.round(target.target_calories).toLocaleString()} kcal</Text><Text className="text-m3-on-surface-variant text-sm tabular-nums">P {target.target_protein_g}g · C {target.target_carbs_g}g · F {target.target_fat_g}g</Text></Card>; }
 
 export function PlanPreviewScreen({ route, navigation, onDataChanged }: Props) {
-    const [current, setCurrent] = useState<DailyTargetInput | null>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
-    useEffect(() => { void getDailyTargetForDate(todayISO()).then((target) => { if (target) setCurrent(target); }).catch(() => setError('Could not load the current target.')); }, []);
+    const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
     const source = route.params.target.calculation_method === 'manual' ? 'Manual' : 'Profile recalculation';
-    const save = async () => { setSaving(true); setError(null); try { await updateProfileAndPlan(route.params); onDataChanged(); navigation.popToTop(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save your plan.'); } finally { setSaving(false); } };
-    return <Screen><ScrollView contentContainerClassName="p-6 gap-5" keyboardShouldPersistTaps="handled"><Text className="text-m3-on-surface-variant text-sm">Effective {route.params.target.effective_date}. Prior diary history stays unchanged.</Text><Text className="text-m3-on-surface-variant text-xs leading-4">{ESTIMATE_DISCLAIMER}</Text>{current ? <TargetCard label="Current" target={current} /> : <ActivityIndicator color={M3.onSurfaceVariant} />}<TargetCard label={`Proposed · ${source}`} target={route.params.target} />{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Save plan" onPress={() => void save()} loading={saving} /><Pressable onPress={() => navigation.goBack()} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel plan changes" className="min-h-[48px] items-center justify-center"><Text className="text-m3-on-surface font-semibold text-sm">Cancel</Text></Pressable></ScrollView></Screen>;
+    const save = async () => {
+        setSaving(true); setError(null);
+        try {
+            const proposed = route.params.target;
+            const refreshed = await refreshPlanPreview(route.params);
+            const baselineChanged = refreshed.baselineTarget.id !== route.params.baselineTarget.id;
+            if (baselineChanged || !samePlanTarget(proposed, refreshed.target)) {
+                navigation.setParams(refreshed);
+                setError(baselineChanged
+                    ? 'Current plan changed. Review the updated values, then save again.'
+                    : 'Plan inputs changed. Review the updated values, then save again.');
+                return;
+            }
+            await updateProfileAndPlan({
+                profile: refreshed.profile,
+                target: refreshed.target,
+                expectedCurrentTargetId: refreshed.baselineTarget.id,
+            });
+            onDataChanged();
+            navigation.popToTop();
+        } catch (cause) {
+            if (cause instanceof CurrentPlanChangedError) {
+                try {
+                    navigation.setParams(await refreshPlanPreview(route.params));
+                } catch (refreshCause) {
+                    setError(refreshCause instanceof Error ? refreshCause.message : 'Could not refresh your plan.');
+                    return;
+                }
+            }
+            setError(cause instanceof Error ? cause.message : 'Could not save your plan.');
+        } finally { setSaving(false); }
+    };
+    return <Screen><ScrollView contentContainerClassName="p-6 gap-5" keyboardShouldPersistTaps="handled"><Text className="text-m3-on-surface-variant text-sm">Effective {route.params.target.effective_date}. Prior diary history stays unchanged.</Text><Text className="text-m3-on-surface-variant text-xs leading-4">{ESTIMATE_DISCLAIMER}</Text><TargetCard label="Current" target={route.params.baselineTarget} /><TargetCard label={`Proposed · ${source}`} target={route.params.target} />{error ? <Text className="text-m3-error text-sm">{error}</Text> : null}<PrimaryButton title="Save plan" onPress={() => void save()} loading={saving} /><Pressable onPress={() => navigation.goBack()} disabled={saving} accessibilityRole="button" accessibilityLabel="Cancel plan changes" className="min-h-[48px] items-center justify-center"><Text className="text-m3-on-surface font-semibold text-sm">Cancel</Text></Pressable></ScrollView></Screen>;
 }

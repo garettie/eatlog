@@ -68,6 +68,23 @@ type ProgressKind =
   | 'slower'
   | 'outside-maintenance';
 
+type AdaptivePauseReason = Extract<AdaptiveReviewState, { kind: 'paused' }>['reason'];
+
+const ADAPTIVE_PAUSE_COPY: Record<AdaptivePauseReason, { title: string; detail: string }> = {
+  tdee_floor_conflict: {
+    title: 'Plan recalculation needed',
+    detail: 'Recalculate your plan in Profile before using adaptive updates.',
+  },
+  macro_target_infeasible: {
+    title: 'No safe macro split could be calculated',
+    detail: 'Review your nutrition targets or profile before trying again.',
+  },
+  target_out_of_policy: {
+    title: 'No safe target could be calculated',
+    detail: 'Review your profile or consult a qualified professional.',
+  },
+};
+
 const RANGE_OPTIONS = [
   { value: '1M' as const, label: '1M', accessibilityLabel: '1 month' },
   { value: '3M' as const, label: '3M', accessibilityLabel: '3 months' },
@@ -643,12 +660,14 @@ function AnalyticsScreen({
       ) : recommendation?.kind === 'paused' ? (
         <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite">
           <View className="w-9 h-9 rounded-full bg-m3-surface-container-high items-center justify-center">
-            <MaterialIcons name="check" size={20} color={M3.onSurfaceVariant} />
+            <MaterialIcons name="info-outline" size={20} color={M3.onSurfaceVariant} />
           </View>
           <View className="flex-1 min-w-0 gap-0.5">
-            <Text className="text-m3-on-surface font-bold text-sm">{recommendation.reason === 'target_out_of_policy' ? 'No safe target could be calculated' : 'No target change recommended'}</Text>
-            <Text className="text-m3-on-surface-variant text-xs tabular-nums">
-              {recommendation.reason === 'target_out_of_policy' ? 'Review your profile or consult a qualified professional.' : `Keep ${Math.round(target.target_calories).toLocaleString()} kcal/day`}
+            <Text className="text-m3-on-surface font-bold text-sm">
+              {ADAPTIVE_PAUSE_COPY[recommendation.reason].title}
+            </Text>
+            <Text className="text-m3-on-surface-variant text-xs">
+              {ADAPTIVE_PAUSE_COPY[recommendation.reason].detail}
             </Text>
           </View>
         </View>

@@ -33,7 +33,7 @@ const weights: AdaptiveWeightReading[] = [
 ];
 const profile: AdaptiveProfileEvidence = {
   sex: 'male',
-  heightCm: 180,
+  heightCm: 170,
   birthDate: '1990-06-15',
   goalType: 'maintain',
   goalRateKgPerWeek: 0,
@@ -50,6 +50,7 @@ function recommendationInput(
     weights,
     profile,
     previousTdee: 2000,
+    previousTargetCalories: 2000,
     previousTargetId: 42,
     ...overrides,
   };
@@ -80,6 +81,7 @@ function evidencePayload(
     weights,
     profile,
     previousTdee: 2000,
+    previousTargetCalories: 2000,
     previousTargetId: 42,
     ...overrides,
   };
@@ -181,7 +183,7 @@ test('OLS rejects fewer than two dates, duplicate dates, and invalid weights', (
   ]), /finite and positive/);
 });
 
-test('calculation uses raw scale weights for OLS rather than trend endpoints', () => {
+test('calculation uses trend weights so raw scale noise cannot drive TDEE', () => {
   const result = successful(recommendationInput({
     weights: weights.map((row, index) => ({
       ...row,
@@ -189,40 +191,82 @@ test('calculation uses raw scale weights for OLS rather than trend endpoints', (
       trendWeightKg: 80,
     })),
   }));
-  assert.ok(result.weightSlopeKgPerDay < 0);
-  assert.ok(result.estimatedTdee > result.averageIntakeKcal);
+  assert.equal(result.weightSlopeKgPerDay, 0);
+  assert.equal(result.estimatedTdee, result.averageIntakeKcal);
 });
 
-test('proposed TDEE is clamped to plus or minus the configured limit', () => {
+test('default policy caps weekly TDEE changes at 100 calories in either direction', () => {
   const previousTdee = 2500;
   const gain = successful(recommendationInput({
     previousTdee,
+    previousTargetCalories: previousTdee,
     weights: weights.map((row, index) => ({
       ...row,
       scaleWeightKg: index === weights.length - 1 ? 84 : row.scaleWeightKg,
+      trendWeightKg: index === weights.length - 1 ? 84 : row.trendWeightKg,
     })),
   }));
   const loss = successful(recommendationInput({
     previousTdee,
+    previousTargetCalories: previousTdee,
     weights: weights.map((row, index) => ({
       ...row,
       scaleWeightKg: index === weights.length - 1 ? 76 : row.scaleWeightKg,
+      trendWeightKg: index === weights.length - 1 ? 76 : row.trendWeightKg,
     })),
   }));
-  assert.equal(gain.proposedTdee, 2250);
-  assert.equal(loss.proposedTdee, 2750);
+  assert.equal(gain.proposedTdee, 2400);
+  assert.equal(loss.proposedTdee, 2600);
 });
 
-test('optional absolute TDEE limit applies alongside the relative limit', () => {
+test('stricter configured absolute TDEE limit applies alongside the relative limit', () => {
   const result = successful(recommendationInput({
     previousTdee: 2500,
-    config: config({ maximumTdeeChangeKcal: 100 }),
+    previousTargetCalories: 2500,
+    config: config({ maximumTdeeChangeKcal: 60 }),
     weights: weights.map((row, index) => ({
       ...row,
       scaleWeightKg: index === weights.length - 1 ? 76 : row.scaleWeightKg,
+      trendWeightKg: index === weights.length - 1 ? 76 : row.trendWeightKg,
     })),
   }));
-  assert.equal(result.proposedTdee, 2600);
+  assert.equal(result.proposedTdee, 2560);
+});
+
+test('default policy incorporates one quarter of a moderate new TDEE estimate', () => {
+  const result = successful(recommendationInput({
+    dailyCalories: dailyCalories.map((row) => ({ ...row, calories: 2200 })),
+  }));
+  assert.equal(result.estimatedTdee, 2200);
+  assert.equal(result.proposedTdee, 2050);
+  assert.equal(result.targetCalories, 2050);
+});
+
+test('cut target inherits only the bounded TDEE adjustment', () => {
+  const result = successful(recommendationInput({
+    previousTdee: 2600,
+    previousTargetCalories: 2050,
+    profile: { ...profile, goalType: 'cut', goalRateKgPerWeek: -0.5, targetWeightKg: 70 },
+    weights: weights.map((row, index) => ({
+      ...row,
+      scaleWeightKg: index === weights.length - 1 ? 76 : row.scaleWeightKg,
+      trendWeightKg: index === weights.length - 1 ? 76 : row.trendWeightKg,
+    })),
+  }));
+  assert.equal(result.proposedTdee, 2700);
+  assert.equal(result.targetCalories, 2150);
+  assert.equal(result.targetCalories - 2050, 100);
+});
+
+test('target change is bounded independently from a custom current target', () => {
+  const previousTargetCalories = 1800;
+  const result = successful(recommendationInput({
+    previousTdee: 2500,
+    previousTargetCalories,
+    profile: { ...profile, goalType: 'cut', goalRateKgPerWeek: -0.5, targetWeightKg: 70 },
+    dailyCalories: dailyCalories.map((row) => ({ ...row, calories: 2500 })),
+  }));
+  assert.ok(Math.abs(result.targetCalories - previousTargetCalories) <= 100);
 });
 
 test('BMR-floor conflict produces a paused result', () => {
@@ -235,6 +279,12 @@ test('BMR-floor conflict produces a paused result', () => {
   assert.equal(result.kind, 'paused');
   assert.equal(result.reason, 'tdee_floor_conflict');
   assert.ok(result.tdeeFloor > result.permittedUpperTdee);
+});
+
+test('TDEE floor is applied when it fits inside the conservative change limit', () => {
+  const result = successful(recommendationInput());
+  assert.ok(result.tdeeFloor <= result.previousTdee + 100);
+  assert.ok(result.proposedTdee >= Math.ceil(result.tdeeFloor));
 });
 
 test('macro allocation conflict produces a paused result', () => {
@@ -256,10 +306,11 @@ test('macro allocation conflict produces a paused result', () => {
       proteinPreference: 'extra_high',
     },
     previousTdee: 1300,
+    previousTargetCalories: 1300,
   }));
   assert.equal(result.kind, 'paused');
   assert.equal(result.reason, 'target_out_of_policy');
-  assert.match(result.message, /Calories|Carbohydrates|target/);
+  assert.match(result.message, /[Cc]alories|Carbohydrates|target/);
 });
 
 test('cut, maintain, and bulk goal rates adjust target calories', () => {
@@ -270,14 +321,17 @@ test('cut, maintain, and bulk goal rates adjust target calories', () => {
   };
   const cut = successful(recommendationInput({
     ...shared,
+    previousTargetCalories: 1950,
     profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'cut', goalRateKgPerWeek: -0.5, targetWeightKg: 55 },
   }));
   const maintain = successful(recommendationInput({
     ...shared,
+    previousTargetCalories: 2500,
     profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'maintain', goalRateKgPerWeek: 0, targetWeightKg: 60 },
   }));
   const bulk = successful(recommendationInput({
     ...shared,
+    previousTargetCalories: 2830,
     profile: { ...profile, sex: 'female', heightCm: 160, goalType: 'bulk', goalRateKgPerWeek: 0.3, targetWeightKg: 65 },
   }));
   assert.equal(cut.targetCalories, 1950);
@@ -339,16 +393,18 @@ test('valid out-of-window rows do not change recommendation', () => {
   assert.deepEqual(changed, first);
 });
 
-test('fingerprint changes with previous TDEE and algorithm version', () => {
+test('fingerprint changes with previous TDEE, current target, and algorithm version', () => {
   const first = hashAdaptiveEvidence(evidencePayload());
   const previousChanged = hashAdaptiveEvidence(evidencePayload({ previousTdee: 2100 }));
-  const versionConfig = config({ algorithmVersion: 6 });
+  const targetChanged = hashAdaptiveEvidence(evidencePayload({ previousTargetCalories: 2100 }));
+  const versionConfig = config({ algorithmVersion: 8 });
   const versionChanged = hashAdaptiveEvidence(evidencePayload({
-    algorithmVersion: 6,
+    algorithmVersion: 8,
     config: versionConfig,
   }));
   assert.match(first, /^fnv1a32-v2:[0-9a-f]{8}$/);
   assert.notEqual(first, previousChanged);
+  assert.notEqual(first, targetChanged);
   assert.notEqual(first, versionChanged);
 });
 
@@ -381,6 +437,7 @@ test('strict runtime validation rejects invalid external values', () => {
     recommendationInput({ profile: { ...profile, goalType: 'lose' as never } }),
     recommendationInput({ profile: { ...profile, proteinPreference: 'maximum' as never } }),
     recommendationInput({ previousTdee: Number.POSITIVE_INFINITY }),
+    recommendationInput({ previousTargetCalories: Number.POSITIVE_INFINITY }),
     recommendationInput({ previousTargetId: 0 }),
     recommendationInput({ previousTargetId: 1.5 }),
     recommendationInput({
@@ -591,6 +648,7 @@ for (const scenario of sparseScenarios) {
       weights: scenario.readings,
       profile,
       previousTdee: 2000,
+      previousTargetCalories: 2000,
       previousTargetId: 42,
     });
     assert.equal(result.kind, scenario.expectedKind);
@@ -806,14 +864,14 @@ test('confirming a suspicious day as partial excludes it', () => {
   assert.equal(result.averageIntakeKcal, 2000);
 });
 
-test('confirming an intentional fast records an explicit exclusion policy', () => {
+test('confirming an intentional fast preserves its logged intake as intentional evidence', () => {
   const result = successful(recommendationInput({
     dailyCalories: suspiciousCalories,
     intakeDayConfirmations: [intakeConfirmation(suspiciousDate, 'intentional_fast')],
   }));
-  assert.equal(ADAPTIVE_ALGORITHM_CONFIG.intentionalFastTreatment, 'exclude_from_intake');
-  assert.equal(result.alignedIntakeDayCount, 27);
-  assert.equal(result.averageIntakeKcal, 2000);
+  assert.equal(ADAPTIVE_ALGORITHM_CONFIG.intentionalFastTreatment, 'include_logged_intake');
+  assert.equal(result.alignedIntakeDayCount, 28);
+  closeTo(result.averageIntakeKcal, (27 * 2000 + 500) / 28);
 });
 
 test('multiple suspicious days require answers for each date', () => {

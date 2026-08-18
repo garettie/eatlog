@@ -96,8 +96,15 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
     'SELECT * FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC, id DESC LIMIT 1',
     [reviewDate],
   );
+  const resetTarget = await db.getFirstAsync<Pick<DailyTarget, 'effective_date'>>(
+    `SELECT effective_date FROM daily_targets
+     WHERE effective_date <= ? AND calculation_method != 'adaptive'
+     ORDER BY effective_date DESC, id DESC LIMIT 1`,
+    [reviewDate],
+  );
   if (!profile || !target) throw new Error('Profile and current target are required');
-  const evidenceStart = target.effective_date > windowStart ? target.effective_date : windowStart;
+  const resetDate = resetTarget?.effective_date ?? target.effective_date;
+  const evidenceStart = resetDate > windowStart ? resetDate : windowStart;
 
   const dailyCalories = await db.getAllAsync<DailyCaloriesRow>(
     `SELECT log_date, SUM(calories) AS calories
@@ -158,6 +165,7 @@ async function loadEvidence(db: SQLiteDatabase, reviewDate: string): Promise<Rev
       targetWeightKg: profile.target_weight_kg,
     },
     previousTdee: target.tdee_estimate,
+    previousTargetCalories: target.target_calories,
     previousTargetId: target.id,
   });
   const gate = gateAdaptiveReview(calculation, target);
@@ -431,6 +439,7 @@ async function resolveReview(
   resolution: 'accepted' | 'kept',
 ): Promise<ResolveAdaptiveReviewResult> {
   const db = await getDb();
+  const resolutionDate = todayISO();
   let result: ResolveAdaptiveReviewResult | null = null;
   await db.withExclusiveTransactionAsync(async (txn) => {
     const review = await txn.getFirstAsync<AdaptiveReview>(
@@ -453,10 +462,10 @@ async function resolveReview(
       result = { status: 'stale', review };
       return;
     }
-    const evidence = await loadEvidence(txn, review.review_date);
+    const evidence = await loadEvidence(txn, resolutionDate);
     if (!evidence.recommendation || evidence.recommendation.evidenceHash !== review.evidence_hash) {
       const refreshed = evidence.recommendation
-        ? await writePendingReview(txn, review.review_date, evidence, review.id)
+        ? await writePendingReview(txn, resolutionDate, evidence, review.id)
         : review;
       if (!evidence.recommendation) {
         await txn.runAsync(
@@ -495,7 +504,7 @@ async function resolveReview(
           (effective_date, tdee_estimate, target_calories, target_protein_g, target_fat_g, target_carbs_g, calculation_method)
          VALUES (?, ?, ?, ?, ?, ?, 'adaptive')`,
         [
-          todayISO(),
+          resolutionDate,
           recommendation.proposedTdee,
           recommendation.targetCalories,
           recommendation.targetProteinG,

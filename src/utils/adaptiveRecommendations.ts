@@ -68,6 +68,7 @@ export interface AdaptiveEvidencePayload {
   weights: AdaptiveWeightReading[];
   profile: AdaptiveProfileEvidence;
   previousTdee: number;
+  previousTargetCalories: number;
   previousTargetId: number;
 }
 
@@ -110,6 +111,7 @@ export interface AdaptiveEligibilityInput {
 export interface AdaptiveRecommendationInput extends AdaptiveEligibilityInput {
   profile: AdaptiveProfileEvidence;
   previousTdee: number;
+  previousTargetCalories: number;
   previousTargetId: number;
 }
 
@@ -247,6 +249,7 @@ function validateConfig(config: AdaptiveAlgorithmConfig): void {
   if (config.maximumTdeeChangeKcal !== null) {
     requireFinitePositive(config.maximumTdeeChangeKcal, 'Maximum TDEE change kcal');
   }
+  requireFinitePositive(config.maximumTargetChangeKcal, 'Maximum target change kcal');
   requireFinite(config.macroCalorieToleranceKcal, 'Macro calorie tolerance');
   if (config.macroCalorieToleranceKcal < 0) {
     inputError('Macro calorie tolerance must be non-negative');
@@ -255,7 +258,7 @@ function validateConfig(config: AdaptiveAlgorithmConfig): void {
   if (config.suspiciousIntakeMedianFraction <= 0 || config.suspiciousIntakeMedianFraction >= 1) {
     inputError('Suspicious intake median fraction must be between zero and one');
   }
-  if (config.intentionalFastTreatment !== 'exclude_from_intake') {
+  if (config.intentionalFastTreatment !== 'include_logged_intake') {
     inputError('Intentional fast treatment is invalid');
   }
 }
@@ -411,7 +414,7 @@ function normalizedEvidence(input: AdaptiveEligibilityInput): NormalizedEvidence
   );
   const alignedDailyCalories = alignedRawDailyCalories.filter((row) => {
     const status = confirmationByDate.get(row.date)?.status;
-    return status !== 'partial' && status !== 'intentional_fast';
+    return status !== 'partial';
   });
   const recentMedianCalories = alignedDailyCalories.length >= config.suspiciousIntakeMinimumPatternDays
     ? median(alignedDailyCalories.map((row) => row.calories))
@@ -545,6 +548,7 @@ function canonicalConfig(config: AdaptiveAlgorithmConfig): AdaptiveAlgorithmConf
     newEstimateWeight: config.newEstimateWeight,
     maximumTdeeChangeFraction: config.maximumTdeeChangeFraction,
     maximumTdeeChangeKcal: config.maximumTdeeChangeKcal,
+    maximumTargetChangeKcal: config.maximumTargetChangeKcal,
     minimumActivityMultiplier: config.minimumActivityMultiplier,
     trendHalfLifeDays: config.trendHalfLifeDays,
     macroCalorieToleranceKcal: config.macroCalorieToleranceKcal,
@@ -572,6 +576,7 @@ function canonicalEvidence(payload: AdaptiveEvidencePayload): AdaptiveEvidencePa
   }
   validateProfile(payload.profile, payload.configuredWindowEnd);
   requireFinitePositive(payload.previousTdee, 'Previous TDEE');
+  requireFinitePositive(payload.previousTargetCalories, 'Previous target calories');
   if (!Number.isInteger(payload.previousTargetId) || payload.previousTargetId <= 0) {
     inputError('Previous target ID must be a positive integer');
   }
@@ -603,6 +608,7 @@ function canonicalEvidence(payload: AdaptiveEvidencePayload): AdaptiveEvidencePa
       targetWeightKg: payload.profile.targetWeightKg,
     },
     previousTdee: payload.previousTdee,
+    previousTargetCalories: payload.previousTargetCalories,
     previousTargetId: payload.previousTargetId,
   };
 }
@@ -662,6 +668,7 @@ export function calculateAdaptiveRecommendation(
   const config = input.config ?? ADAPTIVE_ALGORITHM_CONFIG;
   validateConfig(config);
   requireFinitePositive(input.previousTdee, 'Previous TDEE');
+  requireFinitePositive(input.previousTargetCalories, 'Previous target calories');
   if (!Number.isInteger(input.previousTargetId) || input.previousTargetId <= 0) {
     inputError('Previous target ID must be a positive integer');
   }
@@ -694,7 +701,7 @@ export function calculateAdaptiveRecommendation(
   const averageIntakeKcal = intakeTotal / evidence.alignedDailyCalories.length;
   requireFinite(averageIntakeKcal, 'Average intake');
   const weightSlopeKgPerDay = estimateWeightSlopeKgPerDay(
-    evidence.weights.map((row) => ({ date: row.date, weightKg: row.scaleWeightKg })),
+    evidence.weights.map((row) => ({ date: row.date, weightKg: row.trendWeightKg })),
   );
   const dailyEnergyChangeKcal = weightSlopeKgPerDay * config.kcalPerKg;
   requireFinite(dailyEnergyChangeKcal, 'Daily energy change');
@@ -728,12 +735,19 @@ export function calculateAdaptiveRecommendation(
     };
   }
   const clampedTdee = Math.min(upperTdee, Math.max(lowerTdee, updatedTdee));
-  const proposedTdee = clampedTdee;
+  const proposedTdee = Math.max(tdeeFloor, clampedTdee);
   const goalAdjustment = input.profile.goalRateKgPerWeek * config.kcalPerKg / 7;
   requireFinite(goalAdjustment, 'Goal calorie adjustment');
-  const unflooredTarget = proposedTdee + goalAdjustment;
-  requireFinite(unflooredTarget, 'Unfloored calorie target');
-  const requestedTargetCalories = Math.round(unflooredTarget);
+  const goalBasedTarget = proposedTdee + goalAdjustment;
+  requireFinite(goalBasedTarget, 'Goal-based calorie target');
+  const lowerTarget = input.previousTargetCalories - config.maximumTargetChangeKcal;
+  const upperTarget = input.previousTargetCalories + config.maximumTargetChangeKcal;
+  if (![lowerTarget, upperTarget].every(Number.isFinite)) {
+    inputError('Permitted target update range overflowed');
+  }
+  const requestedTargetCalories = Math.round(
+    Math.min(upperTarget, Math.max(lowerTarget, goalBasedTarget)),
+  );
   requireFinite(requestedTargetCalories, 'Requested calorie target');
   let macros: MacroTargets;
   try {
@@ -783,6 +797,7 @@ export function calculateAdaptiveRecommendation(
     weights: evidence.weights,
     profile: input.profile,
     previousTdee: input.previousTdee,
+    previousTargetCalories: input.previousTargetCalories,
     previousTargetId: input.previousTargetId,
   });
   const recommendation: AdaptiveRecommendation = {

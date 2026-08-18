@@ -357,23 +357,45 @@ async function writeProfileUpdate(db: SQLite.SQLiteDatabase, params: ProfileUpda
   );
 }
 
-export async function updateProfilePresentation(params: ProfileUpdate): Promise<void> {
+export async function updateProfilePresentation(
+  params: Pick<ProfileUpdate, 'display_name' | 'weight_unit'>,
+): Promise<void> {
   const db = await getDb();
-  await db.withExclusiveTransactionAsync(async (txn) => {
-    const currentWeightKg = await latestPolicyWeight(txn, todayISO());
-    assertProfileSafe(params, { currentWeightKg, requireCurrentWeight: true });
-    await writeProfileUpdate(txn, params);
-  });
+  await db.runAsync(
+    'UPDATE profile SET display_name = ?, weight_unit = ? WHERE id = 1',
+    [params.display_name.trim(), params.weight_unit],
+  );
+}
+
+export class CurrentPlanChangedError extends Error {
+  constructor() {
+    super('Current plan changed. Review the updated values, then save again.');
+    this.name = 'CurrentPlanChangedError';
+  }
 }
 
 export async function updateProfileAndPlan(params: {
   profile: ProfileUpdate;
   target: DailyTargetInput;
+  expectedCurrentTargetId?: number;
 }): Promise<DailyTarget> {
   parseLocalISO(params.target.effective_date);
+  if (params.expectedCurrentTargetId != null
+    && (!Number.isInteger(params.expectedCurrentTargetId) || params.expectedCurrentTargetId <= 0)) {
+    throw new RangeError('Expected current target ID must be a positive integer');
+  }
   const db = await getDb();
   let saved: DailyTarget | null = null;
   await db.withExclusiveTransactionAsync(async (txn) => {
+    if (params.expectedCurrentTargetId != null) {
+      const currentTarget = await txn.getFirstAsync<Pick<DailyTarget, 'id'>>(
+        'SELECT id FROM daily_targets WHERE effective_date <= ? ORDER BY effective_date DESC, id DESC LIMIT 1',
+        [params.target.effective_date],
+      );
+      if (currentTarget?.id !== params.expectedCurrentTargetId) {
+        throw new CurrentPlanChangedError();
+      }
+    }
     const currentWeightKg = await latestPolicyWeight(txn, params.target.effective_date);
     assertTargetSafeForProfile(params.profile, params.target, currentWeightKg);
     await writeProfileUpdate(txn, params.profile);
