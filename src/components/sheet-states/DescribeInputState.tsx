@@ -13,9 +13,10 @@ interface DescribeInputStateProps {
   onBack: () => void;
   onSearch: () => void;
   onManualEntry: () => void;
+  onContentHeightChange: (height: number) => void;
 }
 
-export default function DescribeInputState({ onResult, onBack, onSearch, onManualEntry }: DescribeInputStateProps) {
+export default function DescribeInputState({ onResult, onBack, onSearch, onManualEntry, onContentHeightChange }: DescribeInputStateProps) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
       className="flex-1"
       keyboardShouldPersistTaps="handled"
       contentContainerClassName="px-5 pt-2 pb-6 gap-4"
+      onContentSizeChange={(_width, height) => onContentHeightChange(height)}
     >
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-1">

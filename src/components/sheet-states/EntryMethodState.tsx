@@ -79,6 +79,7 @@ interface EntryMethodStateProps {
   onRecentFoods: () => void;
   onWeight: () => void;
   estimatesAvailable: boolean;
+  onContentHeightChange: (height: number) => void;
 }
 
 export default function EntryMethodState({
@@ -89,6 +90,7 @@ export default function EntryMethodState({
   onRecentFoods,
   onWeight,
   estimatesAvailable,
+  onContentHeightChange,
 }: EntryMethodStateProps) {
   const { isNarrow } = useResponsiveLayout();
 
@@ -97,6 +99,7 @@ export default function EntryMethodState({
       contentContainerClassName="px-5 pt-2 pb-6"
       showsVerticalScrollIndicator
       persistentScrollbar
+      onContentSizeChange={(_width, height) => onContentHeightChange(height)}
     >
       <View className="gap-4">
         <Text accessibilityRole="header" className="text-xl font-bold text-m3-on-surface">Add entry</Text>

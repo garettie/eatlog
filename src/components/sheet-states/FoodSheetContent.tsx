@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
@@ -55,6 +55,20 @@ export type FoodSheetStateKey =
     | 'weight-input'
     | 'single-food-review'
     | 'manual-input';
+
+const CONTENT_SIZED_STATES: ReadonlySet<FoodSheetStateKey> = new Set([
+    'entry',
+    'describe',
+    'photo-title',
+    'scanning',
+    'permission-denied',
+    'estimation-error',
+    'weight-input',
+]);
+
+export function isContentSizedFoodSheetState(stateKey: FoodSheetStateKey): boolean {
+    return CONTENT_SIZED_STATES.has(stateKey);
+}
 
 type FoodSheetFailureKind =
     | FoodEstimationFailureKind
@@ -121,6 +135,7 @@ interface FoodSheetContentProps {
     onWeightLogged: (info: WeightLoggedInfo) => void;
     skipHistoryRef: React.MutableRefObject<boolean>;
     onGoBack: () => boolean;
+    onContentHeightChange: (stateKey: FoodSheetStateKey, height: number) => void;
 }
 
 interface PendingEstimatePhoto {
@@ -138,6 +153,7 @@ export default function FoodSheetContent({
     onMealLogged,
     onWeightLogged,
     skipHistoryRef,
+    onContentHeightChange,
     onGoBack,
 }: FoodSheetContentProps) {
     const reduced = useReducedMotion();
@@ -153,6 +169,8 @@ export default function FoodSheetContent({
     const [renderedStateKey, setRenderedStateKey] = useState(state.stateKey);
     const stateTransitionRequestRef = useRef(0);
     const enteringStateRef = useRef(false);
+    const stateContentHeightsRef = useRef<Partial<Record<FoodSheetStateKey, number>>>({});
+    const dateChipHeightRef = useRef(0);
     const stateOffset = useSharedValue(0);
     const stateOpacity = useSharedValue(1);
     fromBarRef.current = !!state.fromBar;
@@ -602,10 +620,39 @@ export default function FoodSheetContent({
         state.logDate !== todayISO() &&
         renderedStateKey !== 'weight-input';
 
+    const reportContentHeight = useCallback((height: number) => {
+        const nextHeight = Math.ceil(height);
+        if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+        stateContentHeightsRef.current[renderedStateKey] = nextHeight;
+        onContentHeightChange(
+            renderedStateKey,
+            nextHeight + (showLogDateChip ? dateChipHeightRef.current : 0),
+        );
+    }, [onContentHeightChange, renderedStateKey, showLogDateChip]);
+
+
+    const handleStaticContentLayout = useCallback(
+        (event: LayoutChangeEvent) => reportContentHeight(event.nativeEvent.layout.height),
+        [reportContentHeight],
+    );
+
+    const handleDateChipLayout = useCallback((event: LayoutChangeEvent) => {
+        const nextHeight = Math.ceil(event.nativeEvent.layout.height + 4);
+        if (dateChipHeightRef.current === nextHeight) return;
+        dateChipHeightRef.current = nextHeight;
+        const contentHeight = stateContentHeightsRef.current[renderedStateKey];
+        if (contentHeight) {
+            onContentHeightChange(renderedStateKey, contentHeight + nextHeight);
+        }
+    }, [onContentHeightChange, renderedStateKey]);
+
     return (
         <View style={{ flex: 1 }}>
             {showLogDateChip && (
-                <View className="mx-5 mb-1 self-start flex-row items-center gap-1.5 rounded-full bg-m3-surface-container-high px-3 py-1.5">
+                <View
+                    onLayout={handleDateChipLayout}
+                    className="mx-5 mb-1 self-start flex-row items-center gap-1.5 rounded-full bg-m3-surface-container-high px-3 py-1.5"
+                >
                     <MaterialIcons name="event" size={12} color={M3.onSurfaceVariant} />
                     <Text className="text-m3-on-surface-variant text-xs font-semibold">
                         Logging to {formatDayHeader(state.logDate!)}
@@ -624,58 +671,74 @@ export default function FoodSheetContent({
                         onRecentFoods={handleRecentFoods}
                         onWeight={handleWeight}
                         estimatesAvailable={serviceConfig.availability.gemini}
+                        onContentHeightChange={reportContentHeight}
                     />
                 )}
                 {renderedStateKey === 'describe' && (
-                    <DescribeInputState onResult={handleDescribeResult} onBack={onGoBack} onSearch={handleSearch} onManualEntry={handleManualEntry} />
+                    <DescribeInputState
+                        onResult={handleDescribeResult}
+                        onBack={onGoBack}
+                        onSearch={handleSearch}
+                        onManualEntry={handleManualEntry}
+                        onContentHeightChange={reportContentHeight}
+                    />
                 )}
                 {renderedStateKey === 'photo-title' && pendingPhotoRef.current && (
                     <PhotoMealTitleState
                         photoUri={pendingPhotoRef.current.uri}
                         onEstimate={(mealTitle) => { void handlePhotoEstimate(mealTitle); }}
                         onBack={handlePhotoTitleBack}
+                        onContentHeightChange={reportContentHeight}
                     />
                 )}
-                {renderedStateKey === 'scanning' && <ScanningState onCancel={handleScanCancel} />}
+                {renderedStateKey === 'scanning' && (
+                    <View onLayout={handleStaticContentLayout}>
+                        <ScanningState onCancel={handleScanCancel} />
+                    </View>
+                )}
                 {renderedStateKey === 'permission-denied' && (
-                    <PermissionDeniedState
-                        canAskAgain={state.cameraPermissionCanAskAgain !== false}
-                        onRetry={handleCamera}
-                        onClose={() => {
-                            setState((s) => ({ ...s, cameraPermissionCanAskAgain: null }));
-                            transitionTo('entry', { pushHistory: false });
-                        }}
-                    />
+                    <View onLayout={handleStaticContentLayout}>
+                        <PermissionDeniedState
+                            canAskAgain={state.cameraPermissionCanAskAgain !== false}
+                            onRetry={handleCamera}
+                            onClose={() => {
+                                setState((s) => ({ ...s, cameraPermissionCanAskAgain: null }));
+                                transitionTo('entry', { pushHistory: false });
+                            }}
+                        />
+                    </View>
                 )}
                 {renderedStateKey === 'estimation-error' && (
-                    <EstimationErrorState
-                        kind={state.estimationFailure ?? 'provider'}
-                        source={state.pendingAction === 'gallery' ? 'Gallery' : 'Camera'}
-                        onRetry={state.estimationFailure === 'unavailable' ? undefined : () => {
-                            skipHistoryRef.current = true;
-                            if (pendingPhotoRef.current) {
-                                void handlePhotoEstimate(scanMealTitleRef.current);
-                                return;
-                            }
-                            const action = state.pendingAction;
-                            setState((s) => ({ ...s, stateKey: 'scanning', pendingAction: action, estimationFailure: null }));
-                        }}
-                        onSearch={() => {
-                            discardPendingPhoto();
-                            skipHistoryRef.current = true;
-                            setState((s) => ({ ...s, stateKey: 'search', pendingAction: null, estimationFailure: null }));
-                        }}
-                        onDescribe={() => {
-                            discardPendingPhoto();
-                            skipHistoryRef.current = true;
-                            setState((s) => ({ ...s, stateKey: 'describe', pendingAction: null, estimationFailure: null }));
-                        }}
-                        onManualEntry={() => {
-                            discardPendingPhoto();
-                            skipHistoryRef.current = true;
-                            setState((s) => ({ ...s, stateKey: 'manual-input', pendingAction: null, estimationFailure: null }));
-                        }}
-                    />
+                    <View onLayout={handleStaticContentLayout}>
+                        <EstimationErrorState
+                            kind={state.estimationFailure ?? 'provider'}
+                            source={state.pendingAction === 'gallery' ? 'Gallery' : 'Camera'}
+                            onRetry={state.estimationFailure === 'unavailable' ? undefined : () => {
+                                skipHistoryRef.current = true;
+                                if (pendingPhotoRef.current) {
+                                    void handlePhotoEstimate(scanMealTitleRef.current);
+                                    return;
+                                }
+                                const action = state.pendingAction;
+                                setState((s) => ({ ...s, stateKey: 'scanning', pendingAction: action, estimationFailure: null }));
+                            }}
+                            onSearch={() => {
+                                discardPendingPhoto();
+                                skipHistoryRef.current = true;
+                                setState((s) => ({ ...s, stateKey: 'search', pendingAction: null, estimationFailure: null }));
+                            }}
+                            onDescribe={() => {
+                                discardPendingPhoto();
+                                skipHistoryRef.current = true;
+                                setState((s) => ({ ...s, stateKey: 'describe', pendingAction: null, estimationFailure: null }));
+                            }}
+                            onManualEntry={() => {
+                                discardPendingPhoto();
+                                skipHistoryRef.current = true;
+                                setState((s) => ({ ...s, stateKey: 'manual-input', pendingAction: null, estimationFailure: null }));
+                            }}
+                        />
+                    </View>
                 )}
                 {renderedStateKey === 'review-loading' && <ReviewLoadingState />}
                 {renderedStateKey === 'review' && (
@@ -709,7 +772,13 @@ export default function FoodSheetContent({
                         onBack={onGoBack}
                     />
                 )}
-                {renderedStateKey === 'weight-input' && <WeightInputState onLogComplete={handleWeightLogComplete} onBack={onGoBack} />}
+                {renderedStateKey === 'weight-input' && (
+                    <WeightInputState
+                        onLogComplete={handleWeightLogComplete}
+                        onBack={onGoBack}
+                        onContentHeightChange={reportContentHeight}
+                    />
+                )}
                 {renderedStateKey === 'single-food-review' && (
                     <SingleFoodReviewState food={state.selectedFood} onLogComplete={handleSingleLogComplete} initialMeal={state.pendingMeal} logDate={state.logDate ?? null} onBack={onGoBack} />
                 )}

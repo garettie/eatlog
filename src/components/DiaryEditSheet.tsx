@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -23,6 +23,7 @@ interface DiaryEditSheetProps {
 
 export default function DiaryEditSheet({ food, saving, onSave, onClosed }: DiaryEditSheetProps) {
   const [grams, setGrams] = useState(0);
+  const [contentMeasurement, setContentMeasurement] = useState<{ foodId: number; height: number } | null>(null);
   const baselineRef = useRef(0);
   const guard = useDiscardGuard();
   const closeRef = useRef<() => void>(() => { });
@@ -56,24 +57,41 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
     }
   }, [food, grams, onSave]);
 
+  const handleContentLayout = useCallback((event: LayoutChangeEvent) => {
+    if (!food) return;
+    const nextMeasurement = {
+      foodId: food.id,
+      height: Math.ceil(event.nativeEvent.layout.height),
+    };
+    setContentMeasurement((current) =>
+      current?.foodId === nextMeasurement.foodId && current.height === nextMeasurement.height
+        ? current
+        : nextMeasurement,
+    );
+  }, [food]);
+
   const ratio = food ? portionRatio(food, grams) : 1;
   const previewCals = food ? Math.round(food.calories * ratio) : 0;
   const previewP = food ? Math.round(food.protein_g * ratio * 10) / 10 : 0;
   const previewC = food ? Math.round(food.carbs_g * ratio * 10) / 10 : 0;
   const previewF = food ? Math.round(food.fat_g * ratio * 10) / 10 : 0;
+  const contentHeight =
+    food && contentMeasurement?.foodId === food.id
+      ? contentMeasurement.height
+      : null;
 
   return (
     <Sheet
       visible={food != null}
-      snapPoints={['50%']}
-      enableDynamicSizing
+      snapPoints={['100%']}
+      contentHeight={contentHeight}
       stateKey="diary-edit"
       canCloseRef={canCloseRef}
       sheetCloseRef={closeRef}
       onSheetClosed={onClosed}
     >
       {food && (
-        <View className="px-5 pb-6 gap-4" accessibilityViewIsModal>
+        <View onLayout={handleContentLayout} className="px-5 pb-6 gap-4" accessibilityViewIsModal>
           <View className="flex-row justify-between items-start">
             <View className="flex-1 mr-3">
               <Text className="text-m3-on-surface font-bold text-base" numberOfLines={2}>

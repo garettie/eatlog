@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { BackHandler, Keyboard, useWindowDimensions } from "react-native";
 import BottomSheet, {
 	BottomSheetBackdrop,
-	BottomSheetView,
 	type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import Animated, { useReducedMotion } from "react-native-reanimated";
@@ -12,13 +11,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DURATION } from "../theme/motion";
 import { M3 } from "../theme/tokens";
 
+const SHEET_HANDLE_HEIGHT = 24;
+
 interface SheetProps {
 	visible: boolean;
 	snapPoints: (string | number)[];
 	stateKey: string | number;
 	canCloseRef: React.MutableRefObject<() => boolean>;
 	children: React.ReactNode;
-	enableDynamicSizing?: boolean;
+	contentHeight?: number | null;
 	enablePanDownToClose?: boolean;
 	onGoBack?: () => boolean;
 	onSheetClosed?: () => void;
@@ -32,7 +33,7 @@ export default function Sheet({
 	stateKey,
 	canCloseRef,
 	children,
-	enableDynamicSizing = false,
+	contentHeight,
 	enablePanDownToClose = true,
 	onGoBack,
 	onSheetClosed,
@@ -46,6 +47,8 @@ export default function Sheet({
 	const lastIndexRef = useRef(0);
 	const wasVisible = useRef(false);
 	const prevStateKeyRef = useRef(stateKey);
+	const wasSizingReady = useRef(false);
+	const lastContentSnapPointRef = useRef<number | null>(null);
 	const forceCloseRef = useRef(forceClose);
 	forceCloseRef.current = forceClose;
 
@@ -61,16 +64,36 @@ export default function Sheet({
 	}, [sheetCloseRef]);
 
 	useEffect(() => {
+		const sizingReady = contentHeight !== null;
 		const openedNow = visible && !wasVisible.current;
 		const stateChanged = visible && prevStateKeyRef.current !== stateKey;
+		const becameReady = visible && sizingReady && !wasSizingReady.current;
+		let firstFrame: number | null = null;
+		let secondFrame: number | null = null;
 
-		if (openedNow || stateChanged) {
-			prevStateKeyRef.current = stateKey;
-			sheetRef.current?.snapToIndex(0);
+		if (sizingReady && (openedNow || stateChanged || becameReady)) {
+			const snapToCurrentDetent = () => {
+				prevStateKeyRef.current = stateKey;
+				sheetRef.current?.snapToIndex(0);
+			};
+			if (stateChanged || becameReady) {
+				firstFrame = requestAnimationFrame(() => {
+					secondFrame = requestAnimationFrame(() => {
+						snapToCurrentDetent();
+					});
+				});
+			} else {
+				snapToCurrentDetent();
+			}
 		}
 
 		wasVisible.current = visible;
-	}, [visible, stateKey]);
+		wasSizingReady.current = sizingReady;
+		return () => {
+			if (firstFrame !== null) cancelAnimationFrame(firstFrame);
+			if (secondFrame !== null) cancelAnimationFrame(secondFrame);
+		};
+	}, [contentHeight, visible, stateKey]);
 
 	useEffect(() => {
 		if (!visible) {
@@ -166,14 +189,33 @@ export default function Sheet({
 		}),
 		[windowWidth],
 	);
+	const bottomInset = Math.max(insets.bottom, 8);
+	const resolvedSnapPoints = useMemo(() => {
+		const maxSheetHeight = Math.max(
+			SHEET_HANDLE_HEIGHT + 1,
+			windowHeight - insets.top - bottomInset,
+		);
+		if (typeof contentHeight === "number") {
+			const contentSnapPoint = Math.min(
+				contentHeight + SHEET_HANDLE_HEIGHT,
+				maxSheetHeight,
+			);
+			lastContentSnapPointRef.current = contentSnapPoint;
+			return [contentSnapPoint];
+		}
+		if (contentHeight === null && lastContentSnapPointRef.current !== null) {
+			return [Math.min(lastContentSnapPointRef.current, maxSheetHeight)];
+		}
+		return snapPoints;
+	}, [bottomInset, contentHeight, insets.top, snapPoints, windowHeight]);
 
 	return (
 		<BottomSheet
 			ref={sheetRef}
 			index={-1}
-			snapPoints={snapPoints}
+			snapPoints={resolvedSnapPoints}
 			animateOnMount={false}
-			enableDynamicSizing={enableDynamicSizing}
+			enableDynamicSizing={false}
 			enablePanDownToClose={enablePanDownToClose}
 			enableContentPanningGesture={false}
 			onChange={handleChange}
@@ -184,18 +226,12 @@ export default function Sheet({
 			keyboardBehavior="interactive"
 			keyboardBlurBehavior="restore"
 			topInset={insets.top}
-			bottomInset={Math.max(insets.bottom, 8)}
+			bottomInset={bottomInset}
 			containerStyle={containerStyle}
 			style={sheetStyle}
 			animationConfigs={animationConfigs}
 		>
-			<Animated.View style={styles.content}>
-				{enableDynamicSizing ? (
-					<BottomSheetView style={{ flex: 1 }}>{children}</BottomSheetView>
-				) : (
-					children
-				)}
-			</Animated.View>
+			<Animated.View style={styles.content}>{children}</Animated.View>
 		</BottomSheet>
 	);
 }

@@ -10,12 +10,14 @@ interface PhotoMealTitleStateProps {
   photoUri: string;
   onEstimate: (mealTitle: string) => void;
   onBack: () => void;
+  onContentHeightChange: (height: number) => void;
 }
 
 export default function PhotoMealTitleState({
   photoUri,
   onEstimate,
   onBack,
+  onContentHeightChange,
 }: PhotoMealTitleStateProps) {
   const [mealTitle, setMealTitle] = useState('');
 
@@ -29,6 +31,7 @@ export default function PhotoMealTitleState({
       className="flex-1"
       keyboardShouldPersistTaps="handled"
       contentContainerClassName="px-5 pt-2 pb-6 gap-4"
+      onContentSizeChange={(_width, height) => onContentHeightChange(height)}
     >
       <View className="flex-row items-center gap-1">
         <SheetBackButton onPress={onBack} />

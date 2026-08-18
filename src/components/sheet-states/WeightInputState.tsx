@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Platform, Pressable, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -28,6 +28,7 @@ import { supportsHealthConnect } from '../../services/platformFeatures';
 interface WeightInputStateProps {
   onLogComplete: (result: SaveWeightResult) => void;
   onBack: () => void;
+  onContentHeightChange: (height: number) => void;
 }
 
 interface Baseline {
@@ -55,7 +56,7 @@ function confirmLargeJump(): Promise<boolean> {
   });
 }
 
-export default function WeightInputState({ onLogComplete, onBack }: WeightInputStateProps) {
+export default function WeightInputState({ onLogComplete, onBack, onContentHeightChange }: WeightInputStateProps) {
   const discardGuard = useDiscardGuardContext();
   const [dateISO, setDateISO] = useState(() => todayISO());
   const [unit, setUnit] = useState<WeightUnit>('kg');
@@ -180,9 +181,14 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
     }
   }, [effectiveDate, onLogComplete, unit, weightText]);
 
+  const handleContentLayout = useCallback(
+    (event: LayoutChangeEvent) => onContentHeightChange(event.nativeEvent.layout.height),
+    [onContentHeightChange],
+  );
+
   if (!ready && !loadError) {
     return (
-      <View className="flex-1 px-5 gap-5">
+      <View className="px-5 pb-8 gap-5">
         <View className="flex-row items-center gap-1">
           <SheetBackButton onPress={onBack} />
           <View className="h-6 w-28 rounded-full bg-m3-surface-container-highest" />
@@ -196,7 +202,7 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
 
   if (loadError || !birthDate) {
     return (
-      <View className="flex-1 items-center justify-center px-6 gap-4">
+      <View onLayout={handleContentLayout} className="min-h-[240px] items-center justify-center px-6 gap-4">
         <View className="absolute left-5 top-2">
           <SheetBackButton onPress={onBack} />
         </View>
@@ -210,7 +216,12 @@ export default function WeightInputState({ onLogComplete, onBack }: WeightInputS
   }
 
   return (
-    <BottomSheetScrollView className="flex-1" contentContainerClassName="px-5 pb-8 gap-5" keyboardShouldPersistTaps="handled">
+    <BottomSheetScrollView
+      className="flex-1"
+      contentContainerClassName="px-5 pb-8 gap-5"
+      keyboardShouldPersistTaps="handled"
+      onContentSizeChange={(_width, height) => onContentHeightChange(height)}
+    >
       <View className="flex-row items-center gap-1">
         <SheetBackButton onPress={onBack} />
         <View className="flex-1">

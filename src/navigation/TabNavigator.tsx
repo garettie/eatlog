@@ -11,7 +11,7 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import ProfileNavigator from './ProfileNavigator';
 import LogToast, { type LogToastTone } from '../components/LogToast';
 import Sheet from '../components/Sheet';
-import FoodSheetContent, { type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo, type WeightLoggedInfo } from '../components/sheet-states/FoodSheetContent';
+import FoodSheetContent, { isContentSizedFoodSheetState, type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo, type WeightLoggedInfo } from '../components/sheet-states/FoodSheetContent';
 import type { MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
 import { deleteFoodLog, deleteMeal, restoreWeightSave, type MealType } from '../db/database';
@@ -54,6 +54,7 @@ const INITIAL: FoodSheetState = {
 
 export default function TabNavigator() {
     const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
+    const [sheetContentHeights, setSheetContentHeights] = useState<Partial<Record<FoodSheetStateKey, number>>>({});
     const [toast, setToast] = useState<{ message: string; tone?: LogToastTone; undo?: () => void | Promise<void> } | null>(null);
     const [shareMeal, setShareMeal] = useState<MealShareData | null>(null);
     const [dataVersion, setDataVersion] = useState(0);
@@ -94,6 +95,7 @@ export default function TabNavigator() {
         });
         return () => subscription.remove();
     }, [reconcileHealthConnect]);
+
 
     const openEntry = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
@@ -220,34 +222,19 @@ export default function TabNavigator() {
         [],
     );
 
-    const snapPoints = useMemo((): (string | number)[] => {
-        switch (sheet.stateKey) {
-            case 'entry':
-                return ['60%'];
-            case 'photo-title':
-                return ['68%'];
-            case 'scanning':
-            case 'permission-denied':
-                return ['50%'];
-            case 'describe':
-                return ['30%'];
-            case 'review-loading':
-            case 'review':
-                return ['100%'];
-            case 'search':
-            case 'recent-foods':
-            case 'single-food-review':
-                return ['100%'];
-            case 'weight-input':
-                return ['50%'];
-            case 'manual-input':
-                return ['40%', '100%'];
-            case 'estimation-error':
-                return ['42%', '100%'];
-            default:
-                return ['50%', '100%'];
-        }
-    }, [sheet.stateKey]);
+    const snapPoints = useMemo((): (string | number)[] => ['100%'], []);
+    const contentHeight = isContentSizedFoodSheetState(sheet.stateKey)
+        ? sheetContentHeights[sheet.stateKey] ?? null
+        : undefined;
+    const handleSheetContentHeightChange = useCallback((stateKey: FoodSheetStateKey, height: number) => {
+        const nextHeight = Math.ceil(height);
+        if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+        setSheetContentHeights((current) =>
+            current[stateKey] === nextHeight
+                ? current
+                : { ...current, [stateKey]: nextHeight },
+        );
+    }, []);
 
     const handleMealLogged = useCallback(
         (info: LoggedEntryInfo) => {
@@ -441,6 +428,7 @@ export default function TabNavigator() {
             <Sheet
                 visible={sheet.visible}
                 snapPoints={snapPoints}
+                contentHeight={contentHeight}
                 stateKey={sheet.stateKey}
                 canCloseRef={canCloseRef}
                 onGoBack={handleSheetGoBack}
@@ -459,6 +447,7 @@ export default function TabNavigator() {
                     onMealLogged={handleMealLogged}
                     onWeightLogged={handleWeightLogged}
                     skipHistoryRef={skipHistoryRef}
+                    onContentHeightChange={handleSheetContentHeightChange}
                     onGoBack={handleSheetGoBack}
                 />
             </Sheet>
