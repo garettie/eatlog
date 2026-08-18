@@ -21,7 +21,8 @@ test('photo capture pauses for a meal title before the first scan request', () =
   assert.match(foodSheetSource, /scanFood\([^,]+,\s*mealTitle/);
 });
 
-test('sheet sizing changes keep the pending photo state mounted', () => {
+test('sheet sizing stays stable and gives estimation errors a compact detent', () => {
   assert.doesNotMatch(tabNavigatorSource, /const enableDynamicSizing/);
   assert.doesNotMatch(tabNavigatorSource, /enableDynamicSizing=\{/);
+  assert.match(tabNavigatorSource, /case 'estimation-error':\s+return \['42%', '100%'\];/);
 });

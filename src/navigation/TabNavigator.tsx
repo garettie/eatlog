@@ -242,6 +242,8 @@ export default function TabNavigator() {
                 return ['50%'];
             case 'manual-input':
                 return ['40%', '100%'];
+            case 'estimation-error':
+                return ['42%', '100%'];
             default:
                 return ['50%', '100%'];
         }
