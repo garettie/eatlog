@@ -109,6 +109,17 @@ test('review dismissal keeps discard protection for direct entry flows', () => {
   assert.match(tabNavigatorSource, /sheet\.stateKey !== 'review'/);
 });
 
+test('tapping a diary meal opens its review sheet without an animation-frame handoff', () => {
+  const openEditMealSource = tabNavigatorSource.slice(
+    tabNavigatorSource.indexOf('const openEditMeal'),
+    tabNavigatorSource.indexOf('const resetToEntry'),
+  );
+
+  assert.match(openEditMealSource, /stateKey: 'review'/);
+  assert.match(openEditMealSource, /describeResult: result/);
+  assert.doesNotMatch(openEditMealSource, /requestAnimationFrame/);
+});
+
 test('component disclosures announce state and Undo respects accessibility timing', () => {
   assert.match(reviewStateSource, /announceForAccessibility/);
   assert.match(reviewStateSource, /getRecommendedTimeoutMillis\(UNDO_TIMEOUT_MS\)/);

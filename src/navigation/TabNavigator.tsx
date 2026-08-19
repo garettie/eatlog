@@ -140,35 +140,27 @@ export default function TabNavigator() {
     }, []);
 
     const openEditMeal = useCallback((mealGroup: MealGroup) => {
+        const components = mealGroup.components.map((log, i) =>
+            foodResultFromLog(log, `meal-edit-${mealGroup.id}-${i}`)
+        );
+        if (!components.length) return;
+
+        const result: DescribeResult = {
+            mealName: mealGroup.name,
+            components,
+        };
+
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
         setSheet({
             ...INITIAL,
             visible: true,
-            stateKey: 'review-loading',
+            stateKey: 'review',
+            describeResult: result,
             photoUri: mealGroup.photoUri ?? null,
             editMealId: mealGroup.id,
             pendingMeal: mealGroup.components[0]?.meal ?? null,
             logDate: mealGroup.components[0]?.log_date ?? null,
-        });
-
-        requestAnimationFrame(() => {
-            const components = mealGroup.components.map((log, i) =>
-                foodResultFromLog(log, `meal-edit-${mealGroup.id}-${i}`)
-            );
-            if (!components.length) return;
-
-            const result: DescribeResult = {
-                mealName: mealGroup.name,
-                components,
-            };
-
-            setSheet((current) => {
-                if (!current.visible || current.stateKey !== 'review-loading' || current.editMealId !== mealGroup.id) {
-                    return current;
-                }
-                return { ...current, stateKey: 'review', describeResult: result };
-            });
         });
     }, []);
 
