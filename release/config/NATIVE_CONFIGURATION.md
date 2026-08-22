@@ -1,17 +1,19 @@
 # Eatlog native configuration record
 
-Review date: 2026-08-11
+Review date: 2026-08-22
 
 ## Application identities
 
 | Target | Identifier | Status |
 | --- | --- | --- |
 | Android production | `com.sgaret.eatlog` | Existing fixed package name |
+| Android preview | `com.sgaret.eatlog.preview` | Standalone internal APK named `Eatlog Preview`; isolated from production installs |
 | Android development | `com.sgaret.eatlog.dev` | Evaluated development variant |
 | iOS production candidate | `com.sgaret.eatlog` | STORE ACCOUNT: Apple reservation is unverified |
+| iOS preview | `com.sgaret.eatlog.preview` | Evaluated preview variant; registration is account-bound when signing is attempted |
 | iOS development | `com.sgaret.eatlog.dev` | Evaluated development variant; registration is account-bound when signing is attempted |
 
-Every variant keeps the installed name and brand `Eatlog`. Development builds coexist by identifier, not by renaming the product.
+Production and development keep the installed name `Eatlog`. Preview uses `Eatlog Preview` so testers can distinguish it, and both non-production variants coexist with production by identifier.
 
 ## Health Connect plugin decision
 
@@ -54,7 +56,7 @@ Prebuild without CocoaPods found privacy manifests in Expo File System, Expo Con
 
 ## EAS configuration
 
-The production profile selects store distribution, the production channel, remote version management, automatic build-number increments, Android App Bundle output, and the production Expo environment. With no Android-only restriction, the same profile plans an iOS App Store build. `development-simulator` is available for an iOS simulator build and uses the development identifier. The only submit profile checked in contains account-independent values: Google Play internal testing with draft status. Running it still requires a store record and credentials.
+The production profile selects store distribution, the production channel, remote version management, automatic build-number increments, Android App Bundle output, and the production Expo environment. With no Android-only restriction, the same profile plans an iOS App Store build. The standalone preview profile uses the preview Expo environment, the `subscription-preview` channel, the `Eatlog Preview` name, and the preview identifier. `development-simulator` is available for an iOS simulator build and uses the development identifier. The only submit profile checked in contains account-independent values: Google Play internal testing with draft status. Running it still requires a store record and credentials.
 
 The following fields remain deliberately absent:
 

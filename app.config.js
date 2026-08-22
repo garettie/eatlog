@@ -1,7 +1,17 @@
-const isDevelopment = process.env.APP_VARIANT === "development";
+const appVariant = process.env.APP_VARIANT;
+const isDevelopment = appVariant === "development";
+const isPreview = appVariant === "preview";
+
+const appName = isPreview ? "Eatlog Preview" : "Eatlog";
+const appIdentifier = isDevelopment
+  ? "com.sgaret.eatlog.dev"
+  : isPreview
+    ? "com.sgaret.eatlog.preview"
+    : "com.sgaret.eatlog";
 
 module.exports = ({ config }) => ({
   ...config,
+  name: appName,
   updates: {
     url: "https://u.expo.dev/700befb6-016e-4d35-a35c-bd375da07e4d",
   },
@@ -10,10 +20,10 @@ module.exports = ({ config }) => ({
   },
   android: {
     ...config.android,
-    package: isDevelopment ? "com.sgaret.eatlog.dev" : config.android.package,
+    package: appIdentifier,
   },
   ios: {
     ...config.ios,
-    bundleIdentifier: isDevelopment ? "com.sgaret.eatlog.dev" : config.ios.bundleIdentifier,
+    bundleIdentifier: appIdentifier,
   },
 });

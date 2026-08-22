@@ -24,6 +24,7 @@ const WEIGHT_PERMISSIONS: Permission[] = [
 
 const EATLOG_APPLICATION_IDS = [
   'com.sgaret.eatlog',
+  'com.sgaret.eatlog.preview',
   'com.sgaret.eatlog.dev',
   'com.marco.tracker',
   'com.marco.tracker.dev',

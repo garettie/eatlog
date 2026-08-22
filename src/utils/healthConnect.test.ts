@@ -43,12 +43,14 @@ test('same-day selection uses latest measurement and excludes current and legacy
     candidate({ recordId: 'latest-old-mod', measuredAt: '2026-08-01T08:00:00.000Z', lastModifiedAt: '2026-08-01T08:01:00.000Z' }),
     candidate({ recordId: 'latest-new-mod', measuredAt: '2026-08-01T08:00:00.000Z', lastModifiedAt: '2026-08-01T09:00:00.000Z', weightKg: 79.5 }),
     candidate({ recordId: 'own-production', dataOrigin: 'com.sgaret.eatlog', measuredAt: '2026-08-01T10:00:00.000Z' }),
+    candidate({ recordId: 'own-preview', dataOrigin: 'com.sgaret.eatlog.preview', measuredAt: '2026-08-01T10:00:00.000Z' }),
     candidate({ recordId: 'own-development', dataOrigin: 'com.sgaret.eatlog.dev', measuredAt: '2026-08-01T10:00:00.000Z' }),
     candidate({ recordId: 'legacy-production', dataOrigin: 'com.marco.tracker', measuredAt: '2026-08-01T10:00:00.000Z' }),
     candidate({ recordId: 'legacy-development', dataOrigin: 'com.marco.tracker.dev', measuredAt: '2026-08-01T10:00:00.000Z' }),
   ];
   const selected = selectLatestExternalWeights(records, [
     'com.sgaret.eatlog',
+    'com.sgaret.eatlog.preview',
     'com.sgaret.eatlog.dev',
     'com.marco.tracker',
     'com.marco.tracker.dev',
