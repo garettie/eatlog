@@ -27,7 +27,7 @@ Eatlog uses online services only for the actions described below.
 
 Before the first request, Eatlog shows a short choice: you can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA/Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. When enabled, Scan, Describe, clarification, and re-estimation require the current accepted consent version; Profile → Privacy lets you turn online estimates off.
 
-After consent, Eatlog sends the selected, resized photo or meal text through the Eatlog Cloudflare Worker to Google Gemini to produce a nutrition estimate. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the estimate before saving it.
+Taking or choosing a meal photo and reusing a past meal stays on the device. After consent, choosing Estimate as new sends the selected, resized photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini; Describe and re-estimation send the meal text you enter. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the result before saving it.
 
 ### USDA FoodData Central
 

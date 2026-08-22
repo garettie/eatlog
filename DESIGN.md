@@ -1,6 +1,6 @@
 ---
 name: Eatlog
-description: Local-first adaptive macro tracking with scanner-first food logging.
+description: Local-first adaptive macro tracking with photo-first food logging.
 phase_3_status: Implemented (2026-07-29)
 colors:
   surface: "#111318"
@@ -108,7 +108,7 @@ components:
 
 Eatlog is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.
 
-The system is scanner-first. The most delightful visual moment is a real meal photo when one exists; otherwise food-relevant Material Community icons preserve semantic recognition. Motion confirms state, navigation, selection, and calculation. It never exists as ambient decoration.
+The system is photo-first. The most delightful visual moment is a real meal photo paired with a locally reused or newly estimated meal; otherwise food-relevant Material Community icons preserve semantic recognition. Motion confirms state, navigation, selection, and calculation. It never exists as ambient decoration.
 
 Profile completes the product shell. It gives occasional, high-consequence work a stable home without crowding Today, Diary, or Analytics. Profile replaces the Sync tab. Data & Sync becomes one branch inside Profile; cloud sync does not appear until it works. The shell has four tabs and one center Add FAB.
 
@@ -120,7 +120,7 @@ Profile completes the product shell. It gives occasional, high-consequence work 
 - Android-native bottom sheets, Back behavior, 48dp touch targets, and reduced-motion support.
 - A Profile destination that groups plan, preferences, owned data, and help through progressive disclosure.
 
-**The Scanner-First Rule.** Camera capture, gallery import, and meal description are the primary entry routes. Search and manual entry remain capable fallbacks, never the visual center of the product.
+**The Photo-First Rule.** Camera capture and gallery import lead to Identify meal: reuse up to three ranked past meals locally, or explicitly choose Estimate as new. Meal description remains a primary online route. Search and manual entry remain capable fallbacks, never the visual center of the product.
 
 ## Colors
 
@@ -244,7 +244,7 @@ Profile uses the same Operate mode as the rest of Eatlog. It should feel like an
 ### Help and About
 
 - Use short, task-based articles: Targets, Trend weight, Adaptive reviews, Food estimates, and Backups.
-- Privacy copy distinguishes local data from photos/queries sent to remote food services.
+- Privacy copy distinguishes local camera/gallery selection and past-meal reuse from explicit estimates and queries sent to remote food services.
 - About uses compact labeled rows for version, build, database version, data sources, licenses, and privacy.
 
 ### Settings states and feedback
@@ -254,13 +254,13 @@ Profile uses the same Operate mode as the rest of Eatlog. It should feel like an
 - Consequential forms keep user input after validation or service errors.
 - Use inline field errors for validation, a snackbar for a completed reversible save, and a dialog for restore/reset decisions.
 - Long operations announce busy and completion states. Do not hide an error by returning to Profile.
-- Scan service failure preserves the chosen path and offers Retry, Search foods, Describe instead, or Enter manually.
+- Estimate failure preserves the selected photo and title, restores local past-meal reuse, and keeps Search foods, Describe instead, and Enter manually available.
 
 ## Current-State Design Findings
 
 - The core daily surfaces share a clear product language and use nutrient colors with discipline.
 - Profile now occupies the fourth tab with working plan-edit routes and a versioned plan preview; Data & Sync actions and help routes remain planned. The center Add FAB remains an action rather than a fifth tab.
-- Camera/gallery estimation can return to entry without explaining the failure. This violates the scanner-first promise and must change before release.
+- Camera/gallery selection stays local through Identify meal; cancellation, consent decline, and estimate failure preserve the photo, title, and reuse options.
 - App typography resolves through one Onest family and one normalized scale. Former arbitrary 10px metadata now uses the semantic 11px compact role, including SVG chart labels.
 - Current PNG screenshots are historical references, not release evidence. Runtime visual QA requires screenshots from the signed Android build.
 
@@ -272,7 +272,7 @@ Profile uses the same Operate mode as the rest of Eatlog. It should feel like an
 - **Do** gate every Reanimated timing/entering motion through reduced-motion behavior; normal transitions stay in the 200–400ms range.
 - **Do** keep diary food names semantic: show a stored scan thumbnail when available, otherwise use the deterministic food icon map.
 - **Do** reserve a fixed right-side numeric column in diary entry rows; names wrap to two lines rather than colliding with kcal figures.
-- **Do** use the same scanner-first entry vocabulary across Dashboard, Diary Entry Bar, and Food Sheet.
+- **Do** use the same photo-first entry vocabulary across Dashboard, Diary Entry Bar, and Food Sheet.
 - **Do** reuse Analytics Current/Proposed cards for plan previews so target changes follow one comparison pattern.
 - **Do** show current values in Profile rows so users can inspect the plan without opening every screen.
 - **Do** keep cloud sync inside Data & Sync when it ships.

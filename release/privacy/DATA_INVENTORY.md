@@ -11,7 +11,7 @@ Verified against source on 2026-08-11. This inventory describes the account-free
 | Food history and meals | Dates, meal type, food names, source identifiers, brands, preparation, portions, grams, calories and macros, meal relationships | App-private SQLite tables until deletion, reset, or app removal | Only content deliberately sent for an online lookup or estimate | Add, edit, delete, undo; included in backup and CSV export |
 | Weight history | Dates, scale and trend weight, revision, record origin, and Android Health Connect origin metadata | App-private SQLite until deletion, reset, or app removal | Android Health Connect records can cross the app boundary only after the user enables that connection | Add, edit, delete; included in backup and CSV export |
 | Health Connect state | Android-only enabled flag, last-sync time, exported-record IDs, revisions, and pending-delete flags | App-private SQLite; restored archives have device-specific connection state cleared | Only to Android Health Connect, not to Eatlog's Worker | Connect/disconnect; revoke in Android settings; reset attempts to remove Eatlog-written records |
-| Meal photos | App-private image files and SQLite file references | A successful Scan copies the selected image into app-private storage for review and a saved meal; saved files remain until meal-photo removal, reset, or app removal | A resized/compressed representation is sent when the user chooses Scan; a locally rendered meal card leaves only through user-directed Save image or system sharing | Choose camera/gallery content, remove a meal photo, save a derived meal card to Photos/Gallery, share it to a selected destination, exclude photos from CSV, include referenced photos in backup, reset |
+| Meal photos | App-private image files and SQLite file references | A photo used for a reused or newly estimated meal is copied at most once into app-private storage for review and saving; saved files remain until meal-photo removal, reset, or app removal | Camera/gallery selection and past-meal reuse stay local; a resized/compressed representation is sent only when the user chooses Estimate as new; a locally rendered meal card leaves only through user-directed Save image or system sharing | Choose camera/gallery content, reuse local meal history, remove a meal photo, save a derived meal card to Photos/Gallery, share it to a selected destination, exclude photos from CSV, include referenced photos in backup, reset |
 | AI food cache | Normalized foods, brands, preparation, serving information, nutrition values, and Scan/Describe source | `food_cache` in SQLite until reset or app removal | No additional transmission; populated from a returned estimate | Included in database backup, excluded from human-readable CSV, removed by reset |
 | Pins | Keys for pinned foods | `pinned_foods` in SQLite until unpinned, reset, or app removal | No | Pin/unpin; included in database backup |
 | Online search cache | Recent USDA/Open Food Facts result sets and provider state | In process memory for a short TTL; ends when the app process ends | The original lookup already used the provider described below | Search cancellation, retry, or app close |
@@ -22,12 +22,13 @@ SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals
 
 ## Network data flows
 
-### Scan, Describe, and re-estimation
+### Estimate as new, Describe, and re-estimation
 
-1. The user selects Scan, Upload photo, Describe, clarification, or re-estimation and accepts the current online-estimate consent when required. A decline returns to the prior state without sending data.
-2. Scan sends a resized/compressed base64 image; Describe and re-estimation send the entered food or meal text. Requests also carry the app-scoped installation token.
-3. The Eatlog Cloudflare Worker validates the request, applies installation-token and IP-based rate limits, and sends the requested content to Google Gemini.
-4. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
+1. The user can take or choose a photo and search or reuse grouped meal history entirely on the device. Those actions do not request online-estimate consent, prepare an upload, or contact the Worker.
+2. If the user chooses Estimate as new, Describe, clarification, or re-estimation, Eatlog requests the current online-estimate consent when required. A decline keeps the selected photo, title, and local suggestions without sending data.
+3. Estimate as new sends a resized/compressed base64 image and optional meal title; Describe and re-estimation send the entered food or meal text. Requests also carry the app-scoped installation token.
+4. The Eatlog Cloudflare Worker validates the request, applies installation-token and IP-based rate limits, and sends the requested content to Google Gemini.
+5. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
 
 The Worker must not log request bodies, images, descriptions, prompts, model responses, raw installation tokens, token hashes, IP addresses, headers, or secrets. M6 tests and runbooks verify that constraint. Cloudflare and Google process the request to provide and protect the service; their production terms and retention settings require an owner console review before release.
 

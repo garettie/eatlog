@@ -5,6 +5,10 @@ import { computeWeightTrend } from '../utils/weightTrend';
 import { CLEAR_HEALTH_CONNECT_DEVICE_STATE_SQL } from './healthConnectDeviceState';
 import { CURRENT_DATABASE_VERSION, migrateDatabase } from './databaseMigrations';
 import {
+  HAS_REUSABLE_MEALS_SQL,
+  buildMealReuseSuggestionQuery,
+} from './mealReuseSuggestions';
+import {
   assertProfileSafe,
   assertTargetSafe,
   validateWeightKg,
@@ -1005,6 +1009,7 @@ export interface LoggedMeal {
   meal_name: string;
   meal_type: MealType;
   photo_uri: string | null;
+  log_date: string;
   component_count: number;
   total_calories: number;
   total_protein: number;
@@ -1020,7 +1025,7 @@ export async function getLoggedMeals(query: string): Promise<LoggedMeal[]> {
   const normalizedQuery = `%${query.trim().toLowerCase()}%`;
   return db.getAllAsync<LoggedMeal>(
     `WITH meal_totals AS (
-       SELECT m.id AS meal_id, m.name AS meal_name, m.meal_type, m.photo_uri,
+       SELECT m.id AS meal_id, m.name AS meal_name, m.meal_type, m.photo_uri, m.log_date,
               COUNT(f.id) AS component_count,
               SUM(f.calories) AS total_calories,
               SUM(f.protein_g) AS total_protein,
@@ -1040,6 +1045,18 @@ export async function getLoggedMeals(query: string): Promise<LoggedMeal[]> {
      ORDER BY is_pinned DESC, last_logged_at DESC, meal_id DESC`,
     [normalizedQuery],
   );
+}
+
+export async function getMealReuseSuggestions(query: string, limit = 3): Promise<LoggedMeal[]> {
+  const db = await getDb();
+  const built = buildMealReuseSuggestionQuery(query, limit);
+  return db.getAllAsync<LoggedMeal>(built.sql, built.params);
+}
+
+export async function hasReusableMeals(): Promise<boolean> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ has_reusable_meals: number }>(HAS_REUSABLE_MEALS_SQL);
+  return row?.has_reusable_meals === 1;
 }
 
 export async function setFoodPinned(foodKey: string, isPinned: boolean): Promise<void> {

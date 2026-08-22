@@ -50,13 +50,14 @@ test('release config keeps media access write-only', () => {
   ]);
   const imagePicker = releaseConfig.plugins.find((plugin) =>
     Array.isArray(plugin) && plugin[0] === 'expo-image-picker');
-  assert.equal(imagePicker[1].photosPermission, 'Allow Eatlog to access photos to scan meals.');
+  assert.equal(imagePicker[1].photosPermission, 'Allow Eatlog to choose meal photos for local reuse or estimates you request.');
+  assert.equal(imagePicker[1].cameraPermission, 'Allow Eatlog to take meal photos for local reuse or estimates you request.');
   assert.equal(imagePicker[1].microphonePermission, false);
 
   const mediaLibrary = releaseConfig.plugins.find((plugin) =>
     Array.isArray(plugin) && plugin[0] === 'expo-media-library');
   assert.deepEqual(mediaLibrary[1], {
-    photosPermission: 'Allow Eatlog to access photos to scan meals.',
+    photosPermission: 'Allow Eatlog to choose meal photos for local reuse or estimates you request.',
     savePhotosPermission: 'Allow Eatlog to save share images to your photo library.',
     granularPermissions: [],
   });

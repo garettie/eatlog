@@ -292,7 +292,7 @@ export function PrivacyScreen() {
     const [consentBusy, setConsentBusy] = useState(false);
     const estimateEnabled = decision === 'accepted';
     const estimateCopy = serviceConfig.availability.gemini
-        ? 'When you scan, describe, or re-estimate a meal, Eatlog sends the photo and any meal title you add, or the text you enter, to Google Gemini through Eatlog’s online service to create the estimate. The request uses an app-specific token and your IP address to prevent abuse.'
+        ? 'Taking or choosing a photo and reusing a past meal stays on your device. When you choose Estimate as new, Describe, or re-estimate, Eatlog sends the selected photo and any meal title you add, or the text you enter, to Google Gemini through Eatlog’s online service. The request uses an app-specific token and your IP address to prevent abuse.'
         : 'This version of Eatlog can’t estimate meals.';
 
     const handleEstimatePrivacyAction = async () => {

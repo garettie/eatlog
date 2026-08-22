@@ -14,13 +14,13 @@ Adults who want a local-first nutrition and weight log on Android or iOS. Person
 
 ## Product Purpose
 
-Eatlog is a local-first calorie and macro tracker built around adaptive truth: targets can move from the starting calculator estimate to evidence-based weekly recommendations from logged intake and trend weight. The implemented product delivers the starting plan, scanner-first meal logging, diary review, daily weight check-ins, Analytics, and Accept/Keep adaptive reviews.
+Eatlog is a local-first calorie and macro tracker built around adaptive truth: targets can move from the starting calculator estimate to evidence-based weekly recommendations from logged intake and trend weight. The implemented product delivers the starting plan, photo-first meal logging with local history reuse, diary review, daily weight check-ins, Analytics, and Accept/Keep adaptive reviews.
 
 The MVP is complete when users can maintain the plan after onboarding, recover or export owned data, understand remote service use, and finish the daily loop on Android or iOS. Profile is the fourth tab; backup, restore, export, and future sync live under Profile > Data & Sync. The center Add control remains a FAB trigger, not a tab.
 
 ## Positioning
 
-MacroFactor-class premium UX at public-release scale. The differentiator is a fast scanner-first log flow: point the camera at a meal, review the components and portion, and log it. Real scan photos in the diary make that history feel personal; deterministic food icons make every non-photo entry immediately recognizable. Premium feel comes from cohesive Android-native behavior, honest calculations, and deliberate motion, not gamification.
+MacroFactor-class premium UX at public-release scale. The differentiator is a fast photo-first log flow: point the camera at a meal, reuse an editable past meal when it matches, or explicitly request a new estimate before review and logging. Real meal photos in the diary make that history feel personal; deterministic food icons make every non-photo entry immediately recognizable. Premium feel comes from cohesive Android-native behavior, honest calculations, and deliberate motion, not gamification.
 
 ## Operating Context
 
@@ -34,7 +34,7 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | --- | --- | --- |
 | Onboarding and initial targets | Implemented | Strong first-run flow; needs an edit path and physical-device verification. |
 | Today | Implemented | Coherent daily summary with useful empty, loading, and error states. |
-| Food entry | Implemented | Camera, gallery, Describe, search, manual, review, re-estimation, and recovery paths are implemented; remote estimates require explicit consent. |
+| Food entry | Implemented | Camera/gallery selection, local past-meal reuse, Describe, search, manual, review, re-estimation, and recovery paths are implemented; only explicit remote estimate actions require consent. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
 | Weight and Analytics | Implemented | Range charting and adaptive reviews are substantial; plan-change semantics still need definition. |
 | Profile and Settings | Implemented | Profile editing, privacy controls, backup/restore, CSV export, reset, Health Connect, help, and detail routes are available. |
@@ -50,8 +50,8 @@ The implemented core has a coherent visual language and daily loop. Source-level
 
 **Working:**
 - Six setup/calculation steps plus an optional final full-screen AI-estimate consent step when the build has an estimate Worker, with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware completion flow.
-- Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, scanner-first empty state, and calendar-accurate scale/trend/goal weight display.
-- Central entry bottom sheet: camera scan, gallery scan, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
+- Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, photo-first empty state, and calendar-accurate scale/trend/goal weight display.
+- Central entry bottom sheet: local camera/gallery selection, ranked past-meal reuse with the newly selected photo, explicit new estimation, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
 - Gemini vision/text meal estimation returning a named meal and per-100g component nutrition; clarification can re-estimate an edited scan/description.
 - On-device SQLite profile, food log, meal, target, food-cache, weight-log, pin, and adaptive-review records with sequential non-destructive migrations.
 - Diary: calendar strip, overflow-aware daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, aligned edit/delete swipe actions, and undo.
@@ -74,7 +74,7 @@ The release candidate must satisfy all of these outcomes:
 1. A returning user can change profile, goal, rate, target weight, units, and nutrition targets without repeating onboarding.
 2. Every calculation-affecting save shows the proposed calories and macros before commit, writes profile and target history atomically, and leaves historical diary data unchanged.
 3. A user can create a restorable backup, validate and restore it, export readable history, and erase all local data through guarded flows.
-4. Camera/gallery scan failures explain the problem and preserve a retry, search, describe, or manual fallback.
+4. Camera/gallery selection works locally when reusable history exists; consent decline, cancellation, and estimate failures preserve the photo, title, and history-reuse recovery before search, describe, or manual fallbacks.
 5. Profile explains calculation, adaptive eligibility, network data use, version/build information, and data sources without exposing credentials.
 6. Cloud sync does not occupy a top-level tab or appear as a dead control. Its future entry point sits inside Data & Sync.
 7. A fresh install, an upgrade from database version 4, backup/restore, and the core logging matrix pass on physical Android and iOS devices and signed store-equivalent binaries.
@@ -119,7 +119,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 
 - How initial targets, trend weight, and adaptive reviews work.
 - Why scan results are estimates and how to edit them.
-- Which data stays local and which queries/photos go to Gemini, USDA, or Open Food Facts.
+- Which photo selection and history reuse stay local, and which explicit estimates or queries go to Gemini, USDA, or Open Food Facts.
 - App version, build, database version, licenses, and concise privacy information.
 
 ## Target and History Rules

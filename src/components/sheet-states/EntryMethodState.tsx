@@ -1,5 +1,5 @@
 import type React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { M3 } from '../../theme/tokens';
@@ -79,6 +79,7 @@ interface EntryMethodStateProps {
   onRecentFoods: () => void;
   onWeight: () => void;
   estimatesAvailable: boolean;
+  reusableMealsAvailable: boolean | null;
   onContentHeightChange: (height: number) => void;
 }
 
@@ -90,6 +91,7 @@ export default function EntryMethodState({
   onRecentFoods,
   onWeight,
   estimatesAvailable,
+  reusableMealsAvailable,
   onContentHeightChange,
 }: EntryMethodStateProps) {
   const { isNarrow } = useResponsiveLayout();
@@ -129,15 +131,42 @@ export default function EntryMethodState({
               />
             </View>
           </View>
+        ) : reusableMealsAvailable ? (
+          <View className="gap-2">
+            <LeadAction
+              icon="photo-camera"
+              label="Reuse with camera"
+              hint="Take a photo to reuse a past meal"
+              onPress={onCamera}
+            />
+            <View className="flex-row">
+              <MethodTile
+                icon="photo-library"
+                label="Reuse with photo"
+                hint="Choose a photo to reuse a past meal"
+                onPress={onGallery}
+                compact={isNarrow}
+              />
+            </View>
+          </View>
+        ) : reusableMealsAvailable === null ? (
+          <View
+            accessible
+            accessibilityLabel="Checking for reusable past meals"
+            className="min-h-[56px] flex-row items-center gap-3 rounded-xl bg-m3-surface-container-high px-3 py-3"
+          >
+            <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+            <Text className="flex-1 text-sm text-m3-on-surface-variant">Checking past meals…</Text>
+          </View>
         ) : (
           <View
             accessible
-            accessibilityLabel="Photo and description estimates are unavailable. You can still use Recent meals or Search foods."
+            accessibilityLabel="New estimates are unavailable. Use Recent meals or Search foods."
             className="flex-row items-start gap-2 rounded-xl bg-m3-surface-container-high px-3 py-3"
           >
             <MaterialIcons name="info-outline" size={18} color={M3.onSurfaceVariant} />
             <Text className="flex-1 text-sm text-m3-on-surface-variant">
-              Photo and description estimates are unavailable. You can still use Recent meals or Search foods.
+              New estimates aren’t available. Use Recent meals or Search foods.
             </Text>
           </View>
         )}

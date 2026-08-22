@@ -15,8 +15,8 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow Eatlog to use your camera to scan meals.",
-        "NSPhotoLibraryUsageDescription": "Allow Eatlog to access photos to scan meals."
+        "NSCameraUsageDescription": "Allow Eatlog to take meal photos for local reuse or estimates you request.",
+        "NSPhotoLibraryUsageDescription": "Allow Eatlog to choose meal photos for local reuse or estimates you request."
       }
     },
     "android": {
@@ -67,15 +67,15 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Eatlog to access photos to scan meals.",
-          "cameraPermission": "Allow Eatlog to use your camera to scan meals.",
+          "photosPermission": "Allow Eatlog to choose meal photos for local reuse or estimates you request.",
+          "cameraPermission": "Allow Eatlog to take meal photos for local reuse or estimates you request.",
           "microphonePermission": false
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow Eatlog to access photos to scan meals.",
+          "photosPermission": "Allow Eatlog to choose meal photos for local reuse or estimates you request.",
           "savePhotosPermission": "Allow Eatlog to save share images to your photo library.",
           "granularPermissions": []
         }

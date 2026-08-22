@@ -8,7 +8,7 @@ import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
 const REMOTE_ESTIMATE_CONSENT_TITLE = 'AI meal estimates';
-const REMOTE_ESTIMATE_CONSENT_MESSAGE = 'Scan sends the photo and any meal title you add; Describe sends the text you choose to Google Gemini so Eatlog can estimate the meal. Nothing is sent until you use these features.';
+const REMOTE_ESTIMATE_CONSENT_MESSAGE = 'Taking or choosing a photo and reusing a past meal stays on your device. Estimate as new sends that photo and any meal title you add; Describe sends the text you choose to Google Gemini. Nothing is sent until you choose an online estimate.';
 
 export interface RemoteEstimateConsentContentProps {
   onAccept: () => void | Promise<void>;
@@ -33,7 +33,7 @@ function ConsentActions({
         disabled={busy}
         accessibilityRole="button"
         accessibilityLabel="Okay. Enable AI meal estimates."
-        accessibilityHint="Allows selected meal photos, optional meal titles, or description text to be sent to Google Gemini for an estimate"
+        accessibilityHint="Allows a photo and optional title to be sent only when you choose Estimate as new, or description text when you request an estimate"
         accessibilityState={{ busy: !!busy, disabled: !!busy }}
         className={`min-h-[52px] flex-row items-center justify-center gap-2 rounded-full bg-m3-primary px-5 active:opacity-90 ${busy ? 'opacity-50' : ''}`}
       >

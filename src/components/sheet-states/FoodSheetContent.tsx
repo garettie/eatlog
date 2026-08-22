@@ -23,7 +23,16 @@ import {
 import { serviceConfig } from '../../config/services';
 import type { FoodResult } from '../../services/foodSearch';
 import { foodResultFromLog } from '../../services/foodSearchCore';
-import { type HealthConnectWeightExport, type LoggedMeal, type MealType, type SaveWeightResult, type WeightLog, getMealComponents } from '../../db/database';
+import {
+    type HealthConnectWeightExport,
+    type LoggedMeal,
+    type MealType,
+    type SaveWeightResult,
+    type WeightLog,
+    getMealComponents,
+    getMealReuseSuggestions,
+    hasReusableMeals,
+} from '../../db/database';
 import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos';
 import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { EASING } from '../../theme/motion';
@@ -142,8 +151,10 @@ interface PendingEstimatePhoto {
     uri: string;
     width: number;
     height: number;
-    base64: string;
     source: 'camera' | 'gallery';
+    preparedBase64?: string;
+    savedUri?: string | null;
+    savePromise?: Promise<string | null>;
 }
 
 export default function FoodSheetContent({
@@ -164,9 +175,24 @@ export default function FoodSheetContent({
     const pendingPhotoRef = useRef<PendingEstimatePhoto | null>(null);
     const scanMealTitleRef = useRef('');
     const mealRequestRef = useRef(0);
+    const mealReuseRequestRef = useRef(0);
+    const mealReuseInFlightRef = useRef(false);
+    const suggestionRequestRef = useRef(0);
+    const availabilityRequestRef = useRef(0);
     const fromBarRef = useRef(false);
     const previousStateKeyRef = useRef(state.stateKey);
     const [renderedStateKey, setRenderedStateKey] = useState(state.stateKey);
+    const [photoMealTitle, setPhotoMealTitle] = useState('');
+    const [reuseSuggestions, setReuseSuggestions] = useState<LoggedMeal[]>([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [reuseError, setReuseError] = useState<string | null>(null);
+    const [reuseRetryMeal, setReuseRetryMeal] = useState<LoggedMeal | null>(null);
+    const [selectedReuseMealId, setSelectedReuseMealId] = useState<number | null>(null);
+    const [busyReuseMealId, setBusyReuseMealId] = useState<number | null>(null);
+    const [suggestionRefresh, setSuggestionRefresh] = useState(0);
+    const [photoEstimateBusy, setPhotoEstimateBusy] = useState(false);
+    const [photoEstimateError, setPhotoEstimateError] = useState<string | null>(null);
+    const [reusableMealsAvailable, setReusableMealsAvailable] = useState<boolean | null>(null);
     const stateTransitionRequestRef = useRef(0);
     const enteringStateRef = useRef(false);
     const stateContentHeightsRef = useRef<Partial<Record<FoodSheetStateKey, number>>>({});
@@ -176,9 +202,44 @@ export default function FoodSheetContent({
     fromBarRef.current = !!state.fromBar;
 
     const discardPendingPhoto = useCallback(() => {
+        scanRequestRef.current += 1;
+        mealReuseRequestRef.current += 1;
+        mealReuseInFlightRef.current = false;
+        suggestionRequestRef.current += 1;
         pendingPhotoRef.current = null;
         scanBase64Ref.current = null;
         scanMealTitleRef.current = '';
+        setPhotoMealTitle('');
+        setReuseSuggestions([]);
+        setSuggestionsLoading(false);
+        setReuseError(null);
+        setReuseRetryMeal(null);
+        setSelectedReuseMealId(null);
+        setBusyReuseMealId(null);
+        setPhotoEstimateBusy(false);
+        setPhotoEstimateError(null);
+    }, []);
+
+    const persistPendingPhoto = useCallback(async (): Promise<string | null> => {
+        const pendingPhoto = pendingPhotoRef.current;
+        if (!pendingPhoto) return null;
+        if (pendingPhoto.savedUri !== undefined) return pendingPhoto.savedUri;
+        if (!pendingPhoto.savePromise) {
+            pendingPhoto.savePromise = saveMealPhoto(
+                pendingPhoto.uri,
+                pendingPhoto.width,
+                pendingPhoto.height,
+            ).catch((error) => {
+                console.error('[FoodSheet] meal photo save failed', error);
+                return null;
+            }).then((photoUri) => {
+                pendingPhoto.savedUri = photoUri;
+                return photoUri;
+            }).finally(() => {
+                pendingPhoto.savePromise = undefined;
+            });
+        }
+        return pendingPhoto.savePromise;
     }, []);
 
     const commitRenderedState = useCallback((stateKey: FoodSheetStateKey, requestId: number) => {
@@ -241,9 +302,62 @@ export default function FoodSheetContent({
             scanRequestRef.current += 1;
             scanInFlightRef.current = false;
         }
-        if (!state.visible) discardPendingPhoto();
+        if (!state.visible) {
+            const hadPendingPhoto = pendingPhotoRef.current !== null;
+            discardPendingPhoto();
+            if (hadPendingPhoto) {
+                setState((current) => ({
+                    ...current,
+                    describeResult: null,
+                    photoUri: null,
+                    pendingAction: null,
+                    estimationFailure: null,
+                }));
+            }
+        }
         previousStateKeyRef.current = state.stateKey;
-    }, [discardPendingPhoto, state.stateKey, state.visible]);
+    }, [discardPendingPhoto, setState, state.stateKey, state.visible]);
+
+    useEffect(() => {
+        const requestId = ++availabilityRequestRef.current;
+        if (!state.visible || serviceConfig.availability.gemini) {
+            setReusableMealsAvailable(null);
+            return;
+        }
+        void hasReusableMeals().then((available) => {
+            if (requestId === availabilityRequestRef.current) {
+                setReusableMealsAvailable(available);
+            }
+        }).catch((error) => {
+            console.error('[FoodSheet] reusable meal availability check failed', error);
+            if (requestId === availabilityRequestRef.current) {
+                setReusableMealsAvailable(false);
+            }
+        });
+    }, [state.visible]);
+
+    useEffect(() => {
+        if (!state.visible || state.stateKey !== 'photo-title' || !pendingPhotoRef.current) {
+            suggestionRequestRef.current += 1;
+            return;
+        }
+        const requestId = ++suggestionRequestRef.current;
+        setSuggestionsLoading(true);
+        setReuseError(null);
+        setReuseRetryMeal(null);
+        void getMealReuseSuggestions(photoMealTitle).then((suggestions) => {
+            if (requestId !== suggestionRequestRef.current) return;
+            setReuseSuggestions(suggestions);
+        }).catch((error) => {
+            console.error('[FoodSheet] meal reuse suggestions failed', error);
+            if (requestId !== suggestionRequestRef.current) return;
+            setReuseError('Past meals didn’t load. Try again.');
+        }).finally(() => {
+            if (requestId === suggestionRequestRef.current) {
+                setSuggestionsLoading(false);
+            }
+        });
+    }, [photoMealTitle, state.stateKey, state.visible, suggestionRefresh]);
     const transitionTo = useCallback(
         (stateKey: FoodSheetStateKey, opts?: { describeResult?: DescribeResult | null; pushHistory?: boolean }) => {
             const { describeResult, pushHistory = true } = opts ?? {};
@@ -269,20 +383,46 @@ export default function FoodSheetContent({
         [setState],
     );
 
+    const ensurePhotoEntryAvailable = useCallback(async (): Promise<boolean> => {
+        if (serviceConfig.availability.gemini) return true;
+        if (reusableMealsAvailable !== null) return reusableMealsAvailable;
+        const requestId = ++availabilityRequestRef.current;
+        try {
+            const available = await hasReusableMeals();
+            if (requestId === availabilityRequestRef.current) {
+                setReusableMealsAvailable(available);
+            }
+            return available;
+        } catch (error) {
+            console.error('[FoodSheet] reusable meal availability check failed', error);
+            if (requestId === availabilityRequestRef.current) {
+                setReusableMealsAvailable(false);
+            }
+            return false;
+        }
+    }, [reusableMealsAvailable]);
+
     const queuePhotoForTitle = useCallback((
         asset: ImagePicker.ImagePickerAsset,
-        base64: string,
         source: 'camera' | 'gallery',
     ) => {
-        scanBase64Ref.current = base64;
+        scanBase64Ref.current = null;
+        scanMealTitleRef.current = '';
         pendingPhotoRef.current = {
             uri: asset.uri,
             width: asset.width,
             height: asset.height,
-            base64,
             source,
         };
         scanInFlightRef.current = false;
+        setPhotoMealTitle('');
+        setReuseSuggestions([]);
+        setReuseError(null);
+        setReuseRetryMeal(null);
+        setSelectedReuseMealId(null);
+        setBusyReuseMealId(null);
+        setPhotoEstimateBusy(false);
+        setPhotoEstimateError(null);
         setState((current) => ({
             ...current,
             stateKey: 'photo-title',
@@ -297,15 +437,9 @@ export default function FoodSheetContent({
         const requestId = ++scanRequestRef.current;
 
         try {
-            if (!serviceConfig.availability.gemini) {
+            if (!await ensurePhotoEntryAvailable()) {
+                if (requestId !== scanRequestRef.current) return;
                 showScanError('unavailable', 'camera');
-                return;
-            }
-            if (!await requestConsent()) {
-                if (requestId === scanRequestRef.current) {
-                    if (fromBarRef.current) resetToEntry();
-                    else transitionTo('entry', { pushHistory: false });
-                }
                 return;
             }
 
@@ -341,20 +475,12 @@ export default function FoodSheetContent({
                 return;
             }
             const asset = result.assets[0];
-            const base64 = await prepareFoodEstimateImage(asset.uri, asset.width, asset.height).catch((error) => {
-                console.error('[FoodSheet] camera photo normalization failed', error);
-                return null;
-            });
-            if (!base64) {
-                showScanError('photo-unreadable', 'camera');
-                return;
-            }
             if (requestId !== scanRequestRef.current) return;
-            queuePhotoForTitle(asset, base64, 'camera');
+            queuePhotoForTitle(asset, 'camera');
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [queuePhotoForTitle, requestConsent, transitionTo, resetToEntry, setState, showScanError]);
+    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleGallery = useCallback(async () => {
         if (scanInFlightRef.current) return;
@@ -362,15 +488,9 @@ export default function FoodSheetContent({
         const requestId = ++scanRequestRef.current;
 
         try {
-            if (!serviceConfig.availability.gemini) {
+            if (!await ensurePhotoEntryAvailable()) {
+                if (requestId !== scanRequestRef.current) return;
                 showScanError('unavailable', 'gallery');
-                return;
-            }
-            if (!await requestConsent()) {
-                if (requestId === scanRequestRef.current) {
-                    if (fromBarRef.current) resetToEntry();
-                    else transitionTo('entry', { pushHistory: false });
-                }
                 return;
             }
 
@@ -390,22 +510,14 @@ export default function FoodSheetContent({
                 return;
             }
             const asset = result.assets[0];
-            const base64 = await prepareFoodEstimateImage(asset.uri, asset.width, asset.height).catch((error) => {
-                console.error('[FoodSheet] gallery photo normalization failed', error);
-                return null;
-            });
-            if (!base64) {
-                showScanError('photo-unreadable', 'gallery');
-                return;
-            }
             if (requestId !== scanRequestRef.current) return;
-            queuePhotoForTitle(asset, base64, 'gallery');
+            queuePhotoForTitle(asset, 'gallery');
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [queuePhotoForTitle, requestConsent, transitionTo, resetToEntry, setState, showScanError]);
+    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
 
-    const handlePhotoEstimate = useCallback(async (mealTitle: string) => {
+    const handlePhotoEstimate = useCallback(async () => {
         if (scanInFlightRef.current) return;
         const pendingPhoto = pendingPhotoRef.current;
         if (!pendingPhoto) {
@@ -415,30 +527,59 @@ export default function FoodSheetContent({
 
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
-        scanMealTitleRef.current = mealTitle.trim();
-        transitionTo('scanning', { pushHistory: false });
+        const mealTitle = photoMealTitle.trim();
+        scanMealTitleRef.current = mealTitle;
+        setPhotoEstimateBusy(true);
+        setPhotoEstimateError(null);
 
         try {
-            const scanResult = await scanFood(pendingPhoto.base64, mealTitle).catch((error) => {
-                console.error('[FoodSheet] photo estimate failed unexpectedly', error);
-                if (requestId === scanRequestRef.current) showScanError('provider', pendingPhoto.source);
-                return null;
-            });
-            if (!scanResult || requestId !== scanRequestRef.current) return;
-            if (!scanResult.ok) {
-                showScanError(scanResult.kind, pendingPhoto.source);
-                return;
+            if (!await requestConsent() || requestId !== scanRequestRef.current) return;
+            transitionTo('scanning');
+
+            let base64 = pendingPhoto.preparedBase64;
+            if (!base64) {
+                base64 = await prepareFoodEstimateImage(
+                    pendingPhoto.uri,
+                    pendingPhoto.width,
+                    pendingPhoto.height,
+                ).catch((error) => {
+                    console.error('[FoodSheet] photo normalization failed', error);
+                    return undefined;
+                });
+                if (!base64 || requestId !== scanRequestRef.current) {
+                    if (requestId === scanRequestRef.current) {
+                        setPhotoEstimateError(FAILURE_MESSAGES['photo-unreadable']);
+                        setPhotoEstimateBusy(false);
+                        scanInFlightRef.current = false;
+                        onGoBack();
+                    }
+                    return;
+                }
+                pendingPhoto.preparedBase64 = base64;
             }
-            const photoUri = await saveMealPhoto(
-                pendingPhoto.uri,
-                pendingPhoto.width,
-                pendingPhoto.height,
-            ).catch((error) => {
-                console.error('[FoodSheet] meal photo save failed', error);
+            scanBase64Ref.current = base64;
+
+            const scanResult = await scanFood(base64, mealTitle).catch((error) => {
+                console.error('[FoodSheet] photo estimate failed unexpectedly', error);
                 return null;
             });
             if (requestId !== scanRequestRef.current) return;
-            pendingPhotoRef.current = null;
+            if (!scanResult) {
+                setPhotoEstimateError(FAILURE_MESSAGES.provider);
+                setPhotoEstimateBusy(false);
+                scanInFlightRef.current = false;
+                onGoBack();
+                return;
+            }
+            if (!scanResult.ok) {
+                setPhotoEstimateError(FAILURE_MESSAGES[scanResult.kind]);
+                setPhotoEstimateBusy(false);
+                scanInFlightRef.current = false;
+                onGoBack();
+                return;
+            }
+            const photoUri = await persistPendingPhoto();
+            if (requestId !== scanRequestRef.current) return;
             setState((current) => ({
                 ...current,
                 stateKey: 'review',
@@ -448,13 +589,77 @@ export default function FoodSheetContent({
                 estimationFailure: null,
             }));
         } finally {
-            if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
+            if (requestId === scanRequestRef.current) {
+                scanInFlightRef.current = false;
+                setPhotoEstimateBusy(false);
+            }
         }
-    }, [setState, showScanError, state.pendingAction, transitionTo]);
+    }, [onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, setState, showScanError, state.pendingAction, transitionTo]);
+
+    const handleReuseMeal = useCallback(async (meal: LoggedMeal) => {
+        if (mealReuseInFlightRef.current) return;
+        const pendingPhoto = pendingPhotoRef.current;
+        if (!pendingPhoto) {
+            setReuseError('This photo is no longer available. Choose another.');
+            return;
+        }
+
+        const requestId = ++mealReuseRequestRef.current;
+        mealReuseInFlightRef.current = true;
+        setSelectedReuseMealId(meal.meal_id);
+        setBusyReuseMealId(meal.meal_id);
+        setReuseError(null);
+        setReuseRetryMeal(null);
+        try {
+            const [logs, photoUri] = await Promise.all([
+                getMealComponents(meal.meal_id),
+                persistPendingPhoto(),
+            ]);
+            if (requestId !== mealReuseRequestRef.current) return;
+            const components = logs.map((log, index) =>
+                foodResultFromLog(log, `reused-meal-${meal.meal_id}-${index}`)
+            );
+            if (!components.length) throw new Error('Meal has no reusable components');
+            scanBase64Ref.current = null;
+            setState((current) => ({
+                ...current,
+                stateKey: 'review',
+                describeResult: { mealName: meal.meal_name, components },
+                photoUri,
+                pendingAction: null,
+                estimationFailure: null,
+                editMealId: null,
+            }));
+        } catch (error) {
+            if (requestId !== mealReuseRequestRef.current) return;
+            console.error('[FoodSheet] meal reuse load failed', error);
+            setReuseRetryMeal(meal);
+            setReuseError('This meal didn’t load. Try again.');
+        } finally {
+            if (requestId === mealReuseRequestRef.current) {
+                mealReuseInFlightRef.current = false;
+                setBusyReuseMealId(null);
+            }
+        }
+    }, [persistPendingPhoto, setState]);
+
+    const handleReuseRetry = useCallback(() => {
+        if (reuseRetryMeal) {
+            void handleReuseMeal(reuseRetryMeal);
+            return;
+        }
+        setSuggestionRefresh((current) => current + 1);
+    }, [handleReuseMeal, reuseRetryMeal]);
 
     const handlePhotoTitleBack = useCallback(() => {
         discardPendingPhoto();
-        setState((current) => ({ ...current, pendingAction: null }));
+        setState((current) => ({
+            ...current,
+            describeResult: null,
+            photoUri: null,
+            pendingAction: null,
+            estimationFailure: null,
+        }));
         onGoBack();
     }, [discardPendingPhoto, onGoBack, setState]);
 
@@ -553,13 +758,10 @@ export default function FoodSheetContent({
     const handleScanCancel = useCallback(() => {
         scanRequestRef.current += 1;
         scanInFlightRef.current = false;
-        discardPendingPhoto();
-        if (fromBarRef.current) {
-            resetToEntry();
-            return;
-        }
-        transitionTo('entry', { pushHistory: false });
-    }, [discardPendingPhoto, transitionTo, resetToEntry]);
+        setPhotoEstimateBusy(false);
+        setPhotoEstimateError(null);
+        onGoBack();
+    }, [onGoBack]);
 
     const handleClarify = useCallback(
         async (input: MealClarificationInput): Promise<ClarificationOutcome<DescribeResult>> => {
@@ -671,6 +873,7 @@ export default function FoodSheetContent({
                         onRecentFoods={handleRecentFoods}
                         onWeight={handleWeight}
                         estimatesAvailable={serviceConfig.availability.gemini}
+                        reusableMealsAvailable={reusableMealsAvailable}
                         onContentHeightChange={reportContentHeight}
                     />
                 )}
@@ -686,7 +889,22 @@ export default function FoodSheetContent({
                 {renderedStateKey === 'photo-title' && pendingPhotoRef.current && (
                     <PhotoMealTitleState
                         photoUri={pendingPhotoRef.current.uri}
-                        onEstimate={(mealTitle) => { void handlePhotoEstimate(mealTitle); }}
+                        mealTitle={photoMealTitle}
+                        onMealTitleChange={(title) => {
+                            setPhotoMealTitle(title);
+                            setPhotoEstimateError(null);
+                        }}
+                        suggestions={reuseSuggestions}
+                        suggestionsLoading={suggestionsLoading}
+                        selectedMealId={selectedReuseMealId}
+                        busyMealId={busyReuseMealId}
+                        reuseError={reuseError}
+                        onReuse={(meal) => { void handleReuseMeal(meal); }}
+                        onRetrySuggestions={handleReuseRetry}
+                        estimateAvailable={serviceConfig.availability.gemini}
+                        estimateBusy={photoEstimateBusy}
+                        estimateError={photoEstimateError}
+                        onEstimate={() => { void handlePhotoEstimate(); }}
                         onBack={handlePhotoTitleBack}
                         onContentHeightChange={reportContentHeight}
                     />
@@ -716,7 +934,7 @@ export default function FoodSheetContent({
                             onRetry={state.estimationFailure === 'unavailable' ? undefined : () => {
                                 skipHistoryRef.current = true;
                                 if (pendingPhotoRef.current) {
-                                    void handlePhotoEstimate(scanMealTitleRef.current);
+                                    void handlePhotoEstimate();
                                     return;
                                 }
                                 const action = state.pendingAction;

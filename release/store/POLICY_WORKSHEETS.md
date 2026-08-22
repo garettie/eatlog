@@ -20,7 +20,7 @@ Use the conservative answers below until the production provider-contract review
 
 | Form area | Draft answer | Purpose | Linkage/tracking | Status |
 | --- | --- | --- | --- | --- |
-| Photos and videos | Collected when the user chooses Scan | App functionality | Not used for tracking; no account linkage | Verify Gemini/Cloudflare retention in production console |
+| Photos and videos | Collected remotely only when the user chooses Estimate as new after local camera/gallery selection | App functionality | Local selection and past-meal reuse are not collected; not used for tracking or account linkage | Verify Gemini/Cloudflare retention in production console |
 | Other user-generated content | Collected for Describe/re-estimation and food-search text | App functionality | Not used for tracking; no account linkage | Verify provider retention |
 | Device or other IDs | App-scoped random installation token sent to Eatlog Worker | Fraud prevention, security, and app functionality | Not advertising ID; not used for tracking | Confirm final Google category mapping |
 | Health and fitness | Weight/nutrition data stays in app-private storage; Android Weight crosses only to Health Connect at user request | App functionality | Not sent to Eatlog backend; not tracking | Confirm Health Connect declaration interaction |
@@ -109,7 +109,7 @@ Reviewer path:
 2. Complete local onboarding with synthetic adult data.
 3. Use the center Add control; it is an action button, not a fifth tab.
 4. Manual logging works without online services.
-5. On a build with online estimates, onboarding shows the concise AI meal-estimate consent. Okay enables later Scan, Describe, clarification, and re-estimation without repeated prompts; Not now completes onboarding and sends nothing. A later explicit AI action reopens the same full-screen choice. Profile → Privacy shows Enabled/Off, names Google Gemini, and provides withdrawal.
+5. On a build with online estimates, onboarding shows the concise AI meal-estimate consent. Camera/gallery selection and past-meal reuse remain local regardless of that choice. Okay enables later Estimate as new, Describe, clarification, and re-estimation without repeated prompts; Not now completes onboarding and sends nothing. A later explicit AI action reopens the same full-screen choice while preserving local photo/title state. Profile → Privacy shows Enabled/Off, names Google Gemini, and provides withdrawal.
 6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly; neither provider depends on Gemini consent.
 7. In Diary, tap any meal image or food-icon rail, or swipe a meal and choose Share immediately left of Delete. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; photo-less meals use Nutrition. The position dots, permanent Eatlog mark, Save image, and Share stay visible without vertical scrolling; no mark control or toggle state exists. Today, day summaries, Analytics, and standalone foods have no Share action.
 8. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
