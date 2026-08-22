@@ -150,7 +150,7 @@ export default function PortionStepper({
           </View>
         ) : null}
 
-        <View className={`${hasServing ? 'w-[120px] shrink-0' : 'flex-1'} h-[52px] bg-m3-surface-container rounded-xl px-2 items-center justify-center border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
+        <View className={`${hasServing ? 'w-[104px] shrink-0' : 'flex-1'} h-[52px] bg-m3-surface-container rounded-xl px-2 items-center justify-center border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
           {unitMode === 'servings' && hasServing ? (
             <View className="relative w-full h-full items-center justify-center">
               <BottomSheetTextInput
@@ -168,7 +168,7 @@ export default function PortionStepper({
               />
               <View
                 pointerEvents="none"
-                className="absolute right-1.5 top-0 bottom-0 justify-center"
+                className="absolute right-2 top-0 bottom-0 justify-center"
               >
                 <Text
                   numberOfLines={1}
@@ -198,7 +198,7 @@ export default function PortionStepper({
               />
               <View
                 pointerEvents="none"
-                className="absolute right-1.5 top-0 bottom-0 justify-center"
+                className="absolute right-2 top-0 bottom-0 justify-center"
               >
                 <Text className="text-m3-on-surface-variant text-base font-semibold">
                   g

@@ -44,10 +44,11 @@ assert.ok(bytes(metadata.reviewerNotes.apple) <= 4_000, 'Apple reviewer notes ex
 assert.equal(metadata.product.name, 'Eatlog');
 assert.equal(metadata.google.title, 'Eatlog');
 assert.equal(metadata.apple.title, 'Eatlog');
-assert.deepEqual(metadata.product.commercial.philippinesPrice, { currency: 'PHP', amount: 299 });
-assert.equal(metadata.product.commercial.purchaseType, 'one-time upfront store purchase');
-assert.equal(metadata.product.commercial.subscriptions, false);
-assert.equal(metadata.product.commercial.inAppPurchases, false);
+assert.equal(metadata.product.commercial.acquisitionPrice, 'free');
+assert.deepEqual(metadata.product.commercial.manok, { currency: 'PHP', amount: 79, period: 'monthly', trial: 'one month for eligible users' });
+assert.deepEqual(metadata.product.commercial.itik, { currency: 'PHP', amount: 799, purchaseType: 'one-time lifetime entitlement' });
+assert.equal(metadata.product.commercial.subscriptions, true);
+assert.equal(metadata.product.commercial.inAppPurchases, true);
 assert.equal(metadata.product.accountRequired, false);
 assert.equal(metadata.product.localFirst, true);
 assert.ok(metadata.google.fullDescription.includes(metadata.google.requiredHealthDisclaimer));
@@ -71,7 +72,6 @@ for (const forbidden of [
   /\b(?:can|will|helps? to)\s+diagnos(?:e|es)\b/iu,
   /\bdiagnos(?:e|es)\s+(?:conditions?|diseases?)\b/iu,
   /\bfully offline\b/iu,
-  /\bfree download\b/iu,
   /example\.com|\bTBD\b|OWNER INPUT/iu,
 ]) {
   assert.equal(forbidden.test(publicCopy), false, `Public store copy contains a forbidden or placeholder claim: ${forbidden}`);

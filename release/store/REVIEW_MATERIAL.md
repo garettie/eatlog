@@ -6,12 +6,12 @@ Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the 
 
 1. Launch Eatlog and complete onboarding with the synthetic profile in `SCREENSHOT_PLAN.md`. The plan preview must pass the adult and nutrition-safety rules before it can be accepted.
 2. Open the center Add control. Choose Enter manually, enter the synthetic rice bowl, and save it. Today and Diary update immediately.
-3. Open Add again. Take or choose a photo; selection is local and opens Identify meal without an AI prompt. Reuse a listed past meal to load its editable foods and portions with the new photo without sending anything. Choose Estimate as new to open the concise full-screen consent when required. Okay enables that estimate; Not now returns to the same photo, title, and suggestions. Describe, clarification, and re-estimation use the same consent. Use only non-sensitive test content.
+3. As Pugo, Scan, Photo, and Describe open the plan screen before camera/gallery permission or description entry. With Test Store Manok/Itik/complimentary access, invoke the action again. The separate full-screen AI consent appears when required; Okay enables that estimate and Not now keeps local Eatlog features usable. Describe, clarification, and re-estimation use the same consent. Use only non-sensitive test content.
 4. Review and edit every estimate before saving. The review result is an estimate, not a medical or guaranteed-accuracy result.
 5. In Diary, tap any meal image or food-icon rail, or swipe the meal and select Share immediately left of Delete. Share meal opens directly on a 9:16 preview. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; dots show the current position, and meals without an available photo use Nutrition automatically. The permanent Eatlog mark, Save image, and Share are all visible without vertical scrolling; no mark control or toggle exists. Save image writes one 1080 by 1920 PNG to Photos or Gallery; Share opens the operating-system share menu so the reviewer chooses the destination. Standalone foods do not expose Share.
 6. Open Search foods. Typing uses USDA through the Eatlog Worker when configured. Pressing Search also runs the explicit direct Open Food Facts full search.
-7. Add and update a weight. Open Analytics to inspect weight trend, calorie history, logging consistency, and any plan-review state. The user chooses Accept or Keep.
-8. Open Profile → Backup and restore. Create an `.eatlog-backup`, inspect a supported archive, and confirm twice before replacement. Open Export data to create readable, non-restorable CSV files.
+7. Add and update a weight. Pugo Analytics keeps weight, calorie, and logging metrics but shows a locked adaptive card. Paid/Test Store access can calculate a plan review and the user chooses Accept or Keep.
+8. Open Profile → Plan to inspect status, localized products, trial/fair-use counters, Support ID, restore, and management actions. Then open Backup and restore, create an `.eatlog-backup`, inspect a supported archive, and confirm twice before replacement. Open Export data to create readable, non-restorable CSV files without entitlement state.
 9. Open Profile → Delete all data. Cancel each confirmation once, then complete deletion. Eatlog returns to onboarding.
 
 ## Platform differences
@@ -22,12 +22,12 @@ Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the 
 
 ## Provider and privacy explanation
 
-- Camera/gallery selection and past-meal reuse stay on the device. After the user chooses Okay and invokes Estimate as new, Eatlog sends the selected photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini; Describe, clarification, and re-estimation send user-entered text. Not now and withdrawal block Gemini requests while leaving the selected photo, history reuse, food search, and local logging available.
+- Paid access is checked before AI camera/gallery or description collection. After the user separately chooses Okay, Eatlog sends the selected photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini; Describe, clarification, and re-estimation send user-entered text. Not now and withdrawal block Gemini requests while leaving history reuse, food search, and local logging available.
 - USDA search and detail use the Worker. Open Food Facts is contacted directly only for explicit full search.
 - The app-scoped installation token is sent for throttling and is stored outside SQLite backups. The Worker stores only its salted hash for rate limiting.
 - Saved profile, target, log, meal, photo, and weight data stays local unless the user invokes a named remote feature or shares an export/backup.
 - Share-card images are rendered locally into temporary cache. Eatlog has no sharing backend or social publishing service; only a user-directed Save image or operating-system share destination receives the generated PNG.
-- Google Play and Apple process the upfront purchase. Eatlog receives no card or bank details and has no receipt server or cross-store entitlement.
+- Google Play and Apple process Manok and Itik purchases. RevenueCat verifies store entitlement metadata using the app-scoped installation token as App User ID; Eatlog receives no card, bank, password, or one-time-code details and grants no cross-store entitlement.
 
 ## Backup, export, reset, and reviewer evidence
 

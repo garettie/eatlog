@@ -2,6 +2,8 @@
 
 This runbook covers Eatlog's Gemini and USDA gateway. Steps marked **OWNER-ONLY** require production credentials or can change external state. The account-free release audit runs only local checks and the read-only health check when a configured public origin is available.
 
+Subscription work must first use `wrangler.subscription-staging.jsonc`. It must not be deployed over the Worker used by the existing preview APK. Creating or deploying that staging Worker, adding its secrets, or configuring a production RevenueCat webhook are separate owner checkpoints.
+
 ## Local release gate
 
 Run from `worker/` at the candidate commit:
@@ -53,6 +55,8 @@ Eatlog console entries may contain only:
 - `cache` outcome;
 - `rejection` category.
 
+Aggregate `ai_usage` entries may additionally contain only `event`, `model`, `inputTokens`, `outputTokens`, `totalTokens`, and `estimatedCostUsd`.
+
 They must not contain URLs, methods, request or response bodies, search queries, descriptions, prompts, provider responses, raw installation tokens, token hashes, IP addresses, headers, request IDs, or secrets. Unit tests assert the exact field allowlist. Automatic Cloudflare invocation logs are disabled because they can include request and response metadata; Eatlog keeps only its sampled structured console entries. **OWNER-ONLY:** after the approved smoke, inspect a sampled 4xx and 5xx entry in Workers Logs, confirm the allowlist by hand, and record only pass/fail plus the deployment version. Do not copy the log payload into the repository.
 
 Use Cloudflare Worker metrics, store crash/vitals reports, and the monitored support inbox for v1. Do not add a telemetry or advertising SDK.
@@ -68,6 +72,16 @@ Use Cloudflare Worker metrics, store crash/vitals reports, and the monitored sup
 5. Rotate a provider key by creating the replacement, setting it with `npx wrangler secret put`, redeploying, completing the relevant smoke, then revoking the old key. Rotate `RATE_LIMIT_SALT` only as an intentional incident or maintenance action because existing rate-limit keys will change.
 
 Never print, paste into release notes, or commit a secret. If a secret appears in source, a client build, a log, or captured output, treat it as compromised: halt the affected remote path, preserve non-secret evidence, rotate it, and verify the old value is revoked.
+
+### Subscription staging owner checkpoint
+
+This action changes external Cloudflare state. It does not itself create an EAS build, Play product, or production webhook, and it normally has no direct cost on the configured plan.
+
+1. Confirm the Cloudflare account: `npx wrangler whoami`.
+2. Create each staging secret with `npx wrangler secret put <NAME> --config wrangler.subscription-staging.jsonc`: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. Do not print values.
+3. Deploy with `npx wrangler deploy --config wrangler.subscription-staging.jsonc` only after owner approval.
+4. Record the staging URL and configure only the subscription-preview EAS environment as `EXPO_PUBLIC_FOOD_WORKER_URL`; configure its RevenueCat Test Store public key as `EXPO_PUBLIC_REVENUECAT_API_KEY`.
+5. Roll back using the recorded prior version. If this is the first deployment and no subscription preview uses it, delete only `eatlog-food-subscription-staging` from the Cloudflare dashboard.
 
 ## Rollback
 

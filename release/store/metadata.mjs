@@ -9,10 +9,11 @@ export const storeMetadata = {
     iosBundleIdentifierCandidate: 'com.sgaret.eatlog',
     releaseOrder: ['Google Play', 'Apple App Store'],
     commercial: {
-      philippinesPrice: { currency: 'PHP', amount: 299 },
-      purchaseType: 'one-time upfront store purchase',
-      subscriptions: false,
-      inAppPurchases: false,
+      acquisitionPrice: 'free',
+      manok: { currency: 'PHP', amount: 79, period: 'monthly', trial: 'one month for eligible users' },
+      itik: { currency: 'PHP', amount: 799, purchaseType: 'one-time lifetime entitlement' },
+      subscriptions: true,
+      inAppPurchases: true,
       crossStoreEntitlement: false,
     },
     accountRequired: false,
@@ -44,7 +45,7 @@ Eatlog is for adult general wellness. Eatlog is not a medical device and does no
 
 On Android, optional Health Connect support reads and writes Weight only after you choose to connect it.
 
-Eatlog is a one-time paid download. It has no subscriptions, in-app purchases, ads, login, or third-party tracking.`,
+Eatlog is free to download. Eatlog Pugo includes local food and weight logging. Eatlog Manok is a monthly subscription with an eligible one-month trial; Eatlog Itik is a one-time lifetime purchase. Store purchase sheets show localized prices and terms. Paid access unlocks AI estimates and local adaptive recommendations, subject to the disclosed fair-use limits. Eatlog has no ads, login, or third-party analytics.`,
     releaseNotes: 'Initial release. Log food and weight, review daily calories and macros, and view weight trends, intake history, and logging consistency. Reuse saved foods or past meals with a new photo, choose whether to apply plan suggestions, and create backups or CSV exports. Optional online tools include Estimate as new, Describe, USDA search, and Open Food Facts search. Android can optionally read and write Weight through Health Connect.',
     category: 'Health & Fitness',
     healthAppsCategory: 'Nutrition and Weight Management',
@@ -72,7 +73,7 @@ Nutrition data, calculated targets, trends, and photo or description results are
 
 Eatlog is for adult general wellness. It is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.
 
-Eatlog is a one-time paid download. It has no subscriptions, in-app purchases, ads, login, or third-party tracking.`,
+Eatlog is free to download. Eatlog Pugo includes local food and weight logging. Eatlog Manok is a monthly subscription with an eligible one-month trial; Eatlog Itik is a one-time lifetime purchase. Store purchase sheets show localized prices and terms. Paid access unlocks AI estimates and local adaptive recommendations, subject to the disclosed fair-use limits. Eatlog has no ads, login, or third-party analytics.`,
     promotionalText: 'Food and weight logging with editable estimates, clear trends, local backup, and CSV export.',
     releaseNotes: 'Initial release. Log food and weight, review daily calories and macros, and view weight trends, intake history, and logging consistency. Reuse saved foods or past meals with a new photo, choose whether to apply plan suggestions, and create backups or CSV exports. Optional online tools include Estimate as new, Describe, USDA search, and Open Food Facts search.',
     primaryCategory: 'Health & Fitness',
@@ -80,14 +81,14 @@ Eatlog is a one-time paid download. It has no subscriptions, in-app purchases, a
     firstVersionReleaseNotesFieldAvailable: false,
   },
   reviewerNotes: {
-    google: `Eatlog is a one-time paid download with no login, subscription, in-app purchase, or extra paid feature.
+    google: `Eatlog is free to download with Pugo local features. Manok is a monthly subscription and Itik is a one-time lifetime purchase. The build has no login.
 
 Complete onboarding with synthetic adult data. Camera/gallery selection opens Identify meal locally. Reusing a listed past meal loads its editable foods and portions with the new photo without consent or network use. If online estimates are configured, choose Estimate as new to request AI consent when required; Not now returns to the same photo, title, and local suggestions without sending anything. Describe, clarification, and re-estimation use the same consent. Only an invoked online estimate sends user-selected content to Google Gemini through the Eatlog Worker. Manual food entry works offline. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 
 Android only: Profile > Health Connect requests read and write access for Weight. Eatlog imports Weight into local history and exports only weights entered in Eatlog. No other Health Connect data type is requested.
 
 Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.`,
-    apple: `Eatlog is a one-time paid download with no login, subscription, in-app purchase, or extra paid feature. Saved profiles, targets, logs, weights, and meal photos stay on device unless the user exports a file.
+    apple: `Eatlog is free to download with Pugo local features. Manok is a monthly subscription and Itik is a one-time lifetime purchase. The build has no login. Saved profiles, targets, logs, weights, and meal photos stay on device unless the user exports a file.
 
 Complete onboarding with synthetic adult data. Use the center Add control for manual entry, Scan a meal, or Upload photo. Scan opens the camera and Upload photo opens the photo library; selection opens Identify meal locally. Reusing a listed past meal loads its editable foods and portions with the new photo without consent or network use. If online estimates are configured, choose Estimate as new to request AI consent when required; Not now returns to the same photo, title, and suggestions without sending anything. Describe, clarification, and re-estimation use the same consent. Only an invoked online estimate sends user-selected content to Google Gemini through the Eatlog Worker. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 
@@ -111,6 +112,7 @@ iOS v1 has no Health Connect, HealthKit, or Apple Health integration.`,
     'public developer or legal name',
     'monitored support email',
     'privacy policy URL',
+    'Terms of Use URL',
     'support URL',
     'review contact name, email, phone, and time zone',
     'launch countries and final console pricing',

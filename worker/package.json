@@ -6,7 +6,7 @@
   "scripts": {
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "dry-run": "wrangler deploy --dry-run",
+    "dry-run": "wrangler deploy --dry-run --config wrangler.subscription-staging.jsonc",
     "evaluate:estimates": "node scripts/evaluate-estimates.mjs",
     "smoke:health": "node scripts/smoke.mjs",
     "smoke:validation": "node scripts/smoke.mjs --validation"

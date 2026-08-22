@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { contract, handleRequest, hashInstallId, type Env } from '../src/index.js';
+import { MemorySubscriptionStore, type SubscriptionStore } from '../src/subscriptions.js';
 
 const INSTALL_ID = '0123456789abcdef0123456789abcdef';
 const JPEG = '/9j/2f/Z';
@@ -84,6 +85,7 @@ async function call(
     fetchImpl?: typeof fetch;
     cache?: MemoryCache | null;
     requestId?: string;
+    subscriptionStore?: SubscriptionStore;
   } = {},
 ): Promise<{ response: Response; body: any; context: ReturnType<typeof makeContext> }> {
   const context = makeContext();
@@ -91,6 +93,7 @@ async function call(
     fetchImpl: options.fetchImpl,
     cache: options.cache ?? null,
     requestId: () => options.requestId ?? 'request-fixed',
+    subscriptionStore: options.subscriptionStore,
   });
   const body = await response.clone().json();
   await Promise.all(context.pending);
@@ -134,6 +137,37 @@ const recognized = {
     confidence: 'high', confidenceReason: null,
   }],
 };
+
+function subscriptionEnv(overrides: Partial<Env> = {}): Env {
+  return makeEnv({
+    SUBSCRIPTIONS_ENABLED: 'true',
+    REVENUECAT_SECRET_API_KEY: 'revenuecat-secret',
+    REVENUECAT_WEBHOOK_AUTH: 'Bearer webhook-secret',
+    AI_GRANT_SIGNING_KEY: 'grant-signing-secret',
+    QUOTA_IDENTITY_SALT: 'quota-identity-salt',
+    REVENUECAT_ENTITLEMENT_ID: 'eatlog_paid',
+    ACCESS_STATE: {} as DurableObjectNamespace,
+    ...overrides,
+  });
+}
+
+function paidRevenueCat(periodType = 'normal'): unknown {
+  return { subscriber: {
+    original_app_user_id: INSTALL_ID,
+    entitlements: { eatlog_paid: {
+      product_identifier: 'eatlog_manok',
+      expires_date: '2026-09-22T00:00:00Z',
+      store: 'play_store',
+    } },
+    subscriptions: { eatlog_manok: {
+      original_transaction_id: 'stable-subscription-identity',
+      period_type: periodType,
+      unsubscribe_detected_at: null,
+      billing_issues_detected_at: null,
+    } },
+    non_subscriptions: {},
+  } };
+}
 
 test('normalizes a counted serving label to one unit and the consumed total', async () => {
   const countedEggs = {
@@ -616,4 +650,120 @@ test('emits only allowlisted operational fields without inputs, identifiers, dig
   } finally {
     console.log = original;
   }
+});
+
+test('subscription staging blocks Pugo before Gemini and issues a short-lived paid grant after RevenueCat verification', async () => {
+  const store = new MemorySubscriptionStore();
+  let geminiCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat('trial'));
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const pugo = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }), {
+    env: subscriptionEnv(), fetchImpl, subscriptionStore: store,
+  });
+  assert.equal(pugo.response.status, 402);
+  assert.equal(pugo.body.error.code, 'PAID_ACCESS_REQUIRED');
+  assert.equal(geminiCalls, 0);
+
+  const refreshed = await call(request('/v1/access/refresh', 'POST', {}), {
+    env: subscriptionEnv(), fetchImpl, subscriptionStore: store,
+  });
+  assert.equal(refreshed.response.status, 200);
+  assert.equal(refreshed.body.access.kind, 'manok-trial');
+  assert.equal(typeof refreshed.body.grant.token, 'string');
+  assert.equal(refreshed.body.usage.kind, 'trial');
+
+  const estimate = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    Authorization: `Bearer ${refreshed.body.grant.token}`,
+    'X-Eatlog-Request-ID': 'request-00000001',
+  }), { env: subscriptionEnv(), fetchImpl, subscriptionStore: store });
+  assert.equal(estimate.response.status, 200);
+  assert.equal(geminiCalls, 1);
+});
+
+test('RevenueCat outage uses only an unexpired verified cache and otherwise returns a redacted entitlement error', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const online = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => jsonResponse(paidRevenueCat())) as typeof fetch,
+    subscriptionStore: store,
+  });
+  assert.equal(online.response.status, 200);
+
+  const raw = 'raw revenuecat outage and secret identity';
+  const cached = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => { throw new Error(raw); }) as typeof fetch,
+    subscriptionStore: store,
+  });
+  assert.equal(cached.response.status, 200);
+  assert.equal(JSON.stringify(cached.body).includes(raw), false);
+
+  const empty = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => { throw new Error(raw); }) as typeof fetch,
+    subscriptionStore: new MemorySubscriptionStore(),
+  });
+  assert.equal(empty.response.status, 503);
+  assert.equal(empty.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
+  assert.equal(JSON.stringify(empty.body).includes(raw), false);
+});
+
+test('webhook authentication, duplicate delivery, and out-of-order delivery are handled without identifiers in responses', async () => {
+  const store = new MemorySubscriptionStore();
+  const event = {
+    api_version: '1.0',
+    event: {
+      id: 'event-new', event_timestamp_ms: 200, app_user_id: INSTALL_ID,
+      original_app_user_id: INSTALL_ID, aliases: [INSTALL_ID], type: 'EXPIRATION',
+    },
+  };
+  const unauthorized = await call(request('/v1/revenuecat/webhook', 'POST', event), {
+    env: subscriptionEnv(), subscriptionStore: store,
+  });
+  assert.equal(unauthorized.response.status, 401);
+  const headers = { Authorization: 'Bearer webhook-secret' };
+  const accepted = await call(request('/v1/revenuecat/webhook', 'POST', event, headers), {
+    env: subscriptionEnv(), subscriptionStore: store,
+  });
+  assert.deepEqual(accepted.body, { received: true, result: 'accepted' });
+  const duplicate = await call(request('/v1/revenuecat/webhook', 'POST', event, headers), {
+    env: subscriptionEnv(), subscriptionStore: store,
+  });
+  assert.equal(duplicate.body.result, 'duplicate');
+  const stale = await call(request('/v1/revenuecat/webhook', 'POST', {
+    ...event, event: { ...event.event, id: 'event-old', event_timestamp_ms: 100 },
+  }, headers), { env: subscriptionEnv(), subscriptionStore: store });
+  assert.equal(stale.body.result, 'stale');
+  assert.equal(JSON.stringify(stale.body).includes(INSTALL_ID), false);
+});
+
+test('stable store identity preserves paid quota after restore to a new installation ID', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const fetchImpl = (async (input: string | URL | Request) => String(input).startsWith('https://api.revenuecat.com/')
+    ? jsonResponse(paidRevenueCat())
+    : geminiResponse(recognized)) as typeof fetch;
+  const first = await call(request('/v1/access/refresh', 'POST', {}), { env, fetchImpl, subscriptionStore: store });
+  const secondInstall = 'fedcba9876543210fedcba9876543210';
+  const second = await call(request('/v1/access/refresh', 'POST', {}, { 'X-Eatlog-Install-ID': secondInstall }), { env, fetchImpl, subscriptionStore: store });
+  for (let index = 0; index < 30; index += 1) {
+    const grant = index % 2 === 0 ? first.body.grant.token : second.body.grant.token;
+    const result = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+      Authorization: `Bearer ${grant}`,
+      'X-Eatlog-Request-ID': `restore-request-${String(index).padStart(3, '0')}`,
+    }), { env, fetchImpl, subscriptionStore: store });
+    assert.equal(result.response.status, 200);
+  }
+  const over = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    Authorization: `Bearer ${second.body.grant.token}`,
+    'X-Eatlog-Request-ID': 'restore-request-over',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(over.response.status, 429);
+  assert.equal(over.body.error.code, 'FAIR_USE_DAILY_LIMIT');
 });

@@ -19,6 +19,7 @@ import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { serviceConfig } from '../config/services';
 import { supportsHealthConnect } from '../services/platformFeatures';
+import { useEntitlement } from '../context/EntitlementContext';
 
 interface ProfileScreenProps {
     dataVersion: number;
@@ -73,6 +74,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     const navigation = useNavigation<any>();
     const { runDataMaintenance } = useDataMaintenance();
+    const { access, hasPaidFeatures } = useEntitlement();
     const { isTwoPane, horizontalPadding } = useResponsiveLayout();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [target, setTarget] = useState<DailyTarget | null>(null);
@@ -97,7 +99,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                 const today = todayISO();
                 const nextProfile = await getProfile();
                 const nextTarget = nextProfile ? await getDailyTargetForDate(today) : null;
-                const nextAdaptiveState = nextProfile && nextTarget ? await getAdaptiveReviewState(today) : null;
+                const nextAdaptiveState = nextProfile && nextTarget && hasPaidFeatures ? await getAdaptiveReviewState(today) : null;
 
                 setProfile(nextProfile);
                 setTarget(nextTarget);
@@ -112,7 +114,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
         });
         loadQueueRef.current = queued;
         return queued;
-    }, []);
+    }, [hasPaidFeatures]);
 
     useFocusEffect(
         useCallback(() => {
@@ -294,6 +296,9 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                 </View>
 
                 <View className={isTwoPane ? 'flex-[3] min-w-0 gap-6' : 'gap-6'}>
+                    <Section title="Eatlog">
+                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={access.kind === 'pugo' ? 'Eatlog Pugo' : access.kind === 'manok-trial' ? 'Eatlog Manok trial' : access.kind === 'manok' ? 'Eatlog Manok' : access.kind === 'itik' ? 'Eatlog Itik · Lifetime' : 'Complimentary access'} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={false} />
+                    </Section>
                     <Section title="Plan">
                         <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} onPress={() => navigation.navigate('PersonalDetails')} />
                         <ProfileSettingRow icon="flag" title="Goal and rate" detail={`${goalLabel(profile)} · ${weeklyRate(profile)}`} onPress={() => navigation.navigate('GoalAndRate')} />

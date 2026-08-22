@@ -61,6 +61,7 @@ export type ProfileStackParamList = {
     About: undefined;
     Attributions: undefined;
     PlanPreview: { profile: ProfileUpdate; target: DailyTargetInput; baselineTarget: DailyTarget };
+    SubscriptionPlan: undefined;
 };
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'PlanPreview'> & { onDataChanged: () => void };

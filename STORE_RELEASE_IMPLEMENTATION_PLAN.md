@@ -24,10 +24,10 @@ The first public release succeeds when an adult can install Eatlog from either s
 - iOS v1 includes the core logging, search, scan, diary, weight, analytics, backup, restore, export, and reset flows.
 - iOS v1 hides Health Connect. Apple Health and HealthKit remain post-v1 work.
 - Eatlog remains local-first. The app adds no account, authentication, cloud database, social feature, subscription, or forced sync for v1.
-- Eatlog costs **PHP 299 as a one-time upfront store purchase** in the Philippines. It has no subscription, in-app purchase, or app-side paywall.
+- Eatlog's subscription model is defined by `SUBSCRIPTION_IMPLEMENTATION_PLAN.md`: free Pugo, PHP 79 monthly Manok, and PHP 799 lifetime Itik. That plan supersedes this document's former paid-download assumptions.
 - Google Play and the Apple App Store process purchases. Eatlog does not collect card or bank details.
 - Android and iOS purchases are separate store transactions because Eatlog has no cross-platform account or entitlement service.
-- Direct APK distribution bypasses the PHP 299 storefront purchase. Keep preview APKs limited to named testers after the paid launch, or accept that recipients can use them without buying the Play version.
+- Keep standalone preview APKs limited to named testers and isolate subscription testing with RevenueCat Test Store and a staging Worker.
 - The developer continues to provision food-service credentials. Users never enter or manage API keys.
 - The existing Worker remains the gateway for Gemini and USDA.
 - Open Food Facts remains an explicit-search provider. It does not become a typeahead provider.
@@ -153,7 +153,7 @@ Account-free build boundary:
 
 - Android: EAS can create preview APKs and prepare a signed production AAB without a Play Console account. Google Play App Signing, paid pricing, track installation, and final policy checks still require Play Console.
 - iOS: the agent can implement iOS support, export the iOS JavaScript bundle, and prepare an unsigned simulator build. App Store distribution certificates, physical TestFlight installation, and App Review require Apple Developer Program membership.
-- Paid app logic: the upfront PHP 299 charge lives in the stores. Eatlog needs no StoreKit, Play Billing, subscription, or in-app purchase implementation for this business model.
+- Purchase logic uses RevenueCat over Play Billing/App Store purchases with Worker-side entitlement verification; see `SUBSCRIPTION_IMPLEMENTATION_PLAN.md`.
 
 Do not postpone both enrollments until submission day. A new personal Play account may need the 12-tester/14-day closed test, and Apple enrollment, agreements, banking, or tax verification can take time. Enrollment can happen after core engineering starts, but it must finish before final distribution testing.
 
@@ -174,7 +174,7 @@ Do not postpone both enrollments until submission day. A new personal Play accou
 - [ ] Confirm an active Apple Developer Program membership and App Store Connect access.
 - [ ] Record Apple Team ID and the person who controls two-factor authentication.
 - [ ] Accept current store agreements.
-- [x] Price Eatlog at PHP 299 as a one-time upfront purchase in the Philippines.
+- [x] Replace the former paid-download decision with the approved Pugo, Manok, and Itik model.
 - [ ] Confirm the closest equivalent prices for other launch countries before release.
 - [x] Keep subscriptions, in-app purchases, paywalls, receipt servers, and cross-store entitlements out of v1.
 - [x] Accept that an Android purchase does not grant the iOS version, and an iOS purchase does not grant the Android version.
@@ -833,7 +833,7 @@ Google Play Console:
 - [ ] Create the app with package `com.sgaret.eatlog`.
 - [ ] Select app, default language, paid pricing, and target countries.
 - [ ] Create and verify the Google payments profile with the correct legal name, physical address, Philippines bank account, support details, and tax information.
-- [ ] Set the Philippines app price to PHP 299 before the app is published on any public track.
+- [ ] Change acquisition to free only after subscription closed-track testing and the lifetime-cost launch gate pass.
 - [ ] Never publish this package as free. Google does not allow an app that has been offered for free to become paid; correcting that mistake would require a new package.
 - [ ] Review Google Play service fees, Philippines tax handling, payout threshold, and expected net proceeds.
 - [ ] Keep internal APK distribution restricted to testers so it does not become a free public alternative to the paid listing.
@@ -847,7 +847,7 @@ App Store Connect:
 - [ ] Create the app record with primary language and stable SKU.
 - [ ] Have the Account Holder accept the current Paid Apps Agreement.
 - [ ] Complete Apple banking and required tax forms before expecting payouts.
-- [ ] Set the Philippines as the base storefront and select the price point that displays PHP 299. If Apple does not offer that exact point, stop and obtain owner approval for the closest price.
+- [ ] During iOS implementation, configure store-localized Manok and Itik price points only after owner approval.
 - [ ] Review Apple commission, Philippines tax treatment, and expected net proceeds.
 - [ ] Set target countries and confirm Apple-generated equivalent prices.
 - [ ] Complete agreements and EU trader status if applicable.
@@ -858,7 +858,7 @@ App Store Connect:
 Create source copy that both stores adapt. It must include:
 
 - Product name: Eatlog.
-- One-time upfront price: PHP 299 in the Philippines, with no subscription or in-app purchase.
+- Free Pugo acquisition with Manok monthly subscription and Itik one-time lifetime purchase, subject to the subscription launch gates.
 - One-sentence value proposition.
 - Local-first ownership statement.
 - Scanner, description, search, manual, diary, weight, analytics, adaptive review, backup, and export features.
@@ -1356,7 +1356,7 @@ Recheck these before submission:
 
 - Changed metadata and review source: `release/store/metadata.mjs`, `release/store/STORE_FORM_WORKSHEET.md`, `release/store/REVIEW_MATERIAL.md`, `release/store/SCREENSHOT_PLAN.md`, `release/OWNER_INPUTS.md`, `scripts/validate-store-metadata.mjs`, `package.json`, and this plan. One versioned source now supplies both stores' copy, categories, reviewer notes, commercial facts, provider behavior, and alt text without fabricated contacts or URLs.
 - Copy result: current official Google limits were checked at 30 characters for title, 80 for short description, 4,000 for full description, and 500 for release notes. Current Apple limits were checked at 30 for name, 30 for subtitle, 100 UTF-8 bytes for keywords, 4,000 for description and version notes, 170 for promotional text, and 4,000 bytes for review notes. Final counts are Google 6/77/1,756/255 and Apple 6/19/68 bytes/1,618/92/233, with 867-byte review notes.
-- Claim decision: store copy preserves Eatlog, PHP 299 upfront Philippines pricing, no subscription/IAP/login/account/cloud database, separate platform purchases, local-first storage, adult general-wellness scope, editable estimates, and the network requirements for Scan, Describe, USDA, and explicit Open Food Facts full search. It contains Google's required non-medical sentence, no unsupported accuracy/outcome/social-proof/endorsement/offline claim, and no Apple Health or HealthKit claim in iOS public copy.
+- Claim decision: store copy preserves Eatlog, free Pugo acquisition, Manok/Itik purchase disclosures, no login/account/cloud food database, separate platform purchases, local-first storage, adult general-wellness scope, editable estimates, and the network requirements for Scan, Describe, USDA, and explicit Open Food Facts full search. It contains Google's required non-medical sentence, no unsupported accuracy/outcome/social-proof/endorsement/offline claim, and no Apple Health or HealthKit claim in iOS public copy.
 - Changed artwork source and tooling: `release/artwork/source/`, `release/artwork/export/`, `release/artwork/README.md`, `scripts/store-artwork-png.mjs`, `scripts/generate-store-artwork.mjs`, and `scripts/validate-store-artwork.mjs`. The generator hydrates the source SVGs from the canonical `assets/icon.png`; it does not redraw, recolor, trace, or generatively alter the egg mask.
 - Artwork result: `google-play-icon-512.png` is 512×512 RGBA, fully opaque, and 10,055 bytes; `google-play-feature-graphic-1024x500.png` is 1024×500 RGB with no alpha and centered focal bounds `(343,18)–(681,481)`; `apple-app-store-icon-1024.png` is 1024×1024 RGB with no alpha and pixel-equivalent color content to the canonical icon. Original-resolution visual inspection confirmed the same white egg, scale marks, red indicator, and dark background with no badge, rating, award, price, text, or claim.
 - Screenshot/reviewer decision: the shot list defines seven distinct Android and iPhone captures, exact current format/dimension guidance, synthetic seed data, alt text, safe-area/accessibility review, and a real-binary-only rule. No screenshot was generated, composited, platform-swapped, or claimed. Reviewer material covers onboarding, manual entry, the single first-use transmission gate, provider paths, Health Connect Weight-only use on Android, iOS platform exclusions, backup/export/restore/reset, and evidence recording.

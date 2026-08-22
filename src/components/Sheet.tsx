@@ -223,7 +223,7 @@ export default function Sheet({
 			handleIndicatorStyle={styles.handle}
 			backgroundStyle={backgroundStyle}
 			handleStyle={styles.handleArea}
-			keyboardBehavior="interactive"
+			keyboardBehavior={contentHeight === undefined ? "fillParent" : "interactive"}
 			keyboardBlurBehavior="restore"
 			topInset={insets.top}
 			bottomInset={bottomInset}

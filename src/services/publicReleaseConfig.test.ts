@@ -5,6 +5,7 @@ import {
   buildOpenFoodFactsUserAgent,
   normalizePublicHttpsUrl,
   normalizeSupportEmail,
+  revenueCatApiKeyForBuild,
 } from './publicReleaseConfig';
 
 test('public release URLs accept only credential-free HTTPS URLs', () => {
@@ -21,4 +22,10 @@ test('Open Food Facts User-Agent requires a valid version and owner-provided sup
   assert.equal(buildOpenFoodFactsUserAgent('1.1.0', normalizeSupportEmail('missing-at-sign')), null);
   assert.equal(buildOpenFoodFactsUserAgent('development', email), null);
   assert.equal(buildOpenFoodFactsUserAgent('1.1.0', null), null);
+});
+
+test('Test Store keys are disabled unless the build explicitly allows them', () => {
+  assert.equal(revenueCatApiKeyForBuild(' test_public_key ', false), '');
+  assert.equal(revenueCatApiKeyForBuild(' test_public_key ', true), 'test_public_key');
+  assert.equal(revenueCatApiKeyForBuild(' goog_public_key ', false), 'goog_public_key');
 });

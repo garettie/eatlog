@@ -16,6 +16,7 @@ import {
 import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
 import { AboutScreen, AttributionsScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
 import { supportsHealthConnect } from '../services/platformFeatures';
+import { ProfileSubscriptionPlanScreen } from '../screens/PaywallScreen';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
@@ -42,6 +43,7 @@ const HOW_EATLOG_WORKS_OPTIONS = { title: 'How Eatlog works' } as const;
 const ABOUT_OPTIONS = { title: 'About' } as const;
 const ATTRIBUTIONS_OPTIONS = { title: 'Licenses & attributions' } as const;
 const PLAN_PREVIEW_OPTIONS = { title: 'Review changes' } as const;
+const SUBSCRIPTION_PLAN_OPTIONS = { title: 'Plan' } as const;
 
 function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps) {
   const renderProfileHome = useCallback(
@@ -72,6 +74,7 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
       <Stack.Screen name="ProfileHome" options={PROFILE_HOME_OPTIONS}>
         {renderProfileHome}
       </Stack.Screen>
+      <Stack.Screen name="SubscriptionPlan" component={ProfileSubscriptionPlanScreen} options={SUBSCRIPTION_PLAN_OPTIONS} />
       <Stack.Screen name="PersonalDetails" options={PERSONAL_DETAILS_OPTIONS}>
         {renderPersonalDetails}
       </Stack.Screen>

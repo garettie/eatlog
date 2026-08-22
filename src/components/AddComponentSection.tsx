@@ -2,12 +2,14 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 import { loadFoodDetails, type FoodResult } from '../services/foodSearch';
 import { describeMeal } from '../services/foodScan';
 import { useFoodSearchController } from '../hooks/useFoodSearchController';
 import { M3 } from '../theme/tokens';
 import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
+import { useEntitlement } from '../context/EntitlementContext';
 import PrimaryButton from './PrimaryButton';
 import FoodSearchResultRow from './FoodSearchResultRow';
 
@@ -26,6 +28,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [isEstimating, setIsEstimating] = useState(false);
   const [describeError, setDescribeError] = useState<string | null>(null);
   const { requestConsent } = useRemoteEstimateConsent();
+  const { hasPaidFeatures } = useEntitlement();
+  const navigation = useNavigation<any>();
 
   const [manualName, setManualName] = useState('');
   const [manualCal, setManualCal] = useState('');
@@ -40,6 +44,14 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualGramsValue > 0
     && manualNutrients.every((value) => Number.isFinite(value) && value >= 0)
     && manualNutrients.some((value) => value > 0);
+
+  const openDescribe = useCallback(() => {
+    if (!hasPaidFeatures) {
+      navigation.navigate('Paywall');
+      return;
+    }
+    setMode('describe');
+  }, [hasPaidFeatures, navigation]);
 
   const reset = useCallback(() => {
     setMode(null);
@@ -67,6 +79,10 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const text = describeText.trim();
     if (!text) return;
     setDescribeError(null);
+    if (!hasPaidFeatures) {
+      navigation.navigate('Paywall');
+      return;
+    }
     if (!await requestConsent()) return;
     setIsEstimating(true);
     try {
@@ -82,7 +98,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     } finally {
       setIsEstimating(false);
     }
-  }, [describeText, onAdd, requestConsent, reset]);
+  }, [describeText, hasPaidFeatures, navigation, onAdd, requestConsent, reset]);
 
   const handleManualAdd = useCallback(() => {
     if (!manualCanAdd) return;
@@ -120,7 +136,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   if (mode === null) {
     return (
       <Pressable
-        onPress={() => setMode('describe')}
+        onPress={openDescribe}
         accessibilityRole="button"
         accessibilityLabel="Add food"
         accessibilityHint="Opens a description estimate, with search and manual entry available as fallbacks"
@@ -150,7 +166,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
           </View>
         </Pressable>
         <Pressable
-          onPress={() => setMode('describe')}
+          onPress={openDescribe}
           accessibilityRole="button"
           accessibilityLabel="Describe food"
           accessibilityState={{ selected: mode === 'describe' }}
