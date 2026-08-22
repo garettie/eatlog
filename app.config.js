@@ -12,6 +12,10 @@ const appIdentifier = isDevelopment
 module.exports = ({ config }) => ({
   ...config,
   name: appName,
+  plugins: [
+    ...(config.plugins ?? []),
+    ...(isPreview ? ["./plugins/withEatlogSubscriptionPreview"] : []),
+  ],
   updates: {
     url: "https://u.expo.dev/700befb6-016e-4d35-a35c-bd375da07e4d",
   },

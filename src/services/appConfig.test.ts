@@ -7,6 +7,7 @@ interface EvaluatedConfig {
   name: string;
   android: { package: string };
   ios: { bundleIdentifier: string };
+  plugins?: Array<string | [string, Record<string, unknown>]>;
 }
 
 type ConfigureApp = (input: {
@@ -14,6 +15,7 @@ type ConfigureApp = (input: {
     name: string;
     android: { package: string };
     ios: { bundleIdentifier: string };
+    plugins?: Array<string | [string, Record<string, unknown>]>;
   };
 }) => EvaluatedConfig;
 
@@ -24,7 +26,7 @@ const easConfig = require(path.resolve(process.cwd(), 'eas.json')) as {
     autoIncrement?: boolean;
     developmentClient?: boolean;
     env?: Record<string, string>;
-    android?: { buildType?: string; gradleCommand?: string };
+    android?: { buildType?: string; gradleCommand?: string; withoutCredentials?: boolean };
   }>;
 };
 
@@ -43,6 +45,7 @@ function evaluateVariant(appVariant?: string): EvaluatedConfig {
         name: 'Eatlog',
         android: { package: 'com.sgaret.eatlog' },
         ios: { bundleIdentifier: 'com.sgaret.eatlog' },
+        plugins: [],
       },
     });
   } finally {
@@ -62,11 +65,13 @@ test('Expo variants keep production stable and isolate standalone preview builds
   assert.equal(preview.name, 'Eatlog Preview');
   assert.equal(preview.android.package, 'com.sgaret.eatlog.preview');
   assert.equal(preview.ios.bundleIdentifier, 'com.sgaret.eatlog.preview');
+  assert.ok(preview.plugins?.includes('./plugins/withEatlogSubscriptionPreview'));
 
   const development = evaluateVariant('development');
   assert.equal(development.name, 'Eatlog');
   assert.equal(development.android.package, 'com.sgaret.eatlog.dev');
   assert.equal(development.ios.bundleIdentifier, 'com.sgaret.eatlog.dev');
+  assert.equal(development.plugins?.includes('./plugins/withEatlogSubscriptionPreview'), false);
 });
 
 test('standalone preview builds increment independently after the first APK', () => {
@@ -75,12 +80,13 @@ test('standalone preview builds increment independently after the first APK', ()
   assert.equal(easConfig.build.production.autoIncrement, true);
 });
 
-test('subscription preview is a standalone debug APK that permits RevenueCat Test Store', () => {
+test('subscription preview bundles JavaScript without the development client and permits Test Store', () => {
   const preview = easConfig.build.preview;
-  assert.notEqual(preview.developmentClient, true);
-  assert.equal(preview.android?.gradleCommand, ':app:assembleDebug');
+  assert.equal(preview.developmentClient, false);
+  assert.equal(preview.android?.gradleCommand, ':app:assembleSubscriptionPreview');
   assert.equal(preview.android?.buildType, undefined);
-  assert.equal(preview.env?.EX_UPDATES_NATIVE_DEBUG, '1');
+  assert.equal(preview.android?.withoutCredentials, true);
+  assert.equal(preview.env?.EX_UPDATES_NATIVE_DEBUG, undefined);
   assert.equal(preview.env?.EXPO_PUBLIC_REVENUECAT_TEST_STORE_ALLOWED, 'true');
   assert.equal(easConfig.build.production.env?.EXPO_PUBLIC_REVENUECAT_TEST_STORE_ALLOWED, undefined);
 });

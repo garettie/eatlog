@@ -26,11 +26,71 @@ function accessName(kind: ReturnType<typeof useEntitlement>['access']['kind']): 
   return 'Eatlog Pugo';
 }
 
-function Feature({ icon, children }: { icon: React.ComponentProps<typeof MaterialIcons>['name']; children: string }) {
+function accessDetail(access: ReturnType<typeof useEntitlement>['access']): string {
+  if (access.kind === 'manok-trial' || access.kind === 'manok') {
+    if (access.billingState === 'grace') return 'Payment issue · Access remains available during the grace period';
+    if (!access.expiresAt) return 'Paid access is active';
+    return access.willRenew ? `Renews ${dateLabel(access.expiresAt)}` : `Ends ${dateLabel(access.expiresAt)}`;
+  }
+  if (access.kind === 'itik') {
+    return `Lifetime access${access.purchasedAt ? ` · Purchased ${dateLabel(access.purchasedAt)}` : ''}`;
+  }
+  if (access.kind === 'complimentary') return `Available until ${dateLabel(access.expiresAt)}`;
+  if (access.reason === 'expired') return 'Paid access ended · Your local data is unchanged';
+  if (access.reason === 'revoked') return 'Paid access was removed · Your local data is unchanged';
+  if (access.reason === 'malformed') return "Paid status couldn't be verified · Refresh or restore purchases";
+  if (access.reason === 'unavailable') return "Paid status couldn't be checked · Local logging still works";
+  return 'Free · Local logging and on-device data';
+}
+
+interface PlanOptionProps {
+  title: string;
+  badge: string;
+  price: string;
+  description: string;
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  selected: boolean;
+  disabled?: boolean;
+  onPress(): void;
+}
+
+function PlanOption({ title, badge, price, description, icon, selected, disabled, onPress }: PlanOptionProps) {
   return (
-    <View className="min-h-[36px] flex-row items-center gap-3">
-      <MaterialIcons name={icon} size={20} color={M3.onSurface} />
-      <Text className="flex-1 text-sm text-m3-on-surface">{children}</Text>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="radio"
+      accessibilityLabel={`${title}. ${price}. ${description}`}
+      accessibilityState={{ selected, disabled: !!disabled }}
+      className={`rounded-2xl border px-4 py-4 ${selected ? 'border-white bg-m3-surface-container-high' : 'border-m3-outline-variant bg-m3-surface-container'}`}
+    >
+      <View className="flex-row items-start gap-3">
+        <View className={`h-11 w-11 items-center justify-center rounded-full ${selected ? 'bg-m3-primary' : 'bg-m3-surface-container-highest'}`}>
+          <MaterialIcons name={icon} size={21} color={selected ? M3.onPrimary : M3.onSurface} />
+        </View>
+        <View className="min-w-0 flex-1 gap-1">
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Text className="text-base font-bold text-m3-on-surface">{title}</Text>
+            <View className="rounded-full bg-m3-primary-container px-2.5 py-1">
+              <Text className="text-xs font-semibold text-m3-on-primary-container">{badge}</Text>
+            </View>
+          </View>
+          <Text className="text-lg font-bold text-m3-on-surface">{price}</Text>
+          <Text className="text-sm text-m3-on-surface-variant">{description}</Text>
+        </View>
+        <MaterialIcons name={selected ? 'radio-button-checked' : 'radio-button-unchecked'} size={22} color={M3.onSurface} />
+      </View>
+    </Pressable>
+  );
+}
+
+function ComparisonRow({ label, pugo, manok, itik }: { label: string; pugo: string; manok: string; itik: string }) {
+  return (
+    <View className="flex-row items-center border-t border-m3-outline-variant px-3 py-3" accessible accessibilityLabel={`${label}. Pugo: ${pugo}. Manok: ${manok}. Itik: ${itik}.`}>
+      <Text className="w-[92px] pr-2 text-xs font-semibold text-m3-on-surface-variant">{label}</Text>
+      <Text className="flex-1 text-center text-xs text-m3-on-surface">{pugo}</Text>
+      <Text className="flex-1 text-center text-xs font-semibold text-m3-on-surface">{manok}</Text>
+      <Text className="flex-1 text-center text-xs font-semibold text-m3-on-surface">{itik}</Text>
     </View>
   );
 }
@@ -69,16 +129,55 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
     }
   }, [busy, supportId]);
 
-  const selectedProduct = selected === 'manok' ? offering?.manok : offering?.itik;
-  const itikBlocked = selected === 'itik' && !canBuyItik(access);
-  const purchaseDisabled = busy !== null || !selectedProduct || access.kind === 'itik' || itikBlocked;
-  const purchaseTitle = access.kind === 'itik'
-    ? 'Eatlog Itik active'
+  const retryPlans = useCallback(() => {
+    if (refreshing) return;
+    setMessage(null);
+    void refresh().catch(() => {
+      setMessage("Couldn't refresh plans. Local logging still works.");
+    });
+  }, [refresh, refreshing]);
+
+  const selectedTier = access.kind === 'itik' ? 'itik' : selected;
+  const selectedProduct = selectedTier === 'manok' ? offering?.manok : offering?.itik;
+  const manokActive = access.kind === 'manok' || access.kind === 'manok-trial';
+  const selectedIsActive = selectedTier === 'itik' ? access.kind === 'itik' : manokActive;
+  const itikBlocked = selectedTier === 'itik' && !canBuyItik(access);
+  const storeDetailsMissing = !loadingProducts && (!offering?.manok || !offering?.itik);
+  const purchaseDisabled = busy !== null
+    || refreshing
+    || loadingProducts
+    || access.kind === 'itik'
+    || selectedIsActive
+    || itikBlocked;
+  const purchaseTitle = selectedIsActive
+    ? `${selectedTier === 'manok' ? 'Eatlog Manok' : 'Eatlog Itik'} active`
     : itikBlocked
       ? 'Cancel Manok before Itik'
-      : selected === 'manok'
-        ? offering?.manok?.trialEligible ? 'Start Manok trial' : `Choose Manok${offering?.manok ? ` · ${offering.manok.priceString}` : ''}`
-        : `Pay once${offering?.itik ? ` · ${offering.itik.priceString}` : ''}`;
+      : loadingProducts
+        ? 'Loading store price…'
+        : !selectedProduct
+          ? 'Retry plans'
+          : selectedTier === 'manok'
+            ? offering?.manok?.trialEligible
+              ? 'Start 1-month trial'
+              : `Choose Manok · ${selectedProduct.priceString}`
+            : `Get lifetime · ${selectedProduct.priceString}`;
+  const manokPrice = offering?.manok
+    ? `${offering.manok.priceString} / month`
+    : loadingProducts ? 'Loading store price…' : 'Monthly · Store price unavailable';
+  const manokDescription = offering?.manok?.trialEligible
+    ? `1 month free, then ${offering.manok.priceString} monthly`
+    : '1-month trial for eligible users · Renews monthly';
+  const itikPrice = offering?.itik?.priceString
+    ?? (loadingProducts ? 'Loading store price…' : 'One time · Store price unavailable');
+
+  const handlePrimaryAction = useCallback(() => {
+    if (!selectedProduct) {
+      retryPlans();
+      return;
+    }
+    void run('purchase', () => purchase(selectedTier));
+  }, [purchase, retryPlans, run, selectedProduct, selectedTier]);
 
   return (
     <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -86,7 +185,7 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
         <View className="flex-row items-start gap-3">
           <View className="flex-1 gap-1">
             <Text accessibilityRole="header" className="text-2xl font-bold text-m3-on-surface">Choose your Eatlog plan</Text>
-            <Text className="text-sm text-m3-on-surface-variant">Logging and your data stay free with Eatlog Pugo.</Text>
+            <Text className="text-sm text-m3-on-surface-variant">Logging, targets, and backups stay free.</Text>
           </View>
           {onClose ? (
             <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close plans" className="h-12 w-12 items-center justify-center rounded-full active:bg-m3-surface-container-high">
@@ -95,99 +194,150 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
           ) : null}
         </View>
 
-        <View className="rounded-2xl bg-m3-surface-container px-5 py-4 gap-1">
-          <Text className="text-xs font-semibold text-m3-on-surface-variant">Current plan</Text>
-          <Text className="text-lg font-bold text-m3-on-surface">{accessName(access.kind)}</Text>
-          {access.kind === 'manok-trial' || access.kind === 'manok' ? (
-            <Text className="text-sm text-m3-on-surface-variant">
-              {access.billingState === 'grace' ? 'Billing grace period' : access.willRenew ? `Renews ${dateLabel(access.expiresAt!)}` : `Ends ${dateLabel(access.expiresAt!)}`}
-            </Text>
-          ) : access.kind === 'itik' ? (
-            <Text className="text-sm text-m3-on-surface-variant">Lifetime{access.purchasedAt ? ` · ${dateLabel(access.purchasedAt)}` : ''}</Text>
-          ) : access.kind === 'complimentary' ? (
-            <Text className="text-sm text-m3-on-surface-variant">Until {dateLabel(access.expiresAt)}</Text>
-          ) : null}
+        <View className="flex-row items-center gap-3 rounded-2xl bg-m3-surface-container px-4 py-4">
+          <View className="h-11 w-11 items-center justify-center rounded-full bg-m3-surface-container-highest">
+            <MaterialIcons name="workspace-premium" size={22} color={M3.onSurface} />
+          </View>
+          <View className="min-w-0 flex-1 gap-0.5">
+            <Text className="text-xs font-semibold text-m3-on-surface-variant">Current plan</Text>
+            <Text className="text-base font-bold text-m3-on-surface">{accessName(access.kind)}</Text>
+            <Text className="text-sm text-m3-on-surface-variant">{accessDetail(access)}</Text>
+          </View>
         </View>
 
-        <View className="gap-2">
-          <Feature icon="photo-camera">AI estimates from photos and descriptions</Feature>
-          <Feature icon="auto-graph">Adaptive recommendations from your logs</Feature>
-          <Feature icon="lock-outline">Your logs, targets, and backups stay on your device</Feature>
+        <View className="gap-3">
+          <View className="gap-1">
+            <Text accessibilityRole="header" className="text-lg font-bold text-m3-on-surface">Paid plans</Text>
+            <Text className="text-sm text-m3-on-surface-variant">Manok and Itik unlock the same features. Choose how you pay.</Text>
+          </View>
+          {loadingProducts ? (
+            <View className="flex-row items-center gap-2">
+              <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+              <Text className="text-sm text-m3-on-surface-variant">Loading store prices…</Text>
+            </View>
+          ) : null}
+          <PlanOption
+            title="Eatlog Manok"
+            badge={access.kind === 'manok-trial' ? 'Trial active' : access.kind === 'manok' ? 'Current' : '1-month trial*'}
+            price={manokPrice}
+            description={manokDescription}
+            icon="event-repeat"
+            selected={selectedTier === 'manok'}
+            disabled={access.kind === 'itik'}
+            onPress={() => setSelected('manok')}
+          />
+          <PlanOption
+            title="Eatlog Itik"
+            badge={access.kind === 'itik' ? 'Current' : 'Pay once'}
+            price={itikPrice}
+            description="One payment · Lifetime access · No renewal"
+            icon="all-inclusive"
+            selected={selectedTier === 'itik'}
+            disabled={access.kind === 'itik'}
+            onPress={() => setSelected('itik')}
+          />
+          <Text className="text-xs text-m3-on-surface-variant">*Free for eligible users. The store confirms eligibility before purchase.</Text>
         </View>
+
+        {storeDetailsMissing ? (
+          <View accessibilityRole="alert" className="flex-row gap-3 rounded-2xl border border-m3-outline-variant bg-m3-surface-container px-4 py-4">
+            <MaterialIcons name="cloud-off" size={21} color={M3.error} />
+            <View className="flex-1 gap-1">
+              <Text className="text-base font-bold text-m3-on-surface">Store connection unavailable</Text>
+              <Text className="text-sm text-m3-on-surface-variant">Prices and checkout couldn't load. You can still compare plans.</Text>
+            </View>
+          </View>
+        ) : null}
 
         {access.kind !== 'itik' ? (
-          loadingProducts ? (
-            <View className="min-h-[112px] items-center justify-center gap-3 rounded-2xl bg-m3-surface-container">
-              <ActivityIndicator color={M3.onSurfaceVariant} />
-              <Text className="text-sm text-m3-on-surface-variant">Loading plans…</Text>
-            </View>
-          ) : offering?.manok || offering?.itik ? (
-            <View className="gap-3">
-              {offering.manok ? (
-                <Pressable
-                  onPress={() => setSelected('manok')}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: selected === 'manok' }}
-                  className={`min-h-[88px] rounded-2xl border px-5 py-4 ${selected === 'manok' ? 'border-white bg-m3-surface-container-high' : 'border-m3-outline-variant bg-m3-surface-container'}`}
-                >
-                  <View className="flex-row justify-between gap-4">
-                    <View className="flex-1 gap-1"><Text className="text-base font-bold text-m3-on-surface">Eatlog Manok</Text><Text className="text-sm text-m3-on-surface-variant">{offering.manok.priceString} per month · Renews until canceled</Text></View>
-                    <MaterialIcons name={selected === 'manok' ? 'radio-button-checked' : 'radio-button-unchecked'} size={22} color={M3.onSurface} />
-                  </View>
-                  {offering.manok.trialEligible ? <Text className="mt-2 text-sm font-semibold text-m3-on-surface">One month free, then {offering.manok.priceString} per month. Eligibility shown by the store.</Text> : null}
-                </Pressable>
-              ) : null}
-              {offering.itik ? (
-                <Pressable
-                  onPress={() => setSelected('itik')}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: selected === 'itik' }}
-                  className={`min-h-[88px] rounded-2xl border px-5 py-4 ${selected === 'itik' ? 'border-white bg-m3-surface-container-high' : 'border-m3-outline-variant bg-m3-surface-container'}`}
-                >
-                  <View className="flex-row justify-between gap-4"><View className="flex-1 gap-1"><Text className="text-base font-bold text-m3-on-surface">Eatlog Itik</Text><Text className="text-sm text-m3-on-surface-variant">{offering.itik.priceString} once · No renewal</Text></View><MaterialIcons name={selected === 'itik' ? 'radio-button-checked' : 'radio-button-unchecked'} size={22} color={M3.onSurface} /></View>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : (
-            <View className="rounded-2xl bg-m3-surface-container px-5 py-4 gap-2">
-              <Text className="text-base font-bold text-m3-on-surface">Plans unavailable</Text>
-              <Text className="text-sm text-m3-on-surface-variant">Plans aren't available right now. Eatlog Pugo still works.</Text>
-            </View>
-          )
+          <PrimaryButton
+            title={busy === 'purchase' ? 'Waiting for store…' : refreshing && !selectedProduct ? 'Retrying plans…' : purchaseTitle}
+            disabled={purchaseDisabled}
+            loading={loadingProducts || busy === 'purchase' || refreshing && !selectedProduct}
+            onPress={handlePrimaryAction}
+          />
         ) : null}
+        {itikBlocked ? <Text className="text-sm text-m3-on-surface-variant">Cancel Manok before buying Itik. The store won't refund unused Manok time.</Text> : null}
+        {message ? <Text accessibilityLiveRegion="polite" className="rounded-2xl bg-m3-surface-container px-4 py-3 text-sm text-m3-on-surface">{message}</Text> : null}
 
-        {offering?.manok?.trialEligible && selected === 'manok' && access.kind === 'pugo' ? (
-          <Text className="text-sm text-m3-on-surface-variant">Trial limits: 5 estimates and 5 clarifications every 24 hours, up to 30 each during the trial.</Text>
-        ) : null}
-        <Text className="text-sm text-m3-on-surface-variant">No weekly limit · Up to 30 AI actions every 24 hours and 250 every 30 days.</Text>
+        <View className="gap-3">
+          <Text accessibilityRole="header" className="text-lg font-bold text-m3-on-surface">Compare plans</Text>
+          <View className="overflow-hidden rounded-2xl border border-m3-outline-variant bg-m3-surface-container">
+            <View className="flex-row items-center px-3 py-3">
+              <View className="w-[92px]" />
+              <Text className="flex-1 text-center text-xs font-semibold text-m3-on-surface-variant">Pugo</Text>
+              <Text className="flex-1 text-center text-xs font-semibold text-m3-on-surface">Manok</Text>
+              <Text className="flex-1 text-center text-xs font-semibold text-m3-on-surface">Itik</Text>
+            </View>
+            <ComparisonRow label="Local logging" pugo="Yes" manok="Yes" itik="Yes" />
+            <ComparisonRow label="AI estimates" pugo="—" manok="Yes" itik="Yes" />
+            <ComparisonRow label="Adaptive plan" pugo="—" manok="Yes" itik="Yes" />
+            <ComparisonRow label="Billing" pugo="Free" manok="Monthly" itik="Once" />
+            <ComparisonRow label="Trial" pugo="—" manok="1 month*" itik="—" />
+          </View>
+        </View>
+
+        <View className="gap-3">
+          <Text accessibilityRole="header" className="text-lg font-bold text-m3-on-surface">AI limits</Text>
+          <View className="gap-4 rounded-2xl bg-m3-surface-container px-4 py-4">
+            <View className="flex-row gap-3">
+              <MaterialIcons name="hourglass-top" size={20} color={M3.onSurface} />
+              <View className="flex-1 gap-1">
+                <Text className="text-sm font-semibold text-m3-on-surface">Manok trial</Text>
+                <Text className="text-sm text-m3-on-surface-variant">5 estimates and 5 clarifications every 24 hours, up to 30 each during the trial.</Text>
+              </View>
+            </View>
+            <View className="h-px bg-m3-outline-variant" />
+            <View className="flex-row gap-3">
+              <MaterialIcons name="bolt" size={20} color={M3.onSurface} />
+              <View className="flex-1 gap-1">
+                <Text className="text-sm font-semibold text-m3-on-surface">Paid access</Text>
+                <Text className="text-sm text-m3-on-surface-variant">Up to 30 AI actions every 24 hours and 250 every 30 days.</Text>
+              </View>
+            </View>
+          </View>
+        </View>
 
         {usage.kind === 'trial' ? (
-          <View className="rounded-2xl bg-m3-surface-container px-5 py-4 gap-2">
+          <View className="gap-2 rounded-2xl bg-m3-surface-container px-4 py-4">
             <Text className="text-base font-bold text-m3-on-surface">Trial AI remaining</Text>
-            <Text className="text-sm tabular-nums text-m3-on-surface-variant">Initial estimates: {usage.initialRemaining24Hours}/5 now · {usage.initialRemainingTrial}/30 trial</Text>
+            <Text className="text-sm tabular-nums text-m3-on-surface-variant">Estimates: {usage.initialRemaining24Hours}/5 now · {usage.initialRemainingTrial}/30 trial</Text>
             <Text className="text-sm tabular-nums text-m3-on-surface-variant">Clarifications: {usage.clarificationRemaining24Hours}/5 now · {usage.clarificationRemainingTrial}/30 trial</Text>
           </View>
         ) : usage.kind === 'paid' && (usage.remaining24Hours <= 5 || usage.remaining30Days <= 25) ? (
-          <View className="rounded-2xl bg-m3-surface-container px-5 py-4 gap-1"><Text className="text-base font-bold text-m3-on-surface">Fair-use status</Text><Text className="text-sm tabular-nums text-m3-on-surface-variant">{usage.remaining24Hours} left in 24 hours · {usage.remaining30Days} left in 30 days</Text></View>
+          <View className="gap-1 rounded-2xl bg-m3-surface-container px-4 py-4">
+            <Text className="text-base font-bold text-m3-on-surface">AI remaining</Text>
+            <Text className="text-sm tabular-nums text-m3-on-surface-variant">{usage.remaining24Hours} in 24 hours · {usage.remaining30Days} in 30 days</Text>
+          </View>
         ) : null}
 
-        {access.kind !== 'itik' ? (
-          <PrimaryButton title={busy === 'purchase' ? 'Waiting for store…' : purchaseTitle} disabled={purchaseDisabled} onPress={() => { void run('purchase', () => purchase(selected)); }} />
-        ) : null}
-        {itikBlocked ? <Text className="text-sm text-m3-on-surface-variant">Cancel Manok before buying Itik. The store won't refund unused Manok time.</Text> : null}
-        {message ? <Text accessibilityLiveRegion="polite" className="text-sm text-m3-on-surface">{message}</Text> : null}
-
-        <View className="gap-1 border-t border-m3-outline-variant/50 pt-3">
-          {(access.kind === 'manok' || access.kind === 'manok-trial') ? <Pressable onPress={() => { void run('manage', manageSubscription); }} className="min-h-[48px] justify-center"><Text className="text-center text-sm font-semibold text-m3-on-surface">Manage subscription</Text></Pressable> : null}
-          <Pressable onPress={() => { void run('restore', restore); }} className="min-h-[48px] justify-center"><Text className="text-center text-sm font-semibold text-m3-on-surface">Restore purchases</Text></Pressable>
-          <Pressable onPress={() => { void refresh(); }} disabled={refreshing} className="min-h-[48px] justify-center"><Text className="text-center text-sm font-semibold text-m3-on-surface">{refreshing ? 'Refreshing plan…' : 'Refresh plan'}</Text></Pressable>
+        <View className="gap-3 border-t border-m3-outline-variant pt-5">
+          {(access.kind === 'manok' || access.kind === 'manok-trial') ? (
+            <Pressable onPress={() => { void run('manage', manageSubscription); }} disabled={busy !== null} accessibilityRole="button" accessibilityState={{ disabled: busy !== null }} className="min-h-[48px] items-center justify-center rounded-full border border-m3-outline">
+              <Text className="text-sm font-semibold text-m3-on-surface">{busy === 'manage' ? 'Opening store…' : 'Manage subscription'}</Text>
+            </Pressable>
+          ) : null}
+          <View className="flex-row gap-3">
+            <Pressable onPress={() => { void run('restore', restore); }} disabled={busy !== null} accessibilityRole="button" accessibilityState={{ disabled: busy !== null }} className="min-h-[48px] flex-1 items-center justify-center rounded-full border border-m3-outline px-3">
+              <Text className="text-center text-sm font-semibold text-m3-on-surface">{busy === 'restore' ? 'Restoring…' : 'Restore purchases'}</Text>
+            </Pressable>
+            <Pressable onPress={retryPlans} disabled={refreshing || busy !== null} accessibilityRole="button" accessibilityState={{ disabled: refreshing || busy !== null, busy: refreshing }} className="min-h-[48px] flex-1 items-center justify-center rounded-full border border-m3-outline px-3">
+              <Text className="text-center text-sm font-semibold text-m3-on-surface">{refreshing ? 'Refreshing…' : 'Refresh plan'}</Text>
+            </Pressable>
+          </View>
         </View>
 
-        <View className="gap-2 rounded-2xl bg-m3-surface-container px-5 py-4">
-          <Text className="text-xs font-semibold text-m3-on-surface-variant">Support ID</Text>
-          <Text selectable className="text-sm tabular-nums text-m3-on-surface">{supportId ?? 'Unavailable on this build'}</Text>
-          <Pressable onPress={() => { void copySupportId(); }} disabled={!supportId || busy !== null} className="min-h-[48px] self-start justify-center"><Text className="text-sm font-semibold text-m3-on-surface">{busy === 'copy' ? 'Copying…' : 'Copy Support ID'}</Text></Pressable>
-          {access.kind === 'complimentary' ? <Text className="text-sm text-m3-on-surface-variant">Complimentary access has no store subscription. Restore remains available for any Manok or Itik purchase.</Text> : null}
+        <View className="gap-3 rounded-2xl bg-m3-surface-container px-4 py-4">
+          <View className="flex-row items-center gap-3">
+            <View className="min-w-0 flex-1 gap-1">
+              <Text className="text-xs font-semibold text-m3-on-surface-variant">Support ID</Text>
+              <Text selectable numberOfLines={1} ellipsizeMode="middle" className="text-sm tabular-nums text-m3-on-surface">{supportId ?? 'Unavailable on this build'}</Text>
+            </View>
+            <Pressable onPress={() => { void copySupportId(); }} disabled={!supportId || busy !== null} accessibilityRole="button" accessibilityState={{ disabled: !supportId || busy !== null }} className="min-h-[48px] justify-center rounded-full px-3">
+              <Text className="text-sm font-semibold text-m3-on-surface">{busy === 'copy' ? 'Copying…' : 'Copy'}</Text>
+            </Pressable>
+          </View>
+          {access.kind === 'complimentary' ? <Text className="text-sm text-m3-on-surface-variant">Complimentary access has no store subscription. Restore purchases remains available.</Text> : null}
         </View>
 
         <View className="flex-row flex-wrap justify-center gap-4">

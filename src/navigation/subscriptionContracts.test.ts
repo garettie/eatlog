@@ -21,6 +21,10 @@ const dataBackup = read('../services/dataBackup.ts');
 const dataExport = read('../services/dataExport.ts');
 
 test('entitlement provider owns paywall and Profile plan routes', () => {
+  const purchaseDisabled = paywall.slice(
+    paywall.indexOf('const purchaseDisabled'),
+    paywall.indexOf('const purchaseTitle'),
+  );
   assert.match(app, /<EntitlementProvider>/);
   assert.match(rootNavigator, /name="Paywall"/);
   assert.match(profileNavigator, /name="SubscriptionPlan"/);
@@ -29,8 +33,14 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(paywall, /Restore purchases/);
   assert.match(paywall, /Manage subscription/);
   assert.match(paywall, /Terms of Use/);
-  assert.match(paywall, /No weekly limit · Up to 30 AI actions every 24 hours and 250 every 30 days/);
-  assert.match(paywall, /Plans aren't available right now\. Eatlog Pugo still works\./);
+  assert.match(paywall, /Compare plans/);
+  assert.match(paywall, /1-month trial/);
+  assert.match(paywall, /Free for eligible users\. The store confirms eligibility before purchase\./);
+  assert.match(paywall, /Retry plans/);
+  assert.match(paywall, /Prices and checkout couldn't load\. You can still compare plans\./);
+  assert.match(paywall, /Up to 30 AI actions every 24 hours and 250 every 30 days/);
+  assert.match(paywall, /if \(!selectedProduct\) \{[\s\S]*retryPlans\(\)/);
+  assert.doesNotMatch(purchaseDisabled, /selectedProduct/);
   assert.doesNotMatch(paywall, /This installed build or store did not return/);
   assert.doesNotMatch(paywall, /Trial allowance:/);
 });
