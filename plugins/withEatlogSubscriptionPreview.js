@@ -1,12 +1,19 @@
 const {
   createRunOncePlugin,
   withAppBuildGradle,
+  withDangerousMod,
   withMainApplication,
 } = require('expo/config-plugins');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 
 const pkg = require('../package.json');
 
 const BUILD_TYPE_NAME = 'subscriptionPreview';
+const SUBSCRIPTION_PREVIEW_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application android:debuggable="true" />
+</manifest>
+`;
 
 function ensureSubscriptionPreviewBuildType(contents) {
   if (contents.includes(`${BUILD_TYPE_NAME} {`)) return contents;
@@ -39,7 +46,7 @@ function ensureSubscriptionPreviewBuildType(contents) {
   const previewBuildType = [
     `${entryIndent}${BUILD_TYPE_NAME} {`,
     `${propertyIndent}initWith release`,
-    `${propertyIndent}debuggable true`,
+    `${propertyIndent}debuggable false`,
     `${propertyIndent}signingConfig signingConfigs.debug`,
     `${propertyIndent}matchingFallbacks = ['release']`,
     `${entryIndent}}`,
@@ -83,13 +90,29 @@ const withEatlogSubscriptionPreview = (config) => {
     return buildGradleConfig;
   });
 
-  return withMainApplication(config, (mainApplicationConfig) => {
+  config = withMainApplication(config, (mainApplicationConfig) => {
     mainApplicationConfig.modResults.contents = disableSubscriptionPreviewDeveloperSupport(
       mainApplicationConfig.modResults.contents,
       mainApplicationConfig.modResults.language,
     );
     return mainApplicationConfig;
   });
+
+  return withDangerousMod(config, [
+    'android',
+    async (dangerousConfig) => {
+      const manifestPath = path.join(
+        dangerousConfig.modRequest.platformProjectRoot,
+        'app',
+        'src',
+        BUILD_TYPE_NAME,
+        'AndroidManifest.xml',
+      );
+      await fs.mkdir(path.dirname(manifestPath), { recursive: true });
+      await fs.writeFile(manifestPath, SUBSCRIPTION_PREVIEW_MANIFEST);
+      return dangerousConfig;
+    },
+  ]);
 };
 
 module.exports = createRunOncePlugin(
@@ -99,3 +122,4 @@ module.exports = createRunOncePlugin(
 );
 module.exports.disableSubscriptionPreviewDeveloperSupport = disableSubscriptionPreviewDeveloperSupport;
 module.exports.ensureSubscriptionPreviewBuildType = ensureSubscriptionPreviewBuildType;
+module.exports.SUBSCRIPTION_PREVIEW_MANIFEST = SUBSCRIPTION_PREVIEW_MANIFEST;

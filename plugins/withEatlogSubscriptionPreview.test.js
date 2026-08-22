@@ -4,6 +4,7 @@ const test = require('node:test');
 const {
   disableSubscriptionPreviewDeveloperSupport,
   ensureSubscriptionPreviewBuildType,
+  SUBSCRIPTION_PREVIEW_MANIFEST,
 } = require('./withEatlogSubscriptionPreview');
 
 const fixture = `android {
@@ -19,13 +20,14 @@ const fixture = `android {
 }
 `;
 
-test('subscription preview is release-bundled, debuggable, and uses release library fallbacks', () => {
+test('subscription preview uses release native artifacts and debug signing', () => {
   const configured = ensureSubscriptionPreviewBuildType(fixture);
   const releaseBlock = configured.match(/        release \{[\s\S]*?\n        \}/)?.[0];
 
   assert.match(configured, /subscriptionPreview \{/);
   assert.match(configured, /initWith release/);
-  assert.match(configured, /debuggable true/);
+  assert.match(configured, /debuggable false/);
+  assert.doesNotMatch(configured, /debuggable true/);
   assert.match(configured, /signingConfig signingConfigs\.debug/);
   assert.match(configured, /matchingFallbacks = \['release'\]/);
   assert.ok(configured.indexOf('subscriptionPreview {') > configured.indexOf('release {'));
@@ -35,6 +37,16 @@ test('subscription preview is release-bundled, debuggable, and uses release libr
         }`);
   assert.equal((configured.match(/subscriptionPreview \{/g) ?? []).length, 1);
   assert.equal(ensureSubscriptionPreviewBuildType(configured), configured);
+});
+
+test('subscription preview manifest marks the installed APK as debuggable', () => {
+  assert.equal(
+    SUBSCRIPTION_PREVIEW_MANIFEST,
+    `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application android:debuggable="true" />
+</manifest>
+`,
+  );
 });
 
 test('subscription preview setup fails closed when the generated template changes', () => {
