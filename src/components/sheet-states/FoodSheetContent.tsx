@@ -38,6 +38,8 @@ import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
 import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
+import { useEntitlement } from '../../context/EntitlementContext';
+import { useNavigation } from '@react-navigation/native';
 
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
@@ -88,14 +90,20 @@ type FoodSheetFailureKind =
 const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     unavailable: 'Photo and description estimates are unavailable.',
     'consent-required': 'Enable online estimates to use this.',
+    'paid-access-required': 'Choose Eatlog Manok or Itik to use AI estimates.',
+    'trial-daily-limit': "You've used today's trial allowance. Try again after it resets.",
+    'trial-allowance-exhausted': 'Your trial allowance is used. Choose Manok or Itik to continue.',
+    'fair-use-daily-limit': "You've reached the 24-hour fair-use limit. Try again after it resets.",
+    'fair-use-30-day-limit': "You've reached the 30-day fair-use limit. Try again after it resets.",
+    'entitlement-unavailable': "Couldn't verify paid access. Refresh your plan and try again.",
     network: 'Check your connection, then try again.',
     timeout: 'The estimate took too long. Try again.',
-    provider: 'The estimation service could not complete this request.',
-    'invalid-response': 'This photo did not produce a usable food estimate.',
+    provider: "Couldn't complete the estimate. Try again.",
+    'invalid-response': "This photo didn't produce a usable estimate.",
     unrecognized: 'No usable food was recognized. Try a clearer food photo or another logging method.',
-    'camera-unavailable': 'The camera could not open. Try again or choose another logging method.',
-    'gallery-unavailable': 'The photo library could not open. Try again or choose another logging method.',
-    'photo-unreadable': 'The selected photo could not be read. Choose another photo or logging method.',
+    'camera-unavailable': "Couldn't open the camera. Try again or choose another logging method.",
+    'gallery-unavailable': "Couldn't open your photos. Try again or choose another logging method.",
+    'photo-unreadable': "Couldn't read this photo. Choose another photo or logging method.",
 };
 
 const CONTENT_EXIT_DURATION = 90;
@@ -169,6 +177,8 @@ export default function FoodSheetContent({
 }: FoodSheetContentProps) {
     const reduced = useReducedMotion();
     const { requestConsent } = useRemoteEstimateConsent();
+    const { hasPaidFeatures } = useEntitlement();
+    const navigation = useNavigation<any>();
     const scanRequestRef = useRef(0);
     const scanInFlightRef = useRef(false);
     const scanBase64Ref = useRef<string | null>(null);
@@ -200,6 +210,12 @@ export default function FoodSheetContent({
     const stateOffset = useSharedValue(0);
     const stateOpacity = useSharedValue(1);
     fromBarRef.current = !!state.fromBar;
+
+    const requirePaidAccess = useCallback((): boolean => {
+        if (hasPaidFeatures) return true;
+        navigation.navigate('Paywall');
+        return false;
+    }, [hasPaidFeatures, navigation]);
 
     const discardPendingPhoto = useCallback(() => {
         scanRequestRef.current += 1;
@@ -432,6 +448,7 @@ export default function FoodSheetContent({
     }, [setState]);
 
     const handleCamera = useCallback(async () => {
+        if (!requirePaidAccess()) return;
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -480,9 +497,10 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
+    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, requirePaidAccess, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleGallery = useCallback(async () => {
+        if (!requirePaidAccess()) return;
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -515,9 +533,10 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
+    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, requirePaidAccess, transitionTo, resetToEntry, setState, showScanError]);
 
     const handlePhotoEstimate = useCallback(async () => {
+        if (!requirePaidAccess()) return;
         if (scanInFlightRef.current) return;
         const pendingPhoto = pendingPhotoRef.current;
         if (!pendingPhoto) {
@@ -594,7 +613,7 @@ export default function FoodSheetContent({
                 setPhotoEstimateBusy(false);
             }
         }
-    }, [onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, setState, showScanError, state.pendingAction, transitionTo]);
+    }, [onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, requirePaidAccess, setState, showScanError, state.pendingAction, transitionTo]);
 
     const handleReuseMeal = useCallback(async (meal: LoggedMeal) => {
         if (mealReuseInFlightRef.current) return;
@@ -664,9 +683,10 @@ export default function FoodSheetContent({
     }, [discardPendingPhoto, onGoBack, setState]);
 
     const handleDescribe = useCallback(() => {
+        if (!requirePaidAccess()) return;
         discardPendingPhoto();
         transitionTo('describe');
-    }, [discardPendingPhoto, transitionTo]);
+    }, [discardPendingPhoto, requirePaidAccess, transitionTo]);
 
     const handleDescribeResult = useCallback(
         (result: DescribeResult) => {
@@ -823,8 +843,12 @@ export default function FoodSheetContent({
         renderedStateKey !== 'weight-input';
 
     const reportContentHeight = useCallback((height: number) => {
-        const nextHeight = Math.ceil(height);
-        if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+        const measuredHeight = Math.ceil(height);
+        if (!Number.isFinite(measuredHeight) || measuredHeight <= 0) return;
+        const previousHeight = stateContentHeightsRef.current[renderedStateKey] ?? 0;
+        const nextHeight = renderedStateKey === 'photo-title'
+            ? Math.max(previousHeight, measuredHeight)
+            : measuredHeight;
         stateContentHeightsRef.current[renderedStateKey] = nextHeight;
         onContentHeightChange(
             renderedStateKey,

@@ -10,9 +10,9 @@ Updated: 2026-08-10. These are source answers, not submitted records. Reconcile 
 | App name | Eatlog | Ready; 30-character limit checked |
 | Default localization | English (United States) source exists | STORE ACCOUNT: choose in record |
 | Package | `com.sgaret.eatlog` | Ready; immutable after record creation |
-| Free or paid | Paid from first public availability | STORE ACCOUNT: never publish free |
-| Philippines price | PHP 299, one-time upfront download | STORE ACCOUNT: verify displayed price before any public track |
-| Subscriptions / in-app products | None | Ready |
+| Free or paid | Change to free only after the subscription closed-track and lifetime-cost gates pass | STORE ACCOUNT: irreversible checkpoint |
+| Philippines price | Manok PHP 79 monthly; Itik PHP 799 lifetime | STORE ACCOUNT: verify purchase-sheet prices before release |
+| Subscriptions / in-app products | `eatlog_manok` monthly plus trial; non-consumable `eatlog_itik_lifetime` | STORE ACCOUNT / CLOSED TESTING |
 | Category | Health & Fitness | Ready; recheck console taxonomy |
 | Tags | Select only console tags that literally match food, nutrition, weight, or diary functions | STORE ACCOUNT |
 | Ads | No | Ready |
@@ -42,8 +42,8 @@ Updated: 2026-08-10. These are source answers, not submitted records. Reconcile 
 | SKU | Owner-defined stable internal value | OWNER INPUT / STORE ACCOUNT; do not invent |
 | Platforms | iPhone; `supportsTablet` is false | Ready |
 | Primary / secondary category | Health & Fitness / Food & Drink | Ready; STORE ACCOUNT select |
-| Price | One-time paid download; Philippines storefront must display PHP 299 | STORE ACCOUNT; stop for owner approval if exact price point is unavailable |
-| In-app purchases / subscriptions | None | Ready |
+| Price | Free acquisition after launch gates; store-localized Manok monthly and Itik lifetime prices | STORE ACCOUNT |
+| In-app purchases / subscriptions | Manok auto-renewable subscription and Itik non-consumable | STORE ACCOUNT / SANDBOX TESTING |
 | Sign-in | None; no demo account | Ready |
 | Content rights | USDA CC0/public domain, Open Food Facts ODbL/database terms, bundled font/software licenses recorded | Ready; owner legal review before submission |
 | Age rating facts | Adult-positioned general wellness; no public UGC, messaging, ads, gambling, violence, sexual content, drugs, unrestricted web access, or medical treatment function | Ready; STORE ACCOUNT questionnaire computes rating |
@@ -65,7 +65,7 @@ Updated: 2026-08-10. These are source answers, not submitted records. Reconcile 
 - Use the metadata validator; do not hand-edit console copy without updating `metadata.mjs`.
 - Use only the generated artwork that passes the artwork validator.
 - Recheck privacy URLs, support contact, pricing, countries, provider contracts, forms, screenshots, and reviewer notes against the exact signed binary.
-- Do not select account, subscription, in-app purchase, advertising, social, cloud-sync, Apple Health, HealthKit, medical-device, or guaranteed-outcome options.
+- Select subscription and in-app purchase disclosures that match Manok and Itik. Do not select account, advertising, social, cloud-sync, Apple Health, HealthKit, medical-device, or guaranteed-outcome options.
 - Save dated screenshots or exports of every submitted form in the owner-controlled release record; do not commit personal, banking, tax, credential, or two-factor data.
 
 Primary references: [Google listing fields](https://support.google.com/googleplay/android-developer/answer/9859152?hl=en), [Google preview assets](https://support.google.com/googleplay/android-developer/answer/9866151?hl=en), [Google health policy](https://support.google.com/googleplay/android-developer/answer/16679511?hl=en), [Apple app information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information/), [Apple version fields](https://developer.apple.com/help/app-store-connect/reference/app-information/platform-version-information), and [Apple screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).

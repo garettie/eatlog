@@ -19,6 +19,11 @@ export function normalizePublicHttpsUrl(value: string | undefined): string | nul
   }
 }
 
+export function revenueCatApiKeyForBuild(value: string | undefined, testStoreAllowed: boolean): string {
+  const key = value?.trim() ?? '';
+  return key.startsWith('test_') && !testStoreAllowed ? '' : key;
+}
+
 export function buildOpenFoodFactsUserAgent(appVersion: string, supportEmail: string | null): string | null {
   if (!VERSION_PATTERN.test(appVersion) || !supportEmail) return null;
   return `Eatlog/${appVersion} (${supportEmail})`;

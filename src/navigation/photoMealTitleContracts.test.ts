@@ -97,11 +97,28 @@ test('photo title keeps reusable state, local recovery, and unavailable-AI entry
   assert.match(entryMethodSource, /Reuse with photo/);
 });
 
+test('photo estimate action stays above query-driven reuse results', () => {
+  const estimateIndex = photoTitleSource.indexOf('title="Estimate as new"');
+  const reuseResultsIndex = photoTitleSource.indexOf('Reuse a past meal');
+
+  assert.ok(estimateIndex >= 0);
+  assert.ok(reuseResultsIndex >= 0);
+  assert.ok(estimateIndex < reuseResultsIndex);
+  assert.match(
+    foodSheetSource,
+    /renderedStateKey === 'photo-title'[\s\S]*Math\.max\(previousHeight, measuredHeight\)/,
+  );
+});
+
 test('sheet sizing stays stable and measures compact states by content', () => {
   assert.doesNotMatch(tabNavigatorSource, /const enableDynamicSizing/);
   assert.doesNotMatch(tabNavigatorSource, /enableDynamicSizing=\{/);
   assert.match(foodSheetSource, /CONTENT_SIZED_STATES[\s\S]*'estimation-error'/);
   assert.match(tabNavigatorSource, /contentHeight=\{contentHeight\}/);
+  assert.match(
+    sheetSource,
+    /keyboardBehavior=\{contentHeight === undefined \? "fillParent" : "interactive"\}/,
+  );
 });
 
 test('first measured detent propagates before the compact sheet opens', () => {

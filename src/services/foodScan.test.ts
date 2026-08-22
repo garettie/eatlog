@@ -9,6 +9,8 @@ function createAcceptedClient(options: FoodEstimateClientOptions) {
     return createFoodEstimateClient({
         ...options,
         hasConsent: async () => true,
+        getAiAuthorization: options.getAiAuthorization ?? (() => ({ ok: true, grant: 'signed-grant' })),
+        requestId: options.requestId ?? (() => 'request-00000001'),
     });
 }
 
@@ -189,6 +191,7 @@ test('missing or declined consent blocks every estimate operation before token o
         let fetches = 0;
         const client = createFoodEstimateClient({
             workerUrl: 'https://food.example.workers.dev',
+            getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
             hasConsent: async () => false,
             getInstallationToken: () => { tokenReads += 1; return TOKEN; },
             fetchImpl: (async () => { fetches += 1; return jsonResponse(recognizedEstimate()); }) as typeof fetch,
@@ -214,6 +217,7 @@ test('consent-check failure fails closed without logging estimate input', async 
     const privateInput = 'private meal description and image-data';
     const client = createFoodEstimateClient({
         workerUrl: 'https://food.example.workers.dev',
+        getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
         hasConsent: async () => { throw new Error(privateInput); },
         getInstallationToken: () => { throw new Error('token loader must not run'); },
         fetchImpl: (async () => { throw new Error('fetch must not run'); }) as typeof fetch,
@@ -226,6 +230,50 @@ test('consent-check failure fails closed without logging estimate input', async 
         message: 'Enable online estimates to use this.',
     });
     assert.equal(JSON.stringify(result).includes(privateInput), false);
+});
+
+test('paid access gates every AI operation before consent, identity loading, or upload', async () => {
+    let consentReads = 0;
+    let tokenReads = 0;
+    let fetches = 0;
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getAiAuthorization: () => ({ ok: false, kind: 'paid-access-required' }),
+        hasConsent: () => { consentReads += 1; return true; },
+        getInstallationToken: () => { tokenReads += 1; return TOKEN; },
+        fetchImpl: (async () => { fetches += 1; return jsonResponse(recognizedEstimate()); }) as typeof fetch,
+    });
+    const result = await client.scanFood('private-image');
+    assert.deepEqual(result, {
+        ok: false,
+        kind: 'paid-access-required',
+        message: 'Eatlog Manok or Itik is required for AI estimates.',
+    });
+    assert.deepEqual({ consentReads, tokenReads, fetches }, { consentReads: 0, tokenReads: 0, fetches: 0 });
+});
+
+test('maps each known Worker entitlement and quota code to specific redacted copy', async () => {
+    const cases = [
+        ['PAID_ACCESS_REQUIRED', 'paid-access-required'],
+        ['TRIAL_DAILY_LIMIT', 'trial-daily-limit'],
+        ['TRIAL_ALLOWANCE_EXHAUSTED', 'trial-allowance-exhausted'],
+        ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
+        ['FAIR_USE_30_DAY_LIMIT', 'fair-use-30-day-limit'],
+        ['ENTITLEMENT_UNAVAILABLE', 'entitlement-unavailable'],
+    ] as const;
+    for (const [code, kind] of cases) {
+        const client = createAcceptedClient({
+            workerUrl: 'https://food.example.workers.dev',
+            getInstallationToken: () => TOKEN,
+            fetchImpl: (async () => jsonResponse({ error: { code, message: 'raw provider transaction' } }, 429)) as typeof fetch,
+        });
+        const result = await client.describeMeal('rice');
+        assert.equal(result.ok, false);
+        if (!result.ok) {
+            assert.equal(result.kind, kind);
+            assert.equal(result.message.includes('raw provider'), false);
+        }
+    }
 });
 
 test('identity failure and malformed injected tokens fail closed without upload or token leakage', async () => {

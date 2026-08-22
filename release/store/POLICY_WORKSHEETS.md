@@ -6,8 +6,8 @@ These are source answers, not submitted console records. Reconcile them against 
 
 ## Fixed product facts
 
-- Eatlog is a PHP 299 one-time upfront purchase in the Philippines.
-- No subscription, in-app purchase, receipt server, paywall, account, authentication, cloud database, ads, or third-party analytics.
+- Eatlog's target acquisition is free. Pugo provides local logging; Manok is PHP 79 monthly with an eligible one-month trial; Itik is a PHP 799 one-time lifetime entitlement.
+- RevenueCat and the Eatlog Worker verify purchases and entitlements. There is no app account, authentication, cloud food/weight database, ads, or third-party analytics.
 - Android ships first. Android and iOS purchases are separate.
 - Data is local-first. Online actions are Scan, Describe/clarification/re-estimation, USDA search/detail, and explicit Open Food Facts full search. Gemini estimate actions require the current accepted consent; food search remains separate.
 - Card sharing renders a 1080 by 1920 PNG locally with the permanent Eatlog mark. Save image writes it to the system photo library; Share sends it only to a destination the user selects in operating-system UI. Neither action uses an Eatlog backend or social publishing service, and no mark toggle exists.
@@ -22,7 +22,7 @@ Use the conservative answers below until the production provider-contract review
 | --- | --- | --- | --- | --- |
 | Photos and videos | Collected remotely only when the user chooses Estimate as new after local camera/gallery selection | App functionality | Local selection and past-meal reuse are not collected; not used for tracking or account linkage | Verify Gemini/Cloudflare retention in production console |
 | Other user-generated content | Collected for Describe/re-estimation and food-search text | App functionality | Not used for tracking; no account linkage | Verify provider retention |
-| Device or other IDs | App-scoped random installation token sent to Eatlog Worker | Fraud prevention, security, and app functionality | Not advertising ID; not used for tracking | Confirm final Google category mapping |
+| Device or other IDs | App-scoped random installation token sent to Eatlog Worker and used as RevenueCat App User ID | Fraud prevention, security, entitlement, and app functionality | Not advertising ID; not used for tracking | Confirm final Google category mapping |
 | Health and fitness | Weight/nutrition data stays in app-private storage; Android Weight crosses only to Health Connect at user request | App functionality | Not sent to Eatlog backend; not tracking | Confirm Health Connect declaration interaction |
 | App activity | Operational route/status/latency fields only; no body/query/prompt/response logs | Analytics for service reliability and security | Aggregate operational use; not tracking | Verify deployed Worker logs |
 | Personal info, contacts, location, financial info, messages, audio, files/documents, calendar | Not collected by Eatlog | N/A | N/A | Recheck final binary |
@@ -76,7 +76,7 @@ Conservative labels for the iOS binary:
 | Other User Content | Yes, meal descriptions and submitted food searches | App Functionality | No account; classify as not linked after contract review | No |
 | Device ID or Other Data | App-scoped random installation token and network IP used for rate limiting | App Functionality; Fraud Prevention/Security | No account; confirm Apple's current category definitions | No |
 | Health & Fitness | Local nutrition and weight data does not leave the iOS app; no HealthKit | Not collected off device | N/A | No |
-| Purchases | Store processes the upfront purchase; app has no receipt server or entitlement account | Not collected by developer | N/A | No |
+| Purchases | Store and RevenueCat process Manok/Itik purchase and entitlement metadata | App Functionality | Linked only to the app-scoped RevenueCat App User ID; no Eatlog account | No |
 | Diagnostics | Worker keeps restricted operational route/status/latency fields | App Functionality | Not linked | No |
 
 - No third-party advertising or cross-company tracking.

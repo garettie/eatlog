@@ -2,15 +2,15 @@
 
 Updated: 2026-08-10
 
-Engineering can finish account-free release work without these values. Do not copy placeholders from this document into app configuration, policy copy, or store forms.
+Engineering can finish local subscription implementation without these values. Do not copy placeholders from this document into app configuration, policy copy, or store forms.
 
 | Input or owner action | Status | Needed before | Blocker |
 | --- | --- | --- | --- |
 | Public developer or legal name used in both listings and the privacy policy | Awaiting owner | Public release | OWNER INPUT |
 | Monitored support email used by users, providers, and store reviewers | Awaiting owner | Submission | OWNER INPUT |
 | Public support-response expectation for the support page | Awaiting support owner | Submission | OWNER INPUT |
-| Owner-controlled HTTPS host or domain for stable `/privacy` and `/support` pages | Awaiting owner | Submission | OWNER INPUT |
-| Final privacy-policy and support URLs after hosting | Awaiting host choice and publication | Submission | OWNER INPUT |
+| Owner-controlled HTTPS host or domain for stable `/privacy`, `/terms`, and `/support` pages | Awaiting owner | Submission | OWNER INPUT |
+| Final privacy-policy, Terms, and support URLs after hosting | Awaiting host choice and publication | Submission | OWNER INPUT |
 | Register Eatlog's read-only Open Food Facts use and monitored contact in the provider API usage form | Awaiting support email and owner submission | Public release | OWNER INPUT |
 | Launch countries beyond the fixed Philippines storefront | Awaiting owner | Submission | OWNER INPUT |
 | Decide who may receive direct preview APKs after launch and remove any public APK link before the paid Play release | Awaiting owner | Public release | OWNER INPUT |
@@ -21,7 +21,8 @@ Engineering can finish account-free release work without these values. Do not co
 | Google and Apple store agreements | Unverified | Submission | STORE ACCOUNT |
 | Google payments profile, banking, tax, legal identity, and payout setup | Unverified | Public release | STORE ACCOUNT |
 | Apple Paid Apps Agreement, banking, tax, legal identity, and payout setup | Unverified | Public release | STORE ACCOUNT |
-| Store-console price showing PHP 299 as a one-time upfront purchase in the Philippines | Product decision fixed; console evidence unavailable | Public release | STORE ACCOUNT |
+| RevenueCat project, Test Store app, `eatlog_paid` entitlement, and `default` offering | Awaiting owner dashboard work | Subscription preview | STORE ACCOUNT |
+| Google Manok PHP 79 monthly product/trial and Itik PHP 799 lifetime product | Do not create until owner approves Play action | Closed testing | STORE ACCOUNT |
 | Equivalent prices and availability for any additional launch countries | Awaiting country choice and console review | Public release | OWNER INPUT |
 | Stable App Store Connect SKU | Awaiting owner | App record | OWNER INPUT |
 | Public copyright rights-holder name | Awaiting owner | Submission | OWNER INPUT |
@@ -43,6 +44,7 @@ Fixed product decisions already supplied by the owner:
 - The product and installed app name remain Eatlog.
 - Android package remains `com.sgaret.eatlog`; Android ships first.
 - The iOS candidates are `com.sgaret.eatlog` and `com.sgaret.eatlog.dev`.
-- The Philippines price is PHP 299 as a one-time upfront purchase. There is no subscription, in-app purchase, app account, paywall, or cross-store entitlement.
+- Eatlog remains paid acquisition until the owner-approved free-app launch checkpoint. The target model is free Pugo, PHP 79 monthly Manok with an eligible one-month trial, and PHP 799 lifetime Itik.
+- Entitlement identifier is `eatlog_paid`; RevenueCat offering is `default`. Android product identifiers and options are fixed in `SUBSCRIPTION_IMPLEMENTATION_PLAN.md`.
 - Android and iOS purchases are separate.
 - Health Connect remains Android-only. HealthKit and Apple Health remain outside v1.

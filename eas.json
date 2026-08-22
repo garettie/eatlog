@@ -25,11 +25,14 @@
       "distribution": "internal",
       "environment": "preview",
       "channel": "subscription-preview",
+      "autoIncrement": true,
       "env": {
-        "APP_VARIANT": "preview"
+        "APP_VARIANT": "preview",
+        "EX_UPDATES_NATIVE_DEBUG": "1",
+        "EXPO_PUBLIC_REVENUECAT_TEST_STORE_ALLOWED": "true"
       },
       "android": {
-        "buildType": "apk"
+        "gradleCommand": ":app:assembleDebug"
       }
     },
     "production": {

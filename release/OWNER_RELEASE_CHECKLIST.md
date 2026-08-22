@@ -1,6 +1,6 @@
 # Eatlog owner release checklist
 
-This is the ordered path from the completed account-free source state to store submission and rollout. Each box needs owner input, account access, a paid service, a signed binary, a public host, or a device. Android goes first. Do not create a free Google Play listing for `com.sgaret.eatlog`.
+This is the ordered path from the subscription-capable source state to store submission and rollout. Each box needs owner input, account access, a paid service, a signed binary, a public host, or a device. Android goes first. Do not change acquisition to free until the subscription build passes its closed-track and lifetime-cost launch gates.
 
 ## 1. Supply the missing release identity
 
@@ -22,10 +22,10 @@ Start these early, but keep Android submission and testing first.
 
 ## 3. Publish support and privacy pages
 
-- [ ] **OWNER INPUT:** put the final legal name, support email, and response expectation into the version-controlled privacy/support page source.
-- [ ] **OWNER INPUT / PAID SERVICE:** publish `release/site/privacy.md` and `release/site/support.md` as mobile-readable, public HTTPS pages under stable owner-controlled URLs. Verify both without login or geofencing.
+- [ ] **OWNER INPUT:** put the final legal name, support email, response expectation, and Terms decisions into the version-controlled privacy/Terms/support page source.
+- [ ] **OWNER INPUT / PAID SERVICE:** publish `release/site/privacy.md`, `release/site/terms.md`, and `release/site/support.md` as mobile-readable, public HTTPS pages under stable owner-controlled URLs. Verify all without login or geofencing.
 - [ ] **OWNER INPUT:** submit Eatlog's read-only Open Food Facts use with the monitored contact if the provider's current registration process requires it.
-- [ ] **CREDENTIAL:** configure production build values for `EXPO_PUBLIC_FOOD_WORKER_URL`, `EXPO_PUBLIC_SUPPORT_EMAIL`, `EXPO_PUBLIC_PRIVACY_URL`, and `EXPO_PUBLIC_SUPPORT_URL`. These are public values; never put Gemini, USDA, Cloudflare, signing, or store credentials in `EXPO_PUBLIC_*`.
+- [ ] **CREDENTIAL:** configure production build values for `EXPO_PUBLIC_FOOD_WORKER_URL`, `EXPO_PUBLIC_REVENUECAT_API_KEY`, `EXPO_PUBLIC_SUPPORT_EMAIL`, `EXPO_PUBLIC_PRIVACY_URL`, `EXPO_PUBLIC_TERMS_URL`, and `EXPO_PUBLIC_SUPPORT_URL`. These are public values; never put RevenueCat secret, Gemini, USDA, Cloudflare, or signing credentials in `EXPO_PUBLIC_*`.
 - [ ] **PHYSICAL DEVICE:** verify the final Profile links open the published pages and Open Food Facts full search is available only when the real support email produces the required User-Agent.
 
 ## 4. Verify production services
@@ -36,10 +36,11 @@ Start these early, but keep Android submission and testing first.
 
 Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch, failed rollback, or unexplained log field.
 
-## 5. Create the paid Google Play record
+## 5. Configure Google Play paid access
 
-- [ ] **STORE ACCOUNT:** create an app, not a free app, with package `com.sgaret.eatlog`, the final language/countries, and Health & Fitness category.
-- [ ] **STORE ACCOUNT:** set the Philippines price to exactly PHP 299 before any public-track publication. Confirm equivalents for owner-approved additional countries. Never publish this package as free; Google does not permit converting a previously free app to paid.
+- [ ] **STORE ACCOUNT:** keep the existing acquisition price unchanged while creating closed-track billing products for package `com.sgaret.eatlog`.
+- [ ] **STORE ACCOUNT:** create `eatlog_manok` with the PHP 79 `monthly` base plan and `one-month-trial` offer, plus non-consumable `eatlog_itik_lifetime` with the PHP 799 `buy` option. Do not activate production products until the owner checkpoint.
+- [ ] **STORE ACCOUNT:** after all launch gates pass, change acquisition to free once. Google Play does not permit returning the same package to paid acquisition.
 - [ ] **STORE ACCOUNT / CREDENTIAL:** enable Play App Signing, preserve the EAS upload key, and create submission access only after the record exists.
 - [ ] **STORE ACCOUNT:** enter `release/store/metadata.mjs` copy and `release/store/STORE_FORM_WORKSHEET.md` answers. Submit Data Safety, Health Apps, Health Connect Weight-only justification, content rating, target audience, ads/account answers, privacy URL, and support email against the exact candidate.
 
@@ -62,7 +63,7 @@ Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch,
 ## 8. Create the App Store record after Android fixes land
 
 - [ ] **STORE ACCOUNT:** create the iPhone app record for reserved bundle ID `com.sgaret.eatlog`, the owner-supplied SKU, final primary language/countries, Health & Fitness primary category, and Food & Drink secondary category where accurate.
-- [ ] **STORE ACCOUNT:** choose the Philippines price point that displays PHP 299. If no exact point exists, stop for explicit owner approval before choosing the closest value. Complete EU trader status if applicable.
+- [ ] **STORE ACCOUNT:** configure Apple Manok and Itik equivalents only during the later iOS implementation, using the closest approved PHP price points. Complete EU trader status if applicable.
 - [ ] **STORE ACCOUNT / CREDENTIAL:** configure EAS-managed Apple credentials or an App Store Connect API key. Do not commit `.p8`, certificates, profiles, or credential JSON.
 - [ ] **STORE ACCOUNT:** enter the Apple fields from `release/store/metadata.mjs` and the App Privacy, age-rating, export-compliance, content-rights, review-contact, privacy/support URL, and reviewer-note answers from the worksheets.
 

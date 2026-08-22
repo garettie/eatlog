@@ -12,8 +12,10 @@ import {
 	BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 import { serviceConfig } from "../../config/services";
+import { useEntitlement } from "../../context/EntitlementContext";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
 import { insertFoodLog, type MealType, setFoodPinned } from "../../db/database";
 import { describeMeal, type DescribeResult } from "../../services/foodScan";
@@ -68,6 +70,8 @@ export default function SearchInputState({
 	const [estimating, setEstimating] = useState(false);
 	const [estimateError, setEstimateError] = useState<string | null>(null);
 	const { requestConsent } = useRemoteEstimateConsent();
+	const { hasPaidFeatures } = useEntitlement();
+	const navigation = useNavigation<any>();
 
 	const handleFoodPress = useCallback(
 		async (food: FoodResult) => {
@@ -136,6 +140,10 @@ export default function SearchInputState({
 		const query = search.query.trim();
 		if (!query || estimating) return;
 		setEstimateError(null);
+		if (!hasPaidFeatures) {
+			navigation.navigate("Paywall");
+			return;
+		}
 		if (!await requestConsent()) return;
 		setEstimating(true);
 		const result = await describeMeal(query);
@@ -146,7 +154,7 @@ export default function SearchInputState({
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [estimating, onEstimateResult, requestConsent, search.query]);
+	}, [estimating, hasPaidFeatures, navigation, onEstimateResult, requestConsent, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow

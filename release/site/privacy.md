@@ -17,6 +17,8 @@ Eatlog stores the information you enter during setup and use, including your dis
 
 Eatlog also stores an app-scoped random installation token outside its database to limit abuse of the online service. This file is not included in an Eatlog backup or CSV export.
 
+Eatlog uses that token as a RevenueCat App User ID to check Manok, Itik, trial, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement and quota state outside SQLite, backups, and CSV exports.
+
 If the build has online meal estimates, Eatlog stores your current Gemini-estimate consent decision in a separate app-private file outside SQLite. The decision is not included in an Eatlog backup or CSV export. Delete all data clears it.
 
 ## When Eatlog sends data online
@@ -41,7 +43,9 @@ Eatlog does not send your nutrition logs, weight history, profile, targets, save
 
 ## Purchase processing
 
-Google Play or Apple's App Store processes the one-time upfront purchase. Eatlog has no receipt server and does not receive your card number, bank details, or store-account credentials. The store handles its own purchase records under its policy.
+Eatlog is free to download. Pugo local logging remains usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.
+
+Short-lived signed AI grants and salted quota records enforce trial and paid fair-use limits. They contain no food, photo, weight, or profile content. Expiry, refund, or revocation removes paid feature access without deleting local food, weight, target, or adaptive history.
 
 ## Android Health Connect
 
@@ -61,9 +65,9 @@ A restorable Eatlog backup contains a database snapshot and referenced meal phot
 
 You can edit and delete individual logs in Eatlog. Delete all data removes the local database, meal photos, remote-estimate consent, and temporary backup/export files. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and warns you if it cannot confirm that removal. Deleting the app removes its app-private storage, subject to operating-system behavior. Files you exported or shared remain in the locations you chose.
 
-The Eatlog Worker is designed to log operational fields only. It must not log request bodies, images, descriptions, search queries, prompts, provider responses, raw installation tokens, token hashes, IP addresses, headers, or secrets. Google, Cloudflare, USDA, Open Food Facts, and any share destination process data under their own terms and policies.
+The Eatlog Worker is designed to log operational fields and aggregate token/cost counts only. It must not log request bodies, images, descriptions, search queries, prompts, provider responses, raw installation tokens, token hashes, transaction IDs, grants, IP addresses, headers, or secrets. Google, Cloudflare, RevenueCat, the platform store, USDA, Open Food Facts, and any share destination process data under their own terms and policies.
 
-Provider information: [Google Gemini](https://ai.google.dev/gemini-api/terms), [Cloudflare](https://www.cloudflare.com/privacypolicy/), [USDA FoodData Central](https://fdc.nal.usda.gov/), and [Open Food Facts API and reuse terms](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/).
+Provider information: [Google Gemini](https://ai.google.dev/gemini-api/terms), [Cloudflare](https://www.cloudflare.com/privacypolicy/), [RevenueCat](https://www.revenuecat.com/privacy/), [USDA FoodData Central](https://fdc.nal.usda.gov/), and [Open Food Facts API and reuse terms](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/).
 
 ## Children and health information
 

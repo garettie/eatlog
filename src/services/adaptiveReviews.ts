@@ -20,6 +20,7 @@ import { ADAPTIVE_ALGORITHM_CONFIG } from '../utils/adaptiveAlgorithmConfig';
 import { gateAdaptiveReview } from '../utils/adaptiveReviewGate';
 import { addCalendarDays, calendarDaysBetween, parseLocalISO, todayISO } from '../utils/calendar';
 import { assertTargetSafe, validateWeightKg } from '../utils/nutritionSafety';
+import { requireAdaptiveAccess } from './adaptiveAccess';
 
 export interface AdaptiveReviewEligibility {
   intakeDayCount: number;
@@ -326,6 +327,7 @@ async function refreshPending(
 }
 
 export async function getAdaptiveReviewState(reviewDate: string): Promise<AdaptiveReviewState> {
+  requireAdaptiveAccess();
   const db = await getDb();
   const pending = await db.getFirstAsync<AdaptiveReview>(
     "SELECT * FROM adaptive_reviews WHERE status = 'pending' ORDER BY review_date DESC LIMIT 1",
@@ -411,6 +413,7 @@ export async function confirmAdaptiveIntakeDay(
   logDate: string,
   status: IntakeDayConfirmationStatus,
 ): Promise<AdaptiveReviewState> {
+  requireAdaptiveAccess();
   parseLocalISO(reviewDate);
   parseLocalISO(logDate);
   if (!['complete', 'partial', 'intentional_fast'].includes(status)) {
@@ -522,9 +525,11 @@ async function resolveReview(
 }
 
 export function acceptAdaptiveReview(reviewId: number): Promise<ResolveAdaptiveReviewResult> {
+  requireAdaptiveAccess();
   return resolveReview(reviewId, 'accepted');
 }
 
 export function keepAdaptiveReview(reviewId: number): Promise<ResolveAdaptiveReviewResult> {
+  requireAdaptiveAccess();
   return resolveReview(reviewId, 'kept');
 }

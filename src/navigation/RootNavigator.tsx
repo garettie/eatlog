@@ -10,6 +10,7 @@ import { getDailyTargetForDate, getLatestWeightLogOnOrBefore, getProfile } from 
 import { todayISO } from '../utils/calendar';
 import { validateWeightKg } from '../utils/nutritionSafety';
 import { resolveProfileSafetyRoute } from '../utils/profileSafetyGate';
+import PaywallScreen from '../screens/PaywallScreen';
 
 // ─── Route param types ────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ export type RootStackParamList = {
     targetCarbs: number;
   };
   Tabs: undefined;
+  Paywall: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -88,6 +90,11 @@ export default function RootNavigator() {
         initialParams={initialParams}
       />
       <Stack.Screen name="Tabs" component={TabNavigator} />
+      <Stack.Screen
+        name="Paywall"
+        component={PaywallScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
     </Stack.Navigator>
   );
 }

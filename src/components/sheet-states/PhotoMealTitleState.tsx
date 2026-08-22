@@ -172,6 +172,32 @@ export default function PhotoMealTitleState({
         />
       </View>
 
+      {estimateError ? (
+        <Text accessibilityLiveRegion="polite" className="rounded-xl bg-m3-error-container px-3 py-2 text-sm text-m3-on-error-container">
+          {estimateError}
+        </Text>
+      ) : null}
+
+      {estimateAvailable ? (
+        <PrimaryButton
+          title="Estimate as new"
+          icon="auto-awesome"
+          iconPosition="left"
+          loading={estimateBusy}
+          accessibilityHint={mealTitle.trim()
+            ? 'Requests consent, then sends the meal title and photo for an estimate'
+            : 'Requests consent, then sends the photo for an estimate'}
+          onPress={handleEstimate}
+        />
+      ) : (
+        <View accessible className="flex-row items-start gap-2 rounded-xl bg-m3-surface-container-high px-3 py-3">
+          <MaterialIcons name="info-outline" size={18} color={M3.onSurfaceVariant} />
+          <Text className="flex-1 text-sm text-m3-on-surface-variant">
+            {estimateUnavailableMessage}
+          </Text>
+        </View>
+      )}
+
       <View className="gap-1">
         <View className="min-h-[24px] flex-row items-center justify-between gap-3 px-1">
           <Text accessibilityRole="header" className="text-sm font-semibold text-m3-on-surface">
@@ -223,31 +249,6 @@ export default function PhotoMealTitleState({
         )}
       </View>
 
-      {estimateError ? (
-        <Text accessibilityLiveRegion="polite" className="rounded-xl bg-m3-error-container px-3 py-2 text-sm text-m3-on-error-container">
-          {estimateError}
-        </Text>
-      ) : null}
-
-      {estimateAvailable ? (
-        <PrimaryButton
-          title="Estimate as new"
-          icon="auto-awesome"
-          iconPosition="left"
-          loading={estimateBusy}
-          accessibilityHint={mealTitle.trim()
-            ? 'Requests consent, then sends the meal title and photo for an estimate'
-            : 'Requests consent, then sends the photo for an estimate'}
-          onPress={handleEstimate}
-        />
-      ) : (
-        <View accessible className="flex-row items-start gap-2 rounded-xl bg-m3-surface-container-high px-3 py-3">
-          <MaterialIcons name="info-outline" size={18} color={M3.onSurfaceVariant} />
-          <Text className="flex-1 text-sm text-m3-on-surface-variant">
-            {estimateUnavailableMessage}
-          </Text>
-        </View>
-      )}
     </BottomSheetScrollView>
   );
 }

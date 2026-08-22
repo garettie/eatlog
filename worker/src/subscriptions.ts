@@ -1,0 +1,374 @@
+export const AI_GRANT_AUDIENCE = 'eatlog-ai';
+export const AI_GRANT_TTL_MS = 5 * 60 * 1000;
+export const ENTITLEMENT_CACHE_TTL_MS = 60 * 60 * 1000;
+const TRIAL_DAILY_LIMIT = 5;
+const TRIAL_TOTAL_LIMIT = 30;
+const PAID_DAILY_LIMIT = 30;
+const PAID_30_DAY_LIMIT = 250;
+
+export function aggregateAiUsage(
+  inputTokens: number,
+  outputTokens: number,
+  inputUsdPerMillion: number,
+  outputUsdPerMillion: number,
+) {
+  const estimatedCostUsd = Number.isFinite(inputUsdPerMillion) && Number.isFinite(outputUsdPerMillion)
+    ? ((inputTokens * inputUsdPerMillion) + (outputTokens * outputUsdPerMillion)) / 1_000_000
+    : null;
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    estimatedCostUsd,
+  };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const THIRTY_DAYS_MS = 30 * DAY_MS;
+const MANOK_PRODUCTS = new Set(['eatlog_manok', 'eatlog_manok:monthly', 'eatlog_manok_monthly']);
+
+export type PaidAccessKind = 'manok-trial' | 'manok' | 'itik' | 'complimentary';
+export type WorkerAccess =
+  | { kind: 'pugo'; checkedAt: string; reason?: 'none' | 'unavailable' | 'malformed' | 'expired' | 'revoked' }
+  | { kind: 'manok-trial'; checkedAt: string; expiresAt: string; willRenew: boolean; productId: string; billingState: 'active' | 'grace' }
+  | { kind: 'manok'; checkedAt: string; expiresAt: string | null; willRenew: boolean; productId: string; billingState: 'active' | 'grace' }
+  | { kind: 'itik'; checkedAt: string; productId: string; purchasedAt: string | null }
+  | { kind: 'complimentary'; checkedAt: string; expiresAt: string };
+
+export type Usage =
+  | { kind: 'none' }
+  | {
+      kind: 'trial';
+      initialRemaining24Hours: number;
+      initialRemainingTrial: number;
+      clarificationRemaining24Hours: number;
+      clarificationRemainingTrial: number;
+      nextInitialEligibleAt: string | null;
+      nextClarificationEligibleAt: string | null;
+    }
+  | { kind: 'paid'; remaining24Hours: number; remaining30Days: number; nextEligibleAt: string | null };
+
+export interface VerifiedRevenueCatAccess {
+  access: WorkerAccess;
+  subjectIdentity: string | null;
+}
+
+export interface CachedAccess extends VerifiedRevenueCatAccess {
+  validUntil: number;
+}
+
+export interface GrantClaims {
+  aud: typeof AI_GRANT_AUDIENCE;
+  sub: string;
+  access: PaidAccessKind;
+  iat: number;
+  exp: number;
+}
+
+export interface QuotaDecision {
+  allowed: boolean;
+  duplicate: boolean;
+  code?: 'TRIAL_DAILY_LIMIT' | 'TRIAL_ALLOWANCE_EXHAUSTED' | 'FAIR_USE_DAILY_LIMIT' | 'FAIR_USE_30_DAY_LIMIT';
+  nextEligibleAt?: string;
+  usage: Usage;
+}
+
+export interface SubscriptionStore {
+  getCached(customerKey: string, now: number): Promise<CachedAccess | null>;
+  putCached(customerKey: string, value: CachedAccess): Promise<void>;
+  recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'>;
+  reserve(subject: string, access: PaidAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision>;
+  finalize(subject: string, requestId: string): Promise<void>;
+  refund(subject: string, requestId: string): Promise<void>;
+  usage(subject: string, access: PaidAccessKind, now: number): Promise<Usage>;
+}
+
+export interface QuotaEvent {
+  operationClass: 'initial' | 'clarification' | 'paid';
+  timestamp: number;
+  requestId: string;
+}
+
+export function operationClass(access: PaidAccessKind, operation: string): QuotaEvent['operationClass'] {
+  if (access !== 'manok-trial') return 'paid';
+  return operation === 'scan' || operation === 'describe' ? 'initial' : 'clarification';
+}
+
+function remaining(limit: number, used: number): number {
+  return Math.max(0, limit - used);
+}
+
+function nextAt(events: QuotaEvent[], windowStart: number): string | null {
+  const oldest = events.filter((event) => event.timestamp > windowStart).sort((a, b) => a.timestamp - b.timestamp)[0];
+  return oldest ? new Date(oldest.timestamp + DAY_MS).toISOString() : null;
+}
+
+export function quotaUsage(events: QuotaEvent[], access: PaidAccessKind, now: number): Usage {
+  if (access === 'manok-trial') {
+    const initial = events.filter((event) => event.operationClass === 'initial');
+    const clarification = events.filter((event) => event.operationClass === 'clarification');
+    const since = now - DAY_MS;
+    const initialDaily = initial.filter((event) => event.timestamp > since);
+    const clarificationDaily = clarification.filter((event) => event.timestamp > since);
+    return {
+      kind: 'trial',
+      initialRemaining24Hours: remaining(TRIAL_DAILY_LIMIT, initialDaily.length),
+      initialRemainingTrial: remaining(TRIAL_TOTAL_LIMIT, initial.length),
+      clarificationRemaining24Hours: remaining(TRIAL_DAILY_LIMIT, clarificationDaily.length),
+      clarificationRemainingTrial: remaining(TRIAL_TOTAL_LIMIT, clarification.length),
+      nextInitialEligibleAt: initialDaily.length >= TRIAL_DAILY_LIMIT ? nextAt(initialDaily, since) : null,
+      nextClarificationEligibleAt: clarificationDaily.length >= TRIAL_DAILY_LIMIT ? nextAt(clarificationDaily, since) : null,
+    };
+  }
+  const daily = events.filter((event) => event.timestamp > now - DAY_MS);
+  const monthly = events.filter((event) => event.timestamp > now - THIRTY_DAYS_MS);
+  return {
+    kind: 'paid',
+    remaining24Hours: remaining(PAID_DAILY_LIMIT, daily.length),
+    remaining30Days: remaining(PAID_30_DAY_LIMIT, monthly.length),
+    nextEligibleAt: daily.length >= PAID_DAILY_LIMIT ? nextAt(daily, now - DAY_MS) : null,
+  };
+}
+
+export function decideQuota(events: QuotaEvent[], access: PaidAccessKind, operation: string, now: number): QuotaDecision {
+  const usage = quotaUsage(events, access, now);
+  if (usage.kind === 'trial') {
+    const initial = operationClass(access, operation) === 'initial';
+    const trialRemaining = initial ? usage.initialRemainingTrial : usage.clarificationRemainingTrial;
+    const dailyRemaining = initial ? usage.initialRemaining24Hours : usage.clarificationRemaining24Hours;
+    const nextEligibleAt = initial ? usage.nextInitialEligibleAt : usage.nextClarificationEligibleAt;
+    if (trialRemaining === 0) return { allowed: false, duplicate: false, code: 'TRIAL_ALLOWANCE_EXHAUSTED', usage };
+    if (dailyRemaining === 0) return { allowed: false, duplicate: false, code: 'TRIAL_DAILY_LIMIT', ...(nextEligibleAt ? { nextEligibleAt } : {}), usage };
+  } else if (usage.kind === 'paid') {
+    if (usage.remaining30Days === 0) return { allowed: false, duplicate: false, code: 'FAIR_USE_30_DAY_LIMIT', usage };
+    if (usage.remaining24Hours === 0) return { allowed: false, duplicate: false, code: 'FAIR_USE_DAILY_LIMIT', ...(usage.nextEligibleAt ? { nextEligibleAt: usage.nextEligibleAt } : {}), usage };
+  }
+  return { allowed: true, duplicate: false, usage };
+}
+
+export class MemorySubscriptionStore implements SubscriptionStore {
+  private readonly cache = new Map<string, CachedAccess>();
+  private readonly events = new Map<string, QuotaEvent[]>();
+  private readonly requests = new Map<string, { state: 'reserved' | 'finalized' | 'refunded'; createdAt: number }>();
+  private readonly webhookIds = new Set<string>();
+  private readonly webhookTimestamps = new Map<string, number>();
+  private readonly webhookEventTimestamps = new Map<string, number>();
+  private queue = Promise.resolve();
+
+  private synchronized<T>(task: () => T | Promise<T>): Promise<T> {
+    const result = this.queue.then(task, task);
+    this.queue = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  async getCached(customerKey: string, now: number): Promise<CachedAccess | null> {
+    const cached = this.cache.get(customerKey) ?? null;
+    if (!cached || cached.validUntil <= now || accessExpired(cached.access, now)) return null;
+    return cached;
+  }
+
+  async putCached(customerKey: string, value: CachedAccess): Promise<void> {
+    this.cache.set(customerKey, value);
+  }
+
+  recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'> {
+    return this.synchronized(() => {
+      for (const [id, timestamp] of this.webhookEventTimestamps) {
+        if (timestamp <= eventTimestamp - THIRTY_DAYS_MS) {
+          this.webhookEventTimestamps.delete(id);
+          this.webhookIds.delete(id);
+        }
+      }
+      if (this.webhookIds.has(eventId)) return 'duplicate';
+      if (customerKeys.some((key) => eventTimestamp < (this.webhookTimestamps.get(key) ?? 0))) return 'stale';
+      this.webhookIds.add(eventId);
+      this.webhookEventTimestamps.set(eventId, eventTimestamp);
+      for (const key of customerKeys) {
+        this.webhookTimestamps.set(key, eventTimestamp);
+        this.cache.delete(key);
+      }
+      return 'accepted';
+    });
+  }
+
+  reserve(subject: string, access: PaidAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision> {
+    return this.synchronized(() => {
+      const requestKey = `${subject}:${requestId}`;
+      for (const [key, request] of this.requests) {
+        if (request.createdAt <= now - THIRTY_DAYS_MS) this.requests.delete(key);
+      }
+      const prior = this.requests.get(requestKey)?.state;
+      if (prior === 'reserved' || prior === 'finalized') {
+        return { allowed: true, duplicate: true, usage: quotaUsage(this.events.get(subject) ?? [], access, now) };
+      }
+      const events = (this.events.get(subject) ?? []).filter((event) => event.timestamp > now - THIRTY_DAYS_MS);
+      const decision = decideQuota(events, access, operation, now);
+      if (!decision.allowed) return decision;
+      const next = [...events, { operationClass: operationClass(access, operation), timestamp: now, requestId }];
+      this.events.set(subject, next);
+      this.requests.set(requestKey, { state: 'reserved', createdAt: now });
+      return { ...decision, usage: quotaUsage(next, access, now) };
+    });
+  }
+
+  async finalize(subject: string, requestId: string): Promise<void> {
+    const key = `${subject}:${requestId}`;
+    const request = this.requests.get(key);
+    if (request?.state === 'reserved') this.requests.set(key, { ...request, state: 'finalized' });
+  }
+
+  async refund(subject: string, requestId: string): Promise<void> {
+    const key = `${subject}:${requestId}`;
+    const request = this.requests.get(key);
+    if (request?.state !== 'reserved') return;
+    this.events.set(subject, (this.events.get(subject) ?? []).filter((event) => event.requestId !== requestId));
+    this.requests.set(key, { ...request, state: 'refunded' });
+  }
+
+  async usage(subject: string, access: PaidAccessKind, now: number): Promise<Usage> {
+    return quotaUsage(this.events.get(subject) ?? [], access, now);
+  }
+}
+
+function base64UrlEncode(value: Uint8Array | string): string {
+  const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value;
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlDecode(value: string): Uint8Array {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+async function hmac(value: string, secret: string): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value)));
+}
+
+export async function signAiGrant(claims: GrantClaims, secret: string): Promise<string> {
+  const payload = base64UrlEncode(JSON.stringify(claims));
+  return `${payload}.${base64UrlEncode(await hmac(payload, secret))}`;
+}
+
+export async function verifyAiGrant(token: string, secret: string, now: number): Promise<GrantClaims | null> {
+  const [payload, encodedSignature, extra] = token.split('.');
+  if (!payload || !encodedSignature || extra) return null;
+  let supplied: Uint8Array;
+  try { supplied = base64UrlDecode(encodedSignature); } catch { return null; }
+  const expected = await hmac(payload, secret);
+  const subtle = crypto.subtle as SubtleCrypto & {
+    timingSafeEqual?(left: ArrayBufferView, right: ArrayBufferView): boolean;
+  };
+  if (supplied.byteLength !== expected.byteLength) return null;
+  let signaturesMatch: boolean;
+  if (subtle.timingSafeEqual) {
+    signaturesMatch = subtle.timingSafeEqual(supplied, expected);
+  } else {
+    let difference = 0;
+    for (let index = 0; index < supplied.length; index += 1) difference |= supplied[index] ^ expected[index];
+    signaturesMatch = difference === 0;
+  }
+  if (!signaturesMatch) return null;
+  let claims: unknown;
+  try { claims = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload))); } catch { return null; }
+  if (!claims || typeof claims !== 'object') return null;
+  const value = claims as Record<string, unknown>;
+  if (value.aud !== AI_GRANT_AUDIENCE
+    || typeof value.sub !== 'string'
+    || !['manok-trial', 'manok', 'itik', 'complimentary'].includes(String(value.access))
+    || typeof value.iat !== 'number'
+    || typeof value.exp !== 'number'
+    || value.exp <= now
+    || value.iat > now + 60_000
+    || value.exp - value.iat > AI_GRANT_TTL_MS) return null;
+  return value as unknown as GrantClaims;
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function dateValue(value: unknown): string | null {
+  const candidate = stringValue(value);
+  if (!candidate) return null;
+  const timestamp = Date.parse(candidate);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
+}
+
+export function normalizeRevenueCatSubscriber(value: unknown, now: number): VerifiedRevenueCatAccess {
+  const checkedAt = new Date(now).toISOString();
+  if (!value || typeof value !== 'object') return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  const subscriber = (value as Record<string, unknown>).subscriber;
+  if (!subscriber || typeof subscriber !== 'object') return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  const record = subscriber as Record<string, unknown>;
+  const entitlements = record.entitlements;
+  const entitlement = entitlements && typeof entitlements === 'object'
+    ? (entitlements as Record<string, unknown>).eatlog_paid
+    : null;
+  if (!entitlement || typeof entitlement !== 'object') return { access: { kind: 'pugo', checkedAt, reason: 'none' }, subjectIdentity: null };
+  const paid = entitlement as Record<string, unknown>;
+  const productId = stringValue(paid.product_identifier);
+  const expiresAt = paid.expires_date == null ? null : dateValue(paid.expires_date);
+  if (!productId || (paid.expires_date != null && !expiresAt)) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  if (expiresAt && Date.parse(expiresAt) <= now) return { access: { kind: 'pugo', checkedAt, reason: 'expired' }, subjectIdentity: null };
+  const originalAppUserId = stringValue(record.original_app_user_id) ?? 'unknown';
+  const subscriptions = record.subscriptions && typeof record.subscriptions === 'object' ? record.subscriptions as Record<string, unknown> : {};
+  const nonSubscriptions = record.non_subscriptions && typeof record.non_subscriptions === 'object' ? record.non_subscriptions as Record<string, unknown> : {};
+
+  const itikTransactions = Array.isArray(nonSubscriptions.eatlog_itik_lifetime)
+    ? nonSubscriptions.eatlog_itik_lifetime as Array<Record<string, unknown>>
+    : [];
+  if (productId === 'eatlog_itik_lifetime' || itikTransactions.length > 0) {
+    const transactions = itikTransactions;
+    const transaction = transactions.at(-1) ?? {};
+    const transactionId = stringValue(transaction.store_transaction_id) ?? stringValue(transaction.id);
+    if (!transactionId || (productId === 'eatlog_itik_lifetime' && expiresAt !== null)) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+    return {
+      access: { kind: 'itik', checkedAt, productId: 'eatlog_itik_lifetime', purchasedAt: dateValue(transaction.purchase_date) },
+      subjectIdentity: `itik:${transactionId}`,
+    };
+  }
+
+  const store = stringValue(paid.store);
+  if (store === 'promotional' || store === 'PROMOTIONAL') {
+    if (!expiresAt) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+    return {
+      access: { kind: 'complimentary', checkedAt, expiresAt },
+      subjectIdentity: `complimentary:${originalAppUserId}:eatlog_paid`,
+    };
+  }
+
+  if (!MANOK_PRODUCTS.has(productId) || !expiresAt) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  const subscription = subscriptions[productId] && typeof subscriptions[productId] === 'object'
+    ? subscriptions[productId] as Record<string, unknown>
+    : {};
+  const transactionId = stringValue(subscription.original_transaction_id);
+  if (!transactionId) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  const periodType = stringValue(subscription.period_type)?.toLowerCase();
+  const willRenew = subscription.unsubscribe_detected_at == null;
+  const billingState = subscription.billing_issues_detected_at == null ? 'active' : 'grace';
+  if (periodType === 'trial') {
+    return {
+      access: { kind: 'manok-trial', checkedAt, expiresAt, willRenew, productId, billingState },
+      subjectIdentity: `manok:${transactionId}`,
+    };
+  }
+  if (periodType !== 'normal' && periodType !== 'intro') return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  return {
+    access: { kind: 'manok', checkedAt, expiresAt, willRenew, productId, billingState },
+    subjectIdentity: `manok:${transactionId}`,
+  };
+}
+
+export function accessExpired(access: WorkerAccess, now: number): boolean {
+  if (access.kind === 'pugo' || access.kind === 'itik') return false;
+  return access.expiresAt != null && Date.parse(access.expiresAt) <= now;
+}
+
+export async function hashQuotaIdentity(identity: string, salt: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${identity}`));
+  return base64UrlEncode(new Uint8Array(digest));
+}

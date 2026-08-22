@@ -3,6 +3,7 @@ import { buildFoodPortions, normalizeFoodName } from './foodSearchCore';
 import type { FoodResult } from './foodSearch';
 import { getInstallationToken, isInstallationToken } from './installIdentity';
 import { hasRemoteEstimateConsent } from './remoteEstimateConsent';
+import { getAiAuthorization, type AiAuthorizationFailure } from './subscriptionApi';
 import {
     type FoodEstimateResponse,
     isRecognizedFoodEstimate,
@@ -31,7 +32,20 @@ export interface ComponentClarificationInput extends MealClarificationInput {
     mealName: string;
 }
 
-export type FoodEstimationFailureKind = 'unavailable' | 'consent-required' | 'network' | 'timeout' | 'provider' | 'invalid-response' | 'unrecognized';
+export type FoodEstimationFailureKind =
+    | 'unavailable'
+    | 'consent-required'
+    | 'paid-access-required'
+    | 'trial-daily-limit'
+    | 'trial-allowance-exhausted'
+    | 'fair-use-daily-limit'
+    | 'fair-use-30-day-limit'
+    | 'entitlement-unavailable'
+    | 'network'
+    | 'timeout'
+    | 'provider'
+    | 'invalid-response'
+    | 'unrecognized';
 export type FoodEstimationResult =
     | { ok: true; result: DescribeResult }
     | { ok: false; kind: FoodEstimationFailureKind; message: string };
@@ -63,12 +77,20 @@ export interface FoodEstimateClientOptions {
     now?: () => number;
     timeoutMs?: number;
     hasConsent?: () => boolean | Promise<boolean>;
+    getAiAuthorization?: () => { ok: true; grant: string } | { ok: false; kind: AiAuthorizationFailure };
+    requestId?: () => string | Promise<string>;
 }
 
 function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
     const messages: Record<FoodEstimationFailureKind, string> = {
         unavailable: 'Estimates are unavailable in this build.',
         'consent-required': 'Enable online estimates to use this.',
+        'paid-access-required': 'Eatlog Manok or Itik is required for AI estimates.',
+        'trial-daily-limit': 'This trial AI allowance is used for the current rolling 24-hour window. Try again when it resets.',
+        'trial-allowance-exhausted': 'This trial AI allowance is used. Choose Manok or Itik to keep using AI estimates.',
+        'fair-use-daily-limit': 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when it resets.',
+        'fair-use-30-day-limit': 'The 250-operation rolling 30-day fair-use limit is reached. Try again when it resets.',
+        'entitlement-unavailable': 'Paid access could not be verified. Refresh your plan and try again.',
         network: 'Could not reach the estimation service. Check your connection and try again.',
         timeout: 'The estimation service took too long. Try again.',
         provider: 'The estimation service could not complete this request. Try again.',
@@ -152,12 +174,16 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const now = options.now ?? Date.now;
     const timeoutMs = options.timeoutMs ?? 22000;
     const checkConsent = options.hasConsent ?? hasRemoteEstimateConsent;
+    const authorize = options.getAiAuthorization ?? getAiAuthorization;
+    const createRequestId = options.requestId ?? (async () => (await import('expo-crypto')).randomUUID());
 
     async function estimate(
         operation: EstimateOperation,
         input: EstimateInput,
     ): Promise<FoodEstimationResult> {
         if (!options.workerUrl) return failure('unavailable');
+        const authorization = authorize();
+        if (!authorization.ok) return failure(authorization.kind);
         try {
             if (!await checkConsent()) return failure('consent-required');
         } catch {
@@ -179,11 +205,28 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                     Accept: 'application/json',
                     'Content-Type': 'application/json',
                     'X-Eatlog-Install-ID': installId,
+                    'X-Eatlog-Request-ID': await createRequestId(),
+                    Authorization: `Bearer ${authorization.grant}`,
                 },
                 body: JSON.stringify({ operation, ...input }),
                 signal: controller.signal,
             });
-            if (!response.ok) return failure('provider');
+            if (!response.ok) {
+                if ((response.headers.get('content-type') ?? '').includes('application/json')) {
+                    let code: unknown;
+                    try { code = ((await response.json()) as { error?: { code?: unknown } }).error?.code; } catch { code = null; }
+                    const mapping: Record<string, FoodEstimationFailureKind> = {
+                        PAID_ACCESS_REQUIRED: 'paid-access-required',
+                        TRIAL_DAILY_LIMIT: 'trial-daily-limit',
+                        TRIAL_ALLOWANCE_EXHAUSTED: 'trial-allowance-exhausted',
+                        FAIR_USE_DAILY_LIMIT: 'fair-use-daily-limit',
+                        FAIR_USE_30_DAY_LIMIT: 'fair-use-30-day-limit',
+                        ENTITLEMENT_UNAVAILABLE: 'entitlement-unavailable',
+                    };
+                    if (typeof code === 'string' && mapping[code]) return failure(mapping[code]);
+                }
+                return failure('provider');
+            }
             if (!(response.headers.get('content-type') ?? '').includes('application/json')) return failure('invalid-response');
             const result = await response.json() as FoodEstimateResponse;
             if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');

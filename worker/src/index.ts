@@ -1,3 +1,20 @@
+import {
+  AI_GRANT_AUDIENCE,
+  AI_GRANT_TTL_MS,
+  ENTITLEMENT_CACHE_TTL_MS,
+  aggregateAiUsage,
+  accessExpired,
+  hashQuotaIdentity,
+  normalizeRevenueCatSubscriber,
+  signAiGrant,
+  verifyAiGrant,
+  type GrantClaims,
+  type PaidAccessKind,
+  type SubscriptionStore,
+  type VerifiedRevenueCatAccess,
+} from './subscriptions';
+import { DurableSubscriptionStore } from './subscriptionStore';
+
 const USDA_ORIGIN = 'https://api.nal.usda.gov';
 const USDA_SEARCH_PATH = '/fdc/v1/foods/search';
 const USDA_PAGE_SIZE = 25;
@@ -5,6 +22,7 @@ const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
 const GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
 const USDA_TIMEOUT_MS = 8000;
 const GEMINI_TOTAL_TIMEOUT_MS = 20000;
+const GEMINI_MAX_OUTPUT_TOKENS = 2048;
 const MAX_USDA_BODY_BYTES = 4096;
 const MAX_ESTIMATE_BODY_BYTES = 6 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
@@ -14,6 +32,8 @@ const MAX_COMPONENT_GRAMS = 10_000;
 const MAX_CLARIFICATION_TEXT_LENGTH = 200;
 const MAX_CONTEXT_DESCRIPTION_LENGTH = 500;
 const MAX_CONTEXT_NAME_LENGTH = 120;
+const MAX_REVENUECAT_BODY_BYTES = 256 * 1024;
+const REVENUECAT_ORIGIN = 'https://api.revenuecat.com';
 
 const USDA_DATA_TYPES = ['Survey (FNDDS)', 'Foundation', 'SR Legacy', 'Branded'] as const;
 const OPERATIONS = ['scan', 'describe', 'clarify-meal', 'clarify-component'] as const;
@@ -34,6 +54,15 @@ export interface Env {
   GEMINI_INSTALL_LIMITER: RateLimitBinding;
   GEMINI_IP_LIMITER: RateLimitBinding;
   GEMINI_EMERGENCY_LIMITER: RateLimitBinding;
+  SUBSCRIPTIONS_ENABLED?: string;
+  REVENUECAT_SECRET_API_KEY?: string;
+  REVENUECAT_WEBHOOK_AUTH?: string;
+  AI_GRANT_SIGNING_KEY?: string;
+  QUOTA_IDENTITY_SALT?: string;
+  REVENUECAT_ENTITLEMENT_ID?: string;
+  ACCESS_STATE?: DurableObjectNamespace;
+  GEMINI_INPUT_USD_PER_MILLION?: string;
+  GEMINI_OUTPUT_USD_PER_MILLION?: string;
 }
 
 interface CacheLike {
@@ -46,12 +75,26 @@ interface Dependencies {
   cache?: CacheLike | null;
   now?: () => number;
   requestId?: () => string;
+  subscriptionStore?: SubscriptionStore;
 }
 
 interface ErrorMeta {
-  upstream?: 'usda' | 'gemini' | 'none';
+  upstream?: 'usda' | 'gemini' | 'revenuecat' | 'none';
   cacheOutcome?: 'hit' | 'miss' | 'store' | 'bypass';
   rejection?: string;
+}
+
+function logAiUsage(upstream: unknown, model: string, env: Env): void {
+  const usage = (upstream as any)?.usageMetadata;
+  const inputTokens = Number(usage?.promptTokenCount ?? 0);
+  const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
+  const inputRate = Number(env.GEMINI_INPUT_USD_PER_MILLION ?? NaN);
+  const outputRate = Number(env.GEMINI_OUTPUT_USD_PER_MILLION ?? NaN);
+  console.log(JSON.stringify({
+    event: 'ai_usage',
+    model,
+    ...aggregateAiUsage(inputTokens, outputTokens, inputRate, outputRate),
+  }));
 }
 
 class HttpError extends Error {
@@ -61,6 +104,7 @@ class HttpError extends Error {
     message: string,
     readonly meta: ErrorMeta = {},
     readonly headers: Record<string, string> = {},
+    readonly publicDetails: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -135,20 +179,24 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
 }
 
 function errorResponse(error: HttpError, requestId: string): Response {
-  return json({ error: { code: error.code, message: error.message, requestId } }, error.status, error.headers);
+  return json({ error: { code: error.code, message: error.message, requestId, ...error.publicDetails } }, error.status, error.headers);
 }
 
-function routeName(pathname: string): 'health' | 'usda-search' | 'usda-detail' | 'estimate' | 'unknown' {
+function routeName(pathname: string): 'health' | 'usda-search' | 'usda-detail' | 'access-refresh' | 'usage' | 'revenuecat-webhook' | 'estimate' | 'unknown' {
   if (pathname === '/healthz') return 'health';
   if (pathname === '/v1/usda/search') return 'usda-search';
   if (/^\/v1\/usda\/foods\/[^/]+$/.test(pathname)) return 'usda-detail';
+  if (pathname === '/v1/access/refresh') return 'access-refresh';
+  if (pathname === '/v1/usage') return 'usage';
+  if (pathname === '/v1/revenuecat/webhook') return 'revenuecat-webhook';
   if (pathname === '/v1/estimate') return 'estimate';
   return 'unknown';
 }
 
 function allowedMethod(route: ReturnType<typeof routeName>): string | null {
   if (route === 'health' || route === 'usda-detail') return 'GET';
-  if (route === 'usda-search' || route === 'estimate') return 'POST';
+  if (route === 'usage') return 'GET';
+  if (route === 'usda-search' || route === 'access-refresh' || route === 'revenuecat-webhook' || route === 'estimate') return 'POST';
   return null;
 }
 
@@ -382,7 +430,7 @@ async function fetchWithTimeout(
   input: string,
   init: RequestInit,
   timeoutMs: number,
-  upstream: 'usda' | 'gemini',
+  upstream: 'usda' | 'gemini' | 'revenuecat',
   cacheOutcome: 'miss' | 'bypass',
 ): Promise<Response> {
   const controller = new AbortController();
@@ -447,7 +495,7 @@ function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
 
 async function readUpstreamJson(
   response: Response,
-  upstream: 'usda' | 'gemini',
+  upstream: 'usda' | 'gemini' | 'revenuecat',
   cacheOutcome: 'miss' | 'bypass',
 ): Promise<unknown> {
   if (!response.ok) throw new HttpError(502, 'UPSTREAM_ERROR', 'Upstream service rejected the request.', { upstream, cacheOutcome, rejection: 'upstream-status' });
@@ -459,6 +507,156 @@ async function readUpstreamJson(
   } catch {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream, cacheOutcome, rejection: 'upstream-json' });
   }
+}
+
+function subscriptionsEnabled(env: Env): boolean {
+  return env.SUBSCRIPTIONS_ENABLED === 'true';
+}
+
+function requireSubscriptionConfiguration(env: Env): asserts env is Env & {
+  REVENUECAT_SECRET_API_KEY: string;
+  REVENUECAT_WEBHOOK_AUTH: string;
+  AI_GRANT_SIGNING_KEY: string;
+  QUOTA_IDENTITY_SALT: string;
+  ACCESS_STATE: DurableObjectNamespace;
+} {
+  if (!env.ACCESS_STATE || [
+    env.REVENUECAT_SECRET_API_KEY,
+    env.REVENUECAT_WEBHOOK_AUTH,
+    env.AI_GRANT_SIGNING_KEY,
+    env.QUOTA_IDENTITY_SALT,
+    env.RATE_LIMIT_SALT,
+  ].some((value) => typeof value !== 'string' || !value.trim())) {
+    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { rejection: 'subscription-configuration' });
+  }
+  if (env.REVENUECAT_ENTITLEMENT_ID && env.REVENUECAT_ENTITLEMENT_ID !== 'eatlog_paid') {
+    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { rejection: 'subscription-entitlement' });
+  }
+}
+
+function resolveSubscriptionStore(env: Env, dependency?: SubscriptionStore): SubscriptionStore {
+  if (dependency) return dependency;
+  requireSubscriptionConfiguration(env);
+  return new DurableSubscriptionStore({ ACCESS_STATE: env.ACCESS_STATE });
+}
+
+async function constantTimeEqual(provided: string, expected: string): Promise<boolean> {
+  const [providedHash, expectedHash] = await Promise.all([
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(provided)),
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(expected)),
+  ]);
+  const left = new Uint8Array(providedHash);
+  const right = new Uint8Array(expectedHash);
+  const subtle = crypto.subtle as SubtleCrypto & { timingSafeEqual?(a: ArrayBufferView, b: ArrayBufferView): boolean };
+  if (subtle.timingSafeEqual) return subtle.timingSafeEqual(left, right);
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) difference |= left[index] ^ right[index];
+  return difference === 0;
+}
+
+function bearerToken(request: Request): string | null {
+  const header = request.headers.get('authorization')?.trim() ?? '';
+  return header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+}
+
+function paidKind(access: VerifiedRevenueCatAccess['access']): PaidAccessKind | null {
+  return access.kind === 'pugo' ? null : access.kind;
+}
+
+async function refreshRevenueCatAccess(
+  installId: string,
+  env: Env,
+  store: SubscriptionStore,
+  fetchImpl: typeof fetch,
+  now: number,
+): Promise<{ verified: VerifiedRevenueCatAccess; customerKey: string }> {
+  requireSubscriptionConfiguration(env);
+  const customerKey = await hashQuotaIdentity(`customer:${installId}`, env.RATE_LIMIT_SALT);
+  try {
+    const response = await fetchWithTimeout(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
+      headers: { Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`, Accept: 'application/json' },
+    }, 8000, 'revenuecat', 'bypass');
+    const normalized = normalizeRevenueCatSubscriber(await readUpstreamJson(response, 'revenuecat', 'bypass'), now);
+    const subjectIdentity = normalized.subjectIdentity
+      ? await hashQuotaIdentity(normalized.subjectIdentity, env.QUOTA_IDENTITY_SALT)
+      : null;
+    const verified = { access: normalized.access, subjectIdentity };
+    const expiry = normalized.access.kind === 'pugo' || normalized.access.kind === 'itik'
+      ? Number.POSITIVE_INFINITY
+      : normalized.access.expiresAt == null ? Number.POSITIVE_INFINITY : Date.parse(normalized.access.expiresAt);
+    await store.putCached(customerKey, {
+      ...verified,
+      validUntil: Math.min(now + ENTITLEMENT_CACHE_TTL_MS, expiry),
+    });
+    return { verified, customerKey };
+  } catch {
+    const cached = await store.getCached(customerKey, now);
+    if (!cached || accessExpired(cached.access, now)) {
+      throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { upstream: 'revenuecat', rejection: 'entitlement-refresh' });
+    }
+    return { verified: cached, customerKey };
+  }
+}
+
+async function accessRefresh(
+  installId: string,
+  env: Env,
+  store: SubscriptionStore,
+  fetchImpl: typeof fetch,
+  now: number,
+): Promise<Response> {
+  const { verified } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now);
+  const access = paidKind(verified.access);
+  if (!access || !verified.subjectIdentity) return json({ access: verified.access, usage: { kind: 'none' } });
+  requireSubscriptionConfiguration(env);
+  const claims = {
+    aud: AI_GRANT_AUDIENCE,
+    sub: verified.subjectIdentity,
+    access,
+    iat: now,
+    exp: now + AI_GRANT_TTL_MS,
+  } as const;
+  const usage = await store.usage(claims.sub, access, now);
+  return json({
+    access: verified.access,
+    grant: { token: await signAiGrant(claims, env.AI_GRANT_SIGNING_KEY), expiresAt: new Date(claims.exp).toISOString() },
+    usage,
+  });
+}
+
+async function requireGrant(request: Request, env: Env, now: number): Promise<GrantClaims> {
+  requireSubscriptionConfiguration(env);
+  const token = bearerToken(request);
+  if (!token) throw new HttpError(402, 'PAID_ACCESS_REQUIRED', 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
+  const claims = await verifyAiGrant(token, env.AI_GRANT_SIGNING_KEY, now);
+  if (!claims) throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Refresh your plan and try again.', { rejection: 'grant' });
+  return claims;
+}
+
+async function handleRevenueCatWebhook(
+  request: Request,
+  env: Env,
+  store: SubscriptionStore,
+): Promise<Response> {
+  requireSubscriptionConfiguration(env);
+  const authorization = request.headers.get('authorization')?.trim() ?? '';
+  if (!await constantTimeEqual(authorization, env.REVENUECAT_WEBHOOK_AUTH)) {
+    throw new HttpError(401, 'UNAUTHORIZED', 'Webhook authorization failed.', { rejection: 'webhook-auth' });
+  }
+  requireJsonContentType(request);
+  const body = await readJsonObject(request, MAX_REVENUECAT_BODY_BYTES);
+  const event = body.event;
+  if (!event || typeof event !== 'object') throw new HttpError(400, 'INVALID_WEBHOOK', 'Webhook payload is invalid.', { rejection: 'webhook-shape' });
+  const value = event as Record<string, unknown>;
+  const eventId = typeof value.id === 'string' ? value.id : '';
+  const eventTimestamp = Number(value.event_timestamp_ms);
+  const identities = [value.app_user_id, value.original_app_user_id, ...(Array.isArray(value.aliases) ? value.aliases : [])]
+    .filter((item): item is string => typeof item === 'string' && item.length > 0);
+  if (!eventId || !Number.isSafeInteger(eventTimestamp) || identities.length === 0) {
+    throw new HttpError(400, 'INVALID_WEBHOOK', 'Webhook payload is invalid.', { rejection: 'webhook-fields' });
+  }
+  const customerKeys = [...new Set(await Promise.all(identities.map((identity) => hashQuotaIdentity(`customer:${identity}`, env.RATE_LIMIT_SALT))))];
+  return json({ received: true, result: await store.recordWebhook(eventId, eventTimestamp, customerKeys) });
 }
 
 async function cacheMatch(cache: CacheLike | null, key: Request): Promise<unknown | null> {
@@ -673,7 +871,11 @@ async function geminiEstimate(input: EstimateInput, env: Env, fetchImpl: typeof 
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: FOOD_ESTIMATE_SYSTEM_INSTRUCTION }] },
           contents: [{ parts }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema: FOOD_ESTIMATE_SCHEMA },
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: FOOD_ESTIMATE_SCHEMA,
+            maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+          },
         }),
       }, remaining, 'gemini', 'bypass');
     } catch (error) {
@@ -699,7 +901,10 @@ async function geminiEstimate(input: EstimateInput, env: Env, fetchImpl: typeof 
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { parsed = null; }
     const normalized = normalizeGeminiResponse(parsed, input.operation);
-    if (normalized) return json(normalized);
+    if (normalized) {
+      logAiUsage(upstream, model, env);
+      return json(normalized);
+    }
     if (model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
   }
   throw new HttpError(502, 'UPSTREAM_UNAVAILABLE', 'Estimation service is unavailable.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream' });
@@ -737,10 +942,34 @@ export async function handleRequest(
     if (request.method !== method) throw new HttpError(405, 'METHOD_NOT_ALLOWED', 'Method not allowed.', { rejection: 'method' }, { Allow: method! });
     if (route === 'health') return json({ ok: true });
 
+    const fetchImpl = dependencies.fetchImpl ?? fetch;
+    if (route === 'revenuecat-webhook') {
+      if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
+      return await handleRevenueCatWebhook(request, env, resolveSubscriptionStore(env, dependencies.subscriptionStore));
+    }
+    if (route === 'usage') {
+      if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
+      const now = (dependencies.now ?? Date.now)();
+      const claims = await requireGrant(request, env, now);
+      return json(await resolveSubscriptionStore(env, dependencies.subscriptionStore).usage(claims.sub, claims.access, now));
+    }
+
     const installId = requireInstallId(request);
+    if (route === 'access-refresh') {
+      if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
+      requireJsonContentType(request);
+      rejectUnknownProperties(await readJsonObject(request, 1024), []);
+      return await accessRefresh(
+        installId,
+        env,
+        resolveSubscriptionStore(env, dependencies.subscriptionStore),
+        fetchImpl,
+        (dependencies.now ?? Date.now)(),
+      );
+    }
+
     const group: RouteGroup = route === 'estimate' ? 'gemini' : 'usda';
     await applyRateLimits(env, group, installId, request);
-    const fetchImpl = dependencies.fetchImpl ?? fetch;
     const defaultCache = dependencies.cache === undefined
       ? ((globalThis as any).caches?.default as CacheLike | undefined) ?? null
       : dependencies.cache;
@@ -753,7 +982,41 @@ export async function handleRequest(
       return await usdaDetail(parseFdcId(url.pathname), env, context, fetchImpl, defaultCache);
     }
     requireJsonContentType(request);
-    return await geminiEstimate(parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES)), env, fetchImpl);
+    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
+    if (!subscriptionsEnabled(env)) return await geminiEstimate(input, env, fetchImpl);
+
+    const now = (dependencies.now ?? Date.now)();
+    const claims = await requireGrant(request, env, now);
+    const idempotencyKey = request.headers.get('x-eatlog-request-id')?.trim() ?? '';
+    if (!/^[A-Za-z0-9-]{16,128}$/.test(idempotencyKey)) {
+      throw new HttpError(400, 'INVALID_REQUEST_ID', 'Request identifier is invalid.', { rejection: 'request-id' });
+    }
+    const store = resolveSubscriptionStore(env, dependencies.subscriptionStore);
+    const reservation = await store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now);
+    if (!reservation.allowed) {
+      const messages = {
+        TRIAL_DAILY_LIMIT: 'The trial rolling 24-hour allowance for this AI action is used. Try again when the window resets.',
+        TRIAL_ALLOWANCE_EXHAUSTED: 'The trial allowance for this AI action is used. Manok or Itik keeps AI access available.',
+        FAIR_USE_DAILY_LIMIT: 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when the window resets.',
+        FAIR_USE_30_DAY_LIMIT: 'The 250-operation rolling 30-day fair-use limit is reached. Try again when the window resets.',
+      } as const;
+      throw new HttpError(
+        429,
+        reservation.code!,
+        messages[reservation.code!],
+        { rejection: 'quota' },
+        {},
+        reservation.nextEligibleAt ? { nextEligibleAt: reservation.nextEligibleAt } : {},
+      );
+    }
+    try {
+      const response = await geminiEstimate(input, env, fetchImpl);
+      await store.finalize(claims.sub, idempotencyKey);
+      return response;
+    } catch (error) {
+      await store.refund(claims.sub, idempotencyKey);
+      throw error;
+    }
   } catch (error) {
     const failure = error instanceof HttpError
       ? error

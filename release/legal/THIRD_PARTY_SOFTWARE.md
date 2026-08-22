@@ -4,11 +4,11 @@ Generated from `package-lock.json` by `scripts/generate-third-party-notices.mjs`
 
 This inventory identifies production packages and their declared SPDX-style license expressions. Package copyright and license files remain authoritative. The bundled Onest font notice is preserved separately in `release/legal/ONEST-OFL-1.1.txt`.
 
-Production package records: 736
+Production package records: 742
 
 | Package | Version | Direct | License |
 | --- | --- | --- | --- |
-| @0no-co/graphql.web | 1.3.2 | no | MIT |
+| @0no-co/graphql.web | 1.3.3 | no | MIT |
 | @alloc/quick-lru | 5.2.0 | no | MIT |
 | @babel/code-frame | 7.10.4 | no | MIT |
 | @babel/code-frame | 7.29.7 | no | MIT |
@@ -133,7 +133,7 @@ Production package records: 736
 | @esbuild/win32-ia32 | 0.28.1 | no | MIT |
 | @esbuild/win32-x64 | 0.28.1 | no | MIT |
 | @expo-google-fonts/onest | 0.4.1 | yes | MIT AND OFL-1.1 |
-| @expo/cli | 54.0.26 | no | MIT |
+| @expo/cli | 54.0.27 | no | MIT |
 | @expo/code-signing-certificates | 0.0.6 | no | MIT |
 | @expo/config | 12.0.14 | no | MIT |
 | @expo/config-plugins | 54.0.5 | no | MIT |
@@ -199,6 +199,9 @@ Production package records: 736
 | @react-navigation/native | 7.3.13 | yes | MIT |
 | @react-navigation/native-stack | 7.18.5 | yes | MIT |
 | @react-navigation/routers | 7.6.4 | no | MIT |
+| @revenuecat/purchases-js | 1.15.0 | no | MIT |
+| @revenuecat/purchases-js-hybrid-mappings | 17.10.0 | no | MIT |
+| @revenuecat/purchases-typescript-internal | 17.10.0 | no | MIT |
 | @sinclair/typebox | 0.27.12 | no | MIT |
 | @sinonjs/commons | 3.0.1 | no | BSD-3-Clause |
 | @sinonjs/fake-timers | 10.3.0 | no | BSD-3-Clause |
@@ -225,6 +228,7 @@ Production package records: 736
 | accepts | 1.3.8 | no | MIT |
 | acorn | 8.17.0 | no | MIT |
 | agent-base | 7.1.4 | no | MIT |
+| agent-cli-detector | 0.1.6 | no | MIT |
 | ajv | 8.20.0 | no | MIT |
 | anser | 1.4.10 | no | MIT |
 | ansi-escapes | 4.3.2 | no | MIT |
@@ -355,11 +359,12 @@ Production package records: 736
 | esprima | 4.0.1 | no | BSD-2-Clause |
 | etag | 1.8.1 | no | MIT |
 | event-target-shim | 5.0.1 | no | MIT |
-| expo | 54.0.36 | yes | MIT |
+| expo | 54.0.37 | yes | MIT |
 | expo-application | 7.0.8 | yes | MIT |
 | expo-asset | 12.0.13 | no | MIT |
 | expo-build-properties | 1.0.10 | yes | MIT |
-| expo-constants | 18.0.13 | no | MIT |
+| expo-clipboard | 8.0.8 | yes | MIT |
+| expo-constants | 18.0.14 | no | MIT |
 | expo-crypto | 15.0.9 | yes | MIT |
 | expo-dev-client | 6.0.21 | yes | MIT |
 | expo-dev-launcher | 6.0.21 | no | MIT |
@@ -367,7 +372,7 @@ Production package records: 736
 | expo-dev-menu-interface | 2.0.0 | no | MIT |
 | expo-document-picker | 14.0.8 | yes | MIT |
 | expo-eas-client | 1.0.8 | no | MIT |
-| expo-file-system | 19.0.23 | yes | MIT |
+| expo-file-system | 19.0.24 | yes | MIT |
 | expo-font | 14.0.12 | yes | MIT |
 | expo-haptics | 15.0.8 | yes | MIT |
 | expo-image-loader | 6.0.0 | no | MIT |
@@ -377,7 +382,7 @@ Production package records: 736
 | expo-keep-awake | 15.0.8 | no | MIT |
 | expo-manifests | 1.0.11 | no | MIT |
 | expo-media-library | 18.2.1 | yes | MIT |
-| expo-modules-autolinking | 3.0.26 | no | MIT |
+| expo-modules-autolinking | 3.0.27 | no | MIT |
 | expo-modules-core | 3.0.30 | no | MIT |
 | expo-server | 1.0.7 | no | MIT |
 | expo-sharing | 14.0.8 | yes | MIT |
@@ -385,7 +390,7 @@ Production package records: 736
 | expo-sqlite | 16.0.10 | yes | MIT |
 | expo-status-bar | 3.0.9 | yes | MIT |
 | expo-structured-headers | 5.0.0 | no | MIT |
-| expo-updates | 29.0.19 | yes | MIT |
+| expo-updates | 29.0.20 | yes | MIT |
 | expo-updates-interface | 2.0.0 | no | MIT |
 | exponential-backoff | 3.1.3 | no | Apache-2.0 |
 | fast-deep-equal | 3.1.3 | no | MIT |
@@ -610,6 +615,7 @@ Production package records: 736
 | react-native-gesture-handler | 2.28.0 | yes | MIT |
 | react-native-health-connect | 3.5.3 | yes | MIT |
 | react-native-is-edge-to-edge | 1.3.1 | no | MIT |
+| react-native-purchases | 9.5.4 | yes | MIT |
 | react-native-reanimated | 4.1.7 | yes | MIT |
 | react-native-safe-area-context | 5.6.2 | yes | MIT |
 | react-native-screens | 4.16.0 | yes | MIT |
@@ -684,7 +690,7 @@ Production package records: 736
 | supports-hyperlinks | 2.3.0 | no | MIT |
 | supports-preserve-symlinks-flag | 1.0.0 | no | MIT |
 | tailwindcss | 3.4.19 | yes | MIT |
-| tar | 7.5.21 | no | BlueOak-1.0.0 |
+| tar | 7.5.22 | no | BlueOak-1.0.0 |
 | terminal-link | 2.1.1 | no | MIT |
 | terser | 5.49.0 | no | BSD-2-Clause |
 | test-exclude | 6.0.0 | no | ISC |
@@ -732,7 +738,7 @@ Production package records: 736
 | write-file-atomic | 4.0.2 | no | ISC |
 | ws | 6.2.6 | no | MIT |
 | ws | 7.5.13 | no | MIT |
-| ws | 8.21.1 | no | MIT |
+| ws | 8.21.3 | no | MIT |
 | xcode | 3.0.1 | no | Apache-2.0 |
 | xml2js | 0.6.0 | no | MIT |
 | xmlbuilder | 11.0.1 | no | MIT |

@@ -21,6 +21,12 @@ Check that the device has an internet connection, then retry. Scan and Describe 
 
 Review each estimate before saving it. Estimates and community food data can be incomplete or wrong.
 
+## Plan, purchase, or restore problem
+
+Open Profile → Plan, refresh access, then use Restore purchases with the same platform and store account that made the purchase. Manok management opens the store subscription screen; Itik and complimentary access do not create a managed subscription. Copy the Support ID from this screen when contacting support. Do not send receipts, transaction IDs, store credentials, or screenshots containing account information.
+
+RevenueCat or Worker outages must not block Eatlog Pugo startup or local logging. If paid access cannot be verified, retry later; local food, weight, target, and adaptive history remains on the device.
+
 ## Camera or photo access is unavailable
 
 Choose camera Scan or Photo again so Eatlog can request access at the point of use. If the operating system no longer offers the prompt, open the device's app-permission settings and allow the relevant access. Eatlog does not request microphone access.

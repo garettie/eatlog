@@ -19,6 +19,14 @@ type ConfigureApp = (input: {
 
 const require = createRequire(import.meta.url);
 const configPath = path.resolve(process.cwd(), 'app.config.js');
+const easConfig = require(path.resolve(process.cwd(), 'eas.json')) as {
+  build: Record<string, {
+    autoIncrement?: boolean;
+    developmentClient?: boolean;
+    env?: Record<string, string>;
+    android?: { buildType?: string; gradleCommand?: string };
+  }>;
+};
 
 function evaluateVariant(appVariant?: string): EvaluatedConfig {
   const previousVariant = process.env.APP_VARIANT;
@@ -59,4 +67,20 @@ test('Expo variants keep production stable and isolate standalone preview builds
   assert.equal(development.name, 'Eatlog');
   assert.equal(development.android.package, 'com.sgaret.eatlog.dev');
   assert.equal(development.ios.bundleIdentifier, 'com.sgaret.eatlog.dev');
+});
+
+test('standalone preview builds increment independently after the first APK', () => {
+  assert.equal(easConfig.build.preview.autoIncrement, true);
+  assert.equal(easConfig.build.development.autoIncrement, undefined);
+  assert.equal(easConfig.build.production.autoIncrement, true);
+});
+
+test('subscription preview is a standalone debug APK that permits RevenueCat Test Store', () => {
+  const preview = easConfig.build.preview;
+  assert.notEqual(preview.developmentClient, true);
+  assert.equal(preview.android?.gradleCommand, ':app:assembleDebug');
+  assert.equal(preview.android?.buildType, undefined);
+  assert.equal(preview.env?.EX_UPDATES_NATIVE_DEBUG, '1');
+  assert.equal(preview.env?.EXPO_PUBLIC_REVENUECAT_TEST_STORE_ALLOWED, 'true');
+  assert.equal(easConfig.build.production.env?.EXPO_PUBLIC_REVENUECAT_TEST_STORE_ALLOWED, undefined);
 });
