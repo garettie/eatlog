@@ -6,6 +6,7 @@
  */
 import {
   buildOpenFoodFactsUserAgent,
+  isRevenueCatTestStoreKey,
   normalizePublicHttpsUrl,
   normalizeSupportEmail,
   revenueCatApiKeyForBuild,
@@ -27,6 +28,7 @@ export const serviceConfig = {
   appVersion,
   foodWorkerUrl,
   revenueCatApiKey,
+  revenueCatTestStore: isRevenueCatTestStoreKey(revenueCatApiKey),
   openFoodFactsUserAgent,
   publicLinks: {
     privacyPolicyUrl,

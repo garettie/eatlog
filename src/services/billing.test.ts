@@ -76,6 +76,31 @@ test('maps purchase success, cancellation, failure, pending, and delayed entitle
     getInstallationToken: async () => 'a'.repeat(32), now: () => NOW,
   });
   assert.equal((await delayed.purchase('manok', PUGO)).state, 'entitlement-pending');
+
+  const currentManok = { kind: 'manok', productId: 'eatlog_manok', expiresAt: '2026-09-01T00:00:00Z', willRenew: true, checkedAt: NOW.toISOString(), billingState: 'active' } as const;
+  const delayedItik = createBillingClient({
+    apiKey: 'test_public_key', purchases: adapter({ purchasePackage: async () => ({ customerInfo: customerInfo('manok') }) }),
+    getInstallationToken: async () => 'a'.repeat(32), now: () => NOW,
+  });
+  const delayedItikResult = await delayedItik.purchase('itik', currentManok);
+  assert.equal(delayedItikResult.state, 'entitlement-pending');
+  assert.deepEqual(delayedItikResult.access, currentManok);
+});
+
+test('purchase cancellation keeps the current plan instead of claiming Pugo', async () => {
+  const currentManok = { kind: 'manok', productId: 'eatlog_manok', expiresAt: '2026-09-01T00:00:00Z', willRenew: true, checkedAt: NOW.toISOString(), billingState: 'active' } as const;
+  const client = createBillingClient({
+    apiKey: 'test_public_key',
+    purchases: adapter({ purchasePackage: async () => { throw { code: '1' }; } }),
+    getInstallationToken: async () => 'a'.repeat(32),
+    now: () => NOW,
+  });
+
+  assert.deepEqual(await client.purchase('itik', currentManok), {
+    state: 'cancelled',
+    message: 'Purchase canceled. Your current plan is unchanged.',
+    access: currentManok,
+  });
 });
 
 test('restores access, reports no purchase, and prevents Itik repurchase or renewing Manok transition', async () => {
@@ -87,6 +112,44 @@ test('restores access, reports no purchase, and prevents Itik repurchase or rene
   assert.equal((await client.purchase('itik', itik)).message, 'Eatlog Itik is already active.');
   const manok = { kind: 'manok', productId: 'eatlog_manok', expiresAt: '2026-09-01T00:00:00Z', willRenew: true, checkedAt: NOW.toISOString(), billingState: 'active' } as const;
   assert.equal((await client.purchase('itik', manok)).state, 'failed');
+});
+
+test('Test Store preview can replace active Manok with Itik without a cancellation screen', async () => {
+  let purchasedProduct: string | null = null;
+  const sdk = adapter({
+    purchasePackage: async (value: any) => {
+      purchasedProduct = value.product.identifier;
+      return { customerInfo: customerInfo('itik') };
+    },
+  });
+  const client = createBillingClient({
+    apiKey: 'test_public_key',
+    purchases: sdk,
+    getInstallationToken: async () => 'a'.repeat(32),
+    now: () => NOW,
+  });
+  const manok = { kind: 'manok', productId: 'eatlog_manok', expiresAt: '2026-09-01T00:00:00Z', willRenew: true, checkedAt: NOW.toISOString(), billingState: 'active' } as const;
+
+  const result = await client.purchase('itik', manok);
+
+  assert.equal(result.state, 'success');
+  assert.equal(result.access.kind, 'itik');
+  assert.equal(purchasedProduct, 'eatlog_itik');
+});
+
+test('automatic CustomerInfo reads preserve the SDK cache while manual refresh can invalidate it', async () => {
+  let invalidations = 0;
+  const client = createBillingClient({
+    apiKey: 'key',
+    purchases: adapter({ invalidateCustomerInfoCache: async () => { invalidations += 1; } }),
+    getInstallationToken: async () => 'a'.repeat(32),
+    now: () => NOW,
+  });
+
+  await client.customerInfo();
+  assert.equal(invalidations, 0);
+  await client.customerInfo(true);
+  assert.equal(invalidations, 1);
 });
 
 test('opens the RevenueCat management URL instead of the iOS-only management sheet', async () => {

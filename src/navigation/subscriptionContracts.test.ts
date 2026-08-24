@@ -12,6 +12,8 @@ const tabNavigator = read('./TabNavigator.tsx');
 const profileNavigator = read('./ProfileNavigator.tsx');
 const profile = read('../screens/ProfileScreen.tsx');
 const paywall = read('../screens/PaywallScreen.tsx');
+const tierBirdIcon = read('../components/TierBirdIcon.tsx');
+const entitlementProvider = read('../context/EntitlementContext.tsx');
 const foodSheet = read('../components/sheet-states/FoodSheetContent.tsx');
 const search = read('../components/sheet-states/SearchInputState.tsx');
 const addComponent = read('../components/AddComponentSection.tsx');
@@ -34,16 +36,38 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(paywall, /Restore purchases/);
   assert.match(paywall, /Manage subscription/);
   assert.match(paywall, /Terms of Use/);
-  assert.match(paywall, /Compare plans/);
-  assert.match(paywall, /1-month trial/);
-  assert.match(paywall, /Free for eligible users\. The store confirms eligibility before purchase\./);
-  assert.match(paywall, /Retry plans/);
-  assert.match(paywall, /Prices and checkout couldn't load\. You can still compare plans\./);
-  assert.match(paywall, /Up to 30 AI actions every 24 hours and 250 every 30 days/);
+  assert.match(paywall, /Paid plans unlock/);
+  assert.match(paywall, /First month free\. Then renews monthly\./);
+  assert.match(paywall, /Try store again/);
+  assert.match(paywall, /We couldn't reach the store\. Prices and checkout didn't load\. Your logbook still works\./);
+  assert.match(paywall, /30 requests in any 24 hours and 250 in 30 days/);
   assert.match(paywall, /if \(!selectedProduct\) \{[\s\S]*retryPlans\(\)/);
   assert.doesNotMatch(purchaseDisabled, /selectedProduct/);
+  assert.doesNotMatch(paywall, /Compare plans/);
+  assert.doesNotMatch(paywall, /AI actions/);
   assert.doesNotMatch(paywall, /This installed build or store did not return/);
   assert.doesNotMatch(paywall, /Trial allowance:/);
+});
+
+test('subscription tiers use the requested bird identities', () => {
+  assert.match(paywall, /tier="manok"/);
+  assert.match(paywall, /tier="itik"/);
+  assert.match(tierBirdIcon, /tier === 'pugo'/);
+  assert.match(tierBirdIcon, /tier === 'manok'/);
+  assert.match(tierBirdIcon, /return \([\s\S]*fill="#203431"/);
+});
+
+test('local RevenueCat state remains the app authority across automatic and Worker refreshes', () => {
+  assert.match(entitlementProvider, /shouldApplyAccessUpdate/);
+  assert.match(entitlementProvider, /billing\.customerInfo\(forceStore\)/);
+  assert.match(entitlementProvider, /catch \{\s*setUsage\(\{ kind: 'none' \}\);\s*\} finally/);
+  assert.doesNotMatch(entitlementProvider, /customerInfo\(true\)/);
+  assert.doesNotMatch(entitlementProvider, /applyAccess\(remote\.access\)/);
+});
+
+test('Test Store preview can replace Manok with Itik without exposing fake cancellation controls', () => {
+  assert.match(paywall, /serviceConfig\.revenueCatTestStore/);
+  assert.match(paywall, /Preview mode: choose Itik above to switch your test plan\. Test purchases never charge you\./);
 });
 
 test('all AI collection entry points gate Pugo before private content collection', () => {

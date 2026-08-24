@@ -5,6 +5,7 @@ import {
   canBuyItik,
   hasPaidFeatures,
   normalizeAccess,
+  shouldApplyAccessUpdate,
   type RevenueCatEntitlementSnapshot,
 } from './billing.types';
 
@@ -59,8 +60,12 @@ test('normalizes Pugo, trial, Manok, Itik, complimentary, and grace access', () 
 });
 
 test('expired, refunded, revoked, unknown, and malformed access fail closed to Pugo', () => {
-  assert.equal(access({ expirationDate: '2026-08-21T23:59:59Z' }).kind, 'pugo');
-  assert.equal(access({ isActive: false }).kind, 'pugo');
+  assert.deepEqual(access({ isActive: false, expirationDate: '2026-08-21T23:59:59Z' }), {
+    kind: 'pugo', checkedAt: NOW.toISOString(), reason: 'expired',
+  });
+  assert.deepEqual(access({ isActive: false }), {
+    kind: 'pugo', checkedAt: NOW.toISOString(), reason: 'revoked',
+  });
   assert.equal(access({ productIdentifier: 'unknown_product' }).kind, 'pugo');
   assert.equal(access({ identifier: 'wrong' }).kind, 'pugo');
   assert.equal(access({ expirationDate: 'not-a-date' }).kind, 'pugo');
@@ -77,4 +82,23 @@ test('paid feature and Manok-to-Itik predicates preserve transition rules', () =
   assert.equal(canBuyItik(renewingManok), false);
   assert.equal(canBuyItik(cancelledManok), true);
   assert.equal(canBuyItik(itik), false);
+});
+
+test('access updates reject stale snapshots and transient lookup failures', () => {
+  const current = access();
+  const staleRevocation = {
+    kind: 'pugo' as const,
+    checkedAt: '2026-08-21T23:59:59.000Z',
+    reason: 'revoked' as const,
+  };
+  const lookupFailure = {
+    kind: 'pugo' as const,
+    checkedAt: '2026-08-22T00:01:00.000Z',
+    reason: 'unavailable' as const,
+  };
+  const currentRevocation = { ...lookupFailure, reason: 'revoked' as const };
+
+  assert.equal(shouldApplyAccessUpdate(current, staleRevocation), false);
+  assert.equal(shouldApplyAccessUpdate(current, lookupFailure), false);
+  assert.equal(shouldApplyAccessUpdate(current, currentRevocation), true);
 });

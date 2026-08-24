@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   buildOpenFoodFactsUserAgent,
+  isRevenueCatTestStoreKey,
   normalizePublicHttpsUrl,
   normalizeSupportEmail,
   revenueCatApiKeyForBuild,
@@ -25,6 +26,8 @@ test('Open Food Facts User-Agent requires a valid version and owner-provided sup
 });
 
 test('Test Store keys are disabled unless the build explicitly allows them', () => {
+  assert.equal(isRevenueCatTestStoreKey(' test_public_key '), true);
+  assert.equal(isRevenueCatTestStoreKey(' goog_public_key '), false);
   assert.equal(revenueCatApiKeyForBuild(' test_public_key ', false), '');
   assert.equal(revenueCatApiKeyForBuild(' test_public_key ', true), 'test_public_key');
   assert.equal(revenueCatApiKeyForBuild(' goog_public_key ', false), 'goog_public_key');

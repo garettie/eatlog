@@ -50,6 +50,20 @@ test('RevenueCat server normalization covers trial, paid, lifetime, complimentar
   assert.equal(normalizeRevenueCatSubscriber({ nope: true }, NOW).access.kind, 'pugo');
 });
 
+test('complimentary access without a stable RevenueCat user identity fails closed', () => {
+  const malformed = subscriber('complimentary') as any;
+  delete malformed.subscriber.original_app_user_id;
+
+  assert.deepEqual(normalizeRevenueCatSubscriber(malformed, NOW), {
+    access: {
+      kind: 'pugo',
+      checkedAt: new Date(NOW).toISOString(),
+      reason: 'malformed',
+    },
+    subjectIdentity: null,
+  });
+});
+
 test('RevenueCat v1 subscription fields verify Manok and keep renewal identity stable', () => {
   const first = subscriber('trial') as any;
   const subscription = first.subscriber.subscriptions.eatlog_manok;
@@ -66,7 +80,7 @@ test('RevenueCat v1 subscription fields verify Manok and keep renewal identity s
   assert.equal(renewed.subjectIdentity, initial.subjectIdentity);
 });
 
-test('server lifecycle normalization covers Manok cancellation/grace, Itik precedence, and complimentary revocation', () => {
+test('server lifecycle normalization covers Manok cancellation/grace, Itik precedence, refund fallback, and complimentary revocation', () => {
   const grace = subscriber('manok') as any;
   grace.subscriber.subscriptions.eatlog_manok.billing_issues_detected_at = '2026-08-21T00:00:00Z';
   assert.equal((normalizeRevenueCatSubscriber(grace, NOW).access as any).billingState, 'grace');
@@ -74,8 +88,14 @@ test('server lifecycle normalization covers Manok cancellation/grace, Itik prece
   assert.equal((normalizeRevenueCatSubscriber(grace, NOW).access as any).willRenew, false);
 
   const transition = subscriber('manok') as any;
+  transition.subscriber.entitlements.eatlog_paid.product_identifier = 'eatlog_itik';
+  transition.subscriber.entitlements.eatlog_paid.expires_date = null;
   transition.subscriber.non_subscriptions.eatlog_itik = [{ id: 'stable-lifetime', purchase_date: '2026-08-21T00:00:00Z' }];
   assert.equal(normalizeRevenueCatSubscriber(transition, NOW).access.kind, 'itik');
+
+  const refundedItik = subscriber('manok') as any;
+  refundedItik.subscriber.non_subscriptions.eatlog_itik = [{ id: 'refunded-lifetime', purchase_date: '2026-08-20T00:00:00Z' }];
+  assert.equal(normalizeRevenueCatSubscriber(refundedItik, NOW).access.kind, 'manok');
   assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: {} } }, NOW).access.kind, 'pugo');
 });
 

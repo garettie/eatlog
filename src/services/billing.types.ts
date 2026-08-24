@@ -126,6 +126,30 @@ export function canBuyItik(access: EatlogAccess): boolean {
   return access.kind !== 'itik' && (access.kind !== 'manok' && access.kind !== 'manok-trial' || !access.willRenew);
 }
 
+function accessExpiresAt(access: EatlogAccess): string | null {
+  if (access.kind === 'manok' || access.kind === 'manok-trial' || access.kind === 'complimentary') {
+    return access.expiresAt;
+  }
+  return null;
+}
+
+export function shouldApplyAccessUpdate(
+  current: EatlogAccess,
+  next: EatlogAccess,
+  now = new Date(),
+): boolean {
+  const currentCheckedAt = Date.parse(current.checkedAt);
+  const nextCheckedAt = Date.parse(next.checkedAt);
+  if (!Number.isFinite(nextCheckedAt)) return false;
+  if (Number.isFinite(currentCheckedAt) && nextCheckedAt < currentCheckedAt) return false;
+
+  if (hasPaidFeatures(current) && next.kind === 'pugo' && next.reason === 'unavailable') {
+    const expiry = accessExpiresAt(current);
+    return expiry !== null && Date.parse(expiry) <= now.getTime();
+  }
+  return true;
+}
+
 export function normalizeAccess(
   snapshot: RevenueCatCustomerSnapshot | null | undefined,
   now = new Date(),
@@ -143,10 +167,6 @@ export function normalizeAccess(
     || typeof entitlement.productIdentifier !== 'string') {
     return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
   }
-  if (!entitlement.isActive) {
-    return { kind: 'pugo', checkedAt: checked, reason: 'revoked' };
-  }
-
   const productId = entitlement.productIdentifier;
   const expiry = entitlement.expirationDate == null ? null : iso(entitlement.expirationDate);
   if (entitlement.expirationDate != null && !expiry) {
@@ -154,6 +174,9 @@ export function normalizeAccess(
   }
   if (expiry && new Date(expiry).getTime() <= now.getTime()) {
     return { kind: 'pugo', checkedAt: checked, reason: 'expired' };
+  }
+  if (!entitlement.isActive) {
+    return { kind: 'pugo', checkedAt: checked, reason: 'revoked' };
   }
 
   if (productId === ITIK_PRODUCT_ID) {

@@ -7,6 +7,7 @@ import type {
 } from 'react-native-purchases';
 
 import { getInstallationToken } from './installIdentity';
+import { isRevenueCatTestStoreKey } from './publicReleaseConfig';
 import {
   canBuyItik,
   EATLOG_ENTITLEMENT_ID,
@@ -97,7 +98,7 @@ function publicOffering(offering: PurchasesOffering): BillingOffering {
 function purchaseFailure(error: unknown): BillingActionResult {
   const cause = error as Partial<PurchasesError> | null;
   if (cause?.code === '1' || cause?.userCancelled === true) {
-    return { state: 'cancelled', message: 'Purchase canceled. You still have Eatlog Pugo.' };
+    return { state: 'cancelled', message: 'Purchase canceled. Your current plan is unchanged.' };
   }
   if (cause?.code === '20') {
     return { state: 'pending', message: 'Payment is pending. Paid access will appear after the store completes it.' };
@@ -131,6 +132,7 @@ export function createBillingClient(options: BillingClientOptions) {
   const now = options.now ?? (() => new Date());
   const loadInstallationToken = options.getInstallationToken ?? getInstallationToken;
   const openURL = options.openURL ?? defaultOpenURL;
+  const testStore = isRevenueCatTestStoreKey(options.apiKey);
   let adapterPromise: Promise<PurchasesAdapter> | null = options.purchases
     ? Promise.resolve(options.purchases)
     : null;
@@ -183,7 +185,7 @@ export function createBillingClient(options: BillingClientOptions) {
     if (tier === 'itik' && currentAccess.kind === 'itik') {
       return { state: 'success', message: 'Eatlog Itik is already active.', access: currentAccess };
     }
-    if (tier === 'itik' && !canBuyItik(currentAccess)) {
+    if (tier === 'itik' && !testStore && !canBuyItik(currentAccess)) {
       return {
         state: 'failed',
         message: "Cancel Manok before buying Itik. The store won't refund unused Manok time.",
@@ -200,11 +202,14 @@ export function createBillingClient(options: BillingClientOptions) {
       if (!pkg) return { state: 'failed', message: "This plan isn't available in this build.", access: currentAccess };
       const result = await sdk.purchasePackage(pkg);
       const access = normalizeAccess(snapshot(result.customerInfo), now());
-      if (access.kind === 'pugo') {
+      const requestedTierActive = tier === 'itik'
+        ? access.kind === 'itik'
+        : access.kind === 'manok' || access.kind === 'manok-trial' || access.kind === 'itik';
+      if (!requestedTierActive) {
         return {
           state: 'entitlement-pending',
           message: 'Purchase complete. Access is still updating. Tap Refresh plan in a moment.',
-          access,
+          access: currentAccess,
         };
       }
       return { state: 'success', message: `${access.kind === 'itik' ? 'Eatlog Itik' : 'Eatlog Manok'} is active.`, access };

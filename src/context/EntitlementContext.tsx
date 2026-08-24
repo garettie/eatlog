@@ -5,6 +5,7 @@ import { serviceConfig } from '../config/services';
 import { createBillingClient } from '../services/billing';
 import {
   hasPaidFeatures,
+  shouldApplyAccessUpdate,
   type BillingActionResult,
   type BillingOffering,
   type EatlogAccess,
@@ -44,32 +45,37 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const [offering, setOffering] = useState<BillingOffering | null>(null);
   const [usage, setUsage] = useState<EatlogUsage>({ kind: 'none' });
   const [supportId, setSupportId] = useState<string | null>(null);
+  const supportIdRef = useRef<string | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const refreshPromise = useRef<Promise<void> | null>(null);
 
   const applyAccess = useCallback((value: EatlogAccess) => {
+    if (!shouldApplyAccessUpdate(accessRef.current, value)) return false;
     accessRef.current = value;
     setAccess(value);
     setLocalAccessForAi(value);
     setAdaptiveAccess(value.kind !== 'pugo');
+    return true;
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refreshAccess = useCallback(async (forceStore: boolean) => {
     if (refreshPromise.current) return refreshPromise.current;
     const pending = (async () => {
       setRefreshing(true);
       try {
-        const installId = supportId ?? await getInstallationToken();
-        setSupportId(installId);
-        const local = await billing.customerInfo(true);
+        const installId = supportIdRef.current ?? await getInstallationToken();
+        if (supportIdRef.current === null) {
+          supportIdRef.current = installId;
+          setSupportId(installId);
+        }
+        const local = await billing.customerInfo(forceStore);
         applyAccess(local);
         const products = await billing.offering();
         setOffering(products);
-        if (local.kind !== 'pugo') {
+        if (accessRef.current.kind !== 'pugo') {
           try {
             const remote = await subscriptionApi.refresh(installId);
-            applyAccess(remote.access);
             setUsage(remote.usage ?? { kind: 'none' });
           } catch {
             setUsage({ kind: 'none' });
@@ -77,6 +83,8 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
         } else {
           setUsage({ kind: 'none' });
         }
+      } catch {
+        setUsage({ kind: 'none' });
       } finally {
         setLoadingProducts(false);
         setRefreshing(false);
@@ -84,34 +92,36 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     })();
     refreshPromise.current = pending.finally(() => { refreshPromise.current = null; });
     return refreshPromise.current;
-  }, [applyAccess, billing, subscriptionApi, supportId]);
+  }, [applyAccess, billing, subscriptionApi]);
+
+  const refresh = useCallback(() => refreshAccess(true), [refreshAccess]);
 
   useEffect(() => {
-    void refresh();
+    void refreshAccess(false);
     let unsubscribe: (() => void) | undefined;
     void billing.subscribe((next) => {
-      applyAccess(next);
-      if (next.kind !== 'pugo') void refresh();
+      const applied = applyAccess(next);
+      if (applied && next.kind !== 'pugo') void refreshAccess(false);
     }).then((remove) => { unsubscribe = remove; }).catch(() => {});
     const appState = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refresh();
+      if (state === 'active') void refreshAccess(false);
     });
     return () => { unsubscribe?.(); appState.remove(); };
-  }, [applyAccess, billing, refresh]);
+  }, [applyAccess, billing, refreshAccess]);
 
   const purchase = useCallback(async (tier: 'manok' | 'itik') => {
     const result = await billing.purchase(tier, accessRef.current);
     applyAccess(result.access);
-    if (result.state === 'success' || result.state === 'entitlement-pending') await refresh();
+    if (result.state === 'success' || result.state === 'entitlement-pending') await refreshAccess(false);
     return { state: result.state, message: result.message };
-  }, [applyAccess, billing, refresh]);
+  }, [applyAccess, billing, refreshAccess]);
 
   const restore = useCallback(async () => {
     const result = await billing.restore(accessRef.current);
     applyAccess(result.access);
-    await refresh();
+    await refreshAccess(false);
     return { state: result.state, message: result.message };
-  }, [applyAccess, billing, refresh]);
+  }, [applyAccess, billing, refreshAccess]);
 
   const value = useMemo<EntitlementContextValue>(() => ({
     access,

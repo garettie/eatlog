@@ -44,3 +44,22 @@ test('refresh keeps the signed grant only in memory and authorizes until expiry'
   assert.deepEqual(getAiAuthorization(Date.parse('2026-08-22T00:01:00Z')), { ok: true, grant: 'signed.header.payload-value' });
   assert.deepEqual(getAiAuthorization(Date.parse(expiresAt)), { ok: false, kind: 'entitlement-unavailable' });
 });
+
+test('a contradictory Worker refresh cannot replace verified local paid access', async () => {
+  setLocalAccessForAi(PAID);
+  clearAiGrant();
+  const api = createSubscriptionApi({
+    workerUrl: 'https://staging.example',
+    fetchImpl: (async () => new Response(JSON.stringify({
+      access: { kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'revoked' },
+      usage: { kind: 'none' },
+    }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    })) as typeof fetch,
+  });
+
+  const result = await api.refresh('a'.repeat(32));
+
+  assert.deepEqual(result, { usage: { kind: 'none' } });
+  assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
+});

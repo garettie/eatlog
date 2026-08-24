@@ -19,9 +19,13 @@ export function normalizePublicHttpsUrl(value: string | undefined): string | nul
   }
 }
 
+export function isRevenueCatTestStoreKey(value: string | undefined): boolean {
+  return (value?.trim() ?? '').startsWith('test_');
+}
+
 export function revenueCatApiKeyForBuild(value: string | undefined, testStoreAllowed: boolean): string {
   const key = value?.trim() ?? '';
-  return key.startsWith('test_') && !testStoreAllowed ? '' : key;
+  return isRevenueCatTestStoreKey(key) && !testStoreAllowed ? '' : key;
 }
 
 export function buildOpenFoodFactsUserAgent(appVersion: string, supportEmail: string | null): string | null {

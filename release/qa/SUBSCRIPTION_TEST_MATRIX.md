@@ -7,7 +7,7 @@ Use only the standalone `Eatlog Preview` APK (`com.sgaret.eatlog.preview`) on th
 - Pugo: local logging, search, weight, charts, export, and backup remain usable; AI and adaptive actions open the paywall before content collection.
 - Manok trial: localized offering and one-month trial disclosure; 5 initial estimates and 5 clarifications per rolling 24 hours, 30 of each for the trial.
 - Manok: purchase, cancel/pending/failure copy, delayed entitlement refresh, restore, grace period, and 30/24-hour plus 250/30-day combined fair-use counters.
-- Itik: localized lifetime package, repurchase prevention, Manok cancellation requirement before transition, restore, refund, and revocation.
+- Itik: localized lifetime package, repurchase prevention, preview-only direct transition from Test Store Manok, production Manok cancellation requirement, restore, refund, and revocation.
 - Complimentary: grant, expiry, revocation, no store-management claim, and paid fair-use counters.
 - Worker: signed five-minute grants, forged/expired rejection, atomic concurrent reservations, idempotent retry, provider-failure refund, duplicate/out-of-order webhook handling, and cache outage behavior.
 - Privacy: no entitlement state in SQLite/CSV/backups; no request content, identifiers, grants, transaction IDs, or secrets in app/Worker logs.

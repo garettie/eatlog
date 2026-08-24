@@ -7,10 +7,14 @@ interface AiGrant {
   expiresAt: string;
 }
 
-interface AccessRefreshResponse {
+interface WorkerAccessRefreshResponse {
   access: EatlogAccess;
   grant?: AiGrant;
   usage?: EatlogUsage;
+}
+
+interface AccessRefreshResult {
+  usage: EatlogUsage;
 }
 
 interface SubscriptionApiOptions {
@@ -42,6 +46,32 @@ function isGrant(value: unknown): value is AiGrant {
     && Number.isFinite(new Date(record.expiresAt).getTime());
 }
 
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isNullableDate(value: unknown): value is string | null {
+  return value === null || typeof value === 'string' && Number.isFinite(Date.parse(value));
+}
+
+function isUsage(value: unknown): value is EatlogUsage {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Record<string, unknown>;
+  if (record.kind === 'none') return true;
+  if (record.kind === 'trial') {
+    return isCount(record.initialRemaining24Hours)
+      && isCount(record.initialRemainingTrial)
+      && isCount(record.clarificationRemaining24Hours)
+      && isCount(record.clarificationRemainingTrial)
+      && isNullableDate(record.nextInitialEligibleAt)
+      && isNullableDate(record.nextClarificationEligibleAt);
+  }
+  return record.kind === 'paid'
+    && isCount(record.remaining24Hours)
+    && isCount(record.remaining30Days)
+    && isNullableDate(record.nextEligibleAt);
+}
+
 export function setLocalAccessForAi(access: EatlogAccess): void {
   activeAccess = access;
   if (access.kind === 'pugo') activeGrant = null;
@@ -65,7 +95,7 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
 
-  async function refresh(installId: string): Promise<AccessRefreshResponse> {
+  async function refresh(installId: string): Promise<AccessRefreshResult> {
     if (!options.workerUrl) throw new Error('Subscription service unavailable.');
     const response = await fetchImpl(`${options.workerUrl}/v1/access/refresh`, {
       method: 'POST',
@@ -79,13 +109,14 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) {
       throw new Error('Subscription service unavailable.');
     }
-    const value = await response.json() as Partial<AccessRefreshResponse>;
+    const value = await response.json() as Partial<WorkerAccessRefreshResponse>;
     if (!isAccess(value.access)) throw new Error('Subscription service unavailable.');
-    activeAccess = value.access;
-    activeGrant = isGrant(value.grant) && new Date(value.grant.expiresAt).getTime() > now()
+    activeGrant = value.access.kind !== 'pugo'
+      && isGrant(value.grant)
+      && new Date(value.grant.expiresAt).getTime() > now()
       ? value.grant
       : null;
-    return { access: value.access, ...(activeGrant ? { grant: activeGrant } : {}), usage: value.usage ?? { kind: 'none' } };
+    return { usage: isUsage(value.usage) ? value.usage : { kind: 'none' } };
   }
 
   async function usage(): Promise<EatlogUsage> {

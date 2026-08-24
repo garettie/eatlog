@@ -254,6 +254,10 @@ export async function signAiGrant(claims: GrantClaims, secret: string): Promise<
   return `${payload}.${base64UrlEncode(await hmac(payload, secret))}`;
 }
 
+function isPaidAccessKind(value: unknown): value is PaidAccessKind {
+  return value === 'manok-trial' || value === 'manok' || value === 'itik' || value === 'complimentary';
+}
+
 export async function verifyAiGrant(token: string, secret: string, now: number): Promise<GrantClaims | null> {
   const [payload, encodedSignature, extra] = token.split('.');
   if (!payload || !encodedSignature || extra) return null;
@@ -279,13 +283,19 @@ export async function verifyAiGrant(token: string, secret: string, now: number):
   const value = claims as Record<string, unknown>;
   if (value.aud !== AI_GRANT_AUDIENCE
     || typeof value.sub !== 'string'
-    || !['manok-trial', 'manok', 'itik', 'complimentary'].includes(String(value.access))
+    || !isPaidAccessKind(value.access)
     || typeof value.iat !== 'number'
     || typeof value.exp !== 'number'
     || value.exp <= now
     || value.iat > now + 60_000
     || value.exp - value.iat > AI_GRANT_TTL_MS) return null;
-  return value as unknown as GrantClaims;
+  return {
+    aud: AI_GRANT_AUDIENCE,
+    sub: value.sub,
+    access: value.access,
+    iat: value.iat,
+    exp: value.exp,
+  };
 }
 
 function stringValue(value: unknown): string | null {
@@ -322,7 +332,7 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
   const itikTransactions = Array.isArray(nonSubscriptions[ITIK_PRODUCT])
     ? nonSubscriptions[ITIK_PRODUCT] as Array<Record<string, unknown>>
     : [];
-  if (productId === ITIK_PRODUCT || itikTransactions.length > 0) {
+  if (productId === ITIK_PRODUCT) {
     const transactions = itikTransactions;
     const transaction = transactions.at(-1) ?? {};
     const transactionId = stringValue(transaction.store_transaction_id) ?? stringValue(transaction.id);
@@ -335,10 +345,10 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
 
   const store = stringValue(paid.store);
   if (store === 'promotional' || store === 'PROMOTIONAL') {
-    if (!expiresAt) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+    if (!expiresAt || !originalAppUserId) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
     return {
       access: { kind: 'complimentary', checkedAt, expiresAt },
-      subjectIdentity: `complimentary:${originalAppUserId ?? 'unknown'}:eatlog_paid`,
+      subjectIdentity: `complimentary:${originalAppUserId}:eatlog_paid`,
     };
   }
 
