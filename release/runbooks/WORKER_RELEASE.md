@@ -2,7 +2,7 @@
 
 This runbook covers Eatlog's Gemini and USDA gateway. Steps marked **OWNER-ONLY** require production credentials or can change external state. The account-free release audit runs only local checks and the read-only health check when a configured public origin is available.
 
-Subscription work must first use `wrangler.subscription-staging.jsonc`. It must not be deployed over the Worker used by the existing preview APK. Creating or deploying that staging Worker, adding its secrets, or configuring a production RevenueCat webhook are separate owner checkpoints.
+Subscription development uses `wrangler.subscription-staging.jsonc`; Play production uses `wrangler.subscription-production.jsonc`. Neither may be deployed over the legacy `eatlog-food` Worker. Staging and production have separate Worker names, Durable Object state, rate-limit namespaces, RevenueCat projects, Worker secret bindings, and EAS environments.
 
 ## Local release gate
 
@@ -13,10 +13,11 @@ env TMPDIR=/tmp npm ci
 npm test
 npm run typecheck
 npm run dry-run
+npx wrangler deploy --dry-run --config wrangler.subscription-production.jsonc
 npm audit --omit=dev
 ```
 
-`npm run dry-run` validates and bundles locally; it does not deploy. Record the commit from `git rev-parse HEAD`, Worker package version, command results, and the generated bundle size. Stop on a test, type, config, secret-scan, or audit failure.
+`npm run dry-run` validates the subscription-staging config. The explicit second dry run validates the production subscription config. Neither command deploys. Record the commit from `git rev-parse HEAD`, Worker package version, command results, and generated bundle sizes. Stop on a test, type, config, secret-scan, or audit failure.
 
 ## Version and configuration record
 
@@ -82,6 +83,20 @@ This action changes external Cloudflare state. It does not itself create an EAS 
 3. Deploy with `npx wrangler deploy --config wrangler.subscription-staging.jsonc` only after owner approval.
 4. Record the staging URL and configure only the subscription-preview EAS environment as `EXPO_PUBLIC_FOOD_WORKER_URL`; configure its RevenueCat Test Store public key as `EXPO_PUBLIC_REVENUECAT_API_KEY`.
 5. Roll back using the recorded prior version. If this is the first deployment and no subscription preview uses it, delete only `eatlog-food-subscription-staging` from the Cloudflare dashboard.
+
+### Subscription production owner checkpoint
+
+These commands change external production state. Run them only from `worker/` at the frozen release commit. They do not modify the subscription-preview EAS environment or `eatlog-food-subscription-staging`.
+
+1. Run `npx wrangler deploy --dry-run --config wrangler.subscription-production.jsonc` and stop on any config, binding, migration, or bundle error.
+2. Confirm the Cloudflare account with `npx wrangler whoami`. Verify that the config name is exactly `eatlog-food-subscription-production`; do not use a bare `wrangler deploy` command.
+3. If the Worker already exists, run `npx wrangler deployments list --config wrangler.subscription-production.jsonc` and record the current healthy version as the rollback target. If it does not exist, record that this is the first deployment and that no rollback version exists yet.
+4. Create each production secret interactively with `npx wrangler secret put <NAME> --config wrangler.subscription-production.jsonc`: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. The full expected RevenueCat `Authorization` header value belongs in `REVENUECAT_WEBHOOK_AUTH`; never print or commit it.
+5. Deploy exactly `npx wrangler deploy --config wrangler.subscription-production.jsonc`. Record the resulting Worker URL and deployment version, then confirm them with `npx wrangler deployments list --config wrangler.subscription-production.jsonc`.
+6. In the EAS `production` environment only, set `EXPO_PUBLIC_FOOD_WORKER_URL` to that production URL and `EXPO_PUBLIC_REVENUECAT_API_KEY` to the Google public SDK key beginning with `goog_`. Do not change the `preview` environment, its `test_` key, or its staging Worker URL.
+7. Configure the production RevenueCat webhook endpoint as `<production Worker URL>/v1/revenuecat/webhook`. Configure its `Authorization` header to match the complete value stored in `REVENUECAT_WEBHOOK_AUTH`.
+8. Run the read-only health smoke. Run validation and provider smokes only under the approvals in the smoke sequence, then verify a production purchase, restore, cancellation-through-expiry, and Itik refund/revocation from a Play-installed build before rollout.
+9. If the deployment fails a gate, run `npx wrangler rollback <RECORDED_VERSION_ID> --config wrangler.subscription-production.jsonc`, then repeat the minimum recovery smokes. On a first deployment with no rollback version, halt the app rollout and remove only `eatlog-food-subscription-production` after confirming no production build or RevenueCat webhook uses it.
 
 ## Rollback
 

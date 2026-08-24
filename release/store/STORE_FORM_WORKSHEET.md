@@ -1,6 +1,6 @@
 # Eatlog store form worksheet
 
-Updated: 2026-08-10. These are source answers, not submitted records. Reconcile them with the final signed binaries and current console wording. Account-controlled answers remain labeled; do not copy labels into public fields.
+Updated: 2026-08-24. These are source answers, not submitted records. Reconcile them with the final signed binaries and current console wording. Account-controlled answers remain labeled; do not copy labels into public fields.
 
 ## Google Play
 
@@ -10,9 +10,9 @@ Updated: 2026-08-10. These are source answers, not submitted records. Reconcile 
 | App name | Eatlog | Ready; 30-character limit checked |
 | Default localization | English (United States) source exists | STORE ACCOUNT: choose in record |
 | Package | `com.sgaret.eatlog` | Ready; immutable after record creation |
-| Free or paid | Change to free only after the subscription closed-track and lifetime-cost gates pass | STORE ACCOUNT: irreversible checkpoint |
+| Free or paid | Free from first availability | Ready; keep public rollout inactive until subscription gates pass |
 | Philippines price | Manok PHP 79 monthly; Itik PHP 799 lifetime | STORE ACCOUNT: verify purchase-sheet prices before release |
-| Subscriptions / in-app products | `eatlog_manok` monthly plus trial; non-consumable `eatlog_itik_lifetime` | STORE ACCOUNT / CLOSED TESTING |
+| Subscriptions / in-app products | `eatlog_manok` monthly plus trial; non-consumable `eatlog_itik` | STORE ACCOUNT / CLOSED TESTING |
 | Category | Health & Fitness | Ready; recheck console taxonomy |
 | Tags | Select only console tags that literally match food, nutrition, weight, or diary functions | STORE ACCOUNT |
 | Ads | No | Ready |
@@ -42,7 +42,7 @@ Updated: 2026-08-10. These are source answers, not submitted records. Reconcile 
 | SKU | Owner-defined stable internal value | OWNER INPUT / STORE ACCOUNT; do not invent |
 | Platforms | iPhone; `supportsTablet` is false | Ready |
 | Primary / secondary category | Health & Fitness / Food & Drink | Ready; STORE ACCOUNT select |
-| Price | Free acquisition after launch gates; store-localized Manok monthly and Itik lifetime prices | STORE ACCOUNT |
+| Price | Free acquisition from first availability; store-localized Manok monthly and Itik lifetime prices | STORE ACCOUNT |
 | In-app purchases / subscriptions | Manok auto-renewable subscription and Itik non-consumable | STORE ACCOUNT / SANDBOX TESTING |
 | Sign-in | None; no demo account | Ready |
 | Content rights | USDA CC0/public domain, Open Food Facts ODbL/database terms, bundled font/software licenses recorded | Ready; owner legal review before submission |

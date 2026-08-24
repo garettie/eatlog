@@ -1,8 +1,8 @@
 # Eatlog Pricing and Entitlement Implementation Plan
 
-**Status:** Tier names and prices approved; implementation deferred until core features are complete; lifetime AI economics remain a launch gate
+**Status:** Billing and Test Store implementation complete; Android production rollout preparation in progress; lifetime AI economics remain a launch gate
 
-**Last updated:** 2026-08-22
+**Last updated:** 2026-08-24
 
 **Release order:** Google Play first, then the Apple App Store
 
@@ -56,10 +56,10 @@ Use these identifiers unless a store rejects one:
 | RevenueCat offering | `default` |
 | Google Manok subscription | `eatlog_manok` |
 | Google monthly base plan | `monthly` |
-| Google Itik one-time product | `eatlog_itik_lifetime` |
+| Google Itik one-time product | `eatlog_itik` |
 | Apple Manok subscription group | `eatlog_manok` |
 | Apple Manok monthly product | `eatlog_manok_monthly` |
-| Apple Itik non-consumable | `eatlog_itik_lifetime` |
+| Apple Itik non-consumable | `eatlog_itik` |
 
 Use the exact customer-facing names **Eatlog Pugo**, **Eatlog Manok**, and **Eatlog Itik**. Keep `eatlog_paid` internal.
 
@@ -77,9 +77,7 @@ Use the exact customer-facing names **Eatlog Pugo**, **Eatlog Manok**, and **Eat
 
 ### Existing purchasers
 
-This plan assumes Eatlog has no public purchasers under the PHP 299 model. Do not add grandfathering code.
-
-Before changing the Play listing to free, confirm that the store has no purchaser who needs permanent access. Stop the release and write a migration policy if any purchaser exists.
+This plan assumes Eatlog has no public listing or purchasers under the PHP 299 model. Create the production Play app as free from its first availability and do not add grandfathering code. Stop the release and write a migration policy if evidence of an existing purchaser appears.
 
 ## 3. Access tiers
 
@@ -226,7 +224,7 @@ If an Itik buyer uses all 250 calls each month, cumulative Gemini cost consumes 
 - Exclude food text, prompts, responses, images, component names, device IDs, and transaction IDs from logs and analytics.
 - Measure median, p90, p95, and maximum cost per successful user operation in closed testing.
 - Measure Itik buyer retention and monthly AI use for a long enough test period to model cumulative cost.
-- Require owner approval of Manok and Itik unit economics before changing the app to free.
+- Require owner approval of Manok and Itik unit economics before public production rollout.
 
 The current feature matrix gives Itik the same recurring fair-use allowance as Manok. That policy creates unbounded lifetime provider liability. If measured cost fails the launch gate, change the model, prompt size, output cap, Itik AI allowance, or price before public release. Do not hide an unprofitable lifetime product behind undocumented throttling.
 
@@ -569,7 +567,7 @@ Do not put receipts, entitlement state, promotional grants, quota history, or Re
 2. Create the `eatlog_manok` subscription.
 3. Create and activate its `monthly` auto-renewing base plan at PHP 79.
 4. Create a one-month new-customer trial offer for Manok.
-5. Create the `eatlog_itik_lifetime` one-time product with a Buy purchase option at PHP 799.
+5. Create the `eatlog_itik` one-time product with a Buy purchase option at PHP 799.
 6. Create a dedicated Google Cloud service account for RevenueCat.
 7. Enable the required Play Developer APIs and real-time developer notifications.
 8. Grant RevenueCat the minimum Play permissions required for subscriptions and orders.
@@ -582,14 +580,14 @@ Do not put receipts, entitlement state, promotional grants, quota history, or Re
 2. Create the app record for `com.sgaret.eatlog`.
 3. Create the `eatlog_manok` subscription group and `eatlog_manok_monthly` auto-renewable subscription.
 4. Select the Apple price point closest to PHP 79 and add a one-month introductory free trial.
-5. Create `eatlog_itik_lifetime` as a non-consumable In-App Purchase.
+5. Create `eatlog_itik` as a non-consumable In-App Purchase.
 6. Select the Apple price point closest to PHP 799.
 7. Configure App Store keys and notifications required by RevenueCat.
 8. Import Manok and Itik into RevenueCat and attach both to `eatlog_paid`.
 
-### Free-app transition
+### Free acquisition
 
-Change the acquisition price to free only after the paid-tier build passes the release gates. Google Play does not allow an app that has been offered free to return to paid acquisition under the same package name.
+Create and publish `com.sgaret.eatlog` as free from its first availability. Do not use a paid download as a temporary release gate. Keep production billing products and rollout inactive until the signed Play build passes the closed-track, entitlement, restore, and lifetime-cost gates.
 
 Do not create production promo campaigns until the production products and entitlement paths pass sandbox and closed-track testing.
 
@@ -776,10 +774,10 @@ Terms must define `lifetime` as a non-expiring Itik entitlement on the purchase 
 
 - Run lifecycle, quota, downgrade, restore, consent, backup, and cost tests.
 - Review measured Manok and Itik Gemini unit economics, including cumulative lifetime cost.
-- Change the Play acquisition price to free after every launch gate passes.
+- Keep Play acquisition free and begin production rollout only after every launch gate passes.
 - Roll out through a small production percentage and watch entitlement errors, provider cost, restore failures, and refunds.
 
-**Exit check:** The owner approves the irreversible free-app transition and the measured cost envelope.
+**Exit check:** The owner approves production rollout and the measured cost envelope.
 
 ## 18. Launch blockers
 
@@ -798,7 +796,7 @@ Do not launch when any item remains unresolved:
 - Logs contain food content, identifiers, receipts, prompts, responses, images, or secrets.
 - Measured p95 AI cost or cumulative Itik cost fails the owner's unit-economics approval.
 - Terms, Privacy, Support, Manage Subscription, or Restore actions fail.
-- The developer has changed the app to free before the tested paid-tier build is ready.
+- Production rollout has started before the tested paid-tier build is ready.
 
 ## 19. Out of scope
 

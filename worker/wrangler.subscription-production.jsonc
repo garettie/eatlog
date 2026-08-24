@@ -1,0 +1,46 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "eatlog-food-subscription-production",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-08-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "vars": {
+    "SUBSCRIPTIONS_ENABLED": "true",
+    "REVENUECAT_ENTITLEMENT_ID": "eatlog_paid"
+  },
+  "secrets": {
+    "required": [
+      "USDA_API_KEY",
+      "GEMINI_API_KEY",
+      "RATE_LIMIT_SALT",
+      "REVENUECAT_SECRET_API_KEY",
+      "REVENUECAT_WEBHOOK_AUTH",
+      "AI_GRANT_SIGNING_KEY",
+      "QUOTA_IDENTITY_SALT"
+    ]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "ACCESS_STATE", "class_name": "EntitlementQuotaState" }
+    ]
+  },
+  "migrations": [
+    { "tag": "subscription-production-state-v1", "new_sqlite_classes": ["EntitlementQuotaState"] }
+  ],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": false,
+      "head_sampling_rate": 0.1
+    }
+  },
+  "ratelimits": [
+    { "name": "USDA_INSTALL_LIMITER", "namespace_id": "61001", "simple": { "limit": 30, "period": 60 } },
+    { "name": "USDA_IP_LIMITER", "namespace_id": "61002", "simple": { "limit": 300, "period": 60 } },
+    { "name": "USDA_EMERGENCY_LIMITER", "namespace_id": "61003", "simple": { "limit": 1000, "period": 60 } },
+    { "name": "GEMINI_INSTALL_LIMITER", "namespace_id": "62001", "simple": { "limit": 5, "period": 60 } },
+    { "name": "GEMINI_IP_LIMITER", "namespace_id": "62002", "simple": { "limit": 30, "period": 60 } },
+    { "name": "GEMINI_EMERGENCY_LIMITER", "namespace_id": "62003", "simple": { "limit": 100, "period": 60 } }
+  ]
+}

@@ -1,11 +1,11 @@
 # Eatlog owner release checklist
 
-This is the ordered path from the subscription-capable source state to store submission and rollout. Each box needs owner input, account access, a paid service, a signed binary, a public host, or a device. Android goes first. Do not change acquisition to free until the subscription build passes its closed-track and lifetime-cost launch gates.
+This is the ordered path from the subscription-capable source state to store submission and rollout. Each box needs owner input, account access, a paid service, a signed binary, a public host, or a device. Android goes first. The production Play app is free from its first availability; do not begin public rollout until the subscription build passes its closed-track and lifetime-cost launch gates.
 
 ## 1. Supply the missing release identity
 
 - [ ] **OWNER INPUT, before submission:** choose the public developer/legal name, monitored support email, support response expectation, rights-holder name, App Store SKU, reviewer contact name/phone/time zone, launch countries, and EU trader decision if any EU country is included.
-- [ ] **OWNER INPUT, before public release:** decide who may receive direct preview APKs after launch and remove any public APK link before the paid Play release.
+- [ ] **OWNER INPUT, before public release:** decide who may receive direct preview APKs after launch and remove any public APK link before the public Play release.
 - [ ] **OWNER INPUT / PHYSICAL DEVICE, before final build:** identify the Android API 26, API 36/current Google, Samsung-class, small/large Android, minimum/current iOS, and small/large iPhone targets that will run the matrix.
 - [ ] **OWNER INPUT / PAID SERVICE:** approve the budget for Google and Apple enrollment, signing/cloud builds, domain or static hosting, provider use, and any missing test hardware.
 
@@ -38,9 +38,9 @@ Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch,
 
 ## 5. Configure Google Play paid access
 
-- [ ] **STORE ACCOUNT:** keep the existing acquisition price unchanged while creating closed-track billing products for package `com.sgaret.eatlog`.
-- [ ] **STORE ACCOUNT:** create `eatlog_manok` with the PHP 79 `monthly` base plan and `one-month-trial` offer, plus non-consumable `eatlog_itik_lifetime` with the PHP 799 `buy` option. Do not activate production products until the owner checkpoint.
-- [ ] **STORE ACCOUNT:** after all launch gates pass, change acquisition to free once. Google Play does not permit returning the same package to paid acquisition.
+- [ ] **STORE ACCOUNT:** create package `com.sgaret.eatlog` as free from its first availability. Do not use a paid download as a temporary testing gate.
+- [ ] **STORE ACCOUNT:** create `eatlog_manok` with the PHP 79 `monthly` base plan and `one-month-trial` offer, plus non-consumable `eatlog_itik` with the PHP 799 `buy` option. Do not activate production products until the owner checkpoint.
+- [ ] **STORE ACCOUNT:** keep production rollout inactive until closed-track purchase, restore, cancellation, expiry, refund, and lifetime-cost gates pass.
 - [ ] **STORE ACCOUNT / CREDENTIAL:** enable Play App Signing, preserve the EAS upload key, and create submission access only after the record exists.
 - [ ] **STORE ACCOUNT:** enter `release/store/metadata.mjs` copy and `release/store/STORE_FORM_WORKSHEET.md` answers. Submit Data Safety, Health Apps, Health Connect Weight-only justification, content rating, target audience, ads/account answers, privacy URL, and support email against the exact candidate.
 
@@ -57,7 +57,7 @@ Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch,
 ## 7. Complete Google testing and submission
 
 - [ ] **STORE ACCOUNT / PHYSICAL DEVICE:** run internal testing, then the required closed test. If the account is subject to the current personal-account rule, keep at least 12 testers opted in for 14 continuous days and retain the scenario/issue record.
-- [ ] **STORE ACCOUNT:** apply for production access when required. Submit the exact tested paid candidate; do not rebuild or change copy/forms without repeating affected checks.
+- [ ] **STORE ACCOUNT:** apply for production access when required. Submit the exact tested subscription-enabled candidate; do not rebuild or change copy/forms without repeating affected checks.
 - [ ] **STORE ACCOUNT:** after approval, start at 10 percent and follow the M8 halt gates before 25, 50, and 100 percent. Keep preview APK access restricted.
 
 ## 8. Create the App Store record after Android fixes land

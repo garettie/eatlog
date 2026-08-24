@@ -5,12 +5,13 @@
 1. Run `npm ci` in `worker/`.
 2. Copy `.dev.vars.example` to `.dev.vars` and enter local or Test Store credentials. Never copy production values into this repository.
 3. Run `npx wrangler dev --config wrangler.subscription-staging.jsonc`, `npm test`, `npm run typecheck`, and `npm run dry-run`.
+4. Before a Play release, also run `npx wrangler deploy --dry-run --config wrangler.subscription-production.jsonc`.
 
-The default `wrangler.jsonc` remains the Worker contract used by the installed preview APK. Subscription development uses the separate `eatlog-food-subscription-staging` Worker, SQLite Durable Object, RevenueCat Test Store project, and staging state bindings in `wrangler.subscription-staging.jsonc`.
+The default `wrangler.jsonc` remains the legacy Worker contract. Subscription development uses `eatlog-food-subscription-staging`, its SQLite Durable Object, RevenueCat Test Store project, and staging bindings. Play builds use the separate `eatlog-food-subscription-production` Worker and production RevenueCat project. The three configs must not share Worker names, Durable Object state, rate-limit namespace IDs, secret storage, or EAS environments.
 
 ## Deploy
 
-Do not deploy the subscription staging Worker without owner approval. A staging deployment changes external state but normally has no direct deployment fee on the configured Cloudflare plan. Before approval, the owner must confirm the target account and provide these value names without exposing their values: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. Roll back with `wrangler deployments list --config wrangler.subscription-staging.jsonc` followed by `wrangler rollback <VERSION_ID> --config wrangler.subscription-staging.jsonc`, or delete only the new staging Worker after confirming no preview build uses it.
+Do not deploy either subscription Worker without owner approval. A deployment changes external state. Before approval, the owner must confirm the target account and supply these secret values without exposing them: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. Always pass the intended subscription config to secret, deploy, deployment-list, and rollback commands; never use a bare deploy command for a subscription Worker. The exact staging and production procedures are in the release runbook.
 
 The checked-in config supports the Workers Free plan and therefore relies on
 Cloudflare's built-in 10 ms CPU and 50-subrequest limits. Custom `limits` in
