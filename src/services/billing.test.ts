@@ -7,7 +7,7 @@ import type { EatlogAccess } from './billing.types';
 const NOW = new Date('2026-08-22T00:00:00.000Z');
 const PUGO: EatlogAccess = { kind: 'pugo', checkedAt: NOW.toISOString() };
 
-function customerInfo(kind: 'pugo' | 'manok' | 'itik' = 'manok'): any {
+function customerInfo(kind: 'pugo' | 'manok' | 'itik' = 'manok', managementURL: string | null = null): any {
   const entitlement = kind === 'pugo' ? undefined : {
     identifier: 'eatlog_paid', isActive: true, willRenew: kind === 'manok', periodType: 'NORMAL',
     latestPurchaseDate: '2026-08-01T00:00:00Z',
@@ -15,7 +15,7 @@ function customerInfo(kind: 'pugo' | 'manok' | 'itik' = 'manok'): any {
     store: 'TEST_STORE', productIdentifier: kind === 'itik' ? 'eatlog_itik' : 'eatlog_manok',
     billingIssueDetectedAt: null,
   };
-  return { requestDate: NOW.toISOString(), entitlements: { all: entitlement ? { eatlog_paid: entitlement } : {} } };
+  return { requestDate: NOW.toISOString(), managementURL, entitlements: { all: entitlement ? { eatlog_paid: entitlement } : {} } };
 }
 
 function pkg(tier: 'manok' | 'itik'): any {
@@ -87,6 +87,46 @@ test('restores access, reports no purchase, and prevents Itik repurchase or rene
   assert.equal((await client.purchase('itik', itik)).message, 'Eatlog Itik is already active.');
   const manok = { kind: 'manok', productId: 'eatlog_manok', expiresAt: '2026-09-01T00:00:00Z', willRenew: true, checkedAt: NOW.toISOString(), billingState: 'active' } as const;
   assert.equal((await client.purchase('itik', manok)).state, 'failed');
+});
+
+test('opens the RevenueCat management URL instead of the iOS-only management sheet', async () => {
+  const opened: string[] = [];
+  let nativeSheetCalls = 0;
+  const managementURL = 'https://play.google.com/store/account/subscriptions?sku=eatlog_manok';
+  const client = createBillingClient({
+    apiKey: 'key',
+    purchases: adapter({
+      getCustomerInfo: async () => customerInfo('manok', managementURL),
+      showManageSubscriptions: async () => { nativeSheetCalls += 1; },
+    }),
+    getInstallationToken: async () => 'a'.repeat(32),
+    openURL: async (url) => { opened.push(url); },
+    now: () => NOW,
+  });
+
+  assert.deepEqual(await client.manageSubscription(), {
+    state: 'success',
+    message: 'Store subscription management opened.',
+  });
+  assert.deepEqual(opened, [managementURL]);
+  assert.equal(nativeSheetCalls, 0);
+});
+
+test('explains when RevenueCat Test Store has no device subscription management page', async () => {
+  const opened: string[] = [];
+  const client = createBillingClient({
+    apiKey: 'key',
+    purchases: adapter({ getCustomerInfo: async () => customerInfo('manok') }),
+    getInstallationToken: async () => 'a'.repeat(32),
+    openURL: async (url) => { opened.push(url); },
+    now: () => NOW,
+  });
+
+  assert.deepEqual(await client.manageSubscription(), {
+    state: 'failed',
+    message: 'Test Store subscriptions have no device settings. They expire automatically during accelerated testing.',
+  });
+  assert.deepEqual(opened, []);
 });
 
 test('RevenueCat outage leaves Pugo available and does not expose provider details', async () => {

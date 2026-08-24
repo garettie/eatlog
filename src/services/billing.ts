@@ -31,7 +31,6 @@ interface PurchasesAdapter {
   getOfferings(): Promise<{ current: PurchasesOffering | null; all: Record<string, PurchasesOffering> }>;
   purchasePackage(pkg: PurchasesPackage): Promise<MakePurchaseResult>;
   restorePurchases(): Promise<CustomerInfo>;
-  showManageSubscriptions(): Promise<void>;
   addCustomerInfoUpdateListener(listener: (info: CustomerInfo) => void): void;
   removeCustomerInfoUpdateListener(listener: (info: CustomerInfo) => void): boolean;
 }
@@ -40,6 +39,7 @@ export interface BillingClientOptions {
   apiKey: string;
   purchases?: PurchasesAdapter;
   getInstallationToken?: () => Promise<string>;
+  openURL?: (url: string) => Promise<unknown>;
   now?: () => Date;
 }
 
@@ -122,9 +122,15 @@ async function defaultAdapter(): Promise<PurchasesAdapter> {
   return module.default;
 }
 
+async function defaultOpenURL(url: string): Promise<void> {
+  const { Linking } = await import('react-native');
+  await Linking.openURL(url);
+}
+
 export function createBillingClient(options: BillingClientOptions) {
   const now = options.now ?? (() => new Date());
   const loadInstallationToken = options.getInstallationToken ?? getInstallationToken;
+  const openURL = options.openURL ?? defaultOpenURL;
   let adapterPromise: Promise<PurchasesAdapter> | null = options.purchases
     ? Promise.resolve(options.purchases)
     : null;
@@ -223,7 +229,19 @@ export function createBillingClient(options: BillingClientOptions) {
   async function manageSubscription(): Promise<BillingActionResult> {
     try {
       await configure();
-      await (await adapter()).showManageSubscriptions();
+      const info = await (await adapter()).getCustomerInfo();
+      const managementURL = info.managementURL?.trim();
+      if (!managementURL) {
+        const store = info.entitlements?.all?.[EATLOG_ENTITLEMENT_ID]?.store;
+        if (store === 'TEST_STORE') {
+          return {
+            state: 'failed',
+            message: 'Test Store subscriptions have no device settings. They expire automatically during accelerated testing.',
+          };
+        }
+        return { state: 'failed', message: 'No active store subscription settings are available.' };
+      }
+      await openURL(managementURL);
       return { state: 'success', message: 'Store subscription management opened.' };
     } catch {
       return { state: 'failed', message: "Couldn't open subscription settings. Open the store app and select Subscriptions." };
