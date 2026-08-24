@@ -197,6 +197,34 @@ test('normalizes a counted serving label to one unit and the consumed total', as
   );
 });
 
+test('keeps a nutrition-label scan at one serving when the provider copies servings per container', async () => {
+  const yoghurtLabel = {
+    ...recognized,
+    mealName: 'Yoghurt',
+    components: [{
+      ...recognized.components[0],
+      name: 'Yoghurt',
+      estimatedGrams: 60,
+      servingSizeGrams: 60,
+      servingLabel: '16.6667 servings',
+    }],
+  };
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'scan', imageBase64: JPEG }),
+    { fetchImpl: (async () => geminiResponse(yoghurtLabel)) as typeof fetch },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    {
+      estimatedGrams: body.components[0].estimatedGrams,
+      servingSizeGrams: body.components[0].servingSizeGrams,
+      servingLabel: body.components[0].servingLabel,
+    },
+    { estimatedGrams: 60, servingSizeGrams: 60, servingLabel: '1 serving' },
+  );
+});
+
 test('allows only documented routes and exact methods', async () => {
   const fetchImpl = (async () => jsonResponse({ foods: [usdaFood()] })) as typeof fetch;
   const cases: Array<[string, string, number, string | null]> = [

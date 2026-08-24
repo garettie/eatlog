@@ -755,6 +755,7 @@ function nullableText(value: unknown): string | null | undefined {
 }
 
 function normalizeCountedServing(
+  operation: EstimateOperation,
   estimatedGrams: number,
   servingSizeGrams: number | null,
   servingLabel: string | null,
@@ -785,7 +786,9 @@ function normalizeCountedServing(
     break;
   }
 
-  const consumedGrams = quantity * servingSizeGrams;
+  const consumedGrams = operation === 'scan'
+    ? estimatedGrams
+    : quantity * servingSizeGrams;
   if (!Number.isFinite(consumedGrams) || consumedGrams <= 0) {
     return { estimatedGrams, servingLabel };
   }
@@ -828,6 +831,7 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
     const servingLabel = nullableText(component.servingLabel);
     if (brand === undefined || preparation === undefined || servingLabel === undefined || confidenceReason === undefined) return null;
     const normalizedServing = normalizeCountedServing(
+      operation,
       estimatedGrams,
       servingSizeGrams,
       servingLabel,
