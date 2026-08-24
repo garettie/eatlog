@@ -826,7 +826,7 @@ export default function FoodSheetContent({
                 handleGallery();
                 break;
             case 'describe':
-                transitionTo('describe');
+                handleDescribe();
                 break;
             case 'search':
                 transitionTo('search');
@@ -835,7 +835,7 @@ export default function FoodSheetContent({
                 transitionTo('weight-input');
                 break;
         }
-    }, [state.stateKey, state.pendingAction, handleCamera, handleGallery, transitionTo, setState]);
+    }, [state.stateKey, state.pendingAction, handleCamera, handleGallery, handleDescribe, transitionTo, setState]);
 
     const showLogDateChip =
         !!state.logDate &&

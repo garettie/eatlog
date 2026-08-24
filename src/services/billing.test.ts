@@ -12,7 +12,7 @@ function customerInfo(kind: 'pugo' | 'manok' | 'itik' = 'manok'): any {
     identifier: 'eatlog_paid', isActive: true, willRenew: kind === 'manok', periodType: 'NORMAL',
     latestPurchaseDate: '2026-08-01T00:00:00Z',
     expirationDate: kind === 'itik' ? null : '2026-09-01T00:00:00Z',
-    store: 'TEST_STORE', productIdentifier: kind === 'itik' ? 'eatlog_itik_lifetime' : 'eatlog_manok',
+    store: 'TEST_STORE', productIdentifier: kind === 'itik' ? 'eatlog_itik' : 'eatlog_manok',
     billingIssueDetectedAt: null,
   };
   return { requestDate: NOW.toISOString(), entitlements: { all: entitlement ? { eatlog_paid: entitlement } : {} } };
@@ -22,7 +22,7 @@ function pkg(tier: 'manok' | 'itik'): any {
   return {
     identifier: tier === 'manok' ? '$rc_monthly' : '$rc_lifetime',
     product: {
-      identifier: tier === 'manok' ? 'eatlog_manok' : 'eatlog_itik_lifetime',
+      identifier: tier === 'manok' ? 'eatlog_manok' : 'eatlog_itik',
       priceString: tier === 'manok' ? '₱79.00' : '₱799.00',
       defaultOption: tier === 'manok' ? { freePhase: {} } : null,
       introPrice: null,
@@ -58,7 +58,7 @@ test('configures once with the installation token and consumes localized default
   assert.deepEqual(await client.offering(), {
     identifier: 'default',
     manok: { tier: 'manok', packageIdentifier: '$rc_monthly', productIdentifier: 'eatlog_manok', priceString: '₱79.00', trialEligible: true },
-    itik: { tier: 'itik', packageIdentifier: '$rc_lifetime', productIdentifier: 'eatlog_itik_lifetime', priceString: '₱799.00', trialEligible: false },
+    itik: { tier: 'itik', packageIdentifier: '$rc_lifetime', productIdentifier: 'eatlog_itik', priceString: '₱799.00', trialEligible: false },
   });
 });
 
@@ -83,7 +83,7 @@ test('restores access, reports no purchase, and prevents Itik repurchase or rene
   assert.equal((await client.restore(PUGO)).access.kind, 'itik');
   const none = createBillingClient({ apiKey: 'key', purchases: adapter({ restorePurchases: async () => customerInfo('pugo') }), getInstallationToken: async () => 'a'.repeat(32), now: () => NOW });
   assert.equal((await none.restore(PUGO)).state, 'no-purchase');
-  const itik = { kind: 'itik', productId: 'eatlog_itik_lifetime', purchasedAt: null, checkedAt: NOW.toISOString() } as const;
+  const itik = { kind: 'itik', productId: 'eatlog_itik', purchasedAt: null, checkedAt: NOW.toISOString() } as const;
   assert.equal((await client.purchase('itik', itik)).message, 'Eatlog Itik is already active.');
   const manok = { kind: 'manok', productId: 'eatlog_manok', expiresAt: '2026-09-01T00:00:00Z', willRenew: true, checkedAt: NOW.toISOString(), billingState: 'active' } as const;
   assert.equal((await client.purchase('itik', manok)).state, 'failed');

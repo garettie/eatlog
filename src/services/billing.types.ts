@@ -1,7 +1,7 @@
 export const EATLOG_ENTITLEMENT_ID = 'eatlog_paid';
 export const EATLOG_OFFERING_ID = 'default';
 export const MANOK_PRODUCT_IDS = ['eatlog_manok', 'eatlog_manok:monthly', 'eatlog_manok_monthly'] as const;
-export const ITIK_PRODUCT_ID = 'eatlog_itik_lifetime';
+export const ITIK_PRODUCT_ID = 'eatlog_itik';
 
 export type AccessReason =
   | 'none'

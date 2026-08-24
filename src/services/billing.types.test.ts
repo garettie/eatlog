@@ -38,12 +38,12 @@ test('normalizes Pugo, trial, Manok, Itik, complimentary, and grace access', () 
   assert.equal(grace.kind, 'manok');
   assert.equal(grace.kind === 'manok' ? grace.billingState : null, 'grace');
   assert.deepEqual(access({
-    productIdentifier: 'eatlog_itik_lifetime',
+    productIdentifier: 'eatlog_itik',
     expirationDate: null,
     willRenew: false,
   }), {
     kind: 'itik',
-    productId: 'eatlog_itik_lifetime',
+    productId: 'eatlog_itik',
     purchasedAt: '2026-08-01T00:00:00.000Z',
     checkedAt: NOW.toISOString(),
   });
@@ -71,7 +71,7 @@ test('paid feature and Manok-to-Itik predicates preserve transition rules', () =
   const pugo = normalizeAccess({ entitlement: null }, NOW);
   const renewingManok = access();
   const cancelledManok = access({ willRenew: false });
-  const itik = access({ productIdentifier: 'eatlog_itik_lifetime', expirationDate: null, willRenew: false });
+  const itik = access({ productIdentifier: 'eatlog_itik', expirationDate: null, willRenew: false });
   assert.equal(hasPaidFeatures(pugo), false);
   assert.equal(hasPaidFeatures(renewingManok), true);
   assert.equal(canBuyItik(renewingManok), false);

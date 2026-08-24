@@ -8,6 +8,7 @@ const directory = dirname(fileURLToPath(import.meta.url));
 const read = (path: string) => readFileSync(resolve(directory, path), 'utf8');
 const app = read('../../App.tsx');
 const rootNavigator = read('./RootNavigator.tsx');
+const tabNavigator = read('./TabNavigator.tsx');
 const profileNavigator = read('./ProfileNavigator.tsx');
 const profile = read('../screens/ProfileScreen.tsx');
 const paywall = read('../screens/PaywallScreen.tsx');
@@ -50,6 +51,8 @@ test('all AI collection entry points gate Pugo before private content collection
   const galleryGate = foodSheet.lastIndexOf('requirePaidAccess', foodSheet.indexOf('launchImageLibraryAsync'));
   assert.ok(cameraGate >= 0 && cameraGate < foodSheet.indexOf('requestCameraPermissionsAsync'));
   assert.ok(galleryGate >= 0 && galleryGate < foodSheet.indexOf('launchImageLibraryAsync'));
+  assert.match(tabNavigator, /const openDescribe[\s\S]*?stateKey: 'entry', pendingAction: 'describe'/);
+  assert.match(foodSheet, /case 'describe':\s*handleDescribe\(\);/);
   assert.match(search, /if \(!hasPaidFeatures\)[\s\S]*navigation\.navigate\("Paywall"\)[\s\S]*requestConsent/);
   assert.match(addComponent, /if \(!hasPaidFeatures\)[\s\S]*navigation\.navigate\('Paywall'\)[\s\S]*requestConsent/);
 });

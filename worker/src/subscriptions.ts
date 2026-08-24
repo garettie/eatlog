@@ -26,6 +26,7 @@ export function aggregateAiUsage(
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const THIRTY_DAYS_MS = 30 * DAY_MS;
 const MANOK_PRODUCTS = new Set(['eatlog_manok', 'eatlog_manok:monthly', 'eatlog_manok_monthly']);
+const ITIK_PRODUCT = 'eatlog_itik';
 
 export type PaidAccessKind = 'manok-trial' | 'manok' | 'itik' | 'complimentary';
 export type WorkerAccess =
@@ -314,20 +315,20 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
   const expiresAt = paid.expires_date == null ? null : dateValue(paid.expires_date);
   if (!productId || (paid.expires_date != null && !expiresAt)) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
   if (expiresAt && Date.parse(expiresAt) <= now) return { access: { kind: 'pugo', checkedAt, reason: 'expired' }, subjectIdentity: null };
-  const originalAppUserId = stringValue(record.original_app_user_id) ?? 'unknown';
+  const originalAppUserId = stringValue(record.original_app_user_id);
   const subscriptions = record.subscriptions && typeof record.subscriptions === 'object' ? record.subscriptions as Record<string, unknown> : {};
   const nonSubscriptions = record.non_subscriptions && typeof record.non_subscriptions === 'object' ? record.non_subscriptions as Record<string, unknown> : {};
 
-  const itikTransactions = Array.isArray(nonSubscriptions.eatlog_itik_lifetime)
-    ? nonSubscriptions.eatlog_itik_lifetime as Array<Record<string, unknown>>
+  const itikTransactions = Array.isArray(nonSubscriptions[ITIK_PRODUCT])
+    ? nonSubscriptions[ITIK_PRODUCT] as Array<Record<string, unknown>>
     : [];
-  if (productId === 'eatlog_itik_lifetime' || itikTransactions.length > 0) {
+  if (productId === ITIK_PRODUCT || itikTransactions.length > 0) {
     const transactions = itikTransactions;
     const transaction = transactions.at(-1) ?? {};
     const transactionId = stringValue(transaction.store_transaction_id) ?? stringValue(transaction.id);
-    if (!transactionId || (productId === 'eatlog_itik_lifetime' && expiresAt !== null)) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+    if (!transactionId || (productId === ITIK_PRODUCT && expiresAt !== null)) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
     return {
-      access: { kind: 'itik', checkedAt, productId: 'eatlog_itik_lifetime', purchasedAt: dateValue(transaction.purchase_date) },
+      access: { kind: 'itik', checkedAt, productId: ITIK_PRODUCT, purchasedAt: dateValue(transaction.purchase_date) },
       subjectIdentity: `itik:${transactionId}`,
     };
   }
@@ -337,7 +338,7 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
     if (!expiresAt) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
     return {
       access: { kind: 'complimentary', checkedAt, expiresAt },
-      subjectIdentity: `complimentary:${originalAppUserId}:eatlog_paid`,
+      subjectIdentity: `complimentary:${originalAppUserId ?? 'unknown'}:eatlog_paid`,
     };
   }
 
@@ -345,21 +346,25 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
   const subscription = subscriptions[productId] && typeof subscriptions[productId] === 'object'
     ? subscriptions[productId] as Record<string, unknown>
     : {};
-  const transactionId = stringValue(subscription.original_transaction_id);
-  if (!transactionId) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  const originalPurchaseDate = dateValue(subscription.original_purchase_date);
+  const subscriptionIdentity = stringValue(subscription.original_transaction_id)
+    ?? (originalAppUserId && originalPurchaseDate
+      ? `${originalAppUserId}:${productId}:${originalPurchaseDate}`
+      : null);
+  if (!subscriptionIdentity) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
   const periodType = stringValue(subscription.period_type)?.toLowerCase();
   const willRenew = subscription.unsubscribe_detected_at == null;
   const billingState = subscription.billing_issues_detected_at == null ? 'active' : 'grace';
   if (periodType === 'trial') {
     return {
       access: { kind: 'manok-trial', checkedAt, expiresAt, willRenew, productId, billingState },
-      subjectIdentity: `manok:${transactionId}`,
+      subjectIdentity: `manok:${subscriptionIdentity}`,
     };
   }
   if (periodType !== 'normal' && periodType !== 'intro') return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
   return {
     access: { kind: 'manok', checkedAt, expiresAt, willRenew, productId, billingState },
-    subjectIdentity: `manok:${transactionId}`,
+    subjectIdentity: `manok:${subscriptionIdentity}`,
   };
 }
 

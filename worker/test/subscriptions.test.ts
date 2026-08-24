@@ -24,7 +24,7 @@ test('aggregate token fixtures calculate configured cost without request content
 });
 
 function subscriber(kind: 'trial' | 'manok' | 'itik' | 'complimentary'): unknown {
-  const product = kind === 'itik' ? 'eatlog_itik_lifetime' : kind === 'complimentary' ? 'rc_promo' : 'eatlog_manok';
+  const product = kind === 'itik' ? 'eatlog_itik' : kind === 'complimentary' ? 'rc_promo' : 'eatlog_manok';
   return { subscriber: {
     original_app_user_id: 'user-id',
     entitlements: { eatlog_paid: {
@@ -50,6 +50,22 @@ test('RevenueCat server normalization covers trial, paid, lifetime, complimentar
   assert.equal(normalizeRevenueCatSubscriber({ nope: true }, NOW).access.kind, 'pugo');
 });
 
+test('RevenueCat v1 subscription fields verify Manok and keep renewal identity stable', () => {
+  const first = subscriber('trial') as any;
+  const subscription = first.subscriber.subscriptions.eatlog_manok;
+  delete subscription.original_transaction_id;
+  subscription.original_purchase_date = '2026-08-22T00:00:00Z';
+  subscription.store_transaction_id = 'test-transaction-1';
+
+  const initial = normalizeRevenueCatSubscriber(first, NOW);
+  subscription.store_transaction_id = 'test-transaction-2';
+  const renewed = normalizeRevenueCatSubscriber(first, NOW);
+
+  assert.equal(initial.access.kind, 'manok-trial');
+  assert.ok(initial.subjectIdentity);
+  assert.equal(renewed.subjectIdentity, initial.subjectIdentity);
+});
+
 test('server lifecycle normalization covers Manok cancellation/grace, Itik precedence, and complimentary revocation', () => {
   const grace = subscriber('manok') as any;
   grace.subscriber.subscriptions.eatlog_manok.billing_issues_detected_at = '2026-08-21T00:00:00Z';
@@ -58,7 +74,7 @@ test('server lifecycle normalization covers Manok cancellation/grace, Itik prece
   assert.equal((normalizeRevenueCatSubscriber(grace, NOW).access as any).willRenew, false);
 
   const transition = subscriber('manok') as any;
-  transition.subscriber.non_subscriptions.eatlog_itik_lifetime = [{ id: 'stable-lifetime', purchase_date: '2026-08-21T00:00:00Z' }];
+  transition.subscriber.non_subscriptions.eatlog_itik = [{ id: 'stable-lifetime', purchase_date: '2026-08-21T00:00:00Z' }];
   assert.equal(normalizeRevenueCatSubscriber(transition, NOW).access.kind, 'itik');
   assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: {} } }, NOW).access.kind, 'pugo');
 });

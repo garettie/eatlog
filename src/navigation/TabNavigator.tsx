@@ -106,7 +106,7 @@ export default function TabNavigator() {
     const openDescribe = useCallback((logDate?: string) => {
         backHistoryRef.current = [];
         skipHistoryRef.current = true;
-        setSheet({ ...INITIAL, visible: true, stateKey: 'describe', fromBar: true, logDate: normalizeLogDateInput(logDate) });
+        setSheet({ ...INITIAL, visible: true, stateKey: 'entry', pendingAction: 'describe', fromBar: true, logDate: normalizeLogDateInput(logDate) });
     }, []);
 
     const openCamera = useCallback((logDate?: string) => {
