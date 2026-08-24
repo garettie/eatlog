@@ -17,6 +17,8 @@ import { APP_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
 type Access = ReturnType<typeof useEntitlement>['access'];
+type BusyAction = 'purchase' | 'restore' | 'manage' | 'copy';
+type MessageScope = 'purchase' | 'utility';
 
 function dateLabel(value: string): string {
   return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -145,16 +147,33 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
   } = useEntitlement();
   const [selected, setSelected] = useState<'manok' | 'itik'>('manok');
   const [limitsOpen, setLimitsOpen] = useState(false);
-  const [busy, setBusy] = useState<'purchase' | 'restore' | 'manage' | 'copy' | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState<BusyAction | null>(null);
+  const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
+  const [utilityMessage, setUtilityMessage] = useState<string | null>(null);
 
-  const run = useCallback(async (kind: typeof busy, action: () => Promise<{ message: string }>) => {
+  const setScopedMessage = useCallback((scope: MessageScope, value: string | null) => {
+    if (scope === 'purchase') setPurchaseMessage(value);
+    else setUtilityMessage(value);
+  }, []);
+
+  const run = useCallback(async (
+    kind: BusyAction,
+    action: () => Promise<{ message: string }>,
+    scope: MessageScope,
+    pendingMessage?: string,
+  ) => {
     if (busy) return;
     setBusy(kind);
-    setMessage(null);
-    try { setMessage((await action()).message); }
+    setScopedMessage(scope, pendingMessage ?? null);
+    try {
+      setScopedMessage(scope, (await action()).message);
+    } catch {
+      setScopedMessage(scope, scope === 'purchase'
+        ? "The purchase didn't finish. Try again."
+        : "That didn't work. Try again.");
+    }
     finally { setBusy(null); }
-  }, [busy]);
+  }, [busy, setScopedMessage]);
 
   const openLink = useCallback((url: string | null) => {
     if (url) void Linking.openURL(url);
@@ -163,23 +182,28 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
   const copySupportId = useCallback(async () => {
     if (!supportId || busy) return;
     setBusy('copy');
+    setUtilityMessage('Copying Support ID…');
     try {
       await Clipboard.setStringAsync(supportId);
-      setMessage('Support ID copied.');
+      setUtilityMessage('Support ID copied.');
     } catch {
-      setMessage("Couldn't copy the Support ID. Try again.");
+      setUtilityMessage("Couldn't copy the Support ID. Try again.");
     } finally {
       setBusy(null);
     }
   }, [busy, supportId]);
 
-  const retryPlans = useCallback(() => {
-    if (refreshing) return;
-    setMessage(null);
-    void refresh().catch(() => {
-      setMessage("Couldn't check the store. Your logbook still works.");
-    });
-  }, [refresh, refreshing]);
+  const retryPlans = useCallback((scope: MessageScope = 'purchase') => {
+    if (refreshing || busy) return;
+    setScopedMessage(scope, scope === 'utility' ? 'Checking your access…' : null);
+    void refresh()
+      .then(() => {
+        if (scope === 'utility') setUtilityMessage('Access check finished. Your current plan is shown above.');
+      })
+      .catch(() => {
+        setScopedMessage(scope, "Couldn't check the store. Your logbook still works.");
+      });
+  }, [busy, refresh, refreshing, setScopedMessage]);
 
   const selectedTier = access.kind === 'itik' ? 'itik' : selected;
   const selectedProduct = selectedTier === 'manok' ? offering?.manok : offering?.itik;
@@ -189,6 +213,8 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
     && !serviceConfig.revenueCatTestStore
     && !canBuyItik(access);
   const storeDetailsMissing = !loadingProducts && (!offering?.manok || !offering?.itik);
+  const utilityBusy = busy !== null || refreshing;
+  const supportIdDisplay = supportId ?? (loadingProducts || refreshing ? 'Preparing…' : 'Unavailable');
   const purchaseDisabled = busy !== null
     || refreshing
     || loadingProducts
@@ -227,10 +253,10 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
 
   const handlePrimaryAction = useCallback(() => {
     if (!selectedProduct) {
-      retryPlans();
+      retryPlans('purchase');
       return;
     }
-    void run('purchase', () => purchase(selectedTier));
+    void run('purchase', () => purchase(selectedTier), 'purchase');
   }, [purchase, retryPlans, run, selectedProduct, selectedTier]);
 
   return (
@@ -314,10 +340,10 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
           <Text className="text-sm text-m3-on-surface-variant">End Manok in the store before switching to Itik. Your unused Manok time is not refunded.</Text>
         ) : null}
 
-        {message ? (
+        {purchaseMessage ? (
           <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container px-4 py-3">
             <MaterialIcons name="info-outline" size={19} color={M3.onSurfaceVariant} />
-            <Text accessibilityLiveRegion="polite" className="flex-1 text-sm text-m3-on-surface">{message}</Text>
+            <Text accessibilityLiveRegion="polite" className="flex-1 text-sm text-m3-on-surface">{purchaseMessage}</Text>
           </View>
         ) : null}
 
@@ -356,47 +382,67 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
           </Card>
         ) : null}
 
-        <View className="gap-2 border-t border-m3-outline-variant pt-4">
+        <View className="gap-3 border-t border-m3-outline-variant pt-4">
+          <Text accessibilityRole="header" className="text-base font-bold text-m3-on-surface">Purchase help</Text>
           {(access.kind === 'manok' || access.kind === 'manok-trial') && !serviceConfig.revenueCatTestStore ? (
             <Pressable
-              onPress={() => { void run('manage', manageSubscription); }}
-              disabled={busy !== null}
+              onPress={() => { void run('manage', manageSubscription, 'utility', 'Opening your subscription settings…'); }}
+              disabled={utilityBusy}
               accessibilityRole="button"
-              accessibilityState={{ disabled: busy !== null }}
-              className="min-h-[48px] items-center justify-center rounded-full border border-m3-outline"
+              accessibilityState={{ disabled: utilityBusy, busy: busy === 'manage' }}
+              className="min-h-[48px] items-center justify-center rounded-full border border-m3-outline active:bg-m3-surface-container-high"
             >
-              <Text className="text-sm font-semibold text-m3-on-surface">{busy === 'manage' ? 'Opening the store…' : 'Manage subscription'}</Text>
+              <Text className="text-sm font-semibold text-m3-on-surface">Manage subscription</Text>
             </Pressable>
           ) : null}
-          <View className="flex-row flex-wrap justify-center gap-x-4">
+          <View className="flex-row gap-2">
             <Pressable
-              onPress={() => { void run('restore', restore); }}
-              disabled={busy !== null}
+              onPress={() => { void run('restore', restore, 'utility', 'Restoring purchases…'); }}
+              disabled={utilityBusy}
               accessibilityRole="button"
-              accessibilityState={{ disabled: busy !== null }}
-              className="min-h-[48px] justify-center"
+              accessibilityState={{ disabled: utilityBusy, busy: busy === 'restore' }}
+              className="min-h-[48px] flex-1 items-center justify-center rounded-full border border-m3-outline px-2 active:bg-m3-surface-container-high"
             >
-              <Text className="text-sm font-semibold text-m3-on-surface">{busy === 'restore' ? 'Restoring…' : 'Restore purchases'}</Text>
+              <Text className="text-xs font-semibold text-m3-on-surface">Restore purchases</Text>
             </Pressable>
             <Pressable
-              onPress={retryPlans}
-              disabled={refreshing || busy !== null}
+              onPress={() => retryPlans('utility')}
+              disabled={utilityBusy}
               accessibilityRole="button"
-              accessibilityState={{ disabled: refreshing || busy !== null, busy: refreshing }}
-              className="min-h-[48px] justify-center"
+              accessibilityState={{ disabled: utilityBusy, busy: refreshing }}
+              className="min-h-[48px] flex-1 items-center justify-center rounded-full border border-m3-outline px-2 active:bg-m3-surface-container-high"
             >
-              <Text className="text-sm font-semibold text-m3-on-surface">{refreshing ? 'Checking…' : 'Check access'}</Text>
+              <Text className="text-xs font-semibold text-m3-on-surface">Check access</Text>
             </Pressable>
-            <Pressable
-              onPress={() => { void copySupportId(); }}
-              disabled={!supportId || busy !== null}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !supportId || busy !== null }}
-              className="min-h-[48px] flex-row items-center justify-center gap-2"
-            >
+          </View>
+          <Pressable
+            onPress={() => { void copySupportId(); }}
+            disabled={!supportId || utilityBusy}
+            accessibilityRole="button"
+            accessibilityLabel={supportId
+              ? `Copy Support ID ${supportId}`
+              : loadingProducts || refreshing
+                ? 'Support ID is being prepared'
+                : 'Support ID is unavailable'}
+            accessibilityHint={supportId ? 'Copies the ID for a support request' : undefined}
+            accessibilityState={{ disabled: !supportId || utilityBusy, busy: busy === 'copy' }}
+            className="min-h-[64px] flex-row items-center gap-3 rounded-2xl bg-m3-surface-container px-4 active:bg-m3-surface-container-high"
+          >
+            <View className="min-w-0 flex-1 gap-0.5">
+              <Text className="text-xs font-semibold text-m3-on-surface-variant">Support ID</Text>
+              <Text selectable numberOfLines={1} ellipsizeMode="middle" className={`text-sm tabular-nums ${supportId ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
+                {supportIdDisplay}
+              </Text>
+            </View>
+            <View className="h-8 w-8 items-center justify-center rounded-full bg-m3-surface-container-highest">
               <MaterialIcons name="content-copy" size={16} color={supportId ? M3.onSurface : M3.onSurfaceVariant} />
-              <Text className={`text-sm font-semibold ${supportId ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>{busy === 'copy' ? 'Copying…' : 'Copy Support ID'}</Text>
-            </Pressable>
+            </View>
+          </Pressable>
+          <View className="min-h-[64px] flex-row items-center gap-2 px-1">
+            <MaterialIcons name="info-outline" size={18} color={M3.onSurfaceVariant} />
+            <Text accessibilityLiveRegion={utilityMessage ? 'polite' : 'none'} className="flex-1 text-sm text-m3-on-surface-variant">
+              {utilityMessage ?? 'Use these when a purchase is missing or support asks for your ID.'}
+            </Text>
           </View>
           {access.kind === 'complimentary' ? <Text className="text-sm text-m3-on-surface-variant">Complimentary access is not tied to a store purchase.</Text> : null}
         </View>

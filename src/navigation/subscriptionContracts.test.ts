@@ -41,7 +41,7 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(paywall, /Try store again/);
   assert.match(paywall, /We couldn't reach the store\. Prices and checkout didn't load\. Your logbook still works\./);
   assert.match(paywall, /30 requests in any 24 hours and 250 in 30 days/);
-  assert.match(paywall, /if \(!selectedProduct\) \{[\s\S]*retryPlans\(\)/);
+  assert.match(paywall, /if \(!selectedProduct\) \{[\s\S]*retryPlans\('purchase'\)/);
   assert.doesNotMatch(purchaseDisabled, /selectedProduct/);
   assert.doesNotMatch(paywall, /Compare plans/);
   assert.doesNotMatch(paywall, /AI actions/);
@@ -55,6 +55,21 @@ test('subscription tiers use the requested bird identities', () => {
   assert.match(tierBirdIcon, /tier === 'pugo'/);
   assert.match(tierBirdIcon, /tier === 'manok'/);
   assert.match(tierBirdIcon, /return \([\s\S]*fill="#203431"/);
+});
+
+test('purchase support controls keep their layout stable and expose the Support ID', () => {
+  const purchaseHelp = paywall.slice(
+    paywall.indexOf('Purchase help'),
+    paywall.indexOf('<View className="flex-row flex-wrap justify-center gap-4">'),
+  );
+  assert.notEqual(paywall.indexOf('Purchase help'), -1);
+  assert.match(purchaseHelp, />Restore purchases<\/Text>/);
+  assert.match(purchaseHelp, />Check access<\/Text>/);
+  assert.match(purchaseHelp, />Support ID<\/Text>/);
+  assert.match(paywall, /const supportIdDisplay = supportId \?\?/);
+  assert.match(purchaseHelp, /\{supportIdDisplay\}/);
+  assert.match(purchaseHelp, /min-h-\[64px\][\s\S]*accessibilityLiveRegion=\{utilityMessage \? 'polite' : 'none'\}/);
+  assert.doesNotMatch(purchaseHelp, /flex-wrap/);
 });
 
 test('local RevenueCat state remains the app authority across automatic and Worker refreshes', () => {
