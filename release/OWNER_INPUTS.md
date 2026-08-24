@@ -7,8 +7,8 @@ Engineering can finish local subscription implementation without these values. D
 | Input or owner action | Status | Needed before | Blocker |
 | --- | --- | --- | --- |
 | Public developer or legal name used in both listings and the privacy policy | Awaiting owner | Public release | OWNER INPUT |
-| Monitored support email used by users, providers, and store reviewers | Awaiting owner | Submission | OWNER INPUT |
-| Public support-response expectation for the support page | Awaiting support owner | Submission | OWNER INPUT |
+| Monitored support email used by users, providers, and store reviewers | Supplied 2026-08-24: `sggajitos@gmail.com` | Submission | Ready to configure |
+| Public support-response expectation for the support page | Supplied 2026-08-24: within 3 business days | Submission | Ready to publish |
 | Owner-controlled HTTPS host or domain for stable `/privacy`, `/terms`, and `/support` pages | Awaiting owner | Submission | OWNER INPUT |
 | Final privacy-policy, Terms, and support URLs after hosting | Awaiting host choice and publication | Submission | OWNER INPUT |
 | Register Eatlog's read-only Open Food Facts use and monitored contact in the provider API usage form | Awaiting support email and owner submission | Public release | OWNER INPUT |

@@ -1,0 +1,16 @@
+{
+  "name": "Eatlog",
+  "short_name": "Eatlog",
+  "description": "Local-first food, macro, and weight logging.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#0c0e13",
+  "theme_color": "#0c0e13",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}

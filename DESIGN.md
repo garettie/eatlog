@@ -22,6 +22,7 @@ colors:
   calories: "#a0cafd"
   expenditure: "#d0bcff"
   error: "#ffb4ab"
+  web-interactive: "#ff7b73"
   error-container: "#93000a"
 typography:
   display:
@@ -145,6 +146,8 @@ Eatlog uses a near-black neutral stack for structure and reserves named macro co
 - **Placeholder Gray**: placeholders stay distinct from entered values while retaining AA contrast.
 
 **The Nutrient Meaning Rule.** Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen. Never reuse these colors as decoration or generic success/error states.
+
+**Website Interaction Rule.** The public website uses coral `#ff7b73` for focus, links, disclosure marks, and generic section labels. Keep calorie blue reserved for calorie information; keep protein rose, carb green, fat gold, and expenditure lavender tied to their nutrient or analytics meaning.
 
 ## Typography
 

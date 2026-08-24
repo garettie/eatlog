@@ -1,12 +1,12 @@
 ---
 title: Eatlog Support
-publication_status: blocked-on-owner-input
-last_updated: 2026-08-10
+publication_status: ready-to-publish
+last_updated: 2026-08-24
 ---
 
 # Eatlog Support
 
-This draft is not a live support page. Before publication, the owner must add the monitored support email, state the expected response window, and publish it at the configured HTTPS support URL. The owner-input record is `release/OWNER_INPUTS.md`.
+Eatlog support is available at `sggajitos@gmail.com`. We aim to respond within 3 business days.
 
 ## Before contacting support
 
@@ -53,4 +53,4 @@ Delete individual logs from their edit screens. To erase app data, open Profile 
 
 ## Contact
 
-Publication is blocked until the owner supplies the monitored support email and response expectation. Do not publish this draft with this notice still present.
+Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) with the app version, build, platform, database schema, exact action, and exact message shown. We aim to respond within 3 business days.

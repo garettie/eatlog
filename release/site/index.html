@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!--
+    THESIS: Eatlog is a measuring instrument for real meals, not a gamified fitness dashboard. The page refuses the stock app-site grid of floating feature cards.
+    OWN-WORLD: Near-black M3 surfaces, Onest, one white egg-scale mark, nutrient colors used only for nutrition, and fine calibration rules.
+    STORY: See the daily logging loop, understand what stays local, compare access, then read the public release material.
+    FIRST VIEWPORT: A blunt two-line promise faces the actual Eatlog Today dashboard inside an oversized scale dial. The primary action jumps into the product loop.
+    FORM: A continuous calibration sequence, seventh in the grounded structure set, staged as one instrument moving from input to review to evidence.
+  -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0e13">
+  <meta name="description" content="Eatlog is a local-first food, macro, and weight log with editable estimates, clear trends, and data that stays on your phone.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Eatlog — Log the meal. Keep the record.">
+  <meta property="og:description" content="Food and weight logging with editable estimates, clear trends, local backup, and CSV export.">
+  <meta property="og:image" content="/assets/feature-graphic.png">
+  <title>Eatlog — Local-first food and weight logging</title>
+  <link rel="icon" href="/assets/favicon.png" type="image/png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="page-progress" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="/" aria-label="Eatlog home">
+        <img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt="">
+        <span>Eatlog</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="#daily-loop">How it works</a>
+        <a href="#local-first">Your data</a>
+        <a href="#plans">Plans</a>
+      </nav>
+      <details class="mobile-nav">
+        <summary>Menu</summary>
+        <nav aria-label="Mobile navigation"><a href="#daily-loop">How it works</a><a href="#local-first">Your data</a><a href="#plans">Plans</a><a href="/support">Support</a></nav>
+      </details>
+      <a class="header-action" href="/support">Get support</a>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="hero section-shell" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="hero-kicker">Local-first nutrition and weight logging</p>
+        <h1 id="hero-title">Log the meal.<span>Keep the record.</span></h1>
+        <figure class="hero-mobile-preview">
+          <img src="/assets/dashboard.jpg" width="810" height="1720" alt="Eatlog Today dashboard showing the daily nutrition summary" decoding="async">
+        </figure>
+        <p class="hero-lede">Manual logging and saved history stay on your phone. If you request an AI estimate, Eatlog sends only the selected photo or description after you consent. <a href="#local-first">See the exact data route.</a></p>
+        <div class="hero-actions">
+          <a class="button" href="#daily-loop">See Eatlog in action</a>
+          <a class="button button--secondary" href="#local-first">See what stays local</a>
+        </div>
+        <div class="availability" aria-label="Product availability">
+          <span>Android release in preparation</span>
+          <span>iOS follows Android</span>
+          <span>No account required</span>
+        </div>
+      </div>
+
+      <figure class="instrument-stage">
+        <div class="phone">
+          <img class="phone__screenshot" src="/assets/dashboard.jpg" width="810" height="1720" alt="Eatlog Today dashboard showing consumed and remaining calories, macro progress, latest food, and thirty-day logging analytics" fetchpriority="high" decoding="async">
+        </div>
+      </figure>
+    </section>
+
+    <div class="proof-strip" aria-label="Eatlog product facts">
+      <div class="section-shell proof-strip__inner">
+        <p><strong>No login</strong>One phone, one private log</p>
+        <p><strong>Editable estimates</strong>Review before you save</p>
+        <p><strong>Local backup</strong>Restorable Eatlog archive</p>
+        <p><strong>No ad tracking</strong>No third-party analytics SDK</p>
+      </div>
+    </div>
+
+    <section class="section" id="daily-loop" data-calibration aria-labelledby="loop-title">
+      <div class="section-shell">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">The daily loop</p>
+            <h2 id="loop-title">Fast enough to use after every meal.</h2>
+          </div>
+          <p>Start with the fastest honest input, correct what needs correcting, then let the diary and trend views carry the context forward.</p>
+        </div>
+
+        <div class="workflow-list">
+          <article class="workflow-pair">
+            <div class="workflow-copy"><small>INPUT</small><h3>Scan, describe, search, or type</h3><p>Photo-first when it helps. Manual logging and saved history still work without an online estimate.</p></div>
+            <figure class="workflow-screen"><img src="/assets/dashboard.jpg" width="810" height="1720" alt="Eatlog Today dashboard with calorie and macro progress, latest food, and logging analytics" fetchpriority="low" decoding="async"><figcaption>Today dashboard</figcaption></figure>
+          </article>
+          <article class="workflow-pair">
+            <div class="workflow-copy"><small>REVIEW</small><h3>Check every component</h3><p>Edit names, portions, grams, and nutrition before anything enters the diary.</p></div>
+            <figure class="workflow-screen"><img src="/assets/mealreview.jpg" width="810" height="1720" alt="Eatlog Review meal screen with a meal photo, nutrition totals, editable foods, date, meal period, and update action" fetchpriority="low" decoding="async"><figcaption>Review meal</figcaption></figure>
+          </article>
+          <article class="workflow-pair">
+            <div class="workflow-copy"><small>READ</small><h3>See what your weight is actually doing</h3><p>Scale points, trend weight, weekly pace, and goal timing stay together in Analytics.</p></div>
+            <figure class="workflow-screen"><img src="/assets/weightscreen.jpg" width="810" height="1720" alt="Eatlog Analytics screen with trend and scale weight, a one-month weight chart, goal line, pace, and expected goal date" fetchpriority="low" decoding="async"><figcaption>Weight Analytics</figcaption></figure>
+          </article>
+          <article class="workflow-pair">
+            <div class="workflow-copy"><small>DECIDE</small><h3>Accept or keep your plan</h3><p>When enough evidence exists, Eatlog proposes a change. Your target moves only when you accept it.</p></div>
+            <figure class="workflow-screen"><img src="/assets/planscreen3.jpg" width="810" height="1720" alt="Eatlog Analytics screen with a new calorie and macro target recommendation, current target, start date, and Keep current or Use new target actions" fetchpriority="low" decoding="async"><figcaption>Plan recommendation</figcaption></figure>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section local-first" id="local-first" data-calibration aria-labelledby="local-title">
+      <div class="section-shell split-layout">
+        <div class="split-copy">
+          <p class="section-kicker">Local means local</p>
+          <h2 id="local-title">Your diary is not the price of using the app.</h2>
+          <p>Your profile, targets, food log, weight history, saved meal photos, and adaptive decisions stay in app-private storage. Eatlog has no account system or cloud database.</p>
+          <div class="capability-list" aria-label="On-device data controls">
+            <p>On-device controls</p>
+            <ul>
+              <li>Create a restorable backup</li>
+              <li>Restore a supported backup</li>
+              <li>Export readable CSV files</li>
+              <li>Delete all local data</li>
+            </ul>
+          </div>
+        </div>
+        <div class="data-route" aria-label="What Eatlog sends online">
+          <div class="data-route__row"><span>01</span><div><strong>Manual and saved-history logging</strong><p>Stays on the device.</p></div></div>
+          <div class="data-route__row"><span>02</span><div><strong>AI estimate you request</strong><p>Sends the selected photo or description only after separate consent.</p></div></div>
+          <div class="data-route__row"><span>03</span><div><strong>Food database search</strong><p>Sends the search query to the named food source when you run a search.</p></div></div>
+          <div class="data-route__row"><span>04</span><div><strong>Backup or share</strong><p>Opens the system share sheet. You choose the destination.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="plans" data-calibration aria-labelledby="plans-title">
+      <div class="section-shell">
+        <div class="plan-heading">
+          <div>
+            <p class="section-kicker">Choose how you use it</p>
+            <h2 id="plans-title">The local log stays free.</h2>
+          </div>
+          <p>Pugo covers the durable basics. Manok and Itik unlock the same AI-estimate and adaptive-plan features with different billing.</p>
+        </div>
+        <div class="plan-table-wrap">
+          <table class="plan-table">
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                <th scope="col"><span class="tier-heading"><img src="/assets/tier-pugo.svg" width="48" height="48" alt=""><span>Pugo</span></span></th>
+                <th scope="col"><span class="tier-heading"><img src="/assets/tier-manok.svg" width="48" height="48" alt=""><span>Manok</span></span></th>
+                <th scope="col"><span class="tier-heading"><img src="/assets/tier-itik.svg" width="48" height="48" alt=""><span>Itik</span></span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Local food and weight logging</th><td class="included">Included</td><td class="included">Included</td><td class="included">Included</td></tr>
+              <tr><th scope="row">Diary, analytics, backup, export</th><td class="included">Included</td><td class="included">Included</td><td class="included">Included</td></tr>
+              <tr><th scope="row">AI estimates</th><td>—</td><td class="included">Included</td><td class="included">Included</td></tr>
+              <tr><th scope="row">Adaptive plan recommendations</th><td>—</td><td class="included">Included</td><td class="included">Included</td></tr>
+              <tr><th scope="row">Billing</th><td>Free</td><td>PHP 79 monthly</td><td>PHP 799 once</td></tr>
+              <tr><th scope="row">Choose this for</th><td>Local essentials</td><td>Paid features monthly</td><td>Paid features, pay once</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="plan-mobile" data-plan-comparison>
+          <div class="tier-tabs" role="tablist" aria-label="Compare Eatlog plans">
+            <button class="tier-tab is-selected" id="tier-tab-pugo" type="button" role="tab" aria-selected="true" aria-controls="tier-panel-pugo" tabindex="0" data-tier="pugo"><img src="/assets/tier-pugo.svg" width="48" height="48" alt=""><span>Pugo</span></button>
+            <button class="tier-tab" id="tier-tab-manok" type="button" role="tab" aria-selected="false" aria-controls="tier-panel-manok" tabindex="-1" data-tier="manok"><img src="/assets/tier-manok.svg" width="48" height="48" alt=""><span>Manok</span></button>
+            <button class="tier-tab" id="tier-tab-itik" type="button" role="tab" aria-selected="false" aria-controls="tier-panel-itik" tabindex="-1" data-tier="itik"><img src="/assets/tier-itik.svg" width="48" height="48" alt=""><span>Itik</span></button>
+          </div>
+          <section class="tier-panel" id="tier-panel-pugo" role="tabpanel" aria-labelledby="tier-tab-pugo" data-tier-panel="pugo">
+            <dl class="tier-details"><div><dt>Local logging</dt><dd>Included</dd></div><div><dt>Diary, analytics, backup, export</dt><dd>Included</dd></div><div><dt>AI estimates</dt><dd>Not included</dd></div><div><dt>Adaptive plan</dt><dd>Not included</dd></div><div><dt>Billing</dt><dd>Free</dd></div><div><dt>Choose this for</dt><dd>Local essentials</dd></div></dl>
+          </section>
+          <section class="tier-panel" id="tier-panel-manok" role="tabpanel" aria-labelledby="tier-tab-manok" data-tier-panel="manok" hidden>
+            <dl class="tier-details"><div><dt>Local logging</dt><dd>Included</dd></div><div><dt>Diary, analytics, backup, export</dt><dd>Included</dd></div><div><dt>AI estimates</dt><dd>Included</dd></div><div><dt>Adaptive plan</dt><dd>Included</dd></div><div><dt>Billing</dt><dd>PHP 79 monthly</dd></div><div><dt>Choose this for</dt><dd>Paid features monthly</dd></div></dl>
+          </section>
+          <section class="tier-panel" id="tier-panel-itik" role="tabpanel" aria-labelledby="tier-tab-itik" data-tier-panel="itik" hidden>
+            <dl class="tier-details"><div><dt>Local logging</dt><dd>Included</dd></div><div><dt>Diary, analytics, backup, export</dt><dd>Included</dd></div><div><dt>AI estimates</dt><dd>Included</dd></div><div><dt>Adaptive plan</dt><dd>Included</dd></div><div><dt>Billing</dt><dd>PHP 799 once</dd></div><div><dt>Choose this for</dt><dd>Paid features, pay once</dd></div></dl>
+          </section>
+        </div>
+        <p class="plan-note">Eligible Manok users may receive a one-month introductory trial. Store checkout shows final localized prices and eligibility. AI access is subject to the fair-use limits in the <a href="/terms">Terms</a>.</p>
+      </div>
+    </section>
+
+    <section class="section" id="questions" aria-labelledby="faq-title">
+      <div class="section-shell faq-layout">
+        <div class="faq-intro">
+          <p class="section-kicker">Before you install</p>
+          <h2 id="faq-title">Straight answers.</h2>
+          <p>Nutrition and weight data deserve precise language. The longer version lives in the Privacy Policy and Terms.</p>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>Does Eatlog need an account?</summary>
+            <p>No. Eatlog has no login or cloud identity. The app uses an app-scoped installation token for online-service abuse limits and purchase access checks, but it is not an account.</p>
+          </details>
+          <details>
+            <summary>Can I use Eatlog without AI estimates?</summary>
+            <p>Yes. Manual logging, local history, food search, weight tracking, analytics, backup, export, and sharing remain available when you decline online meal estimates.</p>
+          </details>
+          <details>
+            <summary>Are nutrition estimates medical advice?</summary>
+            <p>No. Eatlog is for adult general wellness. Nutrition values, targets, trends, and estimates can be incomplete or wrong. Review entries and speak with a qualified health professional about medical decisions.</p>
+          </details>
+          <details>
+            <summary>What happens if I stop paying?</summary>
+            <p>Your local food, weight, target, photo, and adaptive history stays on the device. Paid AI and adaptive access ends when the verified entitlement expires or is revoked.</p>
+          </details>
+          <details>
+            <summary>Does Eatlog sync with health platforms?</summary>
+            <p>Android users can optionally connect Health Connect for Weight read and write access. Eatlog does not use HealthKit or Apple Health in v1.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="final-cta" aria-labelledby="final-title">
+      <div class="section-shell final-cta__inner">
+        <div>
+          <h2 id="final-title">Android first. Release in preparation.</h2>
+          <p>Explore the real app screens and plans now. Eatlog will show a download action only when the verified Google Play listing exists.</p>
+        </div>
+        <a class="button" href="#plans">Compare plans</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="section-shell site-footer__inner">
+      <div>
+        <a class="brand" href="/" aria-label="Eatlog home">
+          <img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt="">
+          <span>Eatlog</span>
+        </a>
+        <p class="footer-copy">Adult general-wellness software. Not a medical device. Nutrition estimates and calculated targets can be wrong.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer navigation">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/support">Support</a>
+        <a href="#main">Back to top</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

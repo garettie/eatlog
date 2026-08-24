@@ -1,0 +1,26 @@
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+
+/privacy*
+  X-Robots-Tag: noindex, nofollow
+
+/terms*
+  X-Robots-Tag: noindex, nofollow
+
+/assets/*
+  Cache-Control: public, max-age=86400, must-revalidate
+
+/fonts/*
+  Cache-Control: public, max-age=86400, must-revalidate
+
+/styles.css
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/site.js
+  Cache-Control: public, max-age=3600, must-revalidate

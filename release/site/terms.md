@@ -1,12 +1,12 @@
 ---
 title: Eatlog Terms of Use
 publication_status: blocked-on-owner-input
-last_updated: 2026-08-22
+last_updated: 2026-08-24
 ---
 
 # Eatlog Terms of Use
 
-This draft is not a live public agreement. The owner must add the public developer/legal name, monitored support contact, governing-law decision, and effective date, then publish it at the configured HTTPS Terms URL before store submission.
+This draft is not a live public agreement. The monitored support contact is sggajitos@gmail.com. The owner must add the public developer/legal name, governing-law decision, and effective date, then publish it at the configured HTTPS Terms URL before store submission.
 
 Eatlog is an adult general-wellness food and weight log, not a medical device. Nutrition values, targets, trends, and AI estimates can be incomplete or wrong. Review entries and consult a qualified health professional for medical decisions.
 
@@ -32,4 +32,4 @@ Online estimates, food sources, entitlement verification, store services, and ho
 
 ## Contact and changes
 
-Publication is blocked until the owner supplies the required identity and contact details. Material changes to pricing, renewal, lifetime scope, fair use, data processing, or dispute terms require an updated effective date and any notice required by the stores or applicable law.
+Contact Eatlog support at [sggajitos@gmail.com](mailto:sggajitos@gmail.com). Publication remains blocked until the owner supplies the required identity, governing law, effective date, and public host. Material changes to pricing, renewal, lifetime scope, fair use, data processing, or dispute terms require an updated effective date and any notice required by the stores or applicable law.
