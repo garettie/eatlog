@@ -42,8 +42,11 @@ test('subscription preview uses release native artifacts and debug signing', () 
 test('subscription preview manifest marks the installed APK as debuggable', () => {
   assert.equal(
     SUBSCRIPTION_PREVIEW_MANIFEST,
-    `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <application android:debuggable="true" />
+    `<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+  <application
+      android:debuggable="true"
+      tools:ignore="HardcodedDebugMode" />
 </manifest>
 `,
   );

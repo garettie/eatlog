@@ -10,8 +10,11 @@ const path = require('node:path');
 const pkg = require('../package.json');
 
 const BUILD_TYPE_NAME = 'subscriptionPreview';
-const SUBSCRIPTION_PREVIEW_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <application android:debuggable="true" />
+const SUBSCRIPTION_PREVIEW_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+  <application
+      android:debuggable="true"
+      tools:ignore="HardcodedDebugMode" />
 </manifest>
 `;
 
