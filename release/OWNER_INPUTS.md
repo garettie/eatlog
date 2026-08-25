@@ -12,6 +12,8 @@ Engineering can finish local subscription implementation without these values. D
 | Owner-controlled HTTPS host or domain for stable `/privacy`, `/terms`, and `/support` pages | Supplied: `https://eatlog.pages.dev` | Submission | Published |
 | Final privacy-policy, Terms, and support URLs after hosting | Supplied: `https://eatlog.pages.dev/privacy`, `https://eatlog.pages.dev/terms`, `https://eatlog.pages.dev/support` | Submission | Published |
 | Privacy Policy and Terms effective date | Supplied: August 28, 2026 | Submission | Published |
+| Terms governing-law clause | Intentionally omitted at owner direction; not required for the current store compliance pages | Submission | Resolved |
+| Legal-page publication timing | Publish before the owner-selected August 28, 2026 effective date | Submission | Approved by owner |
 | Register Eatlog's read-only Open Food Facts use and monitored contact in the provider API usage form | Awaiting support email and owner submission | Public release | OWNER INPUT |
 | Launch countries beyond the fixed Philippines storefront | Awaiting owner | Submission | OWNER INPUT |
 | Decide who may receive direct preview APKs after launch and remove any public APK link before the paid Play release | Awaiting owner | Public release | OWNER INPUT |
@@ -34,7 +36,7 @@ Engineering can finish local subscription implementation without these values. D
 | Available Android devices: API 26, API 36/current, Samsung-class, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |
 | Available iPhones: minimum supported iOS, current iOS, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |
 | Named release/support owner who can monitor support, deploy or roll back the Worker, and rotate secrets | Awaiting owner | Public release | OWNER INPUT |
-| Confirm production Google Gemini and Cloudflare retention, abuse-protection, and logging settings against the privacy/store disclosures | Confirmed by owner | Public release | Verified |
+| Confirm production Google Gemini and Cloudflare retention, abuse-protection, and logging settings against the privacy/store disclosures | Owner attested confirmation on 2026-08-25 | Public release | Verified |
 | Verify production Worker secret bindings and rotate any USDA, Gemini, or rate-limit secret exposed in an older client or log | Requires production-account access and key owners | Public release | CREDENTIAL |
 | Configure and verify Gemini quota/budget alerts plus Cloudflare usage/error notifications supported by the account plan | Requires production-account access and budget owner | Public release | CREDENTIAL |
 | Record the production Worker URL/version, previous healthy version, rollback target, deployed rate-limit bindings, and the EAS environments that contain only the public Worker URL | Requires Cloudflare and EAS access | Submission | CREDENTIAL |

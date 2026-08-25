@@ -1,6 +1,7 @@
 ---
 title: Eatlog Terms of Use
 publication_status: published
+policy_version: 1.0
 effective_date: 2026-08-28
 last_updated: 2026-08-28
 ---
@@ -33,4 +34,4 @@ Online estimates, food sources, entitlement verification, store services, and ho
 
 ## Contact and changes
 
-Contact Sean Garette Gajitos at [sggajitos@gmail.com](mailto:sggajitos@gmail.com). Material changes to pricing, renewal, lifetime scope, fair use, or data processing require an updated effective date and any notice required by the platform stores or applicable law.
+Contact Sean Garette Gajitos at [sggajitos@gmail.com](mailto:sggajitos@gmail.com). Material changes to pricing, renewal, lifetime scope, fair use, data processing, or dispute terms require an updated effective date and any notice required by the platform stores or applicable law.

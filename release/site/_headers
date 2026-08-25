@@ -7,6 +7,14 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
 
+/privacy*
+  Cache-Control: public, max-age=300, must-revalidate
+
+/terms*
+  Cache-Control: public, max-age=300, must-revalidate
+
+/support*
+  Cache-Control: public, max-age=300, must-revalidate
 /assets/*
   Cache-Control: public, max-age=86400, must-revalidate
 
