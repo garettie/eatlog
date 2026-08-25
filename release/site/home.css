@@ -340,11 +340,13 @@
 }
 
 .mog-phone--left {
-  transform: translate(-122%, -44%) translateZ(-40px) rotate(-10deg);
+  --lx: -122%;
+  transform: translate(var(--lx), -44%) translateZ(-40px) rotate(-10deg);
 }
 
 .mog-phone--right {
-  transform: translate(22%, -52%) translateZ(-25px) rotate(9deg);
+  --rx: 22%;
+  transform: translate(var(--rx), -52%) translateZ(-25px) rotate(9deg);
 }
 
 .mog-sticker {
@@ -1105,7 +1107,7 @@
   }
 
   .mog-stage {
-    min-height: 540px;
+    min-height: 620px;
     margin-top: -4px;
   }
 
@@ -1115,20 +1117,22 @@
   }
 
   .mog-phone--main {
-    width: min(52vw, 220px);
+    width: min(58vw, 290px);
   }
 
   .mog-phone--left,
   .mog-phone--right {
-    width: min(37vw, 175px);
+    width: min(41vw, 215px);
   }
 
   .mog-phone--left {
-    transform: translate(-125%, -43%) translateZ(-40px) rotate(-9deg);
+    --lx: -112%;
+    transform: translate(var(--lx), -43%) translateZ(-40px) rotate(-9deg);
   }
 
   .mog-phone--right {
-    transform: translate(24%, -52%) translateZ(-25px) rotate(8deg);
+    --rx: 14%;
+    transform: translate(var(--rx), -52%) translateZ(-25px) rotate(8deg);
   }
 
   .mog-sticker {
@@ -1451,7 +1455,7 @@
   }
 
   .mog-stage {
-    min-height: 470px;
+    min-height: 500px;
   }
 
   .mog-phone {
@@ -1460,12 +1464,22 @@
   }
 
   .mog-phone--main {
-    width: min(52vw, 220px);
+    width: min(54vw, 260px);
   }
 
   .mog-phone--left,
   .mog-phone--right {
-    width: min(35vw, 145px);
+    width: min(36vw, 160px);
+  }
+
+  .mog-phone--left {
+    --lx: -112%;
+    transform: translate(var(--lx), -44%) translateZ(-40px) rotate(-10deg);
+  }
+
+  .mog-phone--right {
+    --rx: 10%;
+    transform: translate(var(--rx), -52%) translateZ(-25px) rotate(9deg);
   }
 
   .mog-sticker--one {
@@ -1726,13 +1740,15 @@
   background: #16181e;
 }
 
-.mog-phone--main {
-  width: min(24vw, 368px);
-}
+@media (min-width: 1101px) {
+  .mog-phone--main {
+    width: min(24vw, 368px);
+  }
 
-.mog-phone--left,
-.mog-phone--right {
-  width: min(17vw, 246px);
+  .mog-phone--left,
+  .mog-phone--right {
+    width: min(17vw, 246px);
+  }
 }
 
 /* ---- Hero entrance choreography ---- */
@@ -1817,22 +1833,22 @@
 @keyframes mog-phone-left-in {
   from {
     opacity: 0;
-    transform: translate(-122%, -44%) translateZ(-40px) rotate(-10deg) translateY(60px) scale(0.94);
+    transform: translate(var(--lx, -122%), -44%) translateZ(-40px) rotate(-10deg) translateY(60px) scale(0.94);
   }
   to {
     opacity: 1;
-    transform: translate(-122%, -44%) translateZ(-40px) rotate(-10deg);
+    transform: translate(var(--lx, -122%), -44%) translateZ(-40px) rotate(-10deg);
   }
 }
 
 @keyframes mog-phone-right-in {
   from {
     opacity: 0;
-    transform: translate(22%, -52%) translateZ(-25px) rotate(9deg) translateY(60px) scale(0.94);
+    transform: translate(var(--rx, 22%), -52%) translateZ(-25px) rotate(9deg) translateY(60px) scale(0.94);
   }
   to {
     opacity: 1;
-    transform: translate(22%, -52%) translateZ(-25px) rotate(9deg);
+    transform: translate(var(--rx, 22%), -52%) translateZ(-25px) rotate(9deg);
   }
 }
 
