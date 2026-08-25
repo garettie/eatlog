@@ -99,13 +99,11 @@
 
   const storySteps = [...document.querySelectorAll('[data-story-step]')];
   const storyImages = [...document.querySelectorAll('[data-story-image]')];
-  const storyCounter = document.querySelector('[data-story-counter]');
 
   const selectStoryStep = (step) => {
     const key = step.dataset.storyStep;
     storySteps.forEach((candidate) => candidate.classList.toggle('is-active', candidate === step));
     storyImages.forEach((image) => image.classList.toggle('is-active', image.dataset.storyImage === key));
-    if (storyCounter) storyCounter.textContent = step.dataset.storyNumber;
   };
 
   const updateStory = () => {
