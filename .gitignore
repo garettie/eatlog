@@ -38,6 +38,9 @@ yarn-error.*
 worker/.dev.vars*
 !worker/.dev.vars.example
 worker/.wrangler/
+.wrangler/
+.pi-subagents/
+/tmp/
 
 # submission credentials
 credentials.json
