@@ -2,6 +2,7 @@
   const root = document.documentElement;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const finePointer = window.matchMedia('(pointer: fine)');
+  const usesStickyStory = () => window.innerWidth > 960 && (window.innerWidth > 1100 || window.innerHeight > 700);
   const clamp = (value, minimum = 0, maximum = 1) => Math.min(maximum, Math.max(minimum, value));
   let scrollFrame = 0;
 
@@ -107,7 +108,7 @@
   };
 
   const updateStory = () => {
-    if (!storySteps.length) return;
+    if (!usesStickyStory() || !storySteps.length) return;
     const focusLine = window.innerHeight * 0.56;
     const active = storySteps.reduce((closest, step) => {
       const rect = step.getBoundingClientRect();
