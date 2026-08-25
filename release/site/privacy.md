@@ -1,13 +1,14 @@
 ---
 title: Eatlog Privacy Policy
-publication_status: blocked-on-owner-input
-policy_version: 1.0-draft
-last_updated: 2026-08-24
+publication_status: published
+policy_version: 1.0
+effective_date: 2026-08-28
+last_updated: 2026-08-28
 ---
 
 # Eatlog Privacy Policy
 
-This draft is not a live public policy. Before publication, the owner must add the public developer/legal name listed in `release/OWNER_INPUTS.md`, confirm provider settings, and publish this page at the configured HTTPS privacy URL. The monitored support contact is sggajitos@gmail.com.
+Eatlog is developed and operated by Sean Garette Gajitos. This Privacy Policy is effective August 28, 2026. Contact: sggajitos@gmail.com.
 
 Eatlog is an account-free nutrition and weight log. It stores your profile, targets, food history, weight history, adaptive reviews, pins, estimate cache, and saved meal photos in app-private storage on your device. Eatlog has no account, authentication system, cloud database, advertising, or third-party analytics SDK.
 
@@ -79,8 +80,8 @@ Open Food Facts database data is available under the Open Database License; indi
 
 ## Contact
 
-Contact Eatlog support at [sggajitos@gmail.com](mailto:sggajitos@gmail.com) about this policy or a privacy request. Publication remains blocked until the owner supplies the public developer/legal identity, stable HTTPS host, effective date, and verified production-provider settings.
+Contact Sean Garette Gajitos at [sggajitos@gmail.com](mailto:sggajitos@gmail.com) about this policy or a privacy request.
 
 ## Policy changes
 
-Material changes to what Eatlog sends, who receives it, or why require a new policy date and updated in-app privacy copy. Older release copies remain in version control. The final public page must tell users how to contact the developer about a change.
+Material changes to what Eatlog sends, who receives it, or why require a new policy date and updated in-app privacy copy. Older policy versions remain in version control.

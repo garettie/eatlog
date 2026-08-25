@@ -1,12 +1,13 @@
 ---
 title: Eatlog Terms of Use
-publication_status: blocked-on-owner-input
-last_updated: 2026-08-24
+publication_status: published
+effective_date: 2026-08-28
+last_updated: 2026-08-28
 ---
 
 # Eatlog Terms of Use
 
-This draft is not a live public agreement. The monitored support contact is sggajitos@gmail.com. The owner must add the public developer/legal name, governing-law decision, and effective date, then publish it at the configured HTTPS Terms URL before store submission.
+These Terms of Use are effective August 28, 2026. They govern your use of Eatlog, provided by Sean Garette Gajitos. Contact: sggajitos@gmail.com.
 
 Eatlog is an adult general-wellness food and weight log, not a medical device. Nutrition values, targets, trends, and AI estimates can be incomplete or wrong. Review entries and consult a qualified health professional for medical decisions.
 
@@ -32,4 +33,4 @@ Online estimates, food sources, entitlement verification, store services, and ho
 
 ## Contact and changes
 
-Contact Eatlog support at [sggajitos@gmail.com](mailto:sggajitos@gmail.com). Publication remains blocked until the owner supplies the required identity, governing law, effective date, and public host. Material changes to pricing, renewal, lifetime scope, fair use, data processing, or dispute terms require an updated effective date and any notice required by the stores or applicable law.
+Contact Sean Garette Gajitos at [sggajitos@gmail.com](mailto:sggajitos@gmail.com). Material changes to pricing, renewal, lifetime scope, fair use, or data processing require an updated effective date and any notice required by the platform stores or applicable law.

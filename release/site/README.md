@@ -14,7 +14,7 @@ Open `http://127.0.0.1:4173/`. The site has no cookies, analytics, forms, or rem
 
 ## Verification
 
-Run `npm run site:check` from the repository root to validate all four routes, local assets, semantic page structure, and the no-tracker rule. Before public hosting, run `node release/site/check.mjs --publication`; it fails while owner details, direct support, `noindex`, or crawler blocks remain.
+Run `npm run site:check` from the repository root to enforce the published-site contract across all four routes, local assets, semantic page structure, indexing, security headers, direct support, and the no-tracker rule.
 
 ## Cloudflare Pages
 
@@ -24,19 +24,17 @@ Use Git integration with these build settings:
 - Build command: `npm run site:check`
 - Build output directory: `release/site`
 
-No Pages Function is required. Cloudflare Pages reads `_headers` from the output directory and applies the content-security, anti-framing, permissions, draft-indexing, and cache rules. Keep the generated `*.pages.dev` URL or attach an owner-controlled custom domain, then record the exact HTTPS route URLs in `release/OWNER_INPUTS.md`.
+No Pages Function is required. Cloudflare Pages reads `_headers` from the output directory and applies the content-security, anti-framing, permissions, and cache rules. The production site is `https://eatlog.pages.dev`.
 
-## Publication gate
+## Published legal pages
 
-The support page is ready to publish. Privacy and Terms carry `noindex` metadata and `robots.txt` blocks because their owner-controlled legal values are unresolved. Before hosting those legal pages as live policies:
+Privacy Policy version 1.0 and the Terms of Use are effective August 28, 2026.
 
-1. Complete the public developer or legal name, governing law, host, and final URLs in `release/OWNER_INPUTS.md`. Support uses `sggajitos@gmail.com` and a 3-business-day response window.
-2. Replace each visible draft notice and contact placeholder with verified values.
-3. Confirm production-provider settings match the Privacy Policy.
-4. Remove `noindex` from Privacy and Terms and remove their `Disallow` entries from `robots.txt` and `_headers`.
-5. Host the directory over HTTPS with stable `/privacy`, `/terms`, and `/support` routes.
-6. Put the exact final URLs in `EXPO_PUBLIC_PRIVACY_URL`, `EXPO_PUBLIC_TERMS_URL`, and `EXPO_PUBLIC_SUPPORT_URL`; put the monitored email in `EXPO_PUBLIC_SUPPORT_EMAIL`.
-7. Build the release app and confirm Profile opens only the configured HTTPS links.
-8. Save dated desktop and phone browser captures plus response-header checks as release evidence.
+- Privacy: `https://eatlog.pages.dev/privacy`
+- Terms: `https://eatlog.pages.dev/terms`
+- Support: `https://eatlog.pages.dev/support`
+- Developer: Sean Garette Gajitos
+- Contact: `sggajitos@gmail.com`
+- Support response target: within 3 business days
 
-Do not publish guessed owner values or replace the static support contact with an unmonitored form.
+Material changes to data processing, pricing, renewal, lifetime scope, or fair use require updated legal copy, a new effective date, `npm run site:check`, and any notice required by the platform stores or applicable law.

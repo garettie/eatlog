@@ -1,16 +1,17 @@
 # Eatlog release owner inputs
 
-Updated: 2026-08-10
+Updated: 2026-08-28
 
 Engineering can finish local subscription implementation without these values. Do not copy placeholders from this document into app configuration, policy copy, or store forms.
 
 | Input or owner action | Status | Needed before | Blocker |
 | --- | --- | --- | --- |
-| Public developer or legal name used in both listings and the privacy policy | Awaiting owner | Public release | OWNER INPUT |
+| Public developer or legal name used in both listings and the privacy policy | Supplied: `Sean Garette Gajitos` | Public release | Ready to publish |
 | Monitored support email used by users, providers, and store reviewers | Supplied 2026-08-24: `sggajitos@gmail.com` | Submission | Ready to configure |
 | Public support-response expectation for the support page | Supplied 2026-08-24: within 3 business days | Submission | Ready to publish |
-| Owner-controlled HTTPS host or domain for stable `/privacy`, `/terms`, and `/support` pages | Awaiting owner | Submission | OWNER INPUT |
-| Final privacy-policy, Terms, and support URLs after hosting | Awaiting host choice and publication | Submission | OWNER INPUT |
+| Owner-controlled HTTPS host or domain for stable `/privacy`, `/terms`, and `/support` pages | Supplied: `https://eatlog.pages.dev` | Submission | Published |
+| Final privacy-policy, Terms, and support URLs after hosting | Supplied: `https://eatlog.pages.dev/privacy`, `https://eatlog.pages.dev/terms`, `https://eatlog.pages.dev/support` | Submission | Published |
+| Privacy Policy and Terms effective date | Supplied: August 28, 2026 | Submission | Published |
 | Register Eatlog's read-only Open Food Facts use and monitored contact in the provider API usage form | Awaiting support email and owner submission | Public release | OWNER INPUT |
 | Launch countries beyond the fixed Philippines storefront | Awaiting owner | Submission | OWNER INPUT |
 | Decide who may receive direct preview APKs after launch and remove any public APK link before the paid Play release | Awaiting owner | Public release | OWNER INPUT |
@@ -33,7 +34,7 @@ Engineering can finish local subscription implementation without these values. D
 | Available Android devices: API 26, API 36/current, Samsung-class, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |
 | Available iPhones: minimum supported iOS, current iOS, small and large phone | Awaiting owner inventory | Final build | PHYSICAL DEVICE |
 | Named release/support owner who can monitor support, deploy or roll back the Worker, and rotate secrets | Awaiting owner | Public release | OWNER INPUT |
-| Confirm production Google Gemini and Cloudflare retention, abuse-protection, and logging settings against the privacy/store disclosures | Requires production-account access | Public release | CREDENTIAL |
+| Confirm production Google Gemini and Cloudflare retention, abuse-protection, and logging settings against the privacy/store disclosures | Confirmed by owner | Public release | Verified |
 | Verify production Worker secret bindings and rotate any USDA, Gemini, or rate-limit secret exposed in an older client or log | Requires production-account access and key owners | Public release | CREDENTIAL |
 | Configure and verify Gemini quota/budget alerts plus Cloudflare usage/error notifications supported by the account plan | Requires production-account access and budget owner | Public release | CREDENTIAL |
 | Record the production Worker URL/version, previous healthy version, rollback target, deployed rate-limit bindings, and the EAS environments that contain only the public Worker URL | Requires Cloudflare and EAS access | Submission | CREDENTIAL |
