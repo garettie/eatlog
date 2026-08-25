@@ -20,8 +20,8 @@
   <link rel="icon" href="/assets/favicon.png" type="image/png">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="stylesheet" href="/styles.css?v=20260825-premium5">
-  <link rel="stylesheet" href="/home.css?v=20260825-mog21">
-  <script src="/site.js?v=20260825-mog14" defer></script>
+  <link rel="stylesheet" href="/home.css?v=20260825-mog28">
+  <script src="/site.js?v=20260825-mog21" defer></script>
 </head>
 <body class="home-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -42,7 +42,7 @@
         <summary>Menu</summary>
         <nav aria-label="Mobile navigation"><a href="#daily-loop">The app</a><a href="#local-first">Your data</a><a href="#plans">The birds</a><a href="/support">Support</a></nav>
       </details>
-      <a class="header-action" href="/support#contact">Release status</a>
+      <a class="header-action" href="#release-status">Release status</a>
     </div>
   </header>
 
@@ -272,7 +272,7 @@
       </div>
     </section>
 
-    <section class="mog-final" aria-labelledby="final-title">
+    <section class="mog-final" id="release-status" aria-labelledby="final-title">
       <div class="section-shell mog-final__inner" data-reveal>
         <img src="/assets/icon.png" width="108" height="108" alt="" aria-hidden="true">
         <div>
@@ -280,7 +280,13 @@
           <h2 id="final-title">The egg is still cooking.</h2>
           <p>The Play listing is not live yet. Check the current release status or ask what remains before launch.</p>
         </div>
-        <a class="mog-button mog-button--dark" href="/support#contact">Check release status</a>
+        <div class="mog-cook">
+          <button class="mog-button mog-button--dark mog-cook__button" type="button" data-cook-button aria-describedby="cook-status">Let him cook!</button>
+          <span class="mog-cook__fire" data-cook-fire aria-hidden="true">
+            <img class="mog-cook__fire-effect" data-cook-fire-effect src="/assets/fire-click.svg" alt="">
+          </span>
+          <span class="mog-cook__status" id="cook-status" aria-live="polite"></span>
+        </div>
       </div>
     </section>
   </main>

@@ -52,6 +52,10 @@ assert.doesNotMatch(homepage, /name="robots" content="noindex/i, 'homepage must 
 assert.match(homepage, /href="\/styles\.css\?v=[^"]+"/, 'homepage stylesheet needs a cache-busting version');
 assert.match(homepage, /href="\/home\.css\?v=[^"]+"/, 'homepage stylesheet override needs a cache-busting version');
 assert.match(homepage, /src="\/site\.js\?v=[^"]+"/, 'homepage script needs a cache-busting version');
+assert.match(homepage, /<a class="header-action" href="#release-status">Release status<\/a>/, 'release status link needs the homepage release target');
+assert.match(homepage, /<section class="mog-final" id="release-status"/, 'homepage needs a release status target');
+assert.match(homepage, /<button[^>]+data-cook-button[^>]*>Let him cook!<\/button>/, 'release section needs the cooking interaction');
+assert.match(homepage, /src="\/assets\/fire-click\.svg"/, 'cooking interaction needs the one-shot fire SVG');
 
 const compliancePages = ['/privacy', '/terms'].map((route) => pages.get(route));
 const headers = readSiteFile('_headers');

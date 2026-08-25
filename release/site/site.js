@@ -181,4 +181,53 @@
     window.addEventListener('scroll', requestRevealSweep, { passive: true });
     window.addEventListener('resize', requestRevealSweep, { passive: true });
   }
+
+  const cookButton = document.querySelector('[data-cook-button]');
+  const cookFire = document.querySelector('[data-cook-fire]');
+  let fireEffect = document.querySelector('[data-cook-fire-effect]');
+  const cookStatus = document.querySelector('#cook-status');
+
+  if (cookButton && cookFire && fireEffect) {
+    let pressCount = 0;
+    let effectTimer = 0;
+    let startFrame = 0;
+    let showFrame = 0;
+
+    cookButton.addEventListener('click', () => {
+      pressCount += 1;
+
+      if (!reducedMotion.matches) {
+        const currentPress = pressCount;
+        const nextEffect = document.createElement('img');
+        nextEffect.className = 'mog-cook__fire-effect';
+        nextEffect.dataset.cookFireEffect = '';
+        nextEffect.alt = '';
+
+        window.cancelAnimationFrame(startFrame);
+        window.cancelAnimationFrame(showFrame);
+        window.clearTimeout(effectTimer);
+        cookFire.classList.remove('is-active');
+        fireEffect.replaceWith(nextEffect);
+        fireEffect = nextEffect;
+
+        startFrame = window.requestAnimationFrame(() => {
+          if (fireEffect !== nextEffect) return;
+          nextEffect.src = `/assets/fire-click.svg?press=${currentPress}`;
+          showFrame = window.requestAnimationFrame(() => {
+            if (fireEffect !== nextEffect) return;
+            cookFire.classList.add('is-active');
+            effectTimer = window.setTimeout(() => cookFire.classList.remove('is-active'), 3000);
+          });
+        });
+      }
+
+      if (cookStatus) cookStatus.textContent = 'Cooking!';
+    });
+
+    window.addEventListener('pagehide', () => {
+      window.cancelAnimationFrame(startFrame);
+      window.cancelAnimationFrame(showFrame);
+      window.clearTimeout(effectTimer);
+    }, { once: true });
+  }
 })();

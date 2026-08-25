@@ -2048,6 +2048,58 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
   padding: 16px 32px;
 }
 
+.mog-final {
+  scroll-margin-top: 72px;
+}
+
+.mog-cook {
+  position: relative;
+  isolation: isolate;
+}
+
+.mog-cook__button {
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  font: inherit;
+}
+
+.mog-cook__fire {
+  position: absolute;
+  bottom: -82px;
+  left: 50%;
+  z-index: 2;
+  width: 240px;
+  height: 240px;
+  display: block;
+  opacity: 0;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 16px 18px rgba(180, 41, 36, 0.28));
+  pointer-events: none;
+}
+
+.mog-cook__fire.is-active {
+  opacity: 1;
+}
+
+.mog-cook__fire > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.mog-cook__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .mog-final__inner > img {
     animation: mog-egg-sway 6s ease-in-out infinite;
@@ -2084,6 +2136,10 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
   .mog-birds img,
   .mog-story__step-number {
     transition: none;
+  }
+
+  .mog-cook__fire {
+    display: none;
   }
 }
 
