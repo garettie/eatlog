@@ -17,9 +17,13 @@ colors:
   primary: "#ffffff"
   on-primary: "#0f1117"
   protein: "#f2b7c6"
+  protein-overflow: "#ea8ca4"
   carbs: "#b5e3c4"
+  carbs-overflow: "#90d5a7"
   fat: "#e5c36c"
+  fat-overflow: "#ddb141"
   calories: "#a0cafd"
+  calories-overflow: "#6eaefc"
   expenditure: "#d0bcff"
   error: "#ffb4ab"
   web-interactive: "#ff7b73"
@@ -105,18 +109,18 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Adaptive Training Instrument"**
+Eatlog's design direction is "The Adaptive Training Instrument."
 
-Eatlog is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.
+Eatlog is a dark Material 3 nutrition tracker. Near-black surfaces keep calories, macros, and weight trends prominent. Large tabular numbers carry current values. Tonal surfaces and hairline boundaries group related controls without shadows.
 
-The system is photo-first. The most delightful visual moment is a real meal photo paired with a locally reused or newly estimated meal; otherwise food-relevant Material Community icons preserve semantic recognition. Motion confirms state, navigation, selection, and calculation. It never exists as ambient decoration.
+Eatlog is photo-first. A selected meal photo stays visible through identification and review. Without a photo, deterministic food icons preserve recognition offline. Motion confirms state, navigation, selection, and calculation. It does not run as decoration.
 
-Profile completes the product shell. It gives occasional, high-consequence work a stable home without crowding Today, Diary, or Analytics. Profile replaces the Sync tab. Data & Sync becomes one branch inside Profile; cloud sync does not appear until it works. The shell has four tabs and one center Add FAB.
+Profile is the fourth tab. It groups plan settings, preferences, owned data, and help so those controls do not crowd Today, Diary, or Analytics. Data & Sync sits inside Profile. Cloud sync stays hidden until it works. The shell has four tabs and one center Add FAB.
 
-**Key Characteristics:**
+### Key characteristics
 - Tonal dark Material 3 layering, not gradients or glass.
 - Real Onest weights, tabular numbers, and clear numeric hierarchy.
-- Scanner/photo media is meaningful; icons are a robust offline fallback.
+- Stored meal photos appear with their entries; deterministic icons cover entries without photos and work offline.
 - Rounded surfaces with hairline boundaries, not floating shadow stacks.
 - Android-native bottom sheets, Back behavior, 48dp touch targets, and reduced-motion support.
 - A Profile destination that groups plan, preferences, owned data, and help through progressive disclosure.
@@ -146,6 +150,8 @@ Eatlog uses a near-black neutral stack for structure and reserves named macro co
 - **Placeholder Gray**: placeholders stay distinct from entered values while retaining AA contrast.
 
 **The Nutrient Meaning Rule.** Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen. Never reuse these colors as decoration or generic success/error states.
+
+**The Nutrient Overflow Rule.** The first full ring or bar uses the nutrient's base color. Intake above target refills from the start in a slightly darker same-hue token, capped at one additional full cycle. Error Coral remains reserved for errors and destructive actions.
 
 **Website Interaction Rule.** The public website uses coral `#ff7b73` for focus, links, disclosure marks, and generic section labels. Keep calorie blue reserved for calorie information; keep protein rose, carb green, fat gold, and expenditure lavender tied to their nutrient or analytics meaning.
 
@@ -204,7 +210,7 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Sheets:** use `@gorhom/bottom-sheet` with M3 handle, tonal surface, Back handling, discard guard, and interactive keyboard behavior.
 
 ### Signature Components
-- **Calorie Ring and Toggle:** white ring on tonal track, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
+- **Calorie Ring and Toggle:** calorie-blue ring on a tonal track, darker same-hue overflow refill, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
 - **Ruler Slider:** horizontal-only gesture capture; height uses 8px per unit and tenths use 20px per unit; direct entry is always available; adjustable accessibility actions increment/decrement by the configured step.
 
 ## Profile and Settings

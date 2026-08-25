@@ -38,6 +38,11 @@ export interface MacroTargets {
   targetCarbsG: number;
 }
 
+export function targetOverflowProgress(value: number, target: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(target) || target <= 0) return 0;
+  return Math.min(1, Math.max(0, (value - target) / target));
+}
+
 export function ageFromBirthDate(birthDate: string): number {
   return ageFromLocalBirthDate(birthDate);
 }

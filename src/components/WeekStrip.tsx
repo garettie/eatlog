@@ -11,6 +11,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 import { M3 } from '../theme/tokens';
+import { targetOverflowProgress } from '../utils/calculations';
 import { DURATION, EASING } from '../theme/motion';
 
 const RING_R = 15;
@@ -84,11 +85,15 @@ const DayButton = React.memo(function DayButton({
   const fraction = day.isFuture || day.targetCalories <= 0
     ? 0
     : Math.min(1, day.calories / day.targetCalories);
-  const isOver = !day.isFuture && day.targetCalories > 0 && day.calories > day.targetCalories;
-  const ringStrokeColor = isOver ? M3.error : M3.calories;
+  const overflowFraction = day.isFuture
+    ? 0
+    : targetOverflowProgress(day.calories, day.targetCalories);
   const offset = CIRCUMFERENCE * (1 - fraction);
+  const overflowOffset = CIRCUMFERENCE * (1 - overflowFraction);
   const calorieHint = day.targetCalories > 0
-    ? `${Math.round(day.calories)} of ${Math.round(day.targetCalories)} calories logged`
+    ? overflowFraction > 0
+      ? `${Math.round(day.calories)} calories logged, ${Math.round(day.calories - day.targetCalories)} over target`
+      : `${Math.round(day.calories)} of ${Math.round(day.targetCalories)} calories logged`
     : day.calories > 0
       ? `${Math.round(day.calories)} calories logged`
       : 'No calories logged';
@@ -141,7 +146,7 @@ const DayButton = React.memo(function DayButton({
               cy={18}
               r={RING_R}
               fill="none"
-              stroke={ringStrokeColor}
+              stroke={M3.calories}
               strokeWidth={RING_STROKE}
               strokeLinecap="round"
               strokeDasharray={CIRCUMFERENCE}
@@ -150,6 +155,22 @@ const DayButton = React.memo(function DayButton({
               originX={18}
               originY={18}
             />
+            {overflowFraction > 0 ? (
+              <Circle
+                cx={18}
+                cy={18}
+                r={RING_R}
+                fill="none"
+                stroke={M3.caloriesOverflow}
+                strokeWidth={RING_STROKE}
+                strokeLinecap="round"
+                strokeDasharray={CIRCUMFERENCE}
+                strokeDashoffset={overflowOffset}
+                rotation={-90}
+                originX={18}
+                originY={18}
+              />
+            ) : null}
           </Svg>
         )}
         <Text

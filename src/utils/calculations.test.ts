@@ -6,6 +6,7 @@ import {
   calcTDEE,
   calculateMacrosForCalories,
   calculateTargets,
+  targetOverflowProgress,
 } from './calculations';
 
 const activities: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
@@ -77,4 +78,13 @@ test('non-finite and unsupported calculation inputs are rejected', () => {
     proteinPreference: 'moderate',
     weightKg: 80,
   }));
+});
+
+test('overflow progress starts after target and caps at one extra cycle', () => {
+  assert.equal(targetOverflowProgress(1800, 2000), 0);
+  assert.equal(targetOverflowProgress(2000, 2000), 0);
+  assert.equal(targetOverflowProgress(2500, 2000), 0.25);
+  assert.equal(targetOverflowProgress(4500, 2000), 1);
+  assert.equal(targetOverflowProgress(2000, 0), 0);
+  assert.equal(targetOverflowProgress(Number.NaN, 2000), 0);
 });

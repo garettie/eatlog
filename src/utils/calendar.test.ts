@@ -8,6 +8,7 @@ import {
   formatLocalISO,
   normalizeLogDateInput,
   parseLocalISO,
+  getMonthGrid,
 } from './calendar';
 
 test('log date labels identify today and show the selected weekday', () => {
@@ -78,4 +79,24 @@ test('calendar day count is not altered by a DST transition', () => {
       process.env.TZ = previousTimezone;
     }
   }
+});
+
+test('month grids start on Monday and include spillover days', () => {
+  const grid = getMonthGrid(parseLocalISO('2026-08-01'));
+
+  assert.equal(grid.length, 6);
+  assert.equal(formatLocalISO(grid[0][0]), '2026-07-27');
+  assert.equal(formatLocalISO(grid[5][6]), '2026-09-06');
+  for (const week of grid) {
+    assert.equal(week.length, 7);
+    assert.deepEqual(week.map((date) => date.getDay()), [1, 2, 3, 4, 5, 6, 0]);
+  }
+});
+
+test('month grids preserve local ordering across year boundaries', () => {
+  const grid = getMonthGrid(parseLocalISO('2026-01-01'));
+
+  assert.equal(formatLocalISO(grid[0][0]), '2025-12-29');
+  assert.equal(formatLocalISO(grid[0][3]), '2026-01-01');
+  assert.equal(formatLocalISO(grid.at(-1)!.at(-1)!), '2026-02-01');
 });

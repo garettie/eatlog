@@ -1,6 +1,9 @@
 import {
   addCalendarDays,
   calendarDaysBetween,
+  formatLocalISO,
+  getMonthGrid,
+  getMonthStart,
   parseLocalISO,
 } from './calendar';
 
@@ -37,6 +40,43 @@ export interface EnergyHistoryModel {
   averageCalories: number | null;
 }
 
+export type CalorieCalendarDayStatus =
+  | 'under'
+  | 'target'
+  | 'over'
+  | 'missing'
+  | 'future'
+  | 'target-unavailable';
+
+export interface CalorieCalendarDay {
+  date: string;
+  inMonth: boolean;
+  status: CalorieCalendarDayStatus;
+  calories: number | null;
+  targetCalories: number | null;
+  deltaCalories: number | null;
+  progress: number;
+}
+
+export interface CalorieCalendarWeek {
+  startDate: string;
+  endDate: string;
+  days: CalorieCalendarDay[];
+  loggedDays: number;
+  totalCalories: number;
+  targetDays: number;
+  targetCalories: number;
+  deltaCalories: number | null;
+}
+
+export interface CalorieCalendarMonth {
+  monthStart: string;
+  monthEnd: string;
+  gridStart: string;
+  gridEnd: string;
+  weeks: CalorieCalendarWeek[];
+}
+
 function mean(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -52,6 +92,92 @@ function activeTarget(
     active = target;
   }
   return active;
+}
+
+function clampProgress(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+export function buildCalorieCalendar(
+  monthStart: string,
+  today: string,
+  dailyEnergy: readonly DailyEnergy[],
+  targetHistory: readonly EnergyTarget[],
+): CalorieCalendarMonth {
+  const normalizedMonthStartDate = getMonthStart(parseLocalISO(monthStart));
+  const normalizedMonthStart = formatLocalISO(normalizedMonthStartDate);
+  const normalizedToday = formatLocalISO(parseLocalISO(today));
+  const monthEndDate = new Date(normalizedMonthStartDate);
+  monthEndDate.setMonth(monthEndDate.getMonth() + 1, 0);
+  const monthEnd = formatLocalISO(monthEndDate);
+  const grid = getMonthGrid(normalizedMonthStartDate);
+  const gridStart = formatLocalISO(grid[0][0]);
+  const gridEnd = formatLocalISO(grid[grid.length - 1][6]);
+  const energyByDate = new Map(dailyEnergy.map((day) => [day.log_date, day.calories] as const));
+  const targets = [...targetHistory].sort((a, b) => (
+    a.effective_date.localeCompare(b.effective_date) || a.id - b.id
+  ));
+
+  const weeks = grid.map((dates) => {
+    const days = dates.map((date) => {
+      const dateISO = formatLocalISO(date);
+      const target = activeTarget(targets, dateISO);
+      const calories = energyByDate.has(dateISO) ? energyByDate.get(dateISO)! : null;
+      const future = dateISO > normalizedToday;
+      let status: CalorieCalendarDayStatus;
+      if (future) {
+        status = 'future';
+      } else if (calories == null) {
+        status = 'missing';
+      } else if (target == null) {
+        status = 'target-unavailable';
+      } else if (calories < target.target_calories) {
+        status = 'under';
+      } else if (calories > target.target_calories) {
+        status = 'over';
+      } else {
+        status = 'target';
+      }
+
+      const targetCalories = target?.target_calories ?? null;
+      const deltaCalories = status === 'under' || status === 'target' || status === 'over'
+        ? calories! - targetCalories!
+        : null;
+      const progress = calories != null && targetCalories != null && targetCalories > 0 && !future
+        ? clampProgress(calories / targetCalories)
+        : 0;
+
+      return {
+        date: dateISO,
+        inMonth: dateISO >= normalizedMonthStart && dateISO <= monthEnd,
+        status,
+        calories,
+        targetCalories,
+        deltaCalories,
+        progress,
+      };
+    });
+
+    const logged = days.filter((day) => day.calories != null && day.status !== 'future');
+    const withTargets = logged.filter((day) => day.targetCalories != null);
+    const totalCalories = logged.reduce((sum, day) => sum + day.calories!, 0);
+    const targetCalories = withTargets.reduce((sum, day) => sum + day.targetCalories!, 0);
+
+    return {
+      startDate: days[0].date,
+      endDate: days[days.length - 1].date,
+      days,
+      loggedDays: logged.length,
+      totalCalories,
+      targetDays: withTargets.length,
+      targetCalories,
+      deltaCalories: logged.length > 0 && withTargets.length === logged.length
+        ? totalCalories - targetCalories
+        : null,
+    };
+  });
+
+  return { monthStart: normalizedMonthStart, monthEnd, gridStart, gridEnd, weeks };
 }
 
 export function buildEnergyHistory(

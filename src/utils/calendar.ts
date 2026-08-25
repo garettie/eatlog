@@ -130,6 +130,28 @@ export function getMonthDates(monthStart: Date): Date[] {
   return days;
 }
 
+export function getMonthGrid(monthStart: Date): Date[][] {
+  const normalizedStart = getMonthStart(monthStart);
+  const firstDay = new Date(normalizedStart);
+  const daysFromMonday = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+  firstDay.setDate(firstDay.getDate() - daysFromMonday);
+
+  const monthEnd = new Date(normalizedStart);
+  monthEnd.setMonth(monthEnd.getMonth() + 1, 0);
+
+  const weeks: Date[][] = [];
+  const cursor = new Date(firstDay);
+  while (cursor.getTime() <= monthEnd.getTime()) {
+    weeks.push(Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(cursor);
+      date.setDate(date.getDate() + index);
+      return date;
+    }));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return weeks;
+}
+
 export function formatMonthLabel(monthStart: Date): string {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   return `${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`;

@@ -1,11 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildEnergyHistory } from './energyHistory';
+import { buildCalorieCalendar, buildEnergyHistory } from './energyHistory';
 
 const targets = [
   { id: 1, effective_date: '2026-01-01', target_calories: 2200, tdee_estimate: 2600 },
   { id: 2, effective_date: '2026-01-08', target_calories: 2100, tdee_estimate: 2500 },
+];
+
+function findDay(month: ReturnType<typeof buildCalorieCalendar>, date: string) {
+  for (const week of month.weeks) {
+    const day = week.days.find((item) => item.date === date);
+    if (day) return day;
+  }
+  throw new Error(`Missing calendar day ${date}`);
+}
+
+function findWeek(month: ReturnType<typeof buildCalorieCalendar>, date: string) {
+  const week = month.weeks.find((item) => item.days.some((day) => day.date === date));
+  if (!week) throw new Error(`Missing calendar week for ${date}`);
+  return week;
+}
+
+const calendarTargets = [
+  { id: 1, effective_date: '2026-01-01', target_calories: 2000, tdee_estimate: 2400 },
 ];
 
 test('builds daily points and waits for four logged days before showing a rolling average', () => {
@@ -64,4 +82,85 @@ test('rejects a reversed date range', () => {
     () => buildEnergyHistory('1M', '2026-01-02', '2026-01-01', [], targets),
     /must not precede/,
   );
+});
+
+test('builds August 2026 status rings and complete spillover rows', () => {
+  const result = buildCalorieCalendar('2026-08-01', '2026-08-31', [
+    { log_date: '2026-08-01', calories: 2200 },
+    { log_date: '2026-08-02', calories: 1800 },
+    { log_date: '2026-08-03', calories: 2000 },
+  ], calendarTargets);
+
+  assert.equal(result.gridStart, '2026-07-27');
+  assert.equal(result.gridEnd, '2026-09-06');
+  assert.equal(result.weeks.length, 6);
+  assert.deepEqual(
+    result.weeks[0].days.map((day) => day.date),
+    ['2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02'],
+  );
+  assert.equal(findDay(result, '2026-08-01').status, 'over');
+  assert.equal(findDay(result, '2026-08-01').progress, 1);
+  assert.equal(findDay(result, '2026-08-02').status, 'under');
+  assert.equal(findDay(result, '2026-08-02').progress, 0.9);
+  assert.equal(findDay(result, '2026-08-03').status, 'target');
+  assert.equal(findDay(result, '2026-08-03').deltaCalories, 0);
+  assert.equal(findDay(result, '2026-09-01').inMonth, false);
+});
+
+test('marks missing and future days without counting them in weekly totals', () => {
+  const result = buildCalorieCalendar('2026-08-01', '2026-08-16', [
+    { log_date: '2026-08-17', calories: 2500 },
+  ], calendarTargets);
+
+  assert.equal(findDay(result, '2026-08-10').status, 'missing');
+  assert.equal(findDay(result, '2026-08-17').status, 'future');
+  assert.equal(findWeek(result, '2026-08-10').loggedDays, 0);
+  assert.equal(findWeek(result, '2026-08-10').totalCalories, 0);
+  assert.equal(findWeek(result, '2026-08-10').deltaCalories, null);
+  assert.equal(findWeek(result, '2026-08-17').loggedDays, 0);
+  assert.equal(findWeek(result, '2026-08-17').totalCalories, 0);
+});
+
+test('includes logged spillover days in weekly totals', () => {
+  const result = buildCalorieCalendar('2026-08-01', '2026-08-31', [
+    { log_date: '2026-07-31', calories: 1800 },
+  ], calendarTargets);
+  const week = findWeek(result, '2026-07-31');
+
+  assert.equal(findDay(result, '2026-07-31').inMonth, false);
+  assert.equal(week.loggedDays, 1);
+  assert.equal(week.totalCalories, 1800);
+  assert.equal(week.targetDays, 1);
+  assert.equal(week.targetCalories, 2000);
+  assert.equal(week.deltaCalories, -200);
+});
+
+test('applies target changes to each date inside a week', () => {
+  const result = buildCalorieCalendar('2026-01-01', '2026-01-31', [
+    { log_date: '2026-01-03', calories: 2000 },
+    { log_date: '2026-01-04', calories: 1800 },
+  ], [
+    { id: 2, effective_date: '2026-01-04', target_calories: 1800, tdee_estimate: 2200 },
+    { id: 1, effective_date: '2026-01-01', target_calories: 2000, tdee_estimate: 2400 },
+  ]);
+  const week = findWeek(result, '2026-01-03');
+
+  assert.equal(findDay(result, '2026-01-03').targetCalories, 2000);
+  assert.equal(findDay(result, '2026-01-04').targetCalories, 1800);
+  assert.equal(week.targetCalories, 3800);
+  assert.equal(week.deltaCalories, 0);
+});
+
+test('keeps logged calories when the target is unavailable', () => {
+  const result = buildCalorieCalendar('2026-08-01', '2026-08-31', [
+    { log_date: '2026-08-10', calories: 1900 },
+  ], []);
+  const week = findWeek(result, '2026-08-10');
+
+  assert.equal(findDay(result, '2026-08-10').status, 'target-unavailable');
+  assert.equal(week.loggedDays, 1);
+  assert.equal(week.totalCalories, 1900);
+  assert.equal(week.targetDays, 0);
+  assert.equal(week.targetCalories, 0);
+  assert.equal(week.deltaCalories, null);
 });

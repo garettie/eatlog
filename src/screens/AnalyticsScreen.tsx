@@ -10,6 +10,7 @@ import { useEntitlement } from '../context/EntitlementContext';
 import Card from '../components/Card';
 import EnergyChart from '../components/EnergyChart';
 import LoggingHeatmap from '../components/LoggingHeatmap';
+import MonthlyCalorieCalendar from '../components/MonthlyCalorieCalendar';
 import SegmentedControl from '../components/SegmentedControl';
 import WeightChart from '../components/WeightChart';
 import WeightChartLegend from '../components/WeightChartLegend';
@@ -36,6 +37,10 @@ import {
   addCalendarDays,
   addCalendarMonths,
   calendarDaysBetween,
+  formatLocalISO,
+  formatMonthLabel,
+  getMonthGrid,
+  getMonthStart,
   parseLocalISO,
   todayISO,
 } from '../utils/calendar';
@@ -43,6 +48,8 @@ import { computeNormalizedWeeklyRate } from '../utils/weightTrend';
 import { formatWeight } from '../utils/weightUnits';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
+import { useToday } from '../hooks/useToday';
+import { buildCalorieCalendar, CalorieCalendarMonth } from '../utils/energyHistory';
 
 type RangeKey = '1M' | '3M' | '6M' | '1Y';
 
@@ -94,9 +101,20 @@ const RANGE_OPTIONS = [
   { value: '1Y' as const, label: '1Y', accessibilityLabel: '1 year' },
 ];
 
+const RANGE_LABELS: Record<RangeKey, string> = {
+  '1M': '1 month',
+  '3M': '3 months',
+  '6M': '6 months',
+  '1Y': '1 year',
+};
+
 function rangeDates(range: RangeKey, endDate: string) {
   const months = range === '1M' ? -1 : range === '3M' ? -3 : range === '6M' ? -6 : -12;
   return { startDate: addCalendarDays(addCalendarMonths(endDate, months), 1), endDate };
+}
+
+function monthStartISO(dateISO: string): string {
+  return formatLocalISO(getMonthStart(parseLocalISO(dateISO)));
 }
 
 function displayDate(dateISO: string): string {
@@ -262,10 +280,15 @@ function AnalyticsScreen({
   onDataChanged,
 }: AnalyticsScreenProps) {
   const reduced = useReducedMotion();
+  const today = useToday();
   const navigation = useNavigation<any>();
   const { hasPaidFeatures } = useEntitlement();
   const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
   const [selectedRange, setSelectedRange] = useState<RangeKey>('1M');
+  const [selectedCalorieMonthStart, setSelectedCalorieMonthStart] = useState(() => monthStartISO(todayISO()));
+  const [calorieMonth, setCalorieMonth] = useState<CalorieCalendarMonth | null>(null);
+  const [calorieMonthLoading, setCalorieMonthLoading] = useState(true);
+  const [calorieMonthError, setCalorieMonthError] = useState(false);
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [recommendation, setRecommendation] = useState<AdaptiveReviewState | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -284,6 +307,14 @@ function AnalyticsScreen({
   const requestRef = useRef(0);
   const dataVersionRef = useRef(dataVersion);
   const operationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const selectedCalorieMonthRef = useRef(selectedCalorieMonthStart);
+  const calorieMonthRequestRef = useRef(0);
+  const calorieMonthGenerationRef = useRef(0);
+  const calorieMonthCacheRef = useRef(new Map<string, CalorieCalendarMonth>());
+  const calorieMonthLoadPromiseRef = useRef(new Map<string, Promise<CalorieCalendarMonth>>());
+  const previousTodayRef = useRef(today);
+
+  selectedCalorieMonthRef.current = selectedCalorieMonthStart;
 
   useEffect(() => () => {
     mountedRef.current = false;
@@ -293,6 +324,84 @@ function AnalyticsScreen({
     const result = operationQueueRef.current.catch(() => undefined).then(operation);
     operationQueueRef.current = result.catch(() => undefined);
     return result;
+  }, []);
+
+  const fetchCalorieMonth = useCallback((monthStart: string): Promise<CalorieCalendarMonth> => {
+    const normalizedMonthStart = monthStartISO(monthStart);
+    const cached = calorieMonthCacheRef.current.get(normalizedMonthStart);
+    if (cached) return Promise.resolve(cached);
+
+    const pending = calorieMonthLoadPromiseRef.current.get(normalizedMonthStart);
+    if (pending) return pending;
+
+    const cacheGeneration = calorieMonthGenerationRef.current;
+    const grid = getMonthGrid(parseLocalISO(normalizedMonthStart));
+    const gridStart = formatLocalISO(grid[0][0]);
+    const gridEnd = formatLocalISO(grid[grid.length - 1][6]);
+    const request = (async () => {
+      const initialTarget = await getDailyTargetForDate(gridStart);
+      const targetChanges = await getDailyTargetsByDateRange(gridStart, gridEnd);
+      const totals = await getDailyCaloriesByDateRange(gridStart, gridEnd);
+      const targetHistory = (initialTarget
+        ? [initialTarget, ...targetChanges.filter((item) => item.id !== initialTarget.id)]
+        : targetChanges
+      ).map(({ id, effective_date, target_calories, tdee_estimate }) => ({
+        id,
+        effective_date,
+        target_calories,
+        tdee_estimate,
+      }));
+      const model = buildCalorieCalendar(normalizedMonthStart, todayISO(), totals, targetHistory);
+      if (cacheGeneration === calorieMonthGenerationRef.current && mountedRef.current) {
+        calorieMonthCacheRef.current.set(normalizedMonthStart, model);
+      }
+      return model;
+    })().finally(() => {
+      if (calorieMonthLoadPromiseRef.current.get(normalizedMonthStart) === request) {
+        calorieMonthLoadPromiseRef.current.delete(normalizedMonthStart);
+      }
+    });
+    calorieMonthLoadPromiseRef.current.set(normalizedMonthStart, request);
+    return request;
+  }, []);
+
+  const loadCalorieMonth = useCallback((monthStart: string) => {
+    const normalizedMonthStart = monthStartISO(monthStart);
+    const requestId = ++calorieMonthRequestRef.current;
+    const cached = calorieMonthCacheRef.current.get(normalizedMonthStart);
+    if (cached) {
+      setCalorieMonth(cached);
+      setCalorieMonthError(false);
+      setCalorieMonthLoading(false);
+      return Promise.resolve();
+    }
+
+    setCalorieMonthLoading(true);
+    setCalorieMonthError(false);
+    return enqueue(async () => {
+      try {
+        const model = await fetchCalorieMonth(normalizedMonthStart);
+        if (!mountedRef.current || requestId !== calorieMonthRequestRef.current) return;
+        setCalorieMonth(model);
+        setCalorieMonthError(false);
+      } catch (error) {
+        console.error('[Analytics] calorie calendar load failed', error);
+        if (mountedRef.current && requestId === calorieMonthRequestRef.current) {
+          setCalorieMonthError(true);
+        }
+      } finally {
+        if (mountedRef.current && requestId === calorieMonthRequestRef.current) {
+          setCalorieMonthLoading(false);
+        }
+      }
+    });
+  }, [enqueue, fetchCalorieMonth]);
+
+  const invalidateCalorieMonthLoads = useCallback(() => {
+    calorieMonthGenerationRef.current += 1;
+    calorieMonthRequestRef.current += 1;
+    calorieMonthCacheRef.current.clear();
+    calorieMonthLoadPromiseRef.current.clear();
   }, []);
 
   const loadData = useCallback(async (options: { initial?: boolean } = {}) => {
@@ -354,17 +463,32 @@ function AnalyticsScreen({
     useCallback(() => {
       const initial = !initialLoadDoneRef.current && !hasDataRef.current;
       initialLoadDoneRef.current = true;
-      if (!hasDataRef.current || loadedDateRef.current !== todayISO()) {
+      const needsDataRefresh = !hasDataRef.current || loadedDateRef.current !== todayISO();
+      if (needsDataRefresh) {
         void loadData({ initial });
+        void loadCalorieMonth(selectedCalorieMonthRef.current);
       }
-    }, [loadData]),
+    }, [loadCalorieMonth, loadData]),
   );
 
   useEffect(() => {
     if (dataVersionRef.current === dataVersion) return;
     dataVersionRef.current = dataVersion;
-    if (initialLoadDoneRef.current) void loadData();
-  }, [dataVersion, loadData]);
+    invalidateCalorieMonthLoads();
+    if (initialLoadDoneRef.current) {
+      void loadData();
+      void loadCalorieMonth(selectedCalorieMonthRef.current);
+    }
+  }, [dataVersion, invalidateCalorieMonthLoads, loadCalorieMonth, loadData]);
+
+  useEffect(() => {
+    const previous = previousTodayRef.current;
+    previousTodayRef.current = today;
+    if (previous === today) return;
+    invalidateCalorieMonthLoads();
+    void loadData();
+    void loadCalorieMonth(selectedCalorieMonthRef.current);
+  }, [invalidateCalorieMonthLoads, loadCalorieMonth, loadData, today]);
 
   const analyticsDerived = useMemo(() => {
     if (!data) return null;
@@ -407,6 +531,31 @@ function AnalyticsScreen({
     selectedRangeRef.current = range;
     setSelectedRange(range);
   }, []);
+
+  const shiftCalorieMonth = useCallback((delta: number) => {
+    const selected = selectedCalorieMonthRef.current;
+    const current = monthStartISO(todayISO());
+    if (delta > 0 && selected >= current) return;
+
+    const next = monthStartISO(addCalendarMonths(selected, delta));
+    selectedCalorieMonthRef.current = next;
+    setSelectedCalorieMonthStart(next);
+    setCalorieMonthError(false);
+    const cached = calorieMonthCacheRef.current.get(next);
+    if (cached) {
+      setCalorieMonth(cached);
+      setCalorieMonthLoading(false);
+      return;
+    }
+
+    setCalorieMonth(null);
+    setCalorieMonthLoading(true);
+    void loadCalorieMonth(next);
+  }, [loadCalorieMonth]);
+
+  const retryCalorieMonth = useCallback(() => {
+    void loadCalorieMonth(selectedCalorieMonthRef.current);
+  }, [loadCalorieMonth]);
 
   const retryRecommendation = useCallback(async () => {
     if (!hasPaidFeatures) {
@@ -786,6 +935,19 @@ function AnalyticsScreen({
     </Card>
   );
 
+  const calorieCalendar = (
+    <MonthlyCalorieCalendar
+      month={calorieMonth}
+      monthLabel={formatMonthLabel(parseLocalISO(selectedCalorieMonthStart))}
+      isCurrentMonth={selectedCalorieMonthStart === monthStartISO(today)}
+      loading={calorieMonthLoading}
+      error={calorieMonthError}
+      onPreviousMonth={() => shiftCalorieMonth(-1)}
+      onNextMonth={() => shiftCalorieMonth(1)}
+      onRetry={retryCalorieMonth}
+    />
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
       <ScrollView
@@ -895,8 +1057,11 @@ function AnalyticsScreen({
           <View className={isTwoPane ? 'flex-[2] min-w-0 gap-4' : 'gap-4'}>
 
           <Card className="p-5 gap-4">
-            <View className="flex-row items-center justify-between gap-3">
-              <Text className="text-m3-on-surface font-bold text-base">Calories</Text>
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="flex-1 min-w-0 gap-0.5">
+                <Text className="text-m3-on-surface font-bold text-base">Calories</Text>
+                <Text className="text-m3-on-surface-variant text-xs">Trend period · {RANGE_LABELS[selectedRange]}</Text>
+              </View>
               {averageTargetDeltaCopy ? (
                 <View className="rounded-full bg-m3-calories/10 px-3 py-1.5">
                   <Text className="text-m3-calories text-xs font-semibold tabular-nums" numberOfLines={1}>
@@ -933,6 +1098,8 @@ function AnalyticsScreen({
                 height={176}
               />
             )}
+            <View className="h-px bg-m3-outline-variant/50" />
+            {calorieCalendar}
           </Card>
 
           </View>

@@ -30,6 +30,7 @@ import {
   type LastEntry,
 } from '../db/database';
 import { addCalendarDays, todayISO } from '../utils/calendar';
+import { targetOverflowProgress } from '../utils/calculations';
 import { useToday } from '../hooks/useToday';
 import { foodIcon } from '../utils/foodIcons';
 import { M3 } from '../theme/tokens';
@@ -47,16 +48,22 @@ const CIRCUMFERENCE = 2 * Math.PI * RING_R;
 
 // ── CircularProgress Component ────────────────────────────────────────────
 
-function CircularProgress({ progress }: { progress: number }) {
+function CircularProgress({ progress, overflow }: { progress: number; overflow: number }) {
   const reduced = useReducedMotion();
-  const sv = useSharedValue(0);
+  const progressSv = useSharedValue(0);
+  const overflowSv = useSharedValue(0);
 
   useEffect(() => {
-    sv.value = withTiming(Math.min(1, Math.max(0, progress)), { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-  }, [progress, reduced]);
+    const timing = { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) };
+    progressSv.value = withTiming(Math.min(1, Math.max(0, progress)), timing);
+    overflowSv.value = withTiming(Math.min(1, Math.max(0, overflow)), timing);
+  }, [overflow, overflowSv, progress, progressSv, reduced]);
 
-  const animatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: CIRCUMFERENCE * (1 - sv.value),
+  const progressProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - progressSv.value),
+  }));
+  const overflowProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - overflowSv.value),
   }));
 
   return (
@@ -71,12 +78,26 @@ function CircularProgress({ progress }: { progress: number }) {
         opacity={0.5}
       />
       <AnimatedCircle
-        animatedProps={animatedProps}
+        animatedProps={progressProps}
         cx={RING_SIZE / 2}
         cy={RING_SIZE / 2}
         r={RING_R}
         fill="none"
-        stroke={M3.primary}
+        stroke={M3.calories}
+        strokeWidth={STROKE}
+        strokeLinecap="round"
+        strokeDasharray={CIRCUMFERENCE}
+        rotation={-90}
+        originX={RING_SIZE / 2}
+        originY={RING_SIZE / 2}
+      />
+      <AnimatedCircle
+        animatedProps={overflowProps}
+        cx={RING_SIZE / 2}
+        cy={RING_SIZE / 2}
+        r={RING_R}
+        fill="none"
+        stroke={M3.caloriesOverflow}
         strokeWidth={STROKE}
         strokeLinecap="round"
         strokeDasharray={CIRCUMFERENCE}
@@ -95,23 +116,38 @@ interface MacroProgressProps {
   consumed: number;
   target: number;
   showRemaining: boolean;
-  progressColorClass: string;
+  progressColor: string;
+  overflowColor: string;
 }
 
-function MacroProgress({ label, consumed, target, showRemaining, progressColorClass }: MacroProgressProps) {
+function MacroProgress({
+  label,
+  consumed,
+  target,
+  showRemaining,
+  progressColor,
+  overflowColor,
+}: MacroProgressProps) {
   const reduced = useReducedMotion();
   const remaining = Math.max(0, target - consumed);
   const displayedValue = showRemaining ? remaining : consumed;
   const pct = target > 0 ? Math.min(1, Math.max(0, displayedValue / target)) : 0;
   const over = Math.max(0, consumed - target);
+  const overflowPct = targetOverflowProgress(consumed, target);
   const barPctSV = useSharedValue(0);
+  const overflowPctSV = useSharedValue(0);
 
   useEffect(() => {
-    barPctSV.value = withTiming(pct, { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) });
-  }, [pct, reduced]);
+    const timing = { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) };
+    barPctSV.value = withTiming(pct, timing);
+    overflowPctSV.value = withTiming(overflowPct, timing);
+  }, [barPctSV, overflowPct, overflowPctSV, pct, reduced]);
 
   const barStyle = useAnimatedStyle(() => ({
     transform: [{ scaleX: barPctSV.value }],
+  }));
+  const overflowStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: overflowPctSV.value }],
   }));
   const roundedConsumed = Math.round(consumed);
   const roundedTarget = Math.round(target);
@@ -129,8 +165,12 @@ function MacroProgress({ label, consumed, target, showRemaining, progressColorCl
       <Text className="text-m3-on-surface-variant text-sm font-medium text-center" numberOfLines={1}>{label}</Text>
       <View className="h-1.5 bg-m3-surface-container-highest rounded-full overflow-hidden">
         <Animated.View
-          className={`absolute inset-0 ${progressColorClass} rounded-full`}
-          style={[{ transformOrigin: 'left' }, barStyle]}
+          className="absolute inset-0 rounded-full"
+          style={[{ backgroundColor: progressColor, transformOrigin: 'left' }, barStyle]}
+        />
+        <Animated.View
+          className="absolute inset-0 rounded-full"
+          style={[{ backgroundColor: overflowColor, transformOrigin: 'left' }, overflowStyle]}
         />
       </View>
       <Text className="text-m3-on-surface text-sm font-semibold tabular-nums text-center" numberOfLines={1}>
@@ -138,7 +178,7 @@ function MacroProgress({ label, consumed, target, showRemaining, progressColorCl
       </Text>
       <View className="min-h-[14px] items-center">
         {hasVisibleOverage && (
-          <Text className="text-m3-error text-compact font-semibold tabular-nums" numberOfLines={1}>
+          <Text className="text-compact font-semibold tabular-nums" style={{ color: overflowColor }} numberOfLines={1}>
             +{roundedOver}g over
           </Text>
         )}
@@ -297,6 +337,7 @@ function DashboardScreen({
       calsOver,
       ringValue,
       ringProgress: targetCals > 0 ? Math.min(1, Math.max(0, ringValue / targetCals)) : 0,
+      ringOverflowProgress: targetOverflowProgress(consumedCals, targetCals),
       flankingLeft: showRemaining ? consumedCals : calsRemaining,
     };
   }, [showRemaining, target, todayMacros]);
@@ -324,7 +365,7 @@ function DashboardScreen({
               Couldn't load today's totals
             </Text>
             <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
-              Try again to load data from your on-device diary.
+              Your diary is still on this device. Try again.
             </Text>
           </View>
           <Pressable
@@ -346,7 +387,7 @@ function DashboardScreen({
         <View className="flex-1 items-center justify-center px-8 gap-4">
           <MaterialIcons name="person-outline" size={48} color={M3.onSurfaceVariant} />
           <Text className="text-m3-on-surface-variant text-sm font-medium text-center">
-            Set up your profile to see your dashboard
+            Set up your profile to see today's targets
           </Text>
           <Pressable
             onPress={() => navigation.navigate('Onboarding')}
@@ -370,6 +411,7 @@ function DashboardScreen({
     calsOver,
     ringValue,
     ringProgress,
+    ringOverflowProgress,
     flankingLeft,
   } = calorieSummary;
 
@@ -473,7 +515,7 @@ function DashboardScreen({
 
               {/* Center: ring with value overlaid */}
               <View className="items-center justify-center">
-                <CircularProgress progress={ringProgress} />
+                <CircularProgress progress={ringProgress} overflow={ringOverflowProgress} />
                 <View
                   className="absolute inset-0 items-center justify-center"
                   accessible
@@ -540,7 +582,7 @@ function DashboardScreen({
             </View>
 
             {calsOver > 0 && (
-              <Text className="text-m3-error text-xs font-semibold tabular-nums" accessibilityLiveRegion="polite">
+              <Text className="text-xs font-semibold tabular-nums" style={{ color: M3.caloriesOverflow }} accessibilityLiveRegion="polite">
                 +{calsOver.toLocaleString()} kcal over target
               </Text>
             )}
@@ -552,21 +594,24 @@ function DashboardScreen({
                 consumed={todayMacros.protein_g}
                 target={target.target_protein_g}
                 showRemaining={showRemaining}
-                progressColorClass="bg-m3-protein"
+                progressColor={M3.protein}
+                overflowColor={M3.proteinOverflow}
               />
               <MacroProgress
                 label="Carbs"
                 consumed={todayMacros.carbs_g}
                 target={target.target_carbs_g}
                 showRemaining={showRemaining}
-                progressColorClass="bg-m3-carbs"
+                progressColor={M3.carbs}
+                overflowColor={M3.carbsOverflow}
               />
               <MacroProgress
                 label="Fat"
                 consumed={todayMacros.fat_g}
                 target={target.target_fat_g}
                 showRemaining={showRemaining}
-                progressColorClass="bg-m3-fat"
+                progressColor={M3.fat}
+                overflowColor={M3.fatOverflow}
               />
             </View>
 
