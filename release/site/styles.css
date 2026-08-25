@@ -185,6 +185,9 @@ select {
 }
 
 .site-nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   color: var(--text-muted);
   font-size: 0.9rem;
   font-weight: 500;
@@ -270,6 +273,11 @@ select {
   background: #e6e8ef;
 }
 
+.header-action:active,
+.button:active {
+  transform: translateY(0) scale(0.97);
+}
+
 .button--secondary {
   border-color: var(--outline);
   background: transparent;
@@ -300,9 +308,9 @@ summary:focus-visible {
 .hero {
   min-height: calc(100svh - 79px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(330px, 0.78fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.72fr);
   align-items: center;
-  gap: clamp(52px, 8vw, 118px);
+  gap: clamp(64px, 9vw, 132px);
   padding-block: clamp(70px, 10vw, 138px) 88px;
 }
 
@@ -332,7 +340,7 @@ summary:focus-visible {
   max-width: 760px;
   margin: 0;
   color: var(--white);
-  font-size: clamp(3.5rem, 7.8vw, 6.8rem);
+  font-size: clamp(4rem, 7.2vw, 6rem);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 0.96;
@@ -396,8 +404,14 @@ summary:focus-visible {
 }
 
 .instrument-stage {
+  --dial-turn: 0deg;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --phone-lift: 0px;
+  perspective: 1400px;
+  isolation: isolate;
   position: relative;
-  min-height: 670px;
+  min-height: 720px;
   margin: 0;
   display: grid;
   place-items: center;
@@ -406,7 +420,7 @@ summary:focus-visible {
 
 .instrument-stage::before {
   position: absolute;
-  width: min(560px, 100%);
+  width: min(660px, 112%);
   aspect-ratio: 1;
   border: 1px solid var(--outline-soft);
   border-radius: 50%;
@@ -415,7 +429,9 @@ summary:focus-visible {
     var(--surface-lowest);
   content: "";
   mask: radial-gradient(circle, transparent 0 63%, #000 63.5% 100%);
-  opacity: 0.72;
+  opacity: 0.9;
+  transform: rotate(var(--dial-turn));
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .instrument-stage::after {
@@ -426,21 +442,66 @@ summary:focus-visible {
   height: 30px;
   transform: translateX(-50%);
   clip-path: polygon(0 0, 100% 0, 50% 100%);
-  background: var(--signal);
+  background: var(--calories);
   content: "";
 }
+
 
 .phone {
   position: relative;
   z-index: 2;
-  width: min(355px, 82vw);
+  width: min(390px, 86vw);
   padding: 6px;
   overflow: hidden;
   border: 1px solid #53565f;
   border-radius: 48px;
   background: #08090c;
-  transform: rotate(2.4deg);
+  transform: rotate(2.4deg) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translate3d(0, var(--phone-lift), 0);
+  transform-style: preserve-3d;
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+.hero.is-energized h1 {
+  animation: hero-calibration-lock 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.hero.is-energized .phone {
+  animation: phone-calibration-lock 980ms 120ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.hero.is-energized .hero-mobile-preview {
+  animation: mobile-calibration-lock 760ms 120ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.instrument-stage.is-visible::before {
+  animation: dial-calibration-lock 900ms cubic-bezier(0.16, 1, 0.3, 1) backwards, dial-calibration-idle 16s 900ms linear infinite;
+}
+
+
+@keyframes hero-calibration-lock {
+  from { clip-path: inset(0 100% 0 0); filter: blur(8px); }
+  to { clip-path: inset(0); filter: blur(0); }
+}
+
+@keyframes phone-calibration-lock {
+  from { opacity: 0.18; clip-path: inset(16% 0 16% 0 round 48px); transform: perspective(1300px) translate3d(90px, 90px, -220px) rotateY(-18deg) rotateZ(-7deg) scale(0.72); filter: blur(12px); }
+  to { opacity: 1; clip-path: inset(0 round 48px); transform: rotate(2.4deg) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translate3d(0, var(--phone-lift), 0); filter: blur(0); }
+}
+
+@keyframes mobile-calibration-lock {
+  from { clip-path: inset(48% 0 48% 0 round var(--radius-md)); filter: blur(7px); }
+  to { clip-path: inset(0 round var(--radius-md)); filter: blur(0); }
+}
+
+@keyframes dial-calibration-lock {
+  from { rotate: -42deg; opacity: 0.12; }
+  to { rotate: 0deg; opacity: 0.9; }
+}
+
+@keyframes dial-calibration-idle {
+  to { rotate: 1turn; }
+}
+
 
 .phone__screenshot {
   width: 100%;
@@ -482,7 +543,7 @@ summary:focus-visible {
   display: block;
   margin-bottom: 3px;
   color: var(--white);
-  font-size: 1.02rem;
+  font-size: 1.08rem;
 }
 
 .section {
@@ -533,30 +594,36 @@ summary:focus-visible {
 .workflow-list {
   counter-reset: workflow;
   display: grid;
-  overflow: clip;
+  overflow: visible;
 }
+
 
 .workflow-pair {
   counter-increment: workflow;
   position: relative;
-  min-height: max(780px, 92svh);
+  min-height: clamp(640px, 78svh, 760px);
   display: grid;
   grid-template-columns: minmax(280px, 0.68fr) minmax(420px, 1fr);
   align-items: center;
   gap: clamp(54px, 9vw, 138px);
-  padding-block: clamp(82px, 11vw, 144px);
+  padding-block: clamp(64px, 8vw, 112px);
   border-top: 1px solid var(--outline-soft);
 }
+
+.workflow-pair:nth-of-type(1) { --screen-focus-y: 18%; --chapter-accent: var(--calories); }
+.workflow-pair:nth-of-type(2) { --screen-focus-y: 24%; --chapter-accent: var(--protein); }
+.workflow-pair:nth-of-type(3) { --screen-focus-y: 22%; --chapter-accent: var(--expenditure); }
+.workflow-pair:nth-of-type(4) { --screen-focus-y: 42%; --chapter-accent: var(--expenditure); }
 
 .workflow-pair:last-child {
   border-bottom: 1px solid var(--outline-soft);
 }
 
-.workflow-pair:nth-child(even) .workflow-copy {
+.workflow-pair:nth-of-type(even) .workflow-copy {
   grid-column: 2;
 }
 
-.workflow-pair:nth-child(even) .workflow-screen {
+.workflow-pair:nth-of-type(even) .workflow-screen {
   grid-row: 1;
   grid-column: 1;
   justify-self: start;
@@ -574,6 +641,7 @@ summary:focus-visible {
   left: -0.08em;
   z-index: -1;
   color: var(--surface-highest);
+  color: color-mix(in srgb, var(--chapter-accent) 16%, var(--surface-highest));
   content: "0" counter(workflow);
   font-size: clamp(7rem, 15vw, 13rem);
   font-weight: 700;
@@ -582,7 +650,7 @@ summary:focus-visible {
 }
 
 .workflow-copy small {
-  color: var(--interactive);
+  color: var(--chapter-accent);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -606,6 +674,7 @@ summary:focus-visible {
 }
 
 .workflow-screen {
+  position: relative;
   width: min(520px, 100%);
   margin: 0;
   justify-self: end;
@@ -613,19 +682,48 @@ summary:focus-visible {
 
 .workflow-screen img {
   width: 100%;
-  height: auto;
+  height: min(760px, 78svh);
+  object-fit: cover;
+  object-position: 50% var(--screen-focus-y, 20%);
   border: 1px solid var(--outline);
+  border-color: color-mix(in srgb, var(--chapter-accent) 52%, var(--outline));
   border-radius: 44px;
   background: #08090c;
 }
 
-.workflow-screen figcaption {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--outline-soft);
-  color: var(--text-dim);
-  font-size: 0.8rem;
-  font-weight: 600;
+.workflow-pair:nth-of-type(-n + 3) .workflow-screen img {
+  height: auto;
+  object-position: top;
+}
+
+
+
+@supports not (animation-timeline: view()) {
+  .motion-ready .workflow-pair .workflow-copy {
+    opacity: 0.18;
+    transform: perspective(1200px) translate3d(0, 84px, -160px) scale(0.82);
+    filter: blur(10px);
+    transition: opacity 620ms ease-out, transform 720ms cubic-bezier(0.16, 1, 0.3, 1), filter 620ms ease-out;
+  }
+
+  .motion-ready .workflow-pair .workflow-screen {
+    opacity: 0.18;
+    clip-path: inset(12% 0 12% 0 round 32px);
+    transform: perspective(1200px) translate3d(0, 84px, -160px) scale(0.82);
+    filter: blur(10px);
+    transition: opacity 620ms ease-out, clip-path 720ms cubic-bezier(0.16, 1, 0.3, 1), transform 720ms cubic-bezier(0.16, 1, 0.3, 1), filter 620ms ease-out;
+  }
+
+  .motion-ready .workflow-pair.is-in-view .workflow-copy,
+  .motion-ready .workflow-pair.is-in-view .workflow-screen {
+    opacity: 1;
+    transform: perspective(1200px) translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+
+  .motion-ready .workflow-pair.is-in-view .workflow-screen {
+    clip-path: inset(0 round 32px);
+  }
 }
 
 @supports (animation-timeline: view()) {
@@ -640,7 +738,7 @@ summary:focus-visible {
     view-timeline-axis: block;
   }
 
-  .workflow-pair:nth-child(even) {
+  .workflow-pair:nth-of-type(even) {
     --screen-entry-x: -18vw;
     --screen-entry-turn: 14deg;
   }
@@ -665,11 +763,6 @@ summary:focus-visible {
     will-change: transform, opacity, filter;
   }
 
-  .workflow-screen figcaption {
-    animation: workflow-caption-cinematic both linear;
-    animation-timeline: --workflow-chapter;
-    animation-range: entry 18% cover 58%;
-  }
 }
 
 @keyframes workflow-screen-cinematic {
@@ -768,10 +861,12 @@ summary:focus-visible {
 }
 
 .local-first .section-kicker {
-  color: var(--text-muted);
+  color: var(--interactive);
 }
 
 .local-first .split-copy h2 {
+  max-width: 720px;
+  font-size: clamp(3rem, 5.6vw, 5.6rem);
   color: var(--white);
 }
 
@@ -859,7 +954,7 @@ summary:focus-visible {
   grid-template-columns: 1fr auto;
   align-items: end;
   gap: 30px;
-  margin-bottom: 60px;
+  margin-bottom: clamp(64px, 8vw, 92px);
 }
 
 .plan-heading p {
@@ -877,6 +972,7 @@ summary:focus-visible {
 .plan-table {
   width: 100%;
   min-width: 720px;
+  table-layout: fixed;
   border-collapse: collapse;
   text-align: left;
 }
@@ -890,12 +986,9 @@ summary:focus-visible {
 .plan-table th:first-child,
 .plan-table td:first-child {
   padding-left: 0;
+  width: 40%;
 }
 
-.plan-table th:last-child,
-.plan-table td:last-child {
-  padding-right: 0;
-}
 
 .plan-table thead th {
   color: var(--text-dim);
@@ -904,19 +997,29 @@ summary:focus-visible {
 }
 
 .plan-table thead th:not(:first-child) {
+  width: 20%;
+  text-align: center;
   color: var(--white);
   font-size: 1rem;
 }
 
 .tier-heading {
   display: inline-grid;
-  justify-items: start;
+  justify-items: center;
   gap: 8px;
+  text-align: center;
 }
 
 .tier-heading img {
   width: 48px;
   height: 48px;
+}
+
+.tier-heading small {
+  color: var(--text-dim);
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.25;
 }
 
 .plan-table tbody th {
@@ -926,6 +1029,7 @@ summary:focus-visible {
 }
 
 .plan-table td {
+  text-align: center;
   color: var(--text);
   font-size: 0.92rem;
 }
@@ -969,7 +1073,7 @@ summary:focus-visible {
 }
 
 .tier-tab {
-  min-height: 96px;
+  min-height: 112px;
   display: grid;
   place-items: center;
   align-content: center;
@@ -990,6 +1094,13 @@ summary:focus-visible {
 .tier-tab span {
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.tier-tab small {
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.1;
 }
 
 .tier-tab.is-selected {
@@ -1013,6 +1124,31 @@ summary:focus-visible {
   border-top: 0;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   background: var(--surface-lowest);
+}
+
+.tier-panel:not([hidden]) {
+  view-transition-name: tier-panel;
+}
+
+::view-transition-group(tier-panel) {
+  animation-duration: 180ms;
+}
+
+::view-transition-old(tier-panel) {
+  animation: tier-panel-out 90ms ease-in both;
+}
+
+::view-transition-new(tier-panel) {
+  animation: tier-panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes tier-panel-out {
+  to { clip-path: inset(0 0 100% 0); opacity: 0.35; }
+}
+
+@keyframes tier-panel-in {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0); }
 }
 
 .tier-details {
@@ -1071,11 +1207,25 @@ summary:focus-visible {
 }
 
 .faq-list {
+  interpolate-size: allow-keywords;
   border-top: 1px solid var(--outline);
 }
 
 .faq-list details {
   border-bottom: 1px solid var(--outline);
+}
+
+.faq-list details::details-content {
+  block-size: 0;
+  overflow: clip;
+  opacity: 0;
+  transition: block-size 260ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms ease-out;
+  transition-behavior: allow-discrete;
+}
+
+.faq-list details[open]::details-content {
+  block-size: auto;
+  opacity: 1;
 }
 
 .faq-list summary {
@@ -1096,6 +1246,8 @@ summary:focus-visible {
 }
 
 .faq-list summary::after {
+  transform: rotate(0deg);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), color 140ms ease-out;
   content: "+";
   color: var(--interactive);
   font-size: 1.45rem;
@@ -1104,6 +1256,10 @@ summary:focus-visible {
 
 .faq-list details[open] summary::after {
   content: "−";
+}
+
+.faq-list details[open] summary::after {
+  transform: rotate(180deg);
 }
 
 .faq-list details p {
@@ -1518,21 +1674,31 @@ summary:focus-visible {
 
   .hero {
     min-height: auto;
-    padding-block: 38px 52px;
+    padding-block: 32px 46px;
   }
 
   .hero h1 {
-    font-size: clamp(3rem, 15vw, 4.8rem);
+    font-size: clamp(2.85rem, 14vw, 4.4rem);
   }
 
   .hero-mobile-preview {
-    height: 210px;
+    position: relative;
+    height: 170px;
     margin: 28px 0 0;
     display: block;
     overflow: hidden;
     border: 1px solid var(--outline-soft);
     border-radius: var(--radius-md);
     background: var(--surface-lowest);
+  }
+
+  .hero-mobile-preview::after {
+    position: absolute;
+    inset: 0 14% auto;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--calories) 0 62%, var(--outline) 62%);
+    content: "";
   }
 
   .hero-mobile-preview img {
@@ -1586,15 +1752,16 @@ summary:focus-visible {
     min-height: 0;
     grid-template-columns: 1fr;
     gap: 28px;
-    padding-block: 60px;
+    padding-block: 48px;
     --screen-entry-blur: 8px;
     --screen-exit-blur: 3px;
     --copy-entry-blur: 6px;
     --copy-exit-blur: 2px;
   }
 
-  .workflow-pair:nth-child(even) .workflow-copy,
-  .workflow-pair:nth-child(even) .workflow-screen {
+
+  .workflow-pair:nth-of-type(even) .workflow-copy,
+  .workflow-pair:nth-of-type(even) .workflow-screen {
     grid-row: auto;
     grid-column: 1;
   }
@@ -1605,8 +1772,10 @@ summary:focus-visible {
   }
 
   .workflow-screen img {
+    height: min(600px, 70svh);
     border-radius: 28px;
   }
+
 
   .local-first::after,
   .final-cta::after {
@@ -1640,11 +1809,11 @@ summary:focus-visible {
 
 
   .hero-lede {
-    margin-top: 24px;
+    margin-top: 20px;
   }
 
   .hero-actions {
-    margin-top: 26px;
+    margin-top: 22px;
   }
 
   .availability {
@@ -1682,14 +1851,19 @@ summary:focus-visible {
 
   .workflow-copy,
   .workflow-copy::before,
-  .workflow-screen,
-  .workflow-screen figcaption {
+  .workflow-screen {
     animation: none !important;
     opacity: 1;
     transform: none;
     filter: none;
     will-change: auto;
   }
+
+  .instrument-stage::before,
+  .phone {
+    transform: none !important;
+  }
+
 
 
 }
