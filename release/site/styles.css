@@ -53,6 +53,7 @@
   --signal: #f34b43;
   --interactive: #ff7b73;
   --warning: #ffd8a8;
+  --success: #78e2a8;
   --max-width: 1220px;
   --reading-width: 74ch;
   --radius-sm: 14px;
@@ -929,9 +930,14 @@ summary:focus-visible {
   font-size: 0.92rem;
 }
 
-.plan-table .included {
-  color: var(--white);
+.feature-check {
+  display: inline-grid;
+  min-width: 1.5rem;
+  place-items: center;
+  color: var(--success);
+  font-size: 1.35rem;
   font-weight: 700;
+  line-height: 1;
 }
 
 .plan-note {
