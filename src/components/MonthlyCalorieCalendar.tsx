@@ -157,11 +157,11 @@ function DayRing({ day, size, currentDate }: { day: CalorieCalendarDay; size: nu
 
 function WeekRow({ week, size, summaryWidth, currentDate }: { week: CalorieCalendarWeek; size: number; summaryWidth: number; currentDate: string }) {
   const comparison = comparisonLabel(week);
-  const accessibilityLabel = `Week ${dateLabel(week.startDate)} through ${dateLabel(week.endDate)}: ${week.loggedDays === 0 ? 'no log' : `${formatCalories(week.totalCalories)} calories, ${comparison}`}, ${week.loggedDays} of 7 logged`;
+  const accessibilityLabel = `Week ${dateLabel(week.startDate)} through ${dateLabel(week.endDate)}: ${comparison}`;
 
   return (
-    <View className="flex-row items-center py-0.5">
-      <View className="flex-1 flex-row items-center">
+    <View className="flex-row items-center py-1">
+      <View className="flex-1 flex-row items-center justify-center">
         {week.days.map((day) => (
           <View key={day.date} className="flex-1 min-w-0 items-center justify-center">
             <DayRing day={day} size={size} currentDate={currentDate} />
@@ -172,19 +172,11 @@ function WeekRow({ week, size, summaryWidth, currentDate }: { week: CalorieCalen
         accessible
         accessibilityRole="text"
         accessibilityLabel={accessibilityLabel}
-        className="ml-1 gap-0.5"
-        style={{ width: summaryWidth }}
+        className="ml-2 items-center justify-center"
+        style={{ width: summaryWidth, minHeight: size }}
       >
-        <Text className="text-m3-on-surface text-compact font-semibold tabular-nums" numberOfLines={1}>
-          {week.loggedDays === 0 ? 'No log' : `${formatCalories(week.totalCalories)} kcal`}
-        </Text>
-        {week.loggedDays > 0 ? (
-          <Text className="text-m3-on-surface-variant text-compact tabular-nums" numberOfLines={2}>
-            {comparison}
-          </Text>
-        ) : null}
-        <Text className="text-m3-on-surface-variant text-compact tabular-nums" numberOfLines={1}>
-          {week.loggedDays}/7 logged
+        <Text className="text-m3-on-surface text-compact font-semibold tabular-nums text-center" numberOfLines={1}>
+          {comparison}
         </Text>
       </View>
     </View>
@@ -277,8 +269,8 @@ export default function MonthlyCalorieCalendar({
 
       {month ? (
         <>
-          <View className="flex-row items-center">
-            <View className="flex-1 flex-row">
+          <View className="flex-row items-center justify-center">
+            <View className="flex-1 flex-row items-center justify-center">
               {WEEKDAYS.map((weekday) => (
                 <Text
                   key={weekday.long}
@@ -291,7 +283,7 @@ export default function MonthlyCalorieCalendar({
               ))}
             </View>
             <Text
-              className="ml-1 text-m3-on-surface-variant text-compact font-semibold"
+              className="ml-2 text-m3-on-surface-variant text-compact font-semibold text-center"
               style={{ width: summaryWidth }}
             >
               Week
