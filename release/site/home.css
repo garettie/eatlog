@@ -380,15 +380,6 @@
   transform: rotate(8deg);
 }
 
-.mog-stage__caption {
-  position: absolute;
-  right: auto; left: 50%;
-  bottom: 0; width: 100%; transform: translateX(-50%); text-align: center;
-  color: #858894;
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
 .mog-ticker {
   overflow: hidden;
   border-bottom: 1px solid #d6d6d9;
@@ -429,7 +420,7 @@
 }
 
 @keyframes mog-ticker {
-  to { transform: translateX(-50%); }
+  to { transform: translateX(var(--ticker-shift, -50%)); }
 }
 
 .mog-manifesto {
@@ -1156,15 +1147,6 @@
     width: 66px;
   }
 
-  .mog-stage__caption {
-    right: auto;
-    bottom: 0;
-    left: 50%;
-    width: 100%;
-    transform: translateX(-50%);
-    text-align: center;
-  }
-
   .mog-manifesto {
     padding-block: 96px;
   }
@@ -1646,5 +1628,502 @@
   .mog-phone--main {
     width: auto;
     height: min(78svh, 700px);
+  }
+}
+
+/* ============================================================
+   MOG20 — league-of-its-own pass
+   Dial instrument hero, scroll choreography, premium density.
+   ============================================================ */
+
+::selection {
+  background: var(--mog-coral);
+  color: #08090c;
+}
+
+.home-header {
+  background: rgba(8, 9, 12, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Section tags carry a coral square — one system accent everywhere */
+.mog-section-tag::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 12px;
+  background: currentColor;
+}
+
+.mog-kicker span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--mog-coral);
+  animation: mog-kicker-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes mog-kicker-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 123, 115, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 123, 115, 0); }
+}
+
+.mog-hero h1 em {
+  color: var(--mog-coral);
+}
+
+.mog-hero__facts strong::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  margin-right: 10px;
+  vertical-align: 4px;
+  background: var(--mog-coral);
+}
+
+/* ---- The dial: brand rings + ruler ticks behind the stage ---- */
+.mog-dial {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: min(54vw, 800px);
+  transform: translate(-50%, -50%);
+  overflow: visible;
+  fill: none;
+}
+
+.mog-dial__ring {
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1;
+}
+
+.mog-dial__ticks {
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 10;
+  stroke-dasharray: 2 20.17;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+.mog-dial__ticks--coarse {
+  stroke: rgba(255, 255, 255, 0.26);
+  stroke-dasharray: 2 130.99;
+}
+
+.mog-dial__arc {
+  stroke: var(--mog-coral);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1734.16;
+  stroke-dashoffset: calc(1734.16 * (1 - var(--dial-progress, 0.06)));
+}
+
+.mog-stage__halo {
+  background: #16181e;
+}
+
+.mog-phone--main {
+  width: min(24vw, 368px);
+}
+
+.mog-phone--left,
+.mog-phone--right {
+  width: min(17vw, 246px);
+}
+
+/* ---- Hero entrance choreography ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .mog-kicker,
+  .mog-hero h1,
+  .mog-wordplay,
+  .mog-hero__lede,
+  .mog-hero__actions,
+  .mog-hero__facts {
+    animation: mog-rise 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .mog-kicker { animation-delay: 60ms; }
+  .mog-hero h1 { animation-delay: 150ms; }
+  .mog-wordplay { animation-delay: 240ms; }
+  .mog-hero__lede { animation-delay: 300ms; }
+  .mog-hero__actions { animation-delay: 360ms; }
+  .mog-hero__facts { animation-delay: 460ms; }
+
+  .mog-dial {
+    animation: mog-dial-in 1200ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+  }
+
+  .mog-phone--main {
+    animation: mog-phone-main-in 950ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both;
+  }
+
+  .mog-phone--left {
+    animation: mog-phone-left-in 950ms cubic-bezier(0.16, 1, 0.3, 1) 340ms both;
+  }
+
+  .mog-phone--right {
+    animation: mog-phone-right-in 950ms cubic-bezier(0.16, 1, 0.3, 1) 400ms both;
+  }
+
+  .mog-sticker--one {
+    animation: mog-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 700ms both,
+      mog-wobble-one 5.6s ease-in-out 1400ms infinite;
+  }
+
+  .mog-sticker--two {
+    animation: mog-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 800ms both,
+      mog-wobble-two 6.4s ease-in-out 1600ms infinite;
+  }
+
+}
+
+@keyframes mog-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mog-dial-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes mog-phone-main-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateZ(74px) rotate(-1.5deg) translateY(72px) scale(0.93);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateZ(74px) rotate(-1.5deg);
+  }
+}
+
+@keyframes mog-phone-left-in {
+  from {
+    opacity: 0;
+    transform: translate(-122%, -44%) translateZ(-40px) rotate(-10deg) translateY(60px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-122%, -44%) translateZ(-40px) rotate(-10deg);
+  }
+}
+
+@keyframes mog-phone-right-in {
+  from {
+    opacity: 0;
+    transform: translate(22%, -52%) translateZ(-25px) rotate(9deg) translateY(60px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(22%, -52%) translateZ(-25px) rotate(9deg);
+  }
+}
+
+@keyframes mog-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-40deg);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mog-sticker--one { transform: rotate(-9deg); }
+.mog-sticker--two { transform: rotate(8deg); }
+
+@keyframes mog-wobble-one {
+  0%, 100% { transform: rotate(-9deg); }
+  50% { transform: rotate(-4deg) translateY(-5px); }
+}
+
+@keyframes mog-wobble-two {
+  0%, 100% { transform: rotate(8deg); }
+  50% { transform: rotate(4deg) translateY(-4px); }
+}
+
+
+
+/* ---- Scroll reveal system ---- */
+html.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 680ms ease-out, transform 680ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+html.js [data-reveal].is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+html.js .mog-receipt[data-reveal] {
+  transform: translateY(30px) rotate(1.3deg);
+}
+
+html.js .mog-receipt[data-reveal].is-revealed {
+  transform: translateY(0) rotate(1.3deg);
+}
+
+/* ---- Ticker: bigger, pausable ---- */
+.mog-ticker__track {
+  min-height: 58px;
+  animation-duration: 30s;
+}
+
+.mog-ticker:hover .mog-ticker__track {
+  animation-play-state: paused;
+}
+
+.mog-ticker__track span {
+  font-size: 0.82rem;
+}
+
+/* ---- Story: progress rail + heated ghost numbers ---- */
+.mog-story__steps {
+  position: relative;
+}
+
+.mog-story__rail {
+  position: absolute;
+  top: 0;
+  left: -64px;
+  bottom: 28vh;
+  width: 2px;
+  background: #2b2d35;
+}
+
+.mog-story__rail-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(var(--story-fill, 0.25) * 100%);
+  background: var(--mog-coral);
+  transition: height 480ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mog-story__step-number {
+  transition: color 420ms ease-out, opacity 420ms ease-out;
+}
+
+.mog-story__step.is-active .mog-story__step-number {
+  color: var(--mog-coral);
+  opacity: 0.13;
+}
+
+/* ---- Plans: premium density ---- */
+.mog-birds article {
+  position: relative;
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), background 280ms ease-out;
+}
+
+.mog-birds article:hover {
+  transform: translateY(-6px);
+  background: #14161c;
+}
+
+.mog-birds img {
+  transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mog-birds article:hover img {
+  transform: translateY(-4px) rotate(-7deg) scale(1.07);
+}
+
+.mog-birds article > strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.mog-bird__chip {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--mog-coral);
+  color: #08090c;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.home-page .mog-plan-table {
+  margin-top: 48px;
+  border: 1px solid #30323a;
+  border-radius: 22px;
+  background: #101216;
+}
+
+.home-page .mog-plan-table thead th {
+  padding-block: 22px;
+  border-bottom: 1px solid #3a3d45;
+  background: #15171c;
+}
+
+.home-page .mog-plan-table tbody tr {
+  transition: background 200ms ease-out;
+}
+
+.home-page .mog-plan-table tbody tr:hover {
+  background: #16181e;
+}
+
+.home-page .mog-plan-table tbody tr:last-child th,
+.home-page .mog-plan-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.home-page .mog-plan-table .feature-check {
+  color: var(--mog-white);
+}
+
+.home-page .mog-plan-table td {
+  color: #8f929c;
+}
+
+.home-page .mog-plan-table td .feature-check {
+  color: var(--mog-white);
+}
+
+/* ---- Receipt: tactile ---- */
+.mog-receipt {
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 320ms ease-out;
+}
+
+.mog-receipt:hover {
+  transform: rotate(0.3deg) translateY(-4px);
+  box-shadow: 18px 24px 0 #d6d7db;
+}
+
+html.js .mog-receipt[data-reveal].is-revealed:hover {
+  transform: rotate(0.3deg) translateY(-4px);
+}
+
+/* ---- Final: ceremonial finish ---- */
+.mog-final {
+  padding: clamp(88px, 12vw, 150px) 0;
+}
+
+.mog-final__inner {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 34px;
+  text-align: center;
+}
+
+.mog-final__inner > img {
+  width: 108px;
+  height: 108px;
+  border-radius: 34px;
+}
+
+.mog-final h2 {
+  font-size: clamp(2.8rem, 6.5vw, 6.2rem);
+}
+
+.mog-final p:not(.mog-section-tag) {
+  margin-inline: auto;
+}
+
+.mog-final .mog-button {
+  min-height: 58px;
+  padding: 16px 32px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mog-final__inner > img {
+    animation: mog-egg-sway 6s ease-in-out infinite;
+  }
+}
+
+@keyframes mog-egg-sway {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg) translateY(-8px); }
+}
+
+/* ---- Reduced motion: everything static, everything visible ---- */
+@media (prefers-reduced-motion: reduce) {
+  .mog-kicker span,
+  .mog-sticker--one,
+  .mog-sticker--two,
+
+  html.js [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  html.js .mog-receipt[data-reveal] {
+    transform: rotate(1.3deg);
+  }
+
+  .mog-story__rail-fill {
+    transition: none;
+  }
+
+  .mog-receipt,
+  .mog-birds article,
+  .mog-birds img,
+  .mog-story__step-number {
+    transition: none;
+  }
+}
+
+/* ---- Responsive adjustments ---- */
+@media (max-width: 1100px) {
+  .mog-story__rail {
+    left: -40px;
+  }
+}
+
+@media (max-width: 960px), (max-width: 1100px) and (max-height: 700px) {
+  .mog-dial {
+    width: min(92vw, 500px);
+  }
+
+
+  .mog-story__rail {
+    display: none;
+  }
+
+  .mog-bird__chip {
+    top: 12px;
+    right: 14px;
+  }
+
+  .mog-final__inner {
+    gap: 26px;
+  }
+}
+
+@media (max-width: 520px) {
+
+  .mog-bird__chip {
+    top: 8px;
+    right: 10px;
+    padding: 5px 10px;
+    font-size: 0.56rem;
+  }
+
+  .home-page .mog-plan-table {
+    border-radius: 18px;
   }
 }

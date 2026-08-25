@@ -5,7 +5,7 @@
     THESIS: Eatlog is the premium food log that minds its own business. The page sells the real product through oversized, legible app screens rather than borrowed social proof.
     OWN-WORLD: Near-black M3 surfaces, Onest, the white egg mark, editorial scale, and nutrient colors used only inside real product data.
     STORY: Meet the product immediately, move one meal through its full loop, inspect the exact data route, compare the three birds, then check release status.
-    FIRST VIEWPORT: A plain-spoken promise and three real Eatlog screens make the product visible before any explanation is required.
+    FIRST VIEWPORT: A plain-spoken promise and three real Eatlog screens sit inside a precision dial that fills as you read. The product is visible before any explanation is required.
     FORM: Premium food-tech instrument with a crooked sense of humor. Precise mechanics, playful copy, no gamified fitness theater.
   -->
   <meta charset="utf-8">
@@ -20,8 +20,8 @@
   <link rel="icon" href="/assets/favicon.png" type="image/png">
   <link rel="manifest" href="/site.webmanifest">
   <link rel="stylesheet" href="/styles.css?v=20260825-premium5">
-  <link rel="stylesheet" href="/home.css?v=20260825-mog19">
-  <script src="/site.js?v=20260825-mog11" defer></script>
+  <link rel="stylesheet" href="/home.css?v=20260825-mog21">
+  <script src="/site.js?v=20260825-mog14" defer></script>
 </head>
 <body class="home-page">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -66,6 +66,13 @@
         </div>
 
         <div class="mog-stage" data-mog-stage aria-label="Three Eatlog app screens">
+          <svg class="mog-dial" viewBox="0 0 600 600" aria-hidden="true" focusable="false">
+            <circle class="mog-dial__ring" cx="300" cy="300" r="296"></circle>
+            <circle class="mog-dial__ring" cx="300" cy="300" r="212"></circle>
+            <circle class="mog-dial__ticks" cx="300" cy="300" r="254"></circle>
+            <circle class="mog-dial__ticks mog-dial__ticks--coarse" cx="300" cy="300" r="254"></circle>
+            <circle class="mog-dial__arc" data-dial-arc cx="300" cy="300" r="276" transform="rotate(-180 300 300)"></circle>
+          </svg>
           <div class="mog-stage__halo" aria-hidden="true"></div>
           <figure class="mog-phone mog-phone--left">
             <img src="/assets/fabsheet-cropped.jpg" sizes="(max-width: 760px) 38vw, 240px" width="810" height="1720" alt="Eatlog Add entry sheet with scan, photo, description, recent meals, food search, and weight actions" decoding="async">
@@ -78,7 +85,6 @@
           </figure>
           <span class="mog-sticker mog-sticker--one">NO<br>LOGIN</span>
           <span class="mog-sticker mog-sticker--two">EDIT<br>ME</span>
-          <span class="mog-stage__caption">Real screens from the app. No render farm.</span>
         </div>
       </div>
     </section>
@@ -92,9 +98,9 @@
 
     <section class="mog-manifesto" aria-labelledby="manifesto-title">
       <div class="section-shell">
-        <p class="mog-section-tag">WHY IT EXISTS</p>
-        <h2 id="manifesto-title">Eatlog wants the meal.<br><span>Then it gets out of the way.</span></h2>
-        <div class="mog-manifesto__foot">
+        <p class="mog-section-tag" data-reveal>WHY IT EXISTS</p>
+        <h2 id="manifesto-title" data-reveal style="--reveal-delay: 80ms">Eatlog wants the meal.<br><span>Then it gets out of the way.</span></h2>
+        <div class="mog-manifesto__foot" data-reveal style="--reveal-delay: 160ms">
           <p>Use the fastest honest input. Fix what needs fixing. Save a record you can understand later.</p>
           <p class="mog-manifesto__aside">No streak mascot will be disappointed in you.</p>
         </div>
@@ -103,7 +109,7 @@
 
     <section class="mog-story" id="daily-loop" aria-labelledby="loop-title">
       <div class="section-shell">
-        <div class="mog-story__heading">
+        <div class="mog-story__heading" data-reveal>
           <div>
             <p class="mog-section-tag">ONE MEAL, FOUR MOVES</p>
             <h2 id="loop-title">The robot does not get the last word.</h2>
@@ -121,7 +127,8 @@
             </div>
           </div>
 
-          <div class="mog-story__steps">
+          <div class="mog-story__steps" data-story-steps>
+            <div class="mog-story__rail" aria-hidden="true"><span class="mog-story__rail-fill" data-story-rail></span></div>
             <article class="mog-story__step is-active" data-story-step="input" data-story-number="01">
               <figure class="mog-story__mobile-screen">
                 <img src="/assets/fabsheet-cropped.jpg" sizes="(max-width: 620px) 68vw, 240px" width="810" height="1720" alt="Eatlog Add entry sheet with photo, description, saved meal, food search, and weight actions" loading="lazy">
@@ -173,7 +180,7 @@
 
     <section class="mog-private" id="local-first" aria-labelledby="local-title">
       <div class="section-shell mog-private__grid">
-        <div class="mog-private__copy">
+        <div class="mog-private__copy" data-reveal>
           <p class="mog-section-tag">LOCAL MEANS ON THIS PHONE</p>
           <h2 id="local-title">Your diary is not the price of using the app.</h2>
           <p>Your profile, targets, food log, weight history, saved meal photos, and adaptive decisions stay in app-private storage. Eatlog has no account system or cloud database.</p>
@@ -186,7 +193,7 @@
           <a class="mog-dark-link" href="/privacy">Read the privacy policy <span aria-hidden="true">↗</span></a>
         </div>
 
-        <div class="mog-receipt" aria-label="What Eatlog sends online">
+        <div class="mog-receipt" data-reveal style="--reveal-delay: 120ms" aria-label="What Eatlog sends online">
           <div class="mog-receipt__head"><img src="/assets/icon.png" width="42" height="42" alt=""><div><strong>DATA RECEIPT</strong><span>EATLOG / THIS DEVICE</span></div><span>01</span></div>
           <ol>
             <li><span>Manual and saved-history logging</span><strong>STAYS HERE</strong></li>
@@ -202,7 +209,7 @@
 
     <section class="mog-plans" id="plans" aria-labelledby="plans-title">
       <div class="section-shell">
-        <div class="mog-plans__heading">
+        <div class="mog-plans__heading" data-reveal>
           <div>
             <p class="mog-section-tag">THE BIRD SITUATION</p>
             <h2 id="plans-title">Three birds. Pick your level of fancy.</h2>
@@ -210,13 +217,13 @@
           <p>Pugo keeps the durable local log free. Manok and Itik unlock the same AI-estimate and adaptive-plan features with different billing.</p>
         </div>
 
-        <div class="mog-birds" aria-label="Eatlog plan prices">
-          <article><img src="/assets/tier-pugo.svg" width="72" height="72" alt=""><div><h3>Pugo</h3><p>The full local log.</p></div><strong>Free</strong></article>
-          <article><img src="/assets/tier-manok.svg" width="72" height="72" alt=""><div><h3>Manok</h3><p>Paid features monthly.</p></div><strong><span>PHP</span> 79<small>/month</small></strong></article>
-          <article><img src="/assets/tier-itik.svg" width="72" height="72" alt=""><div><h3>Itik</h3><p>Paid features, pay once.</p></div><strong><span>PHP</span> 799<small> once</small></strong></article>
+        <div class="mog-birds" aria-label="Eatlog plan prices" data-reveal>
+          <article data-reveal style="--reveal-delay: 0ms"><img src="/assets/tier-pugo.svg" width="72" height="72" alt=""><div><h3>Pugo</h3><p>The full local log.</p></div><strong>Free</strong></article>
+          <article data-reveal style="--reveal-delay: 90ms"><img src="/assets/tier-manok.svg" width="72" height="72" alt=""><div><h3>Manok</h3><p>Paid features monthly.</p></div><strong><span>PHP</span> 79<small>/month</small></strong></article>
+          <article data-reveal style="--reveal-delay: 180ms"><img src="/assets/tier-itik.svg" width="72" height="72" alt=""><span class="mog-bird__chip">PAY ONCE</span><div><h3>Itik</h3><p>Paid features, pay once.</p></div><strong><span>PHP</span> 799<small> once</small></strong></article>
         </div>
 
-        <div class="plan-table-wrap mog-plan-table">
+        <div class="plan-table-wrap mog-plan-table" data-reveal style="--reveal-delay: 120ms">
           <table class="plan-table">
             <thead><tr><th scope="col">Feature</th><th scope="col">Pugo</th><th scope="col">Manok</th><th scope="col">Itik</th></tr></thead>
             <tbody>
@@ -250,24 +257,24 @@
 
     <section class="mog-faq" id="questions" aria-labelledby="faq-title">
       <div class="section-shell faq-layout">
-        <div class="faq-intro">
+        <div class="faq-intro" data-reveal>
           <p class="mog-section-tag">FINE PRINT, NORMAL SIZE</p>
           <h2 id="faq-title">The questions people ask before installing.</h2>
           <p>The longer, less charming versions live in the Privacy Policy and Terms.</p>
         </div>
-        <div class="faq-list">
+        <div class="faq-list" data-reveal style="--reveal-delay: 100ms">
           <details><summary>Does Eatlog need an account?</summary><p>No. Eatlog has no login or cloud identity. The app uses an app-scoped installation token for online-service abuse limits and purchase access checks, but it is not an account.</p></details>
-          <details><summary>Can I use Eatlog without AI estimates?</summary><p>Yes. Manual logging, local history, food search, weight tracking, analytics, backup, export, and sharing remain available when you decline online meal estimates.</p></details>
-          <details><summary>Are nutrition estimates medical advice?</summary><p>No. Eatlog is for adult general wellness. Nutrition values, targets, trends, and estimates can be incomplete or wrong. Review entries and speak with a qualified health professional about medical decisions.</p></details>
-          <details><summary>What happens if I stop paying?</summary><p>Your local food, weight, target, photo, and adaptive history stays on the device. Paid AI and adaptive access ends when the verified entitlement expires or is revoked.</p></details>
-          <details><summary>Does Eatlog sync with health platforms?</summary><p>Android users can optionally connect Health Connect for Weight read and write access. Eatlog does not use HealthKit or Apple Health in v1.</p></details>
+          <details data-reveal style="--reveal-delay: 60ms"><summary>Can I use Eatlog without AI estimates?</summary><p>Yes. Manual logging, local history, food search, weight tracking, analytics, backup, export, and sharing remain available when you decline online meal estimates.</p></details>
+          <details data-reveal style="--reveal-delay: 120ms"><summary>Are nutrition estimates medical advice?</summary><p>No. Eatlog is for adult general wellness. Nutrition values, targets, trends, and estimates can be incomplete or wrong. Review entries and speak with a qualified health professional about medical decisions.</p></details>
+          <details data-reveal style="--reveal-delay: 180ms"><summary>What happens if I stop paying?</summary><p>Your local food, weight, target, photo, and adaptive history stays on the device. Paid AI and adaptive access ends when the verified entitlement expires or is revoked.</p></details>
+          <details data-reveal style="--reveal-delay: 240ms"><summary>Does Eatlog sync with health platforms?</summary><p>Android users can optionally connect Health Connect for Weight read and write access. Eatlog does not use HealthKit or Apple Health in v1.</p></details>
         </div>
       </div>
     </section>
 
     <section class="mog-final" aria-labelledby="final-title">
-      <div class="section-shell mog-final__inner">
-        <img src="/assets/icon.png" width="88" height="88" alt="" aria-hidden="true">
+      <div class="section-shell mog-final__inner" data-reveal>
+        <img src="/assets/icon.png" width="108" height="108" alt="" aria-hidden="true">
         <div>
           <p class="mog-section-tag">ANDROID FIRST</p>
           <h2 id="final-title">The egg is still cooking.</h2>
