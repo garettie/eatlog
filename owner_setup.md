@@ -38,10 +38,10 @@ Publish the finished Privacy, Terms, and Support pages over public HTTPS. They m
 
 Record the final URLs:
 
-- [ ] Privacy Policy URL
-- [ ] Terms of Use URL
-- [ ] Support URL
-- [ ] Monitored support email
+- [x] Privacy Policy URL
+- [x] Terms of Use URL
+- [x] Support URL
+- [x] Monitored support email
 
 Open all three URLs on the Android phone that will test Eatlog. Fix broken navigation or unreadable mobile layouts before continuing.
 
@@ -54,10 +54,11 @@ From the repository:
 ```bash
 cd worker
 npx wrangler whoami
+rg -n '^  "name":' wrangler.subscription-production.jsonc
 npx wrangler deploy --dry-run --config wrangler.subscription-production.jsonc
 ```
 
-Confirm that `wrangler whoami` shows the intended Cloudflare account. Stop if the dry run names any Worker other than `eatlog-food-subscription-production`.
+Confirm that `wrangler whoami` shows the intended Cloudflare account. The `rg` command must show `"name": "eatlog-food-subscription-production"`. The dry run validates the bundle and bindings but does not reliably print the Worker name. Stop if the name command shows anything else or the dry run fails.
 
 Set these secrets one at a time. Wrangler asks for each value without putting it in the command:
 
@@ -80,9 +81,9 @@ npx wrangler deploy --config wrangler.subscription-production.jsonc
 npx wrangler deployments list --config wrangler.subscription-production.jsonc
 ```
 
-- [ ] Production Worker URL recorded
-- [ ] Deployment version recorded
-- [ ] Read-only `GET <Worker URL>/healthz` returns HTTP 200 with `{"ok":true}`
+- [x] Production Worker URL recorded
+- [x] Deployment version recorded
+- [x] Read-only `GET <Worker URL>/healthz` returns HTTP 200 with `{"ok":true}`
 
 The full rollback procedure is in `release/runbooks/WORKER_RELEASE.md`.
 
@@ -101,8 +102,8 @@ Set:
 
 These are public app configuration values. Do not put any Worker, RevenueCat server, Google service-account, Gemini, or USDA secret in an `EXPO_PUBLIC_*` variable.
 
-- [ ] Production values saved under EAS environment `production`
-- [ ] Preview environment checked and left unchanged
+- [x] Production values saved under EAS environment `production`
+- [x] Preview environment checked and left unchanged
 
 ## 4. Build and upload the first production AAB
 
