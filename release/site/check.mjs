@@ -32,11 +32,11 @@ for (const [route, html] of pages) {
   assert.match(html, /<main\b/, `${route} needs a main landmark`);
   assert.match(html, /<h1\b/, `${route} needs one primary heading`);
   assert.match(html, /<main id="main" tabindex="-1">/, `${route} needs a focusable skip target`);
-  assert.match(html, /href="\/styles\.css(?:\?[^"]+)?"/, `${route} needs the shared stylesheet`);
+  assert.match(html, /href="\/styles\.css(?:\?[^\"]+)?"/, `${route} needs the shared stylesheet`);
   assert.doesNotMatch(html, /<(form|iframe)\b/i, `${route} must stay form- and embed-free`);
   assert.doesNotMatch(html, /(googletagmanager|google-analytics|segment\.com|mixpanel|hotjar)/i, `${route} must stay tracker-free`);
 
-  const directResourcePaths = [...html.matchAll(/(?:src|href)="(\/(?:assets|fonts)\/[^"?#]+|\/(?:styles\.css|site\.js|site\.webmanifest))(?:\?[^"]*)?"/g)].map((match) => match[1]);
+  const directResourcePaths = [...html.matchAll(/(?:src|href)="(\/(?:assets|fonts)\/[^"?#]+|\/(?:[a-z0-9-]+\.css|site\.js|site\.webmanifest))(?:\?[^\"]*)?"/gi)].map((match) => match[1]);
   const srcsetResourcePaths = [...html.matchAll(/srcset="([^"]+)"/g)].flatMap((match) => match[1].split(',').map((candidate) => candidate.trim().split(/\s+/)[0]));
   const resourcePaths = [...new Set([...directResourcePaths, ...srcsetResourcePaths])];
   for (const resourcePath of resourcePaths) {
@@ -50,6 +50,7 @@ for (const route of ['/privacy', '/terms', '/support']) {
 }
 assert.doesNotMatch(homepage, /name="robots" content="noindex/i, 'homepage must remain indexable');
 assert.match(homepage, /href="\/styles\.css\?v=[^"]+"/, 'homepage stylesheet needs a cache-busting version');
+assert.match(homepage, /href="\/home\.css\?v=[^"]+"/, 'homepage stylesheet override needs a cache-busting version');
 assert.match(homepage, /src="\/site\.js\?v=[^"]+"/, 'homepage script needs a cache-busting version');
 
 const compliancePages = ['/privacy', '/terms'].map((route) => pages.get(route));

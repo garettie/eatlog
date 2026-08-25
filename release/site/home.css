@@ -1,0 +1,1477 @@
+/* Homepage-only visual world. Shared legal and support routes remain on styles.css. */
+
+.home-page {
+  --mog-shell: min(1320px, calc(100vw - 64px));
+  --mog-white: #ffffff;
+  --mog-black: #08090c;
+  --mog-panel: #15171c;
+  --mog-line: #2b2d35;
+  --mog-coral: #ff7b73;
+  background: var(--mog-black);
+  overflow-x: clip;
+}
+
+.home-page .section-shell {
+  width: var(--mog-shell);
+  max-width: none;
+}
+
+.home-page .page-progress {
+  height: 4px;
+  background: var(--mog-coral);
+}
+
+.home-header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(8, 9, 12, 0.96);
+}
+
+.home-header .site-header__inner {
+  width: var(--mog-shell);
+  min-height: 72px;
+}
+
+.home-header .brand {
+  font-size: 1.2rem;
+}
+
+.home-header .brand__mark {
+  width: 36px;
+  height: 36px;
+}
+
+.home-header .site-nav {
+  padding: 5px;
+  border: 1px solid var(--mog-line);
+  border-radius: 999px;
+  background: #101216;
+}
+
+.home-header .site-nav a {
+  padding: 8px 17px;
+  border-radius: 999px;
+  color: #d7d8df;
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 160ms ease-out, background 160ms ease-out;
+}
+
+.home-header .site-nav a:hover {
+  background: #25272d;
+  color: var(--mog-white);
+}
+
+.home-header .header-action {
+  min-height: 42px;
+  padding: 10px 18px;
+  border: 0;
+  background: var(--mog-white);
+  color: var(--mog-black);
+}
+
+.home-page a:focus-visible,
+.home-page button:focus-visible,
+.home-page summary:focus-visible {
+  outline: 3px solid var(--mog-coral);
+  outline-offset: 4px;
+}
+
+.mog-hero {
+  position: relative;
+  min-height: min(910px, calc(100svh - 72px));
+  overflow: clip;
+  border-bottom: 1px solid var(--mog-line);
+  background: var(--mog-black);
+}
+
+.mog-hero::after {
+  position: absolute;
+  right: -6vw;
+  bottom: -180px;
+  width: 540px;
+  height: 540px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 51% 49% 48% 52% / 63% 61% 39% 37%;
+  content: "";
+  pointer-events: none;
+}
+
+.mog-hero__grid {
+  position: relative;
+  z-index: 1;
+  min-height: inherit;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(520px, 1.08fr);
+  align-items: center;
+  gap: clamp(40px, 5vw, 88px);
+  padding-block: clamp(72px, 9vh, 112px);
+}
+
+.mog-hero__copy {
+  position: relative;
+  z-index: 3;
+}
+
+.mog-kicker,
+.mog-section-tag {
+  margin: 0;
+  color: var(--mog-coral);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.mog-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #d9dae1;
+  letter-spacing: 0.05em;
+}
+
+.mog-kicker span {
+  width: 32px;
+  height: 2px;
+  background: var(--mog-coral);
+}
+
+.mog-hero h1 {
+  max-width: 760px;
+  margin: 24px 0 26px;
+  color: var(--mog-white);
+  font-size: clamp(4.7rem, 7.25vw, 7.4rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.84;
+  text-wrap: balance;
+}
+
+.mog-hero h1 em {
+  color: #aeb1ba;
+  font-style: normal;
+}
+
+.mog-wordplay {
+  max-width: 610px;
+  margin: -8px 0 20px;
+  color: var(--mog-coral);
+  font-size: clamp(0.82rem, 1vw, 0.96rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.45;
+}
+
+.mog-wordplay strong {
+  color: var(--mog-white);
+  font-weight: 700;
+}
+
+.mog-hero__lede {
+  max-width: 620px;
+  margin: 0;
+  color: #c9cad2;
+  font-size: clamp(1.06rem, 1.4vw, 1.25rem);
+  line-height: 1.58;
+}
+
+.mog-hero__actions {
+  margin-top: 34px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px 24px;
+}
+
+.mog-button {
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 24px;
+  border: 1px solid var(--mog-white);
+  border-radius: 999px;
+  background: var(--mog-white);
+  color: var(--mog-black);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 160ms ease-out, background 160ms ease-out, color 160ms ease-out;
+}
+
+.mog-button:hover {
+  transform: translateY(-3px);
+  background: transparent;
+  color: var(--mog-white);
+}
+
+.mog-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.mog-text-link,
+.mog-dark-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mog-white);
+  font-weight: 700;
+  text-underline-offset: 5px;
+}
+
+.mog-text-link span,
+.mog-dark-link span {
+  transition: transform 160ms ease-out;
+}
+
+.mog-text-link:hover span {
+  transform: translateY(4px);
+}
+
+.mog-dark-link:hover span {
+  transform: translate(3px, -3px);
+}
+
+.mog-hero__facts {
+  max-width: 670px;
+  margin: 54px 0 0;
+  padding: 24px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  border-top: 1px solid var(--mog-line);
+  list-style: none;
+}
+
+.mog-hero__facts li {
+  min-width: 0;
+}
+
+.mog-hero__facts strong,
+.mog-hero__facts span {
+  display: block;
+}
+
+.mog-hero__facts strong {
+  color: var(--mog-white);
+  font-size: 0.86rem;
+}
+
+.mog-hero__facts span {
+  margin-top: 5px;
+  color: #999ca6;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.mog-stage {
+  --stage-x: 0deg;
+  --stage-y: 0deg;
+  position: relative;
+  min-height: 700px;
+  isolation: isolate;
+  perspective: 1300px;
+  transform: rotateX(var(--stage-x)) rotateY(var(--stage-y));
+  transform-style: preserve-3d;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mog-stage__halo {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  z-index: -2;
+  width: min(36vw, 520px);
+  aspect-ratio: 0.82;
+  transform: translateX(-50%) rotate(-3deg);
+  border: 1px solid #33363e;
+  border-radius: 51% 49% 47% 53% / 61% 59% 41% 39%;
+  background: #15171c;
+}
+
+.mog-phone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  overflow: hidden;
+  border: 7px solid #050609;
+  border-radius: 42px;
+  background: #050609;
+  box-shadow: 0 28px 65px rgba(0, 0, 0, 0.48), 0 8px 18px rgba(0, 0, 0, 0.34);
+  transform-origin: center;
+}
+
+.mog-phone::after,
+.mog-story__frame::after {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.mog-phone img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mog-phone--main {
+  z-index: 3;
+  width: min(25vw, 360px);
+  aspect-ratio: 405 / 860;
+  transform: translate(-50%, -50%) translateZ(74px) rotate(-1.5deg);
+}
+
+.mog-phone--left,
+.mog-phone--right {
+  z-index: 1;
+  width: min(17vw, 240px);
+  aspect-ratio: 405 / 860;
+  filter: saturate(0.7) brightness(0.78);
+}
+
+.mog-phone--left {
+  transform: translate(-122%, -44%) translateZ(-40px) rotate(-10deg);
+}
+
+.mog-phone--right {
+  transform: translate(22%, -52%) translateZ(-25px) rotate(9deg);
+}
+
+.mog-sticker {
+  position: absolute;
+  z-index: 5;
+  width: 90px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mog-white);
+  color: var(--mog-black);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+  text-align: center;
+  transform: rotate(-9deg);
+}
+
+.mog-sticker--one {
+  top: 17%;
+  left: 2%;
+}
+
+.mog-sticker--two {
+  right: 2%;
+  bottom: 19%;
+  width: 78px;
+  border: 1px solid #4a4d56;
+  background: #1d2024;
+  color: var(--mog-white);
+  transform: rotate(8deg);
+}
+
+.mog-stage__caption {
+  position: absolute;
+  right: auto; left: 50%;
+  bottom: 0; width: 100%; transform: translateX(-50%); text-align: center;
+  color: #858894;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.mog-ticker {
+  overflow: hidden;
+  border-bottom: 1px solid #d6d6d9;
+  background: var(--mog-white);
+  color: var(--mog-black);
+}
+
+.mog-ticker__track {
+  width: max-content;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  animation: mog-ticker 26s linear infinite;
+  will-change: transform;
+}
+
+.mog-ticker__group {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding-right: 22px;
+}
+
+.mog-ticker__track span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.mog-ticker__track i {
+  flex: none; width: 8px;
+  display: block; height: 8px;
+  border-radius: 50%;
+  background: var(--mog-coral);
+}
+
+@keyframes mog-ticker {
+  to { transform: translateX(-50%); }
+}
+
+.mog-manifesto {
+  padding: clamp(100px, 14vw, 190px) 0;
+  border-bottom: 1px solid var(--mog-line);
+  background: #0d0f13;
+}
+
+.mog-manifesto h2 {
+  max-width: 1180px;
+  margin: 22px 0 0;
+  color: var(--mog-white);
+  font-size: clamp(3.7rem, 7.5vw, 7.8rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  text-wrap: balance;
+}
+
+.mog-manifesto h2 span {
+  color: #777a84;
+}
+
+.mog-manifesto__foot {
+  max-width: 920px;
+  margin: 70px 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 0.72fr;
+  gap: clamp(32px, 7vw, 100px);
+}
+
+.mog-manifesto__foot p {
+  margin: 0;
+  color: #c7c9d1;
+  font-size: clamp(1.05rem, 1.5vw, 1.28rem);
+  line-height: 1.55;
+}
+
+.mog-manifesto__foot .mog-manifesto__aside {
+  padding-left: 20px;
+  border-left: 1px solid #393c44;
+  color: #8e919b;
+  font-size: 0.96rem;
+}
+
+.mog-story {
+  padding: clamp(100px, 11vw, 160px) 0;
+  background: #111318;
+}
+
+.mog-story__heading,
+.mog-plans__heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.7fr);
+  gap: clamp(40px, 8vw, 120px);
+  align-items: end;
+}
+
+.mog-story__heading h2,
+.mog-plans__heading h2,
+.mog-private h2,
+.mog-faq h2 {
+  max-width: 900px;
+  margin: 18px 0 0;
+  color: var(--mog-white);
+  font-size: clamp(3rem, 5vw, 5.7rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+.mog-story__heading > p,
+.mog-plans__heading > p {
+  margin: 0;
+  color: #b5b7c0;
+  font-size: 1.04rem;
+  line-height: 1.6;
+}
+
+.mog-story__layout {
+  margin-top: 100px;
+  display: grid;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(64px, 9vw, 140px);
+  align-items: start;
+}
+
+.mog-story__visual {
+  position: sticky;
+  top: 118px;
+  height: calc(100svh - 150px);
+  min-height: 650px;
+  display: grid;
+  place-items: center;
+}
+
+.mog-story__frame {
+  position: relative;
+  width: auto;
+  height: min(72svh, 760px);
+  aspect-ratio: 405 / 860;
+  overflow: hidden;
+  border: 8px solid #050609;
+  border-radius: 48px;
+  background: #050609;
+  box-shadow: 0 34px 70px rgba(0, 0, 0, 0.45), 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+.mog-story__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.035) translateY(10px);
+  transition: opacity 320ms ease-out, transform 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mog-story__image.is-active {
+  z-index: 2;
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.mog-story__counter {
+  position: absolute;
+  top: 8%;
+  right: 3%;
+  display: flex;
+  align-items: baseline; justify-content: center;
+  gap: 5px; width: 84px; min-height: 58px; padding: 8px 10px;
+  z-index: 5; border-radius: 999px; background: var(--mog-white); color: #676a74;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.mog-story__counter span:first-child { color: var(--mog-black); font-size: 2.3rem; letter-spacing: -0.05em; }
+
+.mog-story__steps {
+  padding-bottom: 28vh;
+}
+
+.mog-story__step {
+  min-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-top: 1px solid #30323a;
+  opacity: 0.38;
+  transition: opacity 260ms ease-out;
+}
+
+.mog-story__step:last-child {
+  border-bottom: 1px solid #30323a;
+}
+
+.mog-story__step.is-active {
+  opacity: 1;
+}
+
+.mog-story__step-copy > p:first-child {
+  margin: 0 0 18px;
+  color: var(--mog-coral);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.mog-story__step h3 {
+  max-width: 650px;
+  margin: 0;
+  color: var(--mog-white);
+  font-size: clamp(2.8rem, 4.7vw, 5.2rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.96;
+  text-wrap: balance;
+}
+
+.mog-story__step-copy > p:not(:first-child) {
+  max-width: 610px;
+  margin: 26px 0 0;
+  color: #b8bac3;
+  font-size: 1.08rem;
+  line-height: 1.62;
+}
+
+.mog-story__mobile-screen {
+  display: none;
+}
+
+.mog-private {
+  padding: clamp(100px, 11vw, 160px) 0;
+  background: var(--mog-white);
+  color: var(--mog-black);
+}
+
+.mog-private__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(400px, 0.75fr);
+  gap: clamp(60px, 10vw, 150px);
+  align-items: center;
+}
+
+.mog-private .mog-section-tag {
+  color: #b42924;
+}
+
+.mog-private h2 {
+  color: var(--mog-black);
+}
+
+.mog-private__copy > p:not(.mog-section-tag) {
+  max-width: 680px;
+  margin: 34px 0 0;
+  color: #3d3f46;
+  font-size: 1.1rem;
+  line-height: 1.66;
+}
+
+.mog-private__controls {
+  margin: 42px 0 34px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid #cfd0d4;
+  list-style: none;
+}
+
+.mog-private__controls li {
+  padding: 17px 24px 17px 0;
+  border-bottom: 1px solid #cfd0d4;
+  color: #1f2127;
+  font-weight: 600;
+}
+
+.mog-private__controls li:nth-child(odd) {
+  border-right: 1px solid #cfd0d4;
+}
+
+.mog-private__controls li:nth-child(even) {
+  padding-left: 24px;
+}
+
+.mog-dark-link {
+  color: var(--mog-black);
+}
+
+.mog-receipt {
+  position: relative;
+  padding: clamp(26px, 4vw, 44px);
+  border-radius: 3px;
+  background: var(--mog-black);
+  color: var(--mog-white);
+  box-shadow: 14px 18px 0 #dedfe2;
+  transform: rotate(1.3deg);
+}
+
+.mog-receipt::before,
+.mog-receipt::after {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  background: repeating-linear-gradient(135deg, transparent 0 7px, var(--mog-white) 8px 14px);
+  content: "";
+}
+
+.mog-receipt::before { top: -7px; }
+.mog-receipt::after { bottom: -7px; transform: rotate(180deg); }
+
+.mog-receipt__head {
+  padding-bottom: 22px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px dashed #646772;
+}
+
+.mog-receipt__head img {
+  border-radius: 13px;
+}
+
+.mog-receipt__head strong,
+.mog-receipt__head span {
+  display: block;
+}
+
+.mog-receipt__head strong {
+  font-size: 0.92rem;
+  letter-spacing: 0.08em;
+}
+
+.mog-receipt__head span {
+  color: #979aa5;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.mog-receipt__head > span {
+  color: var(--mog-white);
+  font-size: 1.8rem;
+}
+
+.mog-receipt ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mog-receipt li {
+  padding: 20px 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 20px;
+  border-bottom: 1px dashed #4a4d56;
+  font-size: 0.82rem;
+}
+
+.mog-receipt li > span {
+  color: #c7c9d1;
+}
+
+.mog-receipt li > strong {
+  text-align: right;
+}
+
+.mog-receipt li > small {
+  grid-column: 1 / -1;
+  color: #858894;
+}
+
+.mog-receipt__total {
+  margin: 24px 0 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: #aeb0ba;
+  font-weight: 600;
+}
+
+.mog-receipt__total strong {
+  color: var(--mog-white);
+  font-size: 1.8rem;
+}
+
+.mog-receipt__joke {
+  margin: 28px 0 0;
+  color: #70737d;
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+.mog-plans {
+  padding: clamp(100px, 11vw, 160px) 0;
+  border-bottom: 1px solid var(--mog-line);
+  background: #0d0f13;
+}
+
+.mog-birds {
+  margin-top: 78px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid #363941;
+}
+
+.mog-birds article {
+  min-width: 0;
+  padding: 34px clamp(20px, 3vw, 42px);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: 14px 20px;
+  align-items: center;
+}
+
+.mog-birds article + article {
+  border-left: 1px solid #363941;
+}
+
+.mog-birds img {
+  grid-row: 1 / 3;
+  width: clamp(58px, 5vw, 76px);
+  height: auto;
+}
+
+.mog-birds h3,
+.mog-birds p {
+  margin: 0;
+}
+
+.mog-birds h3 {
+  color: var(--mog-white);
+  font-size: 1.35rem;
+}
+
+.mog-birds p {
+  color: #8f929c;
+  font-size: 0.8rem;
+}
+
+.mog-birds article > strong {
+  grid-column: 1 / -1;
+  margin-top: 18px;
+  color: var(--mog-white);
+  font-size: clamp(2.4rem, 4vw, 4.5rem);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.mog-birds article > strong span,
+.mog-birds article > strong small {
+  color: #8f929c;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.mog-plan-table {
+  margin-top: 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.home-page .mog-plan-table .plan-table {
+  table-layout: fixed;
+}
+
+.home-page .mog-plan-table th,
+.home-page .mog-plan-table td {
+  padding: 18px 22px;
+  border-color: #30323a;
+}
+
+.home-page .mog-plan-table thead th {
+  color: var(--mog-white);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.home-page .mog-plan-table thead th:first-child,
+.home-page .mog-plan-table tbody th {
+  width: 40%;
+  text-align: left;
+}
+
+.home-page .mog-plan-table thead th:not(:first-child),
+.home-page .mog-plan-table td {
+  width: 20%;
+  text-align: center;
+}
+
+.home-page .plan-note {
+  max-width: 940px;
+  margin: 26px auto 0;
+  color: #8f929c;
+  text-align: center;
+}
+
+.mog-faq {
+  padding: clamp(100px, 11vw, 150px) 0;
+  background: #111318;
+}
+
+.home-page .mog-faq .faq-layout {
+  align-items: start;
+}
+
+.home-page .mog-faq .faq-intro {
+  position: sticky;
+  top: 120px;
+}
+
+.home-page .mog-faq .faq-intro > p:last-child {
+  max-width: 430px;
+  margin-top: 28px;
+  color: #979aa5;
+}
+
+.home-page .mog-faq .faq-list {
+  border-top: 1px solid #363941;
+}
+
+.home-page .mog-faq .faq-list details {
+  border-color: #363941;
+}
+
+.home-page .mog-faq .faq-list summary {
+  min-height: 86px;
+  color: var(--mog-white);
+  font-size: 1.08rem;
+}
+
+.home-page .mog-faq .faq-list summary::after {
+  color: var(--mog-coral);
+}
+
+.home-page .mog-faq .faq-list details p {
+  max-width: 690px;
+  color: #aeb0ba;
+}
+
+.mog-final {
+  padding: 72px 0;
+  background: var(--mog-white);
+  color: var(--mog-black);
+}
+
+.mog-final__inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: clamp(28px, 5vw, 68px);
+  align-items: center;
+}
+
+.mog-final__inner > img {
+  width: 88px;
+  height: 88px;
+  border-radius: 28px;
+  transform: rotate(-8deg);
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mog-final:hover .mog-final__inner > img {
+  transform: rotate(8deg) scale(1.06);
+}
+
+.mog-final h2 {
+  margin: 5px 0 0;
+  color: var(--mog-black);
+  font-size: clamp(2.5rem, 4.5vw, 5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+
+.mog-final p:not(.mog-section-tag) {
+  max-width: 650px;
+  margin: 14px 0 0;
+  color: #53555d;
+}
+
+.mog-final .mog-section-tag {
+  color: #b42924;
+}
+
+.mog-button--dark {
+  border-color: var(--mog-black);
+  background: var(--mog-black);
+  color: var(--mog-white);
+}
+
+.mog-button--dark:hover {
+  background: transparent;
+  color: var(--mog-black);
+}
+
+.home-footer {
+  background: var(--mog-black);
+}
+
+@media (max-width: 1100px) {
+  .home-page {
+    --mog-shell: min(100% - 40px, 980px);
+  }
+
+  .mog-hero__grid {
+    grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+    gap: 30px;
+  }
+
+  .mog-stage {
+    min-height: 620px;
+  }
+
+  .mog-phone--main { width: 310px; }
+  .mog-phone--left,
+  .mog-phone--right { width: 200px; }
+
+  .mog-private__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
+    gap: 60px;
+  }
+
+  .mog-birds article {
+    padding-inline: 22px;
+  }
+}
+
+@media (max-width: 820px) {
+  .home-page {
+    --mog-shell: calc(100% - 32px);
+  }
+
+  .home-header .site-header__inner {
+    min-height: 68px;
+  }
+
+  .home-header .site-nav,
+  .home-header .header-action {
+    display: none;
+  }
+
+  .home-header .mobile-nav {
+    display: block;
+  }
+
+  .home-header .mobile-nav summary {
+    min-width: 72px;
+    min-height: 42px;
+    display: grid;
+    place-items: center;
+    padding: 8px 14px;
+    border: 1px solid #3a3d45;
+    border-radius: 999px;
+    list-style: none;
+    font-weight: 700;
+  }
+
+  .home-header .mobile-nav summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .home-header .mobile-nav nav {
+    right: 0;
+    width: min(300px, calc(100vw - 32px));
+    border-color: #3a3d45;
+    background: #111318;
+  }
+
+  .mog-hero {
+    min-height: auto;
+  }
+
+  .mog-hero::after {
+    display: none;
+  }
+
+  .mog-hero__grid {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 26px;
+    padding-block: 48px 70px;
+  }
+
+  .mog-hero h1 {
+    margin-block: 20px 22px;
+    font-size: clamp(3.6rem, 16vw, 5.4rem);
+    line-height: 0.88;
+  }
+
+  .mog-hero__lede {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .mog-hero__actions {
+    margin-top: 26px;
+  }
+
+  .mog-hero__facts {
+    display: none;
+  }
+
+  .mog-stage {
+    min-height: 540px;
+    margin-top: -4px;
+  }
+
+  .mog-stage__halo {
+    top: 7%;
+    width: min(80vw, 430px);
+  }
+
+  .mog-phone--main {
+    width: min(64vw, 300px);
+  }
+
+  .mog-phone--left,
+  .mog-phone--right {
+    width: min(37vw, 175px);
+  }
+
+  .mog-phone--left {
+    transform: translate(-125%, -43%) translateZ(-40px) rotate(-9deg);
+  }
+
+  .mog-phone--right {
+    transform: translate(24%, -52%) translateZ(-25px) rotate(8deg);
+  }
+
+  .mog-sticker {
+    width: 72px;
+    font-size: 0.72rem;
+  }
+
+  .mog-sticker--one {
+    top: 13%;
+    left: 0;
+  }
+
+  .mog-sticker--two {
+    right: 0;
+    bottom: 17%;
+    width: 66px;
+  }
+
+  .mog-stage__caption {
+    right: auto;
+    bottom: 0;
+    left: 50%;
+    width: 100%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+
+  .mog-manifesto {
+    padding-block: 96px;
+  }
+
+  .mog-manifesto h2 {
+    font-size: clamp(3.15rem, 13vw, 5.3rem);
+  }
+
+  .mog-manifesto__foot {
+    margin-top: 52px;
+    grid-template-columns: 1fr;
+    gap: 26px;
+  }
+
+  .mog-story,
+  .mog-private,
+  .mog-plans,
+  .mog-faq {
+    padding-block: 96px;
+  }
+
+  .mog-story__heading,
+  .mog-plans__heading {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .mog-story__heading h2,
+  .mog-plans__heading h2,
+  .mog-private h2,
+  .mog-faq h2 {
+    font-size: clamp(3rem, 12vw, 5rem);
+  }
+
+  .mog-story__layout {
+    display: block;
+    margin-top: 68px;
+  }
+
+  .mog-story__visual {
+    display: grid; top: 88px; z-index: 1; height: 66svh; min-height: 500px;
+  }
+
+  .mog-story__counter {
+    position: absolute;
+    top: 8%;
+    right: 3%;
+    z-index: 5;
+    opacity: 1;
+    pointer-events: none;
+  }
+
+  .mog-story__steps {
+    position: relative; z-index: 2; margin-top: -4svh; padding-bottom: 30vh;
+  }
+
+  .mog-story__step {
+    align-items: stretch; justify-content: flex-end;
+    min-height: 82svh;
+    padding: 0 0 48px;
+    opacity: 0.42;
+  }
+
+  .mog-story__step h3 {
+    font-size: clamp(2.15rem, 9vw, 3.4rem);
+  }
+
+  .mog-story__step-copy {
+    width: min(100%, 520px);
+    margin: 0 auto;
+    display: block;
+    overflow: visible;
+    border: 1px solid #393c44;
+    border-radius: 24px;
+    background: #15171c;
+    box-shadow: none; padding: 24px;
+  }
+
+  .mog-story__frame {
+    width: min(56vw, 250px);
+    height: auto;
+  }
+
+  .mog-private__grid {
+    grid-template-columns: 1fr;
+    gap: 76px;
+  }
+
+  .mog-receipt {
+    width: min(100% - 12px, 520px);
+    margin-inline: auto;
+  }
+
+  .mog-birds {
+    grid-template-columns: 1fr;
+  }
+
+  .mog-birds article {
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto;
+  }
+
+  .mog-birds article + article {
+    border-top: 1px solid #363941;
+    border-left: 0;
+  }
+
+  .mog-birds img {
+    grid-row: auto;
+  }
+
+  .mog-birds article > strong {
+    grid-column: auto;
+    margin-top: 0;
+    font-size: 2.4rem;
+    text-align: right;
+  }
+
+  .home-page .mog-plan-table {
+    display: none;
+  }
+
+  .home-page .plan-mobile {
+    display: block;
+    margin-top: 40px;
+  }
+
+  .home-page .tier-tabs {
+    border-color: #393c44;
+    background: #15171c;
+  }
+
+  .home-page .tier-panel,
+  .home-page .tier-details {
+    border-color: #393c44;
+    background: transparent;
+  }
+
+  .home-page .mog-faq .faq-layout {
+    grid-template-columns: 1fr;
+    gap: 54px;
+  }
+
+  .home-page .mog-faq .faq-intro {
+    position: static;
+  }
+
+  .mog-final__inner {
+    grid-template-columns: auto 1fr;
+  }
+
+  .mog-final .mog-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .home-page {
+    --mog-shell: calc(100% - 32px);
+  }
+
+  .mog-kicker {
+    font-size: 0.7rem;
+  }
+
+  .mog-kicker span {
+    width: 22px;
+  }
+
+  .mog-hero__grid {
+    padding-top: 40px;
+  }
+
+  .mog-hero h1 {
+    font-size: clamp(3.35rem, 17vw, 4.7rem);
+  }
+
+  .mog-hero__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mog-button {
+    width: 100%;
+  }
+
+  .mog-text-link {
+    justify-content: center;
+  }
+
+  .mog-stage {
+    min-height: 470px;
+  }
+
+  .mog-phone {
+    border-width: 5px;
+    border-radius: 29px;
+  }
+
+  .mog-phone--main {
+    width: min(62vw, 250px);
+  }
+
+  .mog-phone--left,
+  .mog-phone--right {
+    width: min(35vw, 145px);
+  }
+
+  .mog-sticker--one {
+    top: 12%;
+  }
+
+  .mog-manifesto,
+  .mog-story,
+  .mog-private,
+  .mog-plans,
+  .mog-faq {
+    padding-block: 78px;
+  }
+
+  .mog-manifesto h2,
+  .mog-story__heading h2,
+  .mog-plans__heading h2,
+  .mog-private h2,
+  .mog-faq h2 {
+    font-size: clamp(2.8rem, 13vw, 4.2rem);
+  }
+
+  .mog-story__step h3 {
+    font-size: clamp(2.45rem, 12vw, 3.8rem);
+  }
+
+  .mog-private__controls {
+    grid-template-columns: 1fr;
+  }
+
+  .mog-private__controls li:nth-child(odd) {
+    border-right: 0;
+  }
+
+  .mog-private__controls li:nth-child(even) {
+    padding-left: 0;
+  }
+
+  .mog-receipt {
+    padding: 24px 20px;
+    box-shadow: 8px 11px 0 #dedfe2;
+  }
+
+  .mog-receipt li {
+    grid-template-columns: 1fr;
+  }
+
+  .mog-receipt li > strong {
+    text-align: left;
+  }
+
+  .mog-birds article {
+    grid-template-columns: 54px 1fr;
+    gap: 12px 16px;
+  }
+
+  .mog-birds img {
+    width: 54px;
+  }
+
+  .mog-birds article > strong {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  .home-page .tier-tabs {
+    gap: 4px;
+  }
+
+  .home-page .tier-tab {
+    padding-inline: 6px;
+  }
+
+  .home-page .tier-tab img {
+    width: 38px;
+    height: 38px;
+  }
+
+  .mog-final {
+    padding-block: 58px;
+  }
+
+  .mog-final__inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .mog-final__inner > img {
+    margin-inline: auto;
+  }
+
+  .mog-final p:not(.mog-section-tag) {
+    margin-inline: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mog-ticker__track {
+    width: max-content;
+    padding-inline: 0;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    animation: none;
+    transform: none;
+  }
+
+  .mog-stage,
+  .mog-story__image,
+  .mog-final__inner > img,
+  .mog-text-link span,
+  .mog-dark-link span,
+  .mog-button {
+    transition: none;
+  }
+}
