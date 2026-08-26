@@ -105,7 +105,33 @@ These are public app configuration values. Do not put any Worker, RevenueCat ser
 - [x] Production values saved under EAS environment `production`
 - [x] Preview environment checked and left unchanged
 
-## 4. Build and upload the first production AAB
+## 4. Finish and freeze the month calendar feature
+
+Do not build the production AAB while the month calendar work is still changing. This feature may stay inside the existing release if it only reads existing local meal data and calculates daily or weekly calories in JavaScript or SQL.
+
+Before building:
+
+- [x] The calendar agent has finished and stopped editing its files.
+- [x] Review the final diff and confirm it adds no native dependency, config plugin, Android permission, database migration, network request, analytics event, or new data export.
+- [x] Confirm the calendar uses the existing local date rules and stored calorie data.
+- [x] Confirm partial weeks and month boundaries do not double-count or omit days.
+- [x] Confirm changing months does not alter the selected diary date or existing meal data.
+- [x] Confirm adding, editing, or deleting a meal updates the affected day and weekly total.
+- [x] Navigate rapidly across several months and confirm a late query cannot replace the currently selected month with stale data.
+- [x] Confirm a failed month query keeps the last successful calendar visible and that Retry loads the selected month.
+- [x] Confirm spillover dates use their historical targets and contribute to the complete Monday-to-Sunday weekly total.
+- [x] Test short and long months, a leap February, a month beginning midweek, and a month ending midweek.
+- [x] Check the narrow phone layout: seven day cells and the weekly summary remain readable without clipping or horizontal scrolling.
+- [x] With TalkBack, confirm month controls, day status, weekly totals, and disabled next-month state have useful labels.
+- [x] Test the calendar on the physical Android phone that will run the internal build.
+- [x] Run the full app tests and TypeScript check.
+- [x] Run Expo dependency checking, Expo Doctor, notices checking, store metadata validation, and the Android export.
+- [x] Commit and push the finished feature.
+- [x] Record the exact clean commit hash. Build the AAB from that commit only.
+
+If the final feature adds any native dependency, config plugin, permission, database migration, network request, or new data handling, stop here. Update the build, migration, privacy, and Play declarations before continuing.
+
+## 5. Build and upload the first production AAB
 
 From the repository root:
 
@@ -130,7 +156,7 @@ Upload the AAB manually to Play Console's internal-testing track. Do not upload 
 - [ ] Version code recorded
 - [ ] EAS build ID recorded
 
-## 5. Create the real Play products
+## 6. Create the real Play products
 
 Create these only under package `com.sgaret.eatlog`.
 
@@ -163,7 +189,7 @@ Do not create `eatlog_itik_lifetime`. That identifier is obsolete.
 - [ ] Itik purchase option active
 - [ ] Philippines prices show PHP 79 and PHP 799
 
-## 6. Finish RevenueCat production mapping
+## 7. Finish RevenueCat production mapping
 
 In the existing Eatlog RevenueCat project:
 
@@ -180,7 +206,7 @@ In the existing Eatlog RevenueCat project:
 - [ ] Test Store Preview products still work
 - [ ] Restore behavior remains `Transfer to new App User ID`
 
-## 7. Connect notifications and the webhook
+## 8. Connect notifications and the webhook
 
 Configure the production RevenueCat webhook:
 
@@ -195,7 +221,7 @@ Connect RevenueCat's Google real-time developer notification topic to the Eatlog
 - [ ] Test notification succeeds
 - [ ] Preview purchase smoke test still succeeds afterward
 
-## 8. Test the Play-installed build
+## 9. Test the Play-installed build
 
 Add the Google accounts used for testing as Play license testers. Install Eatlog from the internal-testing Play link. Do not sideload the AAB or a production APK.
 
@@ -219,7 +245,7 @@ Test all of these on the Play-installed build:
 
 Do not start the closed-test clock until these checks pass.
 
-## 9. Run the required closed test
+## 10. Run the required closed test
 
 1. Promote the same tested AAB to closed testing.
 2. Add the private Google Group containing the testers.
@@ -233,7 +259,7 @@ Do not start the closed-test clock until these checks pass.
 - [ ] Production access approved
 - [ ] No unresolved P0 or P1 billing issue
 
-## 10. Release and move personal data
+## 11. Release and move personal data
 
 Release the tested build in stages. Start with 10 percent and check Play vitals, RevenueCat entitlement errors, Worker errors, restore failures, refunds, and Gemini cost before increasing the rollout.
 
