@@ -548,7 +548,6 @@ function AnalyticsScreen({
       return;
     }
 
-    setCalorieMonth(null);
     setCalorieMonthLoading(true);
     void loadCalorieMonth(next);
   }, [loadCalorieMonth]);
@@ -935,10 +934,15 @@ function AnalyticsScreen({
     </Card>
   );
 
+  const requestedCalorieMonthLabel = formatMonthLabel(parseLocalISO(selectedCalorieMonthStart));
+  const displayedCalorieMonthLabel = calorieMonth
+    ? formatMonthLabel(parseLocalISO(calorieMonth.monthStart))
+    : requestedCalorieMonthLabel;
   const calorieCalendar = (
     <MonthlyCalorieCalendar
       month={calorieMonth}
-      monthLabel={formatMonthLabel(parseLocalISO(selectedCalorieMonthStart))}
+      monthLabel={displayedCalorieMonthLabel}
+      requestedMonthLabel={requestedCalorieMonthLabel}
       isCurrentMonth={selectedCalorieMonthStart === monthStartISO(today)}
       loading={calorieMonthLoading}
       error={calorieMonthError}
@@ -1098,9 +1102,10 @@ function AnalyticsScreen({
                 height={176}
               />
             )}
-            <View className="h-px bg-m3-outline-variant/50" />
-            {calorieCalendar}
-          </Card>
+            </Card>
+            <Card className="p-5">
+              {calorieCalendar}
+            </Card>
 
           </View>
           </View>

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-01T17:03:22+08:00",
+  "generatedAt": "2026-08-26T01:52:51Z",
   "title": "Design System: Eatlog",
   "extensions": {
     "colorMeta": {
@@ -9,7 +9,10 @@
       "protein": { "role": "secondary", "displayName": "Protein Rose", "canonical": "#f2b7c6", "tonalRamp": ["#4f2532", "#713646", "#985064", "#c97d94", "#f2b7c6", "#ffe7ed"] },
       "carbs": { "role": "secondary", "displayName": "Carb Green", "canonical": "#b5e3c4", "tonalRamp": ["#1a3827", "#28533a", "#407657", "#71ad85", "#b5e3c4", "#e0f8e7"] },
       "fat": { "role": "secondary", "displayName": "Fat Gold", "canonical": "#e5c36c", "tonalRamp": ["#453812", "#66521d", "#927831", "#c5a151", "#e5c36c", "#fff0bc"] },
-      "expenditure": { "role": "tertiary", "displayName": "Expenditure Lavender", "canonical": "#d0bcff", "tonalRamp": ["#33264c", "#4b3a6c", "#685294", "#967ec6", "#d0bcff", "#eee7ff"] }
+      "expenditure": { "role": "tertiary", "displayName": "Expenditure Lavender", "canonical": "#d0bcff", "tonalRamp": ["#33264c", "#4b3a6c", "#685294", "#967ec6", "#d0bcff", "#eee7ff"] },
+      "calories": { "role": "secondary", "displayName": "Calorie Blue", "canonical": "#a0cafd", "tonalRamp": ["#18324f", "#234a72", "#32689b", "#5a95ce", "#6eaefc", "#a0cafd", "#d5e9ff", "#f1f7ff"] },
+      "error": { "role": "tertiary", "displayName": "Error Coral", "canonical": "#ffb4ab", "tonalRamp": ["#410002", "#690005", "#93000a", "#ba1a1a", "#ff5449", "#ffb4ab", "#ffdad6", "#fff1ef"] },
+      "web-interactive": { "role": "primary", "displayName": "Website Coral", "canonical": "#ff7b73", "tonalRamp": ["#4b0b0b", "#70201d", "#983730", "#c4534b", "#ff7b73", "#ffaaa4", "#ffd8d4", "#fff1ef"] }
     },
     "typographyMeta": {
       "display": { "displayName": "Measurement Display", "purpose": "Editable body measurements and target reveal figures." },
@@ -33,7 +36,7 @@
       "kind": "button",
       "refersTo": "button-primary",
       "description": "The single primary completion action on a screen or sheet.",
-      "html": "<button class=\"ds-primary-button\">SCAN A MEAL</button>",
+      "html": "<button class=\"ds-primary-button\">Scan a meal</button>",
       "css": ".ds-primary-button{background:#fff;color:#0f1117;border:0;border-radius:9999px;padding:16px 24px;font:700 14px Onest,Arial,sans-serif;transition:transform .1s ease,opacity .2s ease}.ds-primary-button:hover{opacity:.9}.ds-primary-button:focus-visible{outline:2px solid #a0cafd;outline-offset:3px}.ds-primary-button:active{transform:scale(.97)}"
     },
     {
@@ -49,7 +52,7 @@
       "kind": "chip",
       "refersTo": "selected-chip",
       "description": "Selected option in meal selectors and compact segmented controls.",
-      "html": "<button class=\"ds-chip\">DINNER</button>",
+      "html": "<button class=\"ds-chip\">Dinner</button>",
       "css": ".ds-chip{background:#33353a;color:#e2e2e9;border:0;border-radius:9999px;padding:10px 16px;font:600 12px Onest,Arial,sans-serif;transition:opacity .2s}.ds-chip:hover{opacity:.8}.ds-chip:focus-visible{outline:2px solid #a0cafd;outline-offset:2px}"
     },
     {
@@ -67,19 +70,42 @@
       "description": "A food or grouped meal; scanned meals use a flush media rail while non-scanned entries use a semantic icon.",
       "html": "<article class=\"ds-entry\"><div class=\"ds-entry-media\"></div><div><strong>Chicken rice bowl</strong><small>3 items</small></div><b>640 <em>kcal</em></b></article>",
       "css": ".ds-entry{display:flex;align-items:stretch;overflow:hidden;background:#1d2024;border:1px solid rgba(43,45,53,.6);border-radius:16px;color:#e2e2e9;font-family:Onest,Arial,sans-serif}.ds-entry-media{width:112px;min-height:112px;background:#33353a}.ds-entry>div:not(.ds-entry-media){flex:1;min-width:0;padding:20px 16px}.ds-entry strong{display:block;font-size:16px;line-height:22px}.ds-entry small{display:block;margin-top:2px;color:#c4c6d0;font-size:12px}.ds-entry b{width:88px;padding:20px 16px 0 0;text-align:right;font-size:18px;font-variant-numeric:tabular-nums}.ds-entry em{color:#c4c6d0;font-size:12px;font-style:normal;font-weight:500}"
+    },
+    {
+      "name": "Standard Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Default text field for direct entry and profile forms.",
+      "html": "<label class=\"ds-input\"><span>Food name</span><input placeholder=\"e.g. Chicken adobo\" /></label>",
+      "css": ".ds-input{display:grid;gap:6px;color:#c4c6d0;font:600 12px Onest,Arial,sans-serif}.ds-input input{min-height:48px;background:#282a2f;color:#e2e2e9;border:1px solid #2b2d35;border-radius:12px;padding:12px 16px;font:400 14px Onest,Arial,sans-serif}.ds-input input::placeholder{color:#9aa0aa}.ds-input input:focus-visible{outline:2px solid #a0cafd;outline-offset:2px}"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "description": "Four destinations with a center Add action that never becomes a fifth tab.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-active\">Today</button><button>Diary</button><button class=\"ds-nav-add\" aria-label=\"Add\">+</button><button>Analytics</button><button>Profile</button></nav>",
+      "css": ".ds-nav{display:grid;grid-template-columns:1fr 1fr 64px 1fr 1fr;align-items:center;gap:6px;background:#191c20;border-top:1px solid #2b2d35;padding:10px 12px;color:#c4c6d0;font-family:Onest,Arial,sans-serif}.ds-nav button{min-height:48px;background:transparent;color:inherit;border:0;border-radius:9999px;font:500 12px Onest,Arial,sans-serif}.ds-nav button:hover{background:#282a2f}.ds-nav button:focus-visible{outline:2px solid #a0cafd;outline-offset:2px}.ds-nav .ds-nav-active{color:#fff;font-weight:600}.ds-nav .ds-nav-add{width:64px;height:64px;margin-top:-24px;background:#fff;color:#0f1117;font-size:30px;line-height:1}.ds-nav .ds-nav-add:hover{background:#e2e2e9}"
+    },
+    {
+      "name": "Calorie Progress Ring",
+      "kind": "custom",
+      "description": "Calorie progress uses the base blue for the target cycle and overflow blue above target.",
+      "html": "<div class=\"ds-calorie-ring\" role=\"img\" aria-label=\"1,850 of 2,200 calories\"><span>1,850</span><small>kcal</small></div>",
+      "css": ".ds-calorie-ring{position:relative;display:grid;place-content:center;width:132px;height:132px;border-radius:50%;background:conic-gradient(#a0cafd 0 84%,#44474f 84% 100%);color:#e2e2e9;text-align:center;font-family:Onest,Arial,sans-serif}.ds-calorie-ring:after{content:'';position:absolute;inset:8px;border-radius:50%;background:#1d2024}.ds-calorie-ring span,.ds-calorie-ring small{position:relative;z-index:1}.ds-calorie-ring span{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}.ds-calorie-ring small{color:#c4c6d0;font-size:11px;font-weight:500}"
     }
   ],
   "narrative": {
     "northStar": "The Adaptive Training Instrument",
-    "overview": "Eatlog is a serious, calm Android training tool. Its dark Material 3 surface stack keeps the user focused on energy, macros, and trend data rather than decorative fitness theatrics. Information is compact but breathable: large tabular figures establish the current state, while toned surfaces and hairline borders establish hierarchy without shadows.",
-    "keyCharacteristics": ["Tonal dark Material 3 layering, not gradients or glass.", "Real Onest weights and tabular numeric hierarchy.", "Scanner/photo media is meaningful; icons are the fallback.", "Rounded surfaces with hairline boundaries, not floating shadow stacks."],
+    "overview": "Eatlog is a serious, calm nutrition instrument for Android and iOS. Its dark Material 3 surface stack keeps energy, macros, weight trends, and adaptive recommendations prominent without gamification. Large tabular figures establish the current state, while tonal surfaces and hairline boundaries establish hierarchy without shadows. Real meal photos carry identity through logging and review; deterministic food icons cover entries without photos.",
+    "keyCharacteristics": ["Tonal dark Material 3 layering, not gradients or glass.", "Real Onest weights and tabular numeric hierarchy.", "Photo-first meal logging with deterministic icon fallback.", "Rounded surfaces with hairline boundaries, not floating shadow stacks.", "Android-native sheets, Back behavior, and reduced-motion support."],
     "rules": [
-      { "name": "Scanner-First Rule", "body": "Camera capture, gallery import, and meal description are the primary entry routes. Search and manual entry remain capable fallbacks, never the visual center of the product.", "section": "overview" },
+      { "name": "Photo-First Rule", "body": "Camera capture and gallery import lead to Identify meal. Local history reuse comes before an explicit new estimate; search and manual entry remain capable fallbacks.", "section": "overview" },
       { "name": "Nutrient Meaning Rule", "body": "Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen.", "section": "colors" },
+      { "name": "Nutrient Overflow Rule", "body": "The first target cycle uses the nutrient base color. Intake above target refills from the start in the darker same-hue overflow token.", "section": "colors" },
       { "name": "Stable Figure Rule", "body": "Calories, grams, dates, trend weights, and editable measurement values always use tabular numerals.", "section": "typography" },
       { "name": "Tonal Elevation Rule", "body": "Use a higher surface token to distinguish an active or selected element. Never add a shadow to compensate for weak hierarchy.", "section": "elevation" }
     ],
-    "dos": ["Do use tonal surfaces and hairline outline-variant borders.", "Do gate motion through reduced-motion behavior.", "Do use real scanned thumbnails with deterministic food icons as fallback."],
-    "donts": ["Don't add gamification noise, gradients, glassmorphism, or drop shadows.", "Don't use cream/sand SaaS neutrals or mascot copy.", "Don't create per-screen component styles."]
+    "dos": ["Do use tonal surfaces and hairline outline-variant borders.", "Do gate motion through reduced-motion behavior.", "Do use real scanned thumbnails with deterministic food icons as fallback.", "Do keep the center Add control as an action rather than a navigation destination."],
+    "donts": ["Don't add gamification noise, gradients, glassmorphism, or drop shadows.", "Don't use cream or sand SaaS neutrals or mascot copy.", "Don't create per-screen component styles.", "Don't expose API credentials or inert cloud-sync controls."]
   }
 }
