@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>
+  <dir prefix="cwd">release/site/fonts</dir>
+  <cachedir>/tmp/eatlog-fontconfig-cache</cachedir>
+</fontconfig>
