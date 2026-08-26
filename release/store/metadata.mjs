@@ -26,7 +26,7 @@ export const storeMetadata = {
     shortDescription: 'Food logging that minds its own business',
     fullDescription: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Everything you need, nothing you don't. Fast input, editable estimates, useful trends, and a diary that stays on your phone.
+Fast input, editable estimates, useful trends, and none of the usual clutter around them.
 
 Log it. Eat lunch.
 Photo when you're in a hurry. Manual when you're not. Start from a description, food search, saved food, or past meal when that is faster. Every estimate stays editable before it reaches the diary. The robot does not get the last word.
@@ -58,7 +58,7 @@ Nutrition data, calculated targets, trends, and meal results are estimates. Revi
     keywords: 'nutrition,calories,macros,meals,diary,weight,tracker,food log,backup',
     description: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Everything you need, nothing you don't. Fast input, editable estimates, useful trends, and a diary that stays on your phone.
+Fast input, editable estimates, useful trends, and none of the usual clutter around them.
 
 LOG IT. EAT LUNCH.
 Photo when you're in a hurry. Manual when you're not. Start from a description, food search, saved food, or past meal when that is faster. Every estimate stays editable before it reaches the diary. The robot does not get the last word.
