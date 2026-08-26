@@ -13,11 +13,11 @@ export default function TierBirdIcon({ tier, size = 48 }: TierBirdIconProps) {
     return (
       <Svg width={size} height={size} viewBox="0 0 48 48" accessible={false}>
         <Circle cx="24" cy="24" r="24" fill="#3A302A" />
+        <Path d="M37 26.5c3.8-2.8 6.1-2.4 7.4-1.1-1.8 1.2-2.8 2.6-3.2 4.2 1.7.1 3 .8 3.8 2.1-2.8.8-5.2.4-7.7-.9Z" fill="#9A6745" />
         <Ellipse cx="27" cy="29" rx="13" ry="10" fill="#D8B08C" />
         <Circle cx="16.5" cy="20" r="7" fill="#9A6745" />
         <Path d="M10.5 20.5 5 23l5.8 2.1Z" fill="#E7B24D" />
         <Ellipse cx="29" cy="29" rx="6.5" ry="4.7" fill="#84583F" />
-        <Path d="M22 19.2c3.4 1.2 5.7 3.3 7 6.3-3.6-.2-6.5-1.2-8.8-3.1Z" fill="#F1D8BB" />
         <Circle cx="15" cy="18.8" r="1.15" fill="#111318" />
         <Path d="M22 38v3M31 38v3" stroke="#D8B08C" strokeWidth="1.8" strokeLinecap="round" />
       </Svg>
@@ -45,13 +45,13 @@ export default function TierBirdIcon({ tier, size = 48 }: TierBirdIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 48 48" accessible={false}>
       <Circle cx="24" cy="24" r="24" fill="#203431" />
-      <Ellipse cx="28" cy="31" rx="13" ry="8.5" fill="#D8D2B8" />
-      <Path d="M19 21c0 4.1 1.3 7.2 4.1 9.4l6.1-2.8c-2.4-2.2-3.6-4.8-3.6-7.8Z" fill="#4E8C78" />
-      <Circle cx="19.2" cy="18.3" r="7.4" fill="#4E8C78" />
-      <Path d="M13 18.4 4 20.7l9.2 3.2c1.3-1.9 1.2-3.7-.2-5.5Z" fill="#EEA84F" />
+      <Path d="M37.5 26.8c3.7-2.6 6-2.1 7.3-.8-1.8 1.1-2.8 2.5-3.1 4.1 1.7.1 3 .8 3.8 2.1-2.9.8-5.3.4-7.7-.9Z" fill="#D8D2B8" />
+      <Ellipse cx="28" cy="30.5" rx="13" ry="9.5" fill="#D8D2B8" />
+      <Circle cx="18.7" cy="20.3" r="7.8" fill="#4E8C78" />
+      <Path d="M12.2 20.2 4 22.5l8.5 3c1.2-1.8 1.1-3.5-.3-5.3Z" fill="#EEA84F" />
       <Ellipse cx="30" cy="31" rx="6.8" ry="4.4" fill="#9A7A4F" />
-      <Circle cx="17.5" cy="16.7" r="1.15" fill="#111318" />
-      <Path d="M25 38.5v2.5M33 38.5v2.5" stroke="#D8D2B8" strokeWidth="1.8" strokeLinecap="round" />
+      <Circle cx="17" cy="18.4" r="1.15" fill="#111318" />
+      <Path d="M25 39v2M33 39v2" stroke="#D8D2B8" strokeWidth="1.8" strokeLinecap="round" />
     </Svg>
   );
 }
