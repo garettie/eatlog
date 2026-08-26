@@ -1,29 +1,50 @@
 export const storeMetadata = {
   sourceVersion: 1,
-  locale: 'en-US',
+  locale: "en-US",
   product: {
-    name: 'Eatlog',
-    valueProposition: 'Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.',
-    audience: 'Adults using Eatlog for general wellness nutrition and weight logging.',
-    androidPackage: 'com.sgaret.eatlog',
-    iosBundleIdentifierCandidate: 'com.sgaret.eatlog',
-    releaseOrder: ['Google Play', 'Apple App Store'],
+    name: "Eatlog",
+    valueProposition:
+      "Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.",
+    audience:
+      "Adults using Eatlog for general wellness nutrition and weight logging.",
+    androidPackage: "com.sgaret.eatlog",
+    iosBundleIdentifierCandidate: "com.sgaret.eatlog",
+    releaseOrder: ["Google Play", "Apple App Store"],
     commercial: {
-      acquisitionPrice: 'free',
-      manok: { currency: 'PHP', amount: 79, period: 'monthly', trial: 'one month for eligible users' },
-      itik: { currency: 'PHP', amount: 799, purchaseType: 'one-time lifetime entitlement' },
+      acquisitionPrice: "free",
+      manok: {
+        currency: "PHP",
+        amount: 79,
+        period: "monthly",
+        trial: "one month for eligible users",
+      },
+      itik: {
+        currency: "PHP",
+        amount: 799,
+        purchaseType: "one-time lifetime entitlement",
+      },
       subscriptions: true,
       inAppPurchases: true,
       crossStoreEntitlement: false,
     },
     accountRequired: false,
     localFirst: true,
-    remoteFeatures: ['Scan', 'Describe and re-estimation', 'USDA search and detail', 'Open Food Facts full search'],
-    deferredFeatures: ['HealthKit', 'Apple Health', 'cloud sync', 'social features'],
+    remoteFeatures: [
+      "Scan",
+      "Describe and re-estimation",
+      "USDA search and detail",
+      "Open Food Facts full search",
+    ],
+    deferredFeatures: [
+      "HealthKit",
+      "Apple Health",
+      "cloud sync",
+      "social features",
+    ],
   },
   google: {
-    title: 'Eatlog',
-    shortDescription: 'Food logging that minds its own business',
+    title: "Eatlog",
+    shortDescription: "Before you Eat, Log.",
     fullDescription: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
 Fast input, editable estimates, useful trends, and none of the usual clutter around them.
@@ -47,15 +68,18 @@ Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, an
 On Android, optional Health Connect support reads and writes Weight only after you choose to connect it.
 
 Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
-    releaseNotes: 'Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.',
-    category: 'Health & Fitness',
-    healthAppsCategory: 'Nutrition and Weight Management',
-    requiredHealthDisclaimer: 'Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.',
+    releaseNotes:
+      "Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.",
+    category: "Health & Fitness",
+    healthAppsCategory: "Nutrition and Weight Management",
+    requiredHealthDisclaimer:
+      "Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.",
   },
   apple: {
-    title: 'Eatlog',
-    subtitle: 'Food logging, minus the fuss',
-    keywords: 'nutrition,calories,macros,meals,diary,weight,tracker,food log,backup',
+    title: "Eatlog",
+    subtitle: "Food logging, minus the fuss",
+    keywords:
+      "nutrition,calories,macros,meals,diary,weight,tracker,food log,backup",
     description: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
 Fast input, editable estimates, useful trends, and none of the usual clutter around them.
@@ -77,10 +101,12 @@ Create a restorable backup, export readable CSV files, delete all local data, or
 Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Manok adds meal estimates and adaptive plan recommendations through a monthly plan, with a one-month trial for eligible users. Itik unlocks the same paid features with a one-time lifetime purchase. Current prices and terms appear in the store purchase sheet.
 
 Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
-    promotionalText: 'Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog. Fast, editable food logging with useful trends and no cloud diary.',
-    releaseNotes: 'Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.',
-    primaryCategory: 'Health & Fitness',
-    secondaryCategory: 'Food & Drink',
+    promotionalText:
+      "Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog. Fast, editable food logging with useful trends and no cloud diary.",
+    releaseNotes:
+      "Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.",
+    primaryCategory: "Health & Fitness",
+    secondaryCategory: "Food & Drink",
     firstVersionReleaseNotesFieldAvailable: false,
   },
   reviewerNotes: {
@@ -100,24 +126,25 @@ Profile > Backup and restore creates or restores .eatlog-backup files. Export da
 iOS v1 has no Health Connect, HealthKit, or Apple Health integration.`,
   },
   artwork: {
-    featureGraphicAltText: 'Eatlog white egg-shaped nutrition scale mark centered on a dark background.',
+    featureGraphicAltText:
+      "Eatlog white egg-shaped nutrition scale mark centered on a dark background.",
     screenshotAltText: [
-      'Today shows calorie and macro progress with the center Add control.',
-      'Editable meal estimate lists food components, amounts, and nutrition.',
-      'Food search shows common USDA results and explicit full-search options.',
-      'Diary shows meals, entries, totals, and a saved meal photo.',
-      'Analytics shows weight trend, calorie history, and logging consistency.',
-      'Plan review shows a suggested change with Accept and Keep choices.',
-      'Profile shows backup, export, privacy, and local data controls.',
+      "Today shows calorie and macro progress with the center Add control.",
+      "Editable meal estimate lists food components, amounts, and nutrition.",
+      "Food search shows common USDA results and explicit full-search options.",
+      "Diary shows meals, entries, totals, and a saved meal photo.",
+      "Analytics shows weight trend, calorie history, and logging consistency.",
+      "Plan review shows a suggested change with Accept and Keep choices.",
+      "Profile shows backup, export, privacy, and local data controls.",
     ],
   },
   ownerRequiredFields: [
-    'public developer or legal name',
-    'monitored support email',
-    'privacy policy URL',
-    'Terms of Use URL',
-    'support URL',
-    'review contact name, email, phone, and time zone',
-    'launch countries and final console pricing',
+    "public developer or legal name",
+    "monitored support email",
+    "privacy policy URL",
+    "Terms of Use URL",
+    "support URL",
+    "review contact name, email, phone, and time zone",
+    "launch countries and final console pricing",
   ],
 };
