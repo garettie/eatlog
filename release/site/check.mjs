@@ -27,7 +27,7 @@ const legalFactPatterns = new Map([
 for (const [route, html] of pages) {
   assert.match(html, /^<!doctype html>/i, `${route} needs an HTML doctype`);
   assert.match(html, /<html lang="en">/, `${route} needs a language`);
-  assert.match(html, /<meta name="viewport"/, `${route} needs a viewport meta tag`);
+  assert.match(html, /<meta\b[^>]*\bname\s*=\s*["']viewport["'][^>]*>/i, `${route} needs a viewport meta tag`);
   assert.match(html, /<title>[^<]+<\/title>/, `${route} needs a title`);
   assert.match(html, /<main\b/, `${route} needs a main landmark`);
   assert.match(html, /<h1\b/, `${route} needs one primary heading`);
@@ -53,8 +53,8 @@ assert.match(homepage, /href="\/styles\.css\?v=[^"]+"/, 'homepage stylesheet nee
 assert.match(homepage, /href="\/home\.css\?v=[^"]+"/, 'homepage stylesheet override needs a cache-busting version');
 assert.match(homepage, /src="\/site\.js\?v=[^"]+"/, 'homepage script needs a cache-busting version');
 assert.match(homepage, /<a class="header-action" href="#release-status">Release status<\/a>/, 'release status link needs the homepage release target');
-assert.match(homepage, /<section class="mog-final" id="release-status"/, 'homepage needs a release status target');
-assert.match(homepage, /<button[^>]+data-cook-button[^>]*>Let him cook!<\/button>/, 'release section needs the cooking interaction');
+assert.match(homepage, /<section\b(?=[^>]*\bclass=["'][^"']*\bmog-final\b[^"']*["'])(?=[^>]*\bid=["']release-status["'])[^>]*>/i, 'homepage needs a release status target');
+assert.match(homepage, /<button\b[^>]*\bdata-cook-button\b[^>]*>\s*Let him cook!\s*<\/button>/i, 'release section needs the cooking interaction');
 assert.match(homepage, /src="\/assets\/fire-click\.svg"/, 'cooking interaction needs the one-shot fire SVG');
 
 const compliancePages = ['/privacy', '/terms'].map((route) => pages.get(route));
