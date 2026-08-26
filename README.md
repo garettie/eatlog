@@ -1,6 +1,6 @@
 # Eatlog
 
-> Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
+> Before you eat, log.
 
 I built Eatlog for myself around a simple rule: everything I need, nothing I don't. Fast input, editable estimates, useful trends, and a diary that stays on my phone. No account to create. No cloud diary. No streak mascot waiting to judge lunch.
 
