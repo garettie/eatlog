@@ -1,140 +1,73 @@
 # Eatlog
 
-Eatlog is a local-first food, nutrition, and weight log for adults. Record meals manually, reuse saved foods and past meals, or request an editable estimate from a photo or written description.
+> Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Core records stay on the device. Eatlog has no app account, cloud food or weight database, ads, or third-party analytics. Online food search, AI meal estimates, and store entitlement checks run only for the features that need them.
+I built Eatlog for myself around a simple rule: everything I need, nothing I don't. Fast input, editable estimates, useful trends, and a diary that stays on my phone. No account to create. No cloud diary. No streak mascot waiting to judge lunch.
 
-Eatlog is for adult general wellness. It is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
+Photo when you're in a hurry. Manual when you're not. Fix what it guessed wrong, save the meal, and move on with your day.
 
-## What Eatlog does
+## One meal, four moves
 
-- Log food manually, from recent or pinned foods, or by reusing a past meal with a new photo.
-- Search USDA FoodData Central and Open Food Facts.
-- Request editable meal estimates from a photo or written description after explicit consent.
-- Review daily calories and macros in Today and Diary.
-- Track weight, calorie history, and logging consistency in Analytics.
-- Review adaptive plan suggestions and choose whether to apply them.
-- Create restorable Eatlog backups and readable, non-restorable CSV exports.
-- Turn a logged meal into a local share card, then save it or share it through the operating system.
-- Optionally read and write Weight through Health Connect on Android.
+1. **Log it.** Take a photo, describe the meal, search, reuse something familiar, or enter it yourself.
+2. **Review it.** Edit names, portions, grams, calories, and macros before anything enters the diary. The robot does not get the last word.
+3. **Read it.** See today's calories and macros, then use Diary and Analytics when you want the longer view.
+4. **Decide.** When enough evidence exists, Eatlog can propose a target change. Nothing moves until you accept it.
 
-## Local-first boundaries
+## Everything I need
 
-Profiles, targets, food entries, weights, and saved meal photos use on-device SQLite and app storage. Manual logging, saved history, past-meal reuse, and analytics do not require a network connection.
+- A fast Today view for calories and macros.
+- A proper diary with meals, photos, edits, and undo.
+- Weight trend, average intake, calorie history, and logging consistency.
+- Saved foods and past meals that make repeat logging quick.
+- Meal cards for sharing without turning Eatlog into a social network.
+- Restorable backups, readable CSV exports, and a real delete-all button.
+- Optional weight sync with Health Connect on Android.
 
-Eatlog contacts remote services only for named online actions:
+## Nothing I don't
 
-| Action | Data path |
-| --- | --- |
-| Photo or description estimate | User-selected content goes through the Eatlog Cloudflare Worker to Google Gemini after consent. |
-| USDA search and food detail | The app sends the search through the Eatlog Worker. |
-| Open Food Facts full search | The app contacts Open Food Facts only after an explicit full search. |
-| Purchase and entitlement check | Google Play or Apple processes the purchase; RevenueCat verifies entitlement metadata. |
+- No Eatlog account. There is nothing to forget a password for.
+- No cloud copy of the food log, weight history, targets, or meal photos.
+- No ads or third-party analytics.
+- No forced online estimate. Manual logging and saved history still work without one.
+- No automatic plan changes. The plan has to ask first.
+- No medical cosplay. Eatlog records estimates and trends. It does not pretend to be a doctor.
 
-Withdrawing or declining AI consent keeps local logging, saved history, food search, and analytics available. Android Health Connect access is optional and limited to Weight. iOS v1 has no HealthKit or Apple Health integration.
+## The birds
 
-## Access tiers
+- **Pugo.** Food logging, weight tracking, Diary, and Analytics.
+- **Manok.** Adds meal estimates and adaptive plan recommendations through a monthly plan. Eligible users get a one-month trial.
+- **Itik.** The same paid features with a one-time lifetime purchase.
 
-| Tier | Access |
-| --- | --- |
-| Pugo | Free local food and weight logging. |
-| Manok | Monthly access to AI estimates and local adaptive recommendations, with a one-month trial for eligible users. |
-| Itik | One-time lifetime access to the paid features. |
+Current prices and terms appear in the app store purchase sheet.
 
-Store purchase sheets provide the current localized price and terms. Android and iOS purchases do not grant cross-store entitlement.
+## Platforms
 
-## Platform and release status
+Eatlog is built for Android and iPhone. The first public release is planned for Android, with iPhone to follow.
 
-Eatlog is an Expo and React Native app for Android and iPhone. Android is the first public release target, followed by the Apple App Store. The repository contains release worksheets and metadata, but those files are preparation records rather than proof of a live store release.
+## Run it locally
 
-The app uses native modules, so development requires a native build or development client. Expo Go does not cover the full application.
-
-## Repository layout
-
-```text
-src/
-  components/    Shared interface components and sheets
-  context/       Consent, entitlement, and maintenance state
-  db/            SQLite schema, migrations, and queries
-  navigation/    Root, tab, and profile navigation
-  screens/       Today, Diary, Analytics, Profile, and setup flows
-  services/      Backup, billing, estimates, search, and platform services
-  utils/         Nutrition, chart, calendar, sharing, and safety logic
-worker/           Cloudflare Worker for food data, AI, and entitlements
-plugins/          Expo config plugins for native release behavior
-release/          Store, privacy, legal, QA, artwork, and runbook sources
-scripts/          Metadata, artwork, notice, and evaluation tools
-```
-
-The mobile app uses TypeScript, React Native, Expo, React Navigation, NativeWind, and `expo-sqlite`. The Worker is a separate TypeScript package under `worker/`.
-
-## Development
-
-Install dependencies:
+Eatlog uses Expo and React Native with native modules. Use a native development build. Expo Go cannot run the full app.
 
 ```bash
 npm install
-```
-
-Start Metro for the development variant:
-
-```bash
 npm start
+npm run android
 ```
 
-Build and run a native development app:
+Running the iPhone build requires macOS and Xcode:
 
 ```bash
-npm run android
 npm run ios
 ```
 
-The iOS command requires macOS and Xcode. Android development requires the Android SDK and a compatible JDK.
-
-## Runtime configuration
-
-The app reads public build-time settings from Expo environment variables:
-
-| Variable | Purpose |
-| --- | --- |
-| `EXPO_PUBLIC_FOOD_WORKER_URL` | Enables Worker-backed USDA search and Gemini estimates. |
-| `EXPO_PUBLIC_REVENUECAT_API_KEY` | Enables store entitlement checks. |
-| `EXPO_PUBLIC_REVENUECAT_TEST_STORE_ALLOWED` | Allows a RevenueCat Test Store key only in the preview build. |
-| `EXPO_PUBLIC_SUPPORT_EMAIL` | Sets the public support address and Open Food Facts user agent. |
-| `EXPO_PUBLIC_PRIVACY_URL` | Sets the published privacy policy link. |
-| `EXPO_PUBLIC_TERMS_URL` | Sets the published terms link. |
-| `EXPO_PUBLIC_SUPPORT_URL` | Sets the published support link. |
-
-Do not put USDA, Gemini, RevenueCat secret, signing, or rate-limit credentials in the mobile app. The Worker owns those secrets. See [`worker/README.md`](worker/README.md) for local Worker setup and [`owner_setup.md`](owner_setup.md) for release configuration.
-
-## Verification
-
-Run the mobile checks from the repository root:
+## Checks
 
 ```bash
 npm test
 npm run typecheck
-npm run notices:check
 npm run store:metadata:check
-npm run store:artwork:check
-npm run site:check
 ```
-
-Run Worker checks separately:
-
-```bash
-cd worker
-npm install
-npm test
-npm run typecheck
-```
-
-## Store listing sources
-
-[`release/store/metadata.mjs`](release/store/metadata.mjs) is the canonical source for the Google Play and Apple App Store descriptions, release notes, reviewer notes, and product facts. Run `npm run store:metadata:check` after changing public product claims.
-
-The remaining submission sources live in [`release/store/`](release/store/). Store worksheets contain draft answers and owner-controlled fields. Reconcile them with the signed release binary and current console forms before submission.
 
 ## License
 
-Eatlog is available under the [BSD Zero Clause License](LICENSE).
+[BSD Zero Clause](LICENSE)

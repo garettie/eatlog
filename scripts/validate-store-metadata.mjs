@@ -82,6 +82,9 @@ for (const forbidden of [
   assert.equal(forbidden.test(publicCopy), false, `Public store copy contains a forbidden or placeholder claim: ${forbidden}`);
 }
 assert.equal(/Apple Health|HealthKit/iu.test(metadata.apple.description), false, 'Apple public description must not claim Apple Health or HealthKit support.');
+const internalProviderName = /\b(?:USDA|Open Food Facts|Cloudflare|Gemini|RevenueCat)\b/iu;
+assert.equal(internalProviderName.test(publicCopy), false, 'Public store copy must describe the product, not internal providers.');
+assert.equal(internalProviderName.test(readme), false, 'README must describe the product, not internal providers.');
 
 assert.deepEqual(shareContract.contentKinds, ['meal']);
 assert.deepEqual(shareContract.mealStyles, ['photo', 'framed', 'nutrition']);

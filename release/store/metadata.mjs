@@ -3,7 +3,7 @@ export const storeMetadata = {
   locale: 'en-US',
   product: {
     name: 'Eatlog',
-    valueProposition: 'Eatlog is a local-first food, nutrition, and weight log for adults.',
+    valueProposition: 'Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.',
     audience: 'Adults using Eatlog for general wellness nutrition and weight logging.',
     androidPackage: 'com.sgaret.eatlog',
     iosBundleIdentifierCandidate: 'com.sgaret.eatlog',
@@ -23,59 +23,62 @@ export const storeMetadata = {
   },
   google: {
     title: 'Eatlog',
-    shortDescription: 'Local-first food, nutrition, and weight logging with editable estimates',
-    fullDescription: `Eatlog is a local-first food, nutrition, and weight log for adults. Record meals manually, reuse saved foods and past meals, or request an editable estimate from a photo or written description.
+    shortDescription: 'Food logging that minds its own business',
+    fullDescription: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Log food
-Enter nutrition manually, reuse recent or pinned foods, reuse a past meal with a new photo, search USDA FoodData Central and Open Food Facts, or request an editable estimate from a photo or written description.
+I built Eatlog for myself around a simple rule: everything I need, nothing I don't. Fast input, editable estimates, useful trends, and a diary that stays on my phone.
 
-Review your day and plan
-See daily calories and macros on Today and Diary. Edit or delete entries and undo a deletion. Log weight and review trends, intake history, and logging consistency. Review plan suggestions and choose whether to apply them.
+Log it. Eat lunch.
+Photo when you're in a hurry. Manual when you're not. Start from a description, food search, saved food, or past meal when that is faster. Every estimate stays editable before it reaches the diary. The robot does not get the last word.
 
-Keep your data on your phone
-Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
+See the useful part
+Today keeps calories and macros easy to read. Diary holds the full record. Analytics shows weight trend, average intake, calorie history, and logging consistency without turning the numbers into a soap opera.
 
-Online services and estimates
-Manual logging, camera/gallery selection, past-meal reuse, saved history, and analytics work without a network connection. Estimate as new sends only the selected photo and optional meal title; Describe sends only the text you choose after you choose Okay to enable online estimates. Not now keeps the photo, title, and local reuse options without sending estimate data; a later explicit AI action can ask again. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. Online estimates and searches require internet access.
+The plan has to ask first
+When enough evidence exists, Eatlog can propose a target change. Nothing moves until you accept it.
 
-Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
+Your diary is not the price of using the app
+There is no Eatlog account, no cloud copy of your food or weight history, no ads, and no third-party analytics. Online estimates and full food search run only when you ask. Manual logging, saved meals, history, and analytics keep working without them.
 
-Health and safety
-Eatlog is for adult general wellness. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.
+Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
+
+Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Manok adds meal estimates and adaptive plan recommendations through a monthly plan, with a one-month trial for eligible users. Itik unlocks the same paid features with a one-time lifetime purchase. Current prices and terms appear in the store purchase sheet.
 
 On Android, optional Health Connect support reads and writes Weight only after you choose to connect it.
 
-Eatlog is free to download. Eatlog Pugo includes local food and weight logging. Eatlog Manok is a monthly subscription with an eligible one-month trial; Eatlog Itik is a one-time lifetime purchase. Store purchase sheets show localized prices and terms. Paid access unlocks AI estimates and local adaptive recommendations, subject to the disclosed fair-use limits. Eatlog has no ads, login, or third-party analytics.`,
-    releaseNotes: 'Initial release. Log food and weight, review daily calories and macros, and view weight trends, intake history, and logging consistency. Reuse saved foods or past meals with a new photo, choose whether to apply plan suggestions, and create backups or CSV exports. Optional online tools include Estimate as new, Describe, USDA search, and Open Food Facts search. Android can optionally read and write Weight through Health Connect.',
+Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
+    releaseNotes: 'Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.',
     category: 'Health & Fitness',
     healthAppsCategory: 'Nutrition and Weight Management',
     requiredHealthDisclaimer: 'Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.',
   },
   apple: {
     title: 'Eatlog',
-    subtitle: 'Food, nutrition, and weight',
+    subtitle: 'Food logging, minus the fuss',
     keywords: 'nutrition,calories,macros,meals,diary,weight,tracker,food log,backup',
-    description: `Eatlog is a local-first food, nutrition, and weight log for adults. Record meals manually, reuse saved foods and past meals, or request an editable estimate from a photo or written description.
+    description: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-LOG FOOD
-Enter nutrition manually, reuse recent or pinned foods, reuse a past meal with a new photo, search USDA FoodData Central and Open Food Facts, or request an editable estimate from a photo or written description.
+I built Eatlog for myself around a simple rule: everything I need, nothing I don't. Fast input, editable estimates, useful trends, and a diary that stays on my phone.
 
-REVIEW YOUR DAY AND PLAN
-See daily calories and macros on Today and Diary. Edit or delete entries and undo a deletion. Log weight and review trends, intake history, and logging consistency. Review plan suggestions and choose whether to apply them.
+LOG IT. EAT LUNCH.
+Photo when you're in a hurry. Manual when you're not. Start from a description, food search, saved food, or past meal when that is faster. Every estimate stays editable before it reaches the diary. The robot does not get the last word.
 
-KEEP YOUR DATA ON YOUR PHONE
-Your profile, targets, food entries, weights, and saved meal photos stay on your device. Eatlog has no app account or cloud database. Create an Eatlog backup, restore a supported backup, export readable CSV files, or delete all local data.
+SEE THE USEFUL PART
+Today keeps calories and macros easy to read. Diary holds the full record. Analytics shows weight trend, average intake, calorie history, and logging consistency without turning the numbers into a soap opera.
 
-ONLINE SERVICES AND ESTIMATES
-Manual logging, camera/gallery selection, past-meal reuse, saved history, and analytics work without a network connection. Estimate as new sends only the selected photo and optional meal title; Describe sends only the text you choose after you choose Okay to enable online estimates. Not now keeps the photo, title, and local reuse options without sending estimate data; a later explicit AI action can ask again. USDA searches also use an online service. Open Food Facts is contacted only when you run a full search. Online estimates and searches require internet access.
+THE PLAN HAS TO ASK FIRST
+When enough evidence exists, Eatlog can propose a target change. Nothing moves until you accept it.
 
-Nutrition data, calculated targets, trends, and photo or description results are estimates. Review entries before saving them.
+YOUR DIARY IS NOT THE PRICE OF USING THE APP
+There is no Eatlog account, no cloud copy of your food or weight history, no ads, and no third-party analytics. Online estimates and full food search run only when you ask. Manual logging, saved meals, history, and analytics keep working without them.
 
-Eatlog is for adult general wellness. It is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.
+Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
 
-Eatlog is free to download. Eatlog Pugo includes local food and weight logging. Eatlog Manok is a monthly subscription with an eligible one-month trial; Eatlog Itik is a one-time lifetime purchase. Store purchase sheets show localized prices and terms. Paid access unlocks AI estimates and local adaptive recommendations, subject to the disclosed fair-use limits. Eatlog has no ads, login, or third-party analytics.`,
-    promotionalText: 'Local-first food and weight logging with editable estimates, clear trends, local backup, and CSV export.',
-    releaseNotes: 'Initial release. Log food and weight, review daily calories and macros, and view weight trends, intake history, and logging consistency. Reuse saved foods or past meals with a new photo, choose whether to apply plan suggestions, and create backups or CSV exports. Optional online tools include Estimate as new, Describe, USDA search, and Open Food Facts search.',
+Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Manok adds meal estimates and adaptive plan recommendations through a monthly plan, with a one-month trial for eligible users. Itik unlocks the same paid features with a one-time lifetime purchase. Current prices and terms appear in the store purchase sheet.
+
+Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
+    promotionalText: 'Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog. Fast, editable food logging with useful trends and no cloud diary.',
+    releaseNotes: 'Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.',
     primaryCategory: 'Health & Fitness',
     secondaryCategory: 'Food & Drink',
     firstVersionReleaseNotesFieldAvailable: false,
