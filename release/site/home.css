@@ -148,7 +148,7 @@
   font-size: clamp(4.7rem, 7.25vw, 7.4rem);
   font-weight: 700;
   letter-spacing: -0.04em;
-  line-height: 0.84;
+  line-height: 1;
   text-wrap: balance;
 }
 
