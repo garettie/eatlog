@@ -1,312 +1,961 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <!--
+  <head>
+    <!--
     THESIS: Eatlog is the premium food log that minds its own business. The page sells the real product through oversized, legible app screens rather than borrowed social proof.
     OWN-WORLD: Near-black M3 surfaces, Onest, the white egg mark, editorial scale, and nutrient colors used only inside real product data.
     STORY: Meet the product immediately, move one meal through its full loop, inspect the exact data route, compare the three birds, then check release status.
     FIRST VIEWPORT: A plain-spoken promise and three real Eatlog screens sit inside a precision dial that fills as you read. The product is visible before any explanation is required.
     FORM: Premium food-tech instrument with a crooked sense of humor. Precise mechanics, playful copy, no gamified fitness theater.
   -->
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0c0e13">
-  <meta name="description" content="Eatlog is a local-first food, macro, and weight log with editable estimates, clear trends, and data that stays on your phone.">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="Eatlog: Track the food. Not you.">
-  <meta property="og:description" content="Fast food and weight logging with editable estimates, clear trends, local backup, and no account.">
-  <meta property="og:image" content="/assets/feature-graphic.png">
-  <title>Eatlog: Track the food. Not you.</title>
-  <link rel="icon" href="/assets/favicon.png" type="image/png">
-  <link rel="manifest" href="/site.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=20260825-premium5">
-  <link rel="stylesheet" href="/home.css?v=20260825-mog28">
-  <script src="/site.js?v=20260825-mog21" defer></script>
-</head>
-<body class="home-page">
-  <a class="skip-link" href="#main">Skip to content</a>
-  <div class="page-progress" aria-hidden="true"></div>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0c0e13" />
+    <meta
+      name="description"
+      content="Eatlog is a local-first food, macro, and weight log with editable estimates, clear trends, and data that stays on your phone."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Eatlog: Before you eat, log." />
+    <meta
+      property="og:description"
+      content="Fast food and weight logging with editable estimates, clear trends, local backup, and no account."
+    />
+    <meta property="og:image" content="/assets/feature-graphic.png" />
+    <title>Eatlog: Track the food. Not you.</title>
+    <link rel="icon" href="/assets/favicon.png" type="image/png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="stylesheet" href="/styles.css?v=20260825-premium5" />
+    <link rel="stylesheet" href="/home.css?v=20260825-mog28" />
+    <script src="/site.js?v=20260825-mog21" defer></script>
+  </head>
+  <body class="home-page">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="page-progress" aria-hidden="true"></div>
 
-  <header class="site-header home-header">
-    <div class="site-header__inner">
-      <a class="brand" href="/" aria-label="Eatlog home">
-        <img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt="">
-        <span>Eatlog</span>
-      </a>
-      <nav class="site-nav" aria-label="Primary navigation">
-        <a href="#daily-loop">The app</a>
-        <a href="#local-first">Your data</a>
-        <a href="#plans">The birds</a>
-      </nav>
-      <details class="mobile-nav">
-        <summary>Menu</summary>
-        <nav aria-label="Mobile navigation"><a href="#daily-loop">The app</a><a href="#local-first">Your data</a><a href="#plans">The birds</a><a href="/support">Support</a></nav>
-      </details>
-      <a class="header-action" href="#release-status">Release status</a>
-    </div>
-  </header>
-
-  <main id="main" tabindex="-1">
-    <section class="mog-hero" aria-labelledby="hero-title">
-      <div class="section-shell mog-hero__grid">
-        <div class="mog-hero__copy">
-          <p class="mog-kicker"><span aria-hidden="true"></span> Food logging that minds its own business</p>
-          <h1 id="hero-title">Track the food.<br><em>Not you.</em></h1>
-          <p class="mog-wordplay">Itlog, eat itlog, log it, log eat, log eat itlog, <strong>Eatlog.</strong></p>
-          <p class="mog-hero__lede">Photo when you are in a hurry. Manual when you are not. Edit every estimate, keep the whole diary on your phone, and move on with your day.</p>
-          <div class="mog-hero__actions">
-            <a class="mog-button" href="#daily-loop">Put one meal through it</a>
-            <a class="mog-text-link" href="#local-first">See what leaves your phone <span aria-hidden="true">↓</span></a>
-          </div>
-          <ul class="mog-hero__facts" aria-label="Eatlog product facts">
-            <li><strong>No account</strong><span>There is nothing to forget a password for.</span></li>
-            <li><strong>Your edits win</strong><span>Nothing enters the diary until you save it.</span></li>
-            <li><strong>Local backup</strong><span>Make a restorable Eatlog archive.</span></li>
-          </ul>
-        </div>
-
-        <div class="mog-stage" data-mog-stage aria-label="Three Eatlog app screens">
-          <svg class="mog-dial" viewBox="0 0 600 600" aria-hidden="true" focusable="false">
-            <circle class="mog-dial__ring" cx="300" cy="300" r="296"></circle>
-            <circle class="mog-dial__ring" cx="300" cy="300" r="212"></circle>
-            <circle class="mog-dial__ticks" cx="300" cy="300" r="254"></circle>
-            <circle class="mog-dial__ticks mog-dial__ticks--coarse" cx="300" cy="300" r="254"></circle>
-            <circle class="mog-dial__arc" data-dial-arc cx="300" cy="300" r="276" transform="rotate(-180 300 300)"></circle>
-          </svg>
-          <div class="mog-stage__halo" aria-hidden="true"></div>
-          <figure class="mog-phone mog-phone--left">
-            <img src="/assets/fabsheet-cropped.jpg" sizes="(max-width: 760px) 38vw, 240px" width="810" height="1720" alt="Eatlog Add entry sheet with scan, photo, description, recent meals, food search, and weight actions" decoding="async">
-          </figure>
-          <figure class="mog-phone mog-phone--main">
-            <img src="/assets/dashboard-405.jpg" srcset="/assets/dashboard-405.jpg 405w, /assets/dashboard.jpg 810w" sizes="(max-width: 760px) 64vw, 360px" width="810" height="1720" alt="Eatlog Today dashboard with calorie and macro progress" fetchpriority="high" decoding="async">
-          </figure>
-          <figure class="mog-phone mog-phone--right">
-            <img src="/assets/analytics2-cropped.jpg" sizes="(max-width: 760px) 38vw, 240px" width="810" height="1720" alt="Eatlog Analytics with calorie intake, targets, logging consistency, and the next plan check" decoding="async">
-          </figure>
-          <span class="mog-sticker mog-sticker--one">NO<br>LOGIN</span>
-          <span class="mog-sticker mog-sticker--two">EDIT<br>ME</span>
-        </div>
-      </div>
-    </section>
-
-    <div class="mog-ticker" aria-label="Eatlog capabilities">
-      <div class="mog-ticker__track">
-        <div class="mog-ticker__group"><span>PHOTO OR MANUAL</span><i aria-hidden="true"></i><span>EDIT BEFORE SAVE</span><i aria-hidden="true"></i><span>WEIGHT TREND</span><i aria-hidden="true"></i><span>LOCAL BACKUP</span><i aria-hidden="true"></i><span>ADAPTIVE TARGETS</span><i aria-hidden="true"></i><span>NO ACCOUNT</span><i aria-hidden="true"></i></div>
-        <div class="mog-ticker__group" aria-hidden="true"><span>PHOTO OR MANUAL</span><i></i><span>EDIT BEFORE SAVE</span><i></i><span>WEIGHT TREND</span><i></i><span>LOCAL BACKUP</span><i></i><span>ADAPTIVE TARGETS</span><i></i><span>NO ACCOUNT</span><i></i></div>
-      </div>
-    </div>
-
-    <section class="mog-manifesto" aria-labelledby="manifesto-title">
-      <div class="section-shell">
-        <p class="mog-section-tag" data-reveal>WHY IT EXISTS</p>
-        <h2 id="manifesto-title" data-reveal style="--reveal-delay: 80ms">Eatlog wants the meal.<br><span>Then it gets out of the way.</span></h2>
-        <div class="mog-manifesto__foot" data-reveal style="--reveal-delay: 160ms">
-          <p>Use the fastest honest input. Fix what needs fixing. Save a record you can understand later.</p>
-          <p class="mog-manifesto__aside">No streak mascot will be disappointed in you.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="mog-story" id="daily-loop" aria-labelledby="loop-title">
-      <div class="section-shell">
-        <div class="mog-story__heading" data-reveal>
-          <div>
-            <p class="mog-section-tag">ONE MEAL, FOUR MOVES</p>
-            <h2 id="loop-title">The robot does not get the last word.</h2>
-          </div>
-          <p>Start with a photo, description, search, saved meal, or manual entry. Every online estimate stays editable before it becomes part of your record.</p>
-        </div>
-
-        <div class="mog-story__layout">
-          <div class="mog-story__visual" aria-hidden="true">
-            <div class="mog-story__frame">
-              <img class="mog-story__image is-active" data-story-image="input" src="/assets/fabsheet-cropped.jpg" sizes="min(38vw, 430px)" width="810" height="1720" alt="" loading="lazy">
-              <img class="mog-story__image" data-story-image="review" src="/assets/mealreview-405.jpg" srcset="/assets/mealreview-405.jpg 405w, /assets/mealreview.jpg 810w" sizes="min(38vw, 430px)" width="810" height="1720" alt="" loading="lazy">
-              <img class="mog-story__image" data-story-image="trend" src="/assets/weightscreen-405.jpg" srcset="/assets/weightscreen-405.jpg 405w, /assets/weightscreen.jpg 810w" sizes="min(38vw, 430px)" width="810" height="1720" alt="" loading="lazy">
-              <img class="mog-story__image" data-story-image="decide" src="/assets/planscreen3-405.jpg" srcset="/assets/planscreen3-405.jpg 405w, /assets/planscreen3.jpg 810w" sizes="min(38vw, 430px)" width="810" height="1720" alt="" loading="lazy">
-            </div>
-          </div>
-
-          <div class="mog-story__steps" data-story-steps>
-            <div class="mog-story__rail" aria-hidden="true"><span class="mog-story__rail-fill" data-story-rail></span></div>
-            <article class="mog-story__step is-active" data-story-step="input" data-story-number="01">
-              <figure class="mog-story__mobile-screen">
-                <img src="/assets/fabsheet-cropped.jpg" sizes="(max-width: 620px) 68vw, 240px" width="810" height="1720" alt="Eatlog Add entry sheet with photo, description, saved meal, food search, and weight actions" loading="lazy">
-              </figure>
-              <div class="mog-story__step-copy">
-                <span class="mog-story__step-number" aria-hidden="true">01</span>
-              <p>INPUT</p>
-              <h3>Take a photo. Eat your lunch.</h3>
-              <p>Use a photo when it helps. Manual logging and saved history still work without an online estimate.</p>
-              </div>
-            </article>
-            <article class="mog-story__step" data-story-step="review" data-story-number="02">
-              <figure class="mog-story__mobile-screen">
-                <img src="/assets/mealreview-405.jpg" srcset="/assets/mealreview-405.jpg 405w, /assets/mealreview.jpg 810w" sizes="(max-width: 620px) 68vw, 240px" width="810" height="1720" alt="Eatlog meal review with editable portions, grams, and nutrition" loading="lazy">
-              </figure>
-              <div class="mog-story__step-copy">
-                <span class="mog-story__step-number" aria-hidden="true">02</span>
-              <p>REVIEW</p>
-              <h3>Fix what it guessed wrong.</h3>
-              <p>Edit names, portions, grams, and nutrition before anything enters the diary. Your correction is the final answer.</p>
-              </div>
-            </article>
-            <article class="mog-story__step" data-story-step="trend" data-story-number="03">
-              <figure class="mog-story__mobile-screen">
-                <img src="/assets/weightscreen-405.jpg" srcset="/assets/weightscreen-405.jpg 405w, /assets/weightscreen.jpg 810w" sizes="(max-width: 620px) 68vw, 240px" width="810" height="1720" alt="Eatlog Analytics weight chart with scale points, trend weight, and goal progress" loading="lazy">
-              </figure>
-              <div class="mog-story__step-copy">
-                <span class="mog-story__step-number" aria-hidden="true">03</span>
-              <p>READ</p>
-              <h3>Your weight, minus the soap opera.</h3>
-              <p>Scale points, trend weight, weekly pace, and goal timing stay together in Analytics.</p>
-              </div>
-            </article>
-            <article class="mog-story__step" data-story-step="decide" data-story-number="04">
-              <figure class="mog-story__mobile-screen">
-                <img src="/assets/planscreen3-405.jpg" srcset="/assets/planscreen3-405.jpg 405w, /assets/planscreen3.jpg 810w" sizes="(max-width: 620px) 68vw, 240px" width="810" height="1720" alt="Eatlog plan recommendation asking the user to accept or keep the current targets" loading="lazy">
-              </figure>
-              <div class="mog-story__step-copy">
-                <span class="mog-story__step-number" aria-hidden="true">04</span>
-              <p>DECIDE</p>
-              <h3>The plan has to ask first.</h3>
-              <p>When enough evidence exists, Eatlog proposes a target change. Nothing moves until you accept it.</p>
-              </div>
-            </article>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="mog-private" id="local-first" aria-labelledby="local-title">
-      <div class="section-shell mog-private__grid">
-        <div class="mog-private__copy" data-reveal>
-          <p class="mog-section-tag">LOCAL MEANS ON THIS PHONE</p>
-          <h2 id="local-title">Your diary is not the price of using the app.</h2>
-          <p>Your profile, targets, food log, weight history, saved meal photos, and adaptive decisions stay in app-private storage. Eatlog has no account system or cloud database.</p>
-          <ul class="mog-private__controls" aria-label="On-device data controls">
-            <li>Create a restorable backup</li>
-            <li>Restore a supported backup</li>
-            <li>Export readable CSV files</li>
-            <li>Delete all local data</li>
-          </ul>
-          <a class="mog-dark-link" href="/privacy">Read the privacy policy <span aria-hidden="true">↗</span></a>
-        </div>
-
-        <div class="mog-receipt" data-reveal style="--reveal-delay: 120ms" aria-label="What Eatlog sends online">
-          <div class="mog-receipt__head"><img src="/assets/icon.png" width="42" height="42" alt=""><div><strong>DATA RECEIPT</strong><span>EATLOG / THIS DEVICE</span></div><span>01</span></div>
-          <ol>
-            <li><span>Manual and saved-history logging</span><strong>STAYS HERE</strong></li>
-            <li><span>AI estimate you request</span><strong>PHOTO OR TEXT</strong><small>Only after separate consent.</small></li>
-            <li><span>Food database search</span><strong>SEARCH QUERY</strong><small>Only when you run a search.</small></li>
-            <li><span>Backup or share</span><strong>YOU CHOOSE</strong><small>The system share sheet opens.</small></li>
-          </ol>
-          <p class="mog-receipt__total"><span>Cloud diary</span><strong>NONE</strong></p>
-          <p class="mog-receipt__joke">Throw this receipt away. The backup is the useful one.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="mog-plans" id="plans" aria-labelledby="plans-title">
-      <div class="section-shell">
-        <div class="mog-plans__heading" data-reveal>
-          <div>
-            <p class="mog-section-tag">THE BIRD SITUATION</p>
-            <h2 id="plans-title">Three birds. Pick your level of fancy.</h2>
-          </div>
-          <p>Pugo keeps the durable local log free. Manok and Itik unlock the same AI-estimate and adaptive-plan features with different billing.</p>
-        </div>
-
-        <div class="mog-birds" aria-label="Eatlog plan prices" data-reveal>
-          <article data-reveal style="--reveal-delay: 0ms"><img src="/assets/tier-pugo.svg" width="72" height="72" alt=""><div><h3>Pugo</h3><p>The full local log.</p></div><strong>Free</strong></article>
-          <article data-reveal style="--reveal-delay: 90ms"><img src="/assets/tier-manok.svg" width="72" height="72" alt=""><div><h3>Manok</h3><p>Paid features monthly.</p></div><strong><span>PHP</span> 79<small>/month</small></strong></article>
-          <article data-reveal style="--reveal-delay: 180ms"><img src="/assets/tier-itik.svg" width="72" height="72" alt=""><span class="mog-bird__chip">PAY ONCE</span><div><h3>Itik</h3><p>Paid features, pay once.</p></div><strong><span>PHP</span> 799<small> once</small></strong></article>
-        </div>
-
-        <div class="plan-table-wrap mog-plan-table" data-reveal style="--reveal-delay: 120ms">
-          <table class="plan-table">
-            <thead><tr><th scope="col">Feature</th><th scope="col">Pugo</th><th scope="col">Manok</th><th scope="col">Itik</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Local food and weight logging</th><td><span class="feature-check" role="img" aria-label="Included">✓</span></td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td></tr>
-              <tr><th scope="row">Diary, analytics, backup, export</th><td><span class="feature-check" role="img" aria-label="Included">✓</span></td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td></tr>
-              <tr><th scope="row">AI estimates</th><td>Not included</td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td></tr>
-              <tr><th scope="row">Adaptive plan recommendations</th><td>Not included</td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td><td><span class="feature-check" role="img" aria-label="Included">✓</span></td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="plan-mobile" data-plan-comparison>
-          <div class="tier-tabs" role="tablist" aria-label="Compare Eatlog plans">
-            <button class="tier-tab is-selected" id="tier-tab-pugo" type="button" role="tab" aria-selected="true" aria-controls="tier-panel-pugo" tabindex="0" data-tier="pugo"><img src="/assets/tier-pugo.svg" width="48" height="48" alt=""><span>Pugo</span><small>Free</small></button>
-            <button class="tier-tab" id="tier-tab-manok" type="button" role="tab" aria-selected="false" aria-controls="tier-panel-manok" tabindex="-1" data-tier="manok"><img src="/assets/tier-manok.svg" width="48" height="48" alt=""><span>Manok</span><small>Monthly</small></button>
-            <button class="tier-tab" id="tier-tab-itik" type="button" role="tab" aria-selected="false" aria-controls="tier-panel-itik" tabindex="-1" data-tier="itik"><img src="/assets/tier-itik.svg" width="48" height="48" alt=""><span>Itik</span><small>Lifetime</small></button>
-          </div>
-          <section class="tier-panel" id="tier-panel-pugo" role="tabpanel" aria-labelledby="tier-tab-pugo" data-tier-panel="pugo">
-            <dl class="tier-details"><div><dt>Local logging</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>Diary, analytics, backup, export</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>AI estimates</dt><dd>Not included</dd></div><div><dt>Adaptive plan</dt><dd>Not included</dd></div><div><dt>Billing</dt><dd>Free</dd></div></dl>
-          </section>
-          <section class="tier-panel" id="tier-panel-manok" role="tabpanel" aria-labelledby="tier-tab-manok" data-tier-panel="manok" hidden>
-            <dl class="tier-details"><div><dt>Local logging</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>Diary, analytics, backup, export</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>AI estimates</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>Adaptive plan</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>Billing</dt><dd>PHP 79 monthly</dd></div></dl>
-          </section>
-          <section class="tier-panel" id="tier-panel-itik" role="tabpanel" aria-labelledby="tier-tab-itik" data-tier-panel="itik" hidden>
-            <dl class="tier-details"><div><dt>Local logging</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>Diary, analytics, backup, export</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>AI estimates</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>Adaptive plan</dt><dd><span class="feature-check" role="img" aria-label="Included">✓</span></dd></div><div><dt>Billing</dt><dd>PHP 799 once</dd></div></dl>
-          </section>
-        </div>
-        <p class="plan-note">Eligible Manok users may receive a one-month introductory trial. Store checkout shows final localized prices and eligibility. AI access is subject to the fair-use limits in the <a href="/terms">Terms</a>.</p>
-      </div>
-    </section>
-
-    <section class="mog-faq" id="questions" aria-labelledby="faq-title">
-      <div class="section-shell faq-layout">
-        <div class="faq-intro" data-reveal>
-          <p class="mog-section-tag">FINE PRINT, NORMAL SIZE</p>
-          <h2 id="faq-title">The questions people ask before installing.</h2>
-          <p>The longer, less charming versions live in the Privacy Policy and Terms.</p>
-        </div>
-        <div class="faq-list" data-reveal style="--reveal-delay: 100ms">
-          <details><summary>Does Eatlog need an account?</summary><p>No. Eatlog has no login or cloud identity. The app uses an app-scoped installation token for online-service abuse limits and purchase access checks, but it is not an account.</p></details>
-          <details data-reveal style="--reveal-delay: 60ms"><summary>Can I use Eatlog without AI estimates?</summary><p>Yes. Manual logging, local history, food search, weight tracking, analytics, backup, export, and sharing remain available when you decline online meal estimates.</p></details>
-          <details data-reveal style="--reveal-delay: 120ms"><summary>Are nutrition estimates medical advice?</summary><p>No. Eatlog is for adult general wellness. Nutrition values, targets, trends, and estimates can be incomplete or wrong. Review entries and speak with a qualified health professional about medical decisions.</p></details>
-          <details data-reveal style="--reveal-delay: 180ms"><summary>What happens if I stop paying?</summary><p>Your local food, weight, target, photo, and adaptive history stays on the device. Paid AI and adaptive access ends when the verified entitlement expires or is revoked.</p></details>
-          <details data-reveal style="--reveal-delay: 240ms"><summary>Does Eatlog sync with health platforms?</summary><p>Android users can optionally connect Health Connect for Weight read and write access. Eatlog does not use HealthKit or Apple Health in v1.</p></details>
-        </div>
-      </div>
-    </section>
-
-    <section class="mog-final" id="release-status" aria-labelledby="final-title">
-      <div class="section-shell mog-final__inner" data-reveal>
-        <img src="/assets/icon.png" width="108" height="108" alt="" aria-hidden="true">
-        <div>
-          <p class="mog-section-tag">ANDROID FIRST</p>
-          <h2 id="final-title">The egg is still cooking.</h2>
-          <p>The Play listing is not live yet. Check the current release status or ask what remains before launch.</p>
-        </div>
-        <div class="mog-cook">
-          <button class="mog-button mog-button--dark mog-cook__button" type="button" data-cook-button aria-describedby="cook-status">Let him cook!</button>
-          <span class="mog-cook__fire" data-cook-fire aria-hidden="true">
-            <img class="mog-cook__fire-effect" data-cook-fire-effect src="/assets/fire-click.svg" alt="">
-          </span>
-          <span class="mog-cook__status" id="cook-status" aria-live="polite"></span>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="site-footer home-footer">
-    <div class="section-shell site-footer__inner">
-      <div>
+    <header class="site-header home-header">
+      <div class="site-header__inner">
         <a class="brand" href="/" aria-label="Eatlog home">
-          <img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt="">
+          <img
+            class="brand__mark"
+            src="/assets/icon.png"
+            width="38"
+            height="38"
+            alt=""
+          />
           <span>Eatlog</span>
         </a>
-        <p class="footer-copy">Adult general-wellness software. It is not a medical device, and nutrition estimates and calculated targets can be wrong.</p>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="#daily-loop">The app</a>
+          <a href="#local-first">Your data</a>
+          <a href="#plans">The birds</a>
+        </nav>
+        <details class="mobile-nav">
+          <summary>Menu</summary>
+          <nav aria-label="Mobile navigation">
+            <a href="#daily-loop">The app</a><a href="#local-first">Your data</a
+            ><a href="#plans">The birds</a><a href="/support">Support</a>
+          </nav>
+        </details>
+        <a class="header-action" href="#release-status">Release status</a>
       </div>
-      <nav class="footer-links" aria-label="Footer navigation">
-        <a href="/privacy">Privacy</a>
-        <a href="/terms">Terms</a>
-        <a href="/support">Support</a>
-        <a href="#main">Back to top</a>
-      </nav>
-    </div>
-  </footer>
-</body>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="mog-hero" aria-labelledby="hero-title">
+        <div class="section-shell mog-hero__grid">
+          <div class="mog-hero__copy">
+            <p class="mog-kicker">
+              <span aria-hidden="true"></span> Food logging that minds its own
+              business
+            </p>
+            <h1 id="hero-title">Track the food.<br /><em>Not you.</em></h1>
+            <p class="mog-wordplay">
+              Itlog, eat itlog, log it, log eat, log eat itlog,
+              <strong>Eatlog.</strong>
+            </p>
+            <p class="mog-hero__lede">
+              Photo when you are in a hurry. Manual when you are not. Edit every
+              estimate, keep the whole diary on your phone, and move on with
+              your day.
+            </p>
+            <div class="mog-hero__actions">
+              <a class="mog-button" href="#daily-loop"
+                >Put one meal through it</a
+              >
+              <a class="mog-text-link" href="#local-first"
+                >See what leaves your phone <span aria-hidden="true">↓</span></a
+              >
+            </div>
+            <ul class="mog-hero__facts" aria-label="Eatlog product facts">
+              <li>
+                <strong>No account</strong
+                ><span>There is nothing to forget a password for.</span>
+              </li>
+              <li>
+                <strong>Your edits win</strong
+                ><span>Nothing enters the diary until you save it.</span>
+              </li>
+              <li>
+                <strong>Local backup</strong
+                ><span>Make a restorable Eatlog archive.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div
+            class="mog-stage"
+            data-mog-stage
+            aria-label="Three Eatlog app screens"
+          >
+            <svg
+              class="mog-dial"
+              viewBox="0 0 600 600"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle class="mog-dial__ring" cx="300" cy="300" r="296"></circle>
+              <circle class="mog-dial__ring" cx="300" cy="300" r="212"></circle>
+              <circle
+                class="mog-dial__ticks"
+                cx="300"
+                cy="300"
+                r="254"
+              ></circle>
+              <circle
+                class="mog-dial__ticks mog-dial__ticks--coarse"
+                cx="300"
+                cy="300"
+                r="254"
+              ></circle>
+              <circle
+                class="mog-dial__arc"
+                data-dial-arc
+                cx="300"
+                cy="300"
+                r="276"
+                transform="rotate(-180 300 300)"
+              ></circle>
+            </svg>
+            <div class="mog-stage__halo" aria-hidden="true"></div>
+            <figure class="mog-phone mog-phone--left">
+              <img
+                src="/assets/fabsheet-cropped.jpg"
+                sizes="(max-width: 760px) 38vw, 240px"
+                width="810"
+                height="1720"
+                alt="Eatlog Add entry sheet with scan, photo, description, recent meals, food search, and weight actions"
+                decoding="async"
+              />
+            </figure>
+            <figure class="mog-phone mog-phone--main">
+              <img
+                src="/assets/dashboard-405.jpg"
+                srcset="
+                  /assets/dashboard-405.jpg 405w,
+                  /assets/dashboard.jpg     810w
+                "
+                sizes="(max-width: 760px) 64vw, 360px"
+                width="810"
+                height="1720"
+                alt="Eatlog Today dashboard with calorie and macro progress"
+                fetchpriority="high"
+                decoding="async"
+              />
+            </figure>
+            <figure class="mog-phone mog-phone--right">
+              <img
+                src="/assets/analytics2-cropped.jpg"
+                sizes="(max-width: 760px) 38vw, 240px"
+                width="810"
+                height="1720"
+                alt="Eatlog Analytics with calorie intake, targets, logging consistency, and the next plan check"
+                decoding="async"
+              />
+            </figure>
+            <span class="mog-sticker mog-sticker--one">NO<br />LOGIN</span>
+            <span class="mog-sticker mog-sticker--two">EDIT<br />ME</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="mog-ticker" aria-label="Eatlog capabilities">
+        <div class="mog-ticker__track">
+          <div class="mog-ticker__group">
+            <span>PHOTO OR MANUAL</span><i aria-hidden="true"></i
+            ><span>EDIT BEFORE SAVE</span><i aria-hidden="true"></i
+            ><span>WEIGHT TREND</span><i aria-hidden="true"></i
+            ><span>LOCAL BACKUP</span><i aria-hidden="true"></i
+            ><span>ADAPTIVE TARGETS</span><i aria-hidden="true"></i
+            ><span>NO ACCOUNT</span><i aria-hidden="true"></i>
+          </div>
+          <div class="mog-ticker__group" aria-hidden="true">
+            <span>PHOTO OR MANUAL</span><i></i><span>EDIT BEFORE SAVE</span
+            ><i></i><span>WEIGHT TREND</span><i></i><span>LOCAL BACKUP</span
+            ><i></i><span>ADAPTIVE TARGETS</span><i></i><span>NO ACCOUNT</span
+            ><i></i>
+          </div>
+        </div>
+      </div>
+
+      <section class="mog-manifesto" aria-labelledby="manifesto-title">
+        <div class="section-shell">
+          <p class="mog-section-tag" data-reveal>WHY IT EXISTS</p>
+          <h2 id="manifesto-title" data-reveal style="--reveal-delay: 80ms">
+            Eatlog wants the meal.<br /><span
+              >Then it gets out of the way.</span
+            >
+          </h2>
+          <div
+            class="mog-manifesto__foot"
+            data-reveal
+            style="--reveal-delay: 160ms"
+          >
+            <p>
+              Use the fastest honest input. Fix what needs fixing. Save a record
+              you can understand later.
+            </p>
+            <p class="mog-manifesto__aside">
+              No streak mascot will be disappointed in you.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="mog-story" id="daily-loop" aria-labelledby="loop-title">
+        <div class="section-shell">
+          <div class="mog-story__heading" data-reveal>
+            <div>
+              <p class="mog-section-tag">ONE MEAL, FOUR MOVES</p>
+              <h2 id="loop-title">The robot does not get the last word.</h2>
+            </div>
+            <p>
+              Start with a photo, description, search, saved meal, or manual
+              entry. Every online estimate stays editable before it becomes part
+              of your record.
+            </p>
+          </div>
+
+          <div class="mog-story__layout">
+            <div class="mog-story__visual" aria-hidden="true">
+              <div class="mog-story__frame">
+                <img
+                  class="mog-story__image is-active"
+                  data-story-image="input"
+                  src="/assets/fabsheet-cropped.jpg"
+                  sizes="min(38vw, 430px)"
+                  width="810"
+                  height="1720"
+                  alt=""
+                  loading="lazy"
+                />
+                <img
+                  class="mog-story__image"
+                  data-story-image="review"
+                  src="/assets/mealreview-405.jpg"
+                  srcset="
+                    /assets/mealreview-405.jpg 405w,
+                    /assets/mealreview.jpg     810w
+                  "
+                  sizes="min(38vw, 430px)"
+                  width="810"
+                  height="1720"
+                  alt=""
+                  loading="lazy"
+                />
+                <img
+                  class="mog-story__image"
+                  data-story-image="trend"
+                  src="/assets/weightscreen-405.jpg"
+                  srcset="
+                    /assets/weightscreen-405.jpg 405w,
+                    /assets/weightscreen.jpg     810w
+                  "
+                  sizes="min(38vw, 430px)"
+                  width="810"
+                  height="1720"
+                  alt=""
+                  loading="lazy"
+                />
+                <img
+                  class="mog-story__image"
+                  data-story-image="decide"
+                  src="/assets/planscreen3-405.jpg"
+                  srcset="
+                    /assets/planscreen3-405.jpg 405w,
+                    /assets/planscreen3.jpg     810w
+                  "
+                  sizes="min(38vw, 430px)"
+                  width="810"
+                  height="1720"
+                  alt=""
+                  loading="lazy"
+                />
+              </div>
+            </div>
+
+            <div class="mog-story__steps" data-story-steps>
+              <div class="mog-story__rail" aria-hidden="true">
+                <span class="mog-story__rail-fill" data-story-rail></span>
+              </div>
+              <article
+                class="mog-story__step is-active"
+                data-story-step="input"
+                data-story-number="01"
+              >
+                <figure class="mog-story__mobile-screen">
+                  <img
+                    src="/assets/fabsheet-cropped.jpg"
+                    sizes="(max-width: 620px) 68vw, 240px"
+                    width="810"
+                    height="1720"
+                    alt="Eatlog Add entry sheet with photo, description, saved meal, food search, and weight actions"
+                    loading="lazy"
+                  />
+                </figure>
+                <div class="mog-story__step-copy">
+                  <span class="mog-story__step-number" aria-hidden="true"
+                    >01</span
+                  >
+                  <p>INPUT</p>
+                  <h3>Take a photo. Eat your lunch.</h3>
+                  <p>
+                    Use a photo when it helps. Manual logging and saved history
+                    still work without an online estimate.
+                  </p>
+                </div>
+              </article>
+              <article
+                class="mog-story__step"
+                data-story-step="review"
+                data-story-number="02"
+              >
+                <figure class="mog-story__mobile-screen">
+                  <img
+                    src="/assets/mealreview-405.jpg"
+                    srcset="
+                      /assets/mealreview-405.jpg 405w,
+                      /assets/mealreview.jpg     810w
+                    "
+                    sizes="(max-width: 620px) 68vw, 240px"
+                    width="810"
+                    height="1720"
+                    alt="Eatlog meal review with editable portions, grams, and nutrition"
+                    loading="lazy"
+                  />
+                </figure>
+                <div class="mog-story__step-copy">
+                  <span class="mog-story__step-number" aria-hidden="true"
+                    >02</span
+                  >
+                  <p>REVIEW</p>
+                  <h3>Fix what it guessed wrong.</h3>
+                  <p>
+                    Edit names, portions, grams, and nutrition before anything
+                    enters the diary. Your correction is the final answer.
+                  </p>
+                </div>
+              </article>
+              <article
+                class="mog-story__step"
+                data-story-step="trend"
+                data-story-number="03"
+              >
+                <figure class="mog-story__mobile-screen">
+                  <img
+                    src="/assets/weightscreen-405.jpg"
+                    srcset="
+                      /assets/weightscreen-405.jpg 405w,
+                      /assets/weightscreen.jpg     810w
+                    "
+                    sizes="(max-width: 620px) 68vw, 240px"
+                    width="810"
+                    height="1720"
+                    alt="Eatlog Analytics weight chart with scale points, trend weight, and goal progress"
+                    loading="lazy"
+                  />
+                </figure>
+                <div class="mog-story__step-copy">
+                  <span class="mog-story__step-number" aria-hidden="true"
+                    >03</span
+                  >
+                  <p>READ</p>
+                  <h3>Your weight, minus the soap opera.</h3>
+                  <p>
+                    Scale points, trend weight, weekly pace, and goal timing
+                    stay together in Analytics.
+                  </p>
+                </div>
+              </article>
+              <article
+                class="mog-story__step"
+                data-story-step="decide"
+                data-story-number="04"
+              >
+                <figure class="mog-story__mobile-screen">
+                  <img
+                    src="/assets/planscreen3-405.jpg"
+                    srcset="
+                      /assets/planscreen3-405.jpg 405w,
+                      /assets/planscreen3.jpg     810w
+                    "
+                    sizes="(max-width: 620px) 68vw, 240px"
+                    width="810"
+                    height="1720"
+                    alt="Eatlog plan recommendation asking the user to accept or keep the current targets"
+                    loading="lazy"
+                  />
+                </figure>
+                <div class="mog-story__step-copy">
+                  <span class="mog-story__step-number" aria-hidden="true"
+                    >04</span
+                  >
+                  <p>DECIDE</p>
+                  <h3>The plan has to ask first.</h3>
+                  <p>
+                    When enough evidence exists, Eatlog proposes a target
+                    change. Nothing moves until you accept it.
+                  </p>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="mog-private"
+        id="local-first"
+        aria-labelledby="local-title"
+      >
+        <div class="section-shell mog-private__grid">
+          <div class="mog-private__copy" data-reveal>
+            <p class="mog-section-tag">LOCAL MEANS ON THIS PHONE</p>
+            <h2 id="local-title">
+              Your diary is not the price of using the app.
+            </h2>
+            <p>
+              Your profile, targets, food log, weight history, saved meal
+              photos, and adaptive decisions stay in app-private storage. Eatlog
+              has no account system or cloud database.
+            </p>
+            <ul
+              class="mog-private__controls"
+              aria-label="On-device data controls"
+            >
+              <li>Create a restorable backup</li>
+              <li>Restore a supported backup</li>
+              <li>Export readable CSV files</li>
+              <li>Delete all local data</li>
+            </ul>
+            <a class="mog-dark-link" href="/privacy"
+              >Read the privacy policy <span aria-hidden="true">↗</span></a
+            >
+          </div>
+
+          <div
+            class="mog-receipt"
+            data-reveal
+            style="--reveal-delay: 120ms"
+            aria-label="What Eatlog sends online"
+          >
+            <div class="mog-receipt__head">
+              <img src="/assets/icon.png" width="42" height="42" alt="" />
+              <div>
+                <strong>DATA RECEIPT</strong><span>EATLOG / THIS DEVICE</span>
+              </div>
+              <span>01</span>
+            </div>
+            <ol>
+              <li>
+                <span>Manual and saved-history logging</span
+                ><strong>STAYS HERE</strong>
+              </li>
+              <li>
+                <span>AI estimate you request</span
+                ><strong>PHOTO OR TEXT</strong
+                ><small>Only after separate consent.</small>
+              </li>
+              <li>
+                <span>Food database search</span><strong>SEARCH QUERY</strong
+                ><small>Only when you run a search.</small>
+              </li>
+              <li>
+                <span>Backup or share</span><strong>YOU CHOOSE</strong
+                ><small>The system share sheet opens.</small>
+              </li>
+            </ol>
+            <p class="mog-receipt__total">
+              <span>Cloud diary</span><strong>NONE</strong>
+            </p>
+            <p class="mog-receipt__joke">
+              Throw this receipt away. The backup is the useful one.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="mog-plans" id="plans" aria-labelledby="plans-title">
+        <div class="section-shell">
+          <div class="mog-plans__heading" data-reveal>
+            <div>
+              <p class="mog-section-tag">THE BIRD SITUATION</p>
+              <h2 id="plans-title">Three birds. Pick your level of fancy.</h2>
+            </div>
+            <p>
+              Pugo keeps the durable local log free. Manok and Itik unlock the
+              same AI-estimate and adaptive-plan features with different
+              billing.
+            </p>
+          </div>
+
+          <div class="mog-birds" aria-label="Eatlog plan prices" data-reveal>
+            <article data-reveal style="--reveal-delay: 0ms">
+              <img src="/assets/tier-pugo.svg" width="72" height="72" alt="" />
+              <div>
+                <h3>Pugo</h3>
+                <p>The full local log.</p>
+              </div>
+              <strong>Free</strong>
+            </article>
+            <article data-reveal style="--reveal-delay: 90ms">
+              <img src="/assets/tier-manok.svg" width="72" height="72" alt="" />
+              <div>
+                <h3>Manok</h3>
+                <p>Paid features monthly.</p>
+              </div>
+              <strong><span>PHP</span> 79<small>/month</small></strong>
+            </article>
+            <article data-reveal style="--reveal-delay: 180ms">
+              <img
+                src="/assets/tier-itik.svg"
+                width="72"
+                height="72"
+                alt=""
+              /><span class="mog-bird__chip">PAY ONCE</span>
+              <div>
+                <h3>Itik</h3>
+                <p>Paid features, pay once.</p>
+              </div>
+              <strong><span>PHP</span> 799<small> once</small></strong>
+            </article>
+          </div>
+
+          <div
+            class="plan-table-wrap mog-plan-table"
+            data-reveal
+            style="--reveal-delay: 120ms"
+          >
+            <table class="plan-table">
+              <thead>
+                <tr>
+                  <th scope="col">Feature</th>
+                  <th scope="col">Pugo</th>
+                  <th scope="col">Manok</th>
+                  <th scope="col">Itik</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Local food and weight logging</th>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Diary, analytics, backup, export</th>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">AI estimates</th>
+                  <td>Not included</td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">Adaptive plan recommendations</th>
+                  <td>Not included</td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                  <td>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="plan-mobile" data-plan-comparison>
+            <div
+              class="tier-tabs"
+              role="tablist"
+              aria-label="Compare Eatlog plans"
+            >
+              <button
+                class="tier-tab is-selected"
+                id="tier-tab-pugo"
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-controls="tier-panel-pugo"
+                tabindex="0"
+                data-tier="pugo"
+              >
+                <img
+                  src="/assets/tier-pugo.svg"
+                  width="48"
+                  height="48"
+                  alt=""
+                /><span>Pugo</span><small>Free</small>
+              </button>
+              <button
+                class="tier-tab"
+                id="tier-tab-manok"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="tier-panel-manok"
+                tabindex="-1"
+                data-tier="manok"
+              >
+                <img
+                  src="/assets/tier-manok.svg"
+                  width="48"
+                  height="48"
+                  alt=""
+                /><span>Manok</span><small>Monthly</small>
+              </button>
+              <button
+                class="tier-tab"
+                id="tier-tab-itik"
+                type="button"
+                role="tab"
+                aria-selected="false"
+                aria-controls="tier-panel-itik"
+                tabindex="-1"
+                data-tier="itik"
+              >
+                <img
+                  src="/assets/tier-itik.svg"
+                  width="48"
+                  height="48"
+                  alt=""
+                /><span>Itik</span><small>Lifetime</small>
+              </button>
+            </div>
+            <section
+              class="tier-panel"
+              id="tier-panel-pugo"
+              role="tabpanel"
+              aria-labelledby="tier-tab-pugo"
+              data-tier-panel="pugo"
+            >
+              <dl class="tier-details">
+                <div>
+                  <dt>Local logging</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Diary, analytics, backup, export</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>AI estimates</dt>
+                  <dd>Not included</dd>
+                </div>
+                <div>
+                  <dt>Adaptive plan</dt>
+                  <dd>Not included</dd>
+                </div>
+                <div>
+                  <dt>Billing</dt>
+                  <dd>Free</dd>
+                </div>
+              </dl>
+            </section>
+            <section
+              class="tier-panel"
+              id="tier-panel-manok"
+              role="tabpanel"
+              aria-labelledby="tier-tab-manok"
+              data-tier-panel="manok"
+              hidden
+            >
+              <dl class="tier-details">
+                <div>
+                  <dt>Local logging</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Diary, analytics, backup, export</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>AI estimates</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Adaptive plan</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Billing</dt>
+                  <dd>PHP 79 monthly</dd>
+                </div>
+              </dl>
+            </section>
+            <section
+              class="tier-panel"
+              id="tier-panel-itik"
+              role="tabpanel"
+              aria-labelledby="tier-tab-itik"
+              data-tier-panel="itik"
+              hidden
+            >
+              <dl class="tier-details">
+                <div>
+                  <dt>Local logging</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Diary, analytics, backup, export</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>AI estimates</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Adaptive plan</dt>
+                  <dd>
+                    <span class="feature-check" role="img" aria-label="Included"
+                      >✓</span
+                    >
+                  </dd>
+                </div>
+                <div>
+                  <dt>Billing</dt>
+                  <dd>PHP 799 once</dd>
+                </div>
+              </dl>
+            </section>
+          </div>
+          <p class="plan-note">
+            Eligible Manok users may receive a one-month introductory trial.
+            Store checkout shows final localized prices and eligibility. AI
+            access is subject to the fair-use limits in the
+            <a href="/terms">Terms</a>.
+          </p>
+        </div>
+      </section>
+
+      <section class="mog-faq" id="questions" aria-labelledby="faq-title">
+        <div class="section-shell faq-layout">
+          <div class="faq-intro" data-reveal>
+            <p class="mog-section-tag">FINE PRINT, NORMAL SIZE</p>
+            <h2 id="faq-title">The questions people ask before installing.</h2>
+            <p>
+              The longer, less charming versions live in the Privacy Policy and
+              Terms.
+            </p>
+          </div>
+          <div class="faq-list" data-reveal style="--reveal-delay: 100ms">
+            <details>
+              <summary>Does Eatlog need an account?</summary>
+              <p>
+                No. Eatlog has no login or cloud identity. The app uses an
+                app-scoped installation token for online-service abuse limits
+                and purchase access checks, but it is not an account.
+              </p>
+            </details>
+            <details data-reveal style="--reveal-delay: 60ms">
+              <summary>Can I use Eatlog without AI estimates?</summary>
+              <p>
+                Yes. Manual logging, local history, food search, weight
+                tracking, analytics, backup, export, and sharing remain
+                available when you decline online meal estimates.
+              </p>
+            </details>
+            <details data-reveal style="--reveal-delay: 120ms">
+              <summary>Are nutrition estimates medical advice?</summary>
+              <p>
+                No. Eatlog is for adult general wellness. Nutrition values,
+                targets, trends, and estimates can be incomplete or wrong.
+                Review entries and speak with a qualified health professional
+                about medical decisions.
+              </p>
+            </details>
+            <details data-reveal style="--reveal-delay: 180ms">
+              <summary>What happens if I stop paying?</summary>
+              <p>
+                Your local food, weight, target, photo, and adaptive history
+                stays on the device. Paid AI and adaptive access ends when the
+                verified entitlement expires or is revoked.
+              </p>
+            </details>
+            <details data-reveal style="--reveal-delay: 240ms">
+              <summary>Does Eatlog sync with health platforms?</summary>
+              <p>
+                Android users can optionally connect Health Connect for Weight
+                read and write access. Eatlog does not use HealthKit or Apple
+                Health in v1.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="mog-final"
+        id="release-status"
+        aria-labelledby="final-title"
+      >
+        <div class="section-shell mog-final__inner" data-reveal>
+          <img
+            src="/assets/icon.png"
+            width="108"
+            height="108"
+            alt=""
+            aria-hidden="true"
+          />
+          <div>
+            <p class="mog-section-tag">ANDROID FIRST</p>
+            <h2 id="final-title">The egg is still cooking.</h2>
+            <p>
+              The Play listing is not live yet. Check the current release status
+              or ask what remains before launch.
+            </p>
+          </div>
+          <div class="mog-cook">
+            <button
+              class="mog-button mog-button--dark mog-cook__button"
+              type="button"
+              data-cook-button
+              aria-describedby="cook-status"
+            >
+              Let him cook!
+            </button>
+            <span class="mog-cook__fire" data-cook-fire aria-hidden="true">
+              <img
+                class="mog-cook__fire-effect"
+                data-cook-fire-effect
+                src="/assets/fire-click.svg"
+                alt=""
+              />
+            </span>
+            <span
+              class="mog-cook__status"
+              id="cook-status"
+              aria-live="polite"
+            ></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer home-footer">
+      <div class="section-shell site-footer__inner">
+        <div>
+          <a class="brand" href="/" aria-label="Eatlog home">
+            <img
+              class="brand__mark"
+              src="/assets/icon.png"
+              width="38"
+              height="38"
+              alt=""
+            />
+            <span>Eatlog</span>
+          </a>
+          <p class="footer-copy">
+            Adult general-wellness software. It is not a medical device, and
+            nutrition estimates and calculated targets can be wrong.
+          </p>
+        </div>
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href="/support">Support</a>
+          <a href="#main">Back to top</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
 </html>
