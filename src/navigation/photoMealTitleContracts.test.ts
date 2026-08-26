@@ -29,6 +29,10 @@ const entryMethodSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/EntryMethodState.tsx'),
   'utf8',
 );
+const searchInputSource = readFileSync(
+  resolve(testDirectory, '../components/sheet-states/SearchInputState.tsx'),
+  'utf8',
+);
 
 function sourceBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);
@@ -108,6 +112,13 @@ test('photo estimate action stays above query-driven reuse results', () => {
     foodSheetSource,
     /renderedStateKey === 'photo-title'[\s\S]*Math\.max\(previousHeight, measuredHeight\)/,
   );
+});
+
+test('food search is visibly labeled beta at entry and in the search header', () => {
+  assert.match(entryMethodSource, /label="Search foods"[\s\S]*badge="Beta"/);
+  assert.match(entryMethodSource, /accessibilityLabel=\{badge \? `\$\{label\}, \$\{badge\}` : label\}/);
+  assert.match(searchInputSource, />\s*Beta\s*</);
+  assert.match(searchInputSource, /accessibilityLabel="Beta feature"/);
 });
 
 test('sheet sizing stays stable and measures compact states by content', () => {

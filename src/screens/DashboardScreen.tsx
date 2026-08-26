@@ -83,7 +83,7 @@ function CircularProgress({ progress, overflow }: { progress: number; overflow: 
         cy={RING_SIZE / 2}
         r={RING_R}
         fill="none"
-        stroke={M3.calories}
+        stroke={M3.primary}
         strokeWidth={STROKE}
         strokeLinecap="round"
         strokeDasharray={CIRCUMFERENCE}
@@ -97,7 +97,7 @@ function CircularProgress({ progress, overflow }: { progress: number; overflow: 
         cy={RING_SIZE / 2}
         r={RING_R}
         fill="none"
-        stroke={M3.caloriesOverflow}
+        stroke={M3.onSurface}
         strokeWidth={STROKE}
         strokeLinecap="round"
         strokeDasharray={CIRCUMFERENCE}

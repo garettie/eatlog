@@ -132,8 +132,8 @@ Profile is the fourth tab. It groups plan settings, preferences, owned data, and
 Eatlog uses a near-black neutral stack for structure and reserves named macro colors for nutritional meaning only.
 
 ### Primary
-- **White Action**: primary actions, selected dashboard state, and the active FAB.
-- **Calorie Blue**: calorie progress and calendar completion rings.
+- **White Action**: primary actions, selected dashboard state, the active FAB, and the dashboard calorie ring.
+- **Calorie Blue**: calorie analytics and calendar completion rings.
 
 ### Secondary
 - **Protein Rose**: protein labels, pills, and progress.
@@ -151,7 +151,7 @@ Eatlog uses a near-black neutral stack for structure and reserves named macro co
 
 **The Nutrient Meaning Rule.** Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen. Never reuse these colors as decoration or generic success/error states.
 
-**The Nutrient Overflow Rule.** The first full ring or bar uses the nutrient's base color. Intake above target refills from the start in a slightly darker same-hue token, capped at one additional full cycle. Error Coral remains reserved for errors and destructive actions.
+**The Nutrient Overflow Rule.** The first full ring or bar uses the nutrient's base color. Intake above target refills from the start in a slightly darker same-hue token, capped at one additional full cycle. The dashboard calorie ring uses White Action with an Ink overflow arc. Error Coral remains reserved for errors and destructive actions.
 
 **Website Interaction Rule.** The public website uses coral `#ff7b73` for focus, links, disclosure marks, and generic section labels. Keep calorie blue reserved for calorie information; keep protein rose, carb green, fat gold, and expenditure lavender tied to their nutrient or analytics meaning.
 
@@ -210,7 +210,7 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Sheets:** use `@gorhom/bottom-sheet` with M3 handle, tonal surface, Back handling, discard guard, and interactive keyboard behavior.
 
 ### Signature Components
-- **Calorie Ring and Toggle:** calorie-blue ring on a tonal track, darker same-hue overflow refill, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
+- **Calorie Ring and Toggle:** white ring on a tonal track, darker off-white overflow refill, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
 - **Ruler Slider:** horizontal-only gesture capture; height uses 8px per unit and tenths use 20px per unit; direct entry is always available; adjustable accessibility actions increment/decrement by the configured step.
 
 ## Profile and Settings

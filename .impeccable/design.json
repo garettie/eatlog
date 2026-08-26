@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-26T01:52:51Z",
+  "generatedAt": "2026-08-26T02:10:30Z",
   "title": "Design System: Eatlog",
   "extensions": {
     "colorMeta": {
@@ -89,9 +89,9 @@
     {
       "name": "Calorie Progress Ring",
       "kind": "custom",
-      "description": "Calorie progress uses the base blue for the target cycle and overflow blue above target.",
-      "html": "<div class=\"ds-calorie-ring\" role=\"img\" aria-label=\"1,850 of 2,200 calories\"><span>1,850</span><small>kcal</small></div>",
-      "css": ".ds-calorie-ring{position:relative;display:grid;place-content:center;width:132px;height:132px;border-radius:50%;background:conic-gradient(#a0cafd 0 84%,#44474f 84% 100%);color:#e2e2e9;text-align:center;font-family:Onest,Arial,sans-serif}.ds-calorie-ring:after{content:'';position:absolute;inset:8px;border-radius:50%;background:#1d2024}.ds-calorie-ring span,.ds-calorie-ring small{position:relative;z-index:1}.ds-calorie-ring span{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}.ds-calorie-ring small{color:#c4c6d0;font-size:11px;font-weight:500}"
+      "description": "Dashboard calorie progress uses white for the target cycle and darker off-white above target.",
+      "html": "<div class=\"ds-calorie-ring\" role=\"img\" aria-label=\"2,350 of 2,200 calories\"><span>2,350</span><small>kcal</small></div>",
+      "css": ".ds-calorie-ring{position:relative;display:grid;place-content:center;width:132px;height:132px;border-radius:50%;background:conic-gradient(#e2e2e9 0 7%,#fff 7% 100%);color:#e2e2e9;text-align:center;font-family:Onest,Arial,sans-serif}.ds-calorie-ring:after{content:'';position:absolute;inset:8px;border-radius:50%;background:#1d2024}.ds-calorie-ring span,.ds-calorie-ring small{position:relative;z-index:1}.ds-calorie-ring span{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}.ds-calorie-ring small{color:#c4c6d0;font-size:11px;font-weight:500}"
     }
   ],
   "narrative": {
@@ -101,7 +101,7 @@
     "rules": [
       { "name": "Photo-First Rule", "body": "Camera capture and gallery import lead to Identify meal. Local history reuse comes before an explicit new estimate; search and manual entry remain capable fallbacks.", "section": "overview" },
       { "name": "Nutrient Meaning Rule", "body": "Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen.", "section": "colors" },
-      { "name": "Nutrient Overflow Rule", "body": "The first target cycle uses the nutrient base color. Intake above target refills from the start in the darker same-hue overflow token.", "section": "colors" },
+      { "name": "Nutrient Overflow Rule", "body": "The first target cycle uses the nutrient base color. Intake above target refills from the start in the darker same-hue overflow token. The dashboard calorie ring is the White Action exception, with an Ink overflow arc.", "section": "colors" },
       { "name": "Stable Figure Rule", "body": "Calories, grams, dates, trend weights, and editable measurement values always use tabular numerals.", "section": "typography" },
       { "name": "Tonal Elevation Rule", "body": "Use a higher surface token to distinguish an active or selected element. Never add a shadow to compensate for weak hierarchy.", "section": "elevation" }
     ],

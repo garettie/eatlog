@@ -180,11 +180,21 @@ export default function SearchInputState({
 	return (
 		<View className="flex-1">
 			<View className="bg-m3-surface-container px-5 pt-2 pb-3">
-				<View className="flex-row items-center gap-1 mb-1">
+				<View className="flex-row items-center gap-2 mb-1">
 					<SheetBackButton onPress={onBack} />
 					<Text className="text-m3-on-surface font-bold text-base">
 						Food search
 					</Text>
+					<View
+						accessible
+						accessibilityRole="text"
+						accessibilityLabel="Beta feature"
+						className="rounded-full bg-m3-surface-container-highest px-2 py-1"
+					>
+						<Text className="text-m3-on-surface-variant text-compact font-semibold">
+							Beta
+						</Text>
+					</View>
 				</View>
 				<View className="flex-row items-center bg-m3-surface-container-high rounded-full px-4 py-2 border border-m3-outline-variant/30">
 					<MaterialIcons name="search" size={18} color={M3.onSurfaceVariant} />
