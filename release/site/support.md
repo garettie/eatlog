@@ -53,4 +53,18 @@ Delete individual logs from their edit screens. To erase app data, open Profile 
 
 ## Contact
 
-Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) with the app version, build, platform, database schema, exact action, and exact message shown. We aim to respond within 3 business days.
+Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) with the app version, build, platform, database schema, exact action, and exact message shown.
+
+### Request deletion of your Eatlog data
+
+Eatlog is account-free and stores your profile and history on your device. To request deletion by email:
+
+1. Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com?subject=Eatlog%20data%20deletion%20request) with the subject `Eatlog data deletion request`.
+2. State whether you want all Eatlog data deleted or only specific records. Include your app version and platform.
+3. If you cannot open Profile → Delete all data, explain why so support can provide the next steps.
+
+Deleting all data removes the local database, including your profile, targets, food and meal logs, nutrition estimates, weight records, adaptive history, pins, and estimate cache. It also removes saved meal photos, remote-estimate consent, and temporary backup or export files. On Android, Eatlog attempts to remove Weight records it wrote to Health Connect.
+
+Eatlog keeps no cloud copy of this local data. Exported or shared files, Health Connect records not written by Eatlog, provider copies, and the deletion-request email or support correspondence remain under the relevant destination or provider's retention rules. Eatlog applies no additional retention period to data deleted from the app.
+
+We aim to respond within 3 business days.
