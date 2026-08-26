@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 
 import { storeMetadata as metadata } from '../release/store/metadata.mjs';
 
+const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+
 const shareContract = JSON.parse(readFileSync(
   new URL('../src/utils/shareContract.json', import.meta.url),
   'utf8',
@@ -53,6 +55,9 @@ assert.equal(metadata.product.accountRequired, false);
 assert.equal(metadata.product.localFirst, true);
 assert.ok(metadata.google.fullDescription.includes(metadata.google.requiredHealthDisclaimer));
 assert.ok(metadata.google.fullDescription.includes('Consult a qualified healthcare professional'));
+assert.ok(readme.includes(metadata.product.valueProposition), 'README must include the canonical product value proposition.');
+assert.ok(metadata.google.fullDescription.includes(metadata.product.valueProposition), 'Google description must include the canonical product value proposition.');
+assert.ok(metadata.apple.description.includes(metadata.product.valueProposition), 'Apple description must include the canonical product value proposition.');
 
 const publicCopy = [
   metadata.google.title,

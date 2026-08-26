@@ -3,7 +3,7 @@ export const storeMetadata = {
   locale: 'en-US',
   product: {
     name: 'Eatlog',
-    valueProposition: 'Log food and weight, review nutrition estimates, and keep your data on your device.',
+    valueProposition: 'Eatlog is a local-first food, nutrition, and weight log for adults.',
     audience: 'Adults using Eatlog for general wellness nutrition and weight logging.',
     androidPackage: 'com.sgaret.eatlog',
     iosBundleIdentifierCandidate: 'com.sgaret.eatlog',
@@ -23,8 +23,8 @@ export const storeMetadata = {
   },
   google: {
     title: 'Eatlog',
-    shortDescription: 'Log food and weight, review nutrition estimates, and keep records on your phone',
-    fullDescription: `Eatlog turns a meal photo or written description into an editable nutrition estimate.
+    shortDescription: 'Local-first food, nutrition, and weight logging with editable estimates',
+    fullDescription: `Eatlog is a local-first food, nutrition, and weight log for adults. Record meals manually, reuse saved foods and past meals, or request an editable estimate from a photo or written description.
 
 Log food
 Enter nutrition manually, reuse recent or pinned foods, reuse a past meal with a new photo, search USDA FoodData Central and Open Food Facts, or request an editable estimate from a photo or written description.
@@ -55,7 +55,7 @@ Eatlog is free to download. Eatlog Pugo includes local food and weight logging. 
     title: 'Eatlog',
     subtitle: 'Food, nutrition, and weight',
     keywords: 'nutrition,calories,macros,meals,diary,weight,tracker,food log,backup',
-    description: `Eatlog reuses past meals with new photos or turns a photo or written description into an editable nutrition estimate.
+    description: `Eatlog is a local-first food, nutrition, and weight log for adults. Record meals manually, reuse saved foods and past meals, or request an editable estimate from a photo or written description.
 
 LOG FOOD
 Enter nutrition manually, reuse recent or pinned foods, reuse a past meal with a new photo, search USDA FoodData Central and Open Food Facts, or request an editable estimate from a photo or written description.
@@ -74,7 +74,7 @@ Nutrition data, calculated targets, trends, and photo or description results are
 Eatlog is for adult general wellness. It is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.
 
 Eatlog is free to download. Eatlog Pugo includes local food and weight logging. Eatlog Manok is a monthly subscription with an eligible one-month trial; Eatlog Itik is a one-time lifetime purchase. Store purchase sheets show localized prices and terms. Paid access unlocks AI estimates and local adaptive recommendations, subject to the disclosed fair-use limits. Eatlog has no ads, login, or third-party analytics.`,
-    promotionalText: 'Food and weight logging with editable estimates, clear trends, local backup, and CSV export.',
+    promotionalText: 'Local-first food and weight logging with editable estimates, clear trends, local backup, and CSV export.',
     releaseNotes: 'Initial release. Log food and weight, review daily calories and macros, and view weight trends, intake history, and logging consistency. Reuse saved foods or past meals with a new photo, choose whether to apply plan suggestions, and create backups or CSV exports. Optional online tools include Estimate as new, Describe, USDA search, and Open Food Facts search.',
     primaryCategory: 'Health & Fitness',
     secondaryCategory: 'Food & Drink',
