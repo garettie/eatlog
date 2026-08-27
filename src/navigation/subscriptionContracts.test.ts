@@ -96,6 +96,16 @@ test('local RevenueCat state remains the app authority across automatic and Work
   assert.doesNotMatch(entitlementProvider, /applyAccess\(remote\.access\)/);
 });
 
+test('cold start stays unresolved until RevenueCat CustomerInfo is available', () => {
+  assert.match(entitlementProvider, /useState<EatlogAccess \| null>\(null\)/);
+  assert.match(entitlementProvider, /entitlementStatus\(access\)/);
+  assert.match(entitlementProvider, /ensurePaidAccess/);
+  assert.match(entitlementProvider, /await billing\.customerInfo\(forceStore\)/);
+  assert.match(profile, /access === null \? 'Checking plan…'/);
+  assert.match(paywall, /if \(access === null\) \{[\s\S]*Checking your plan/);
+  assert.match(analytics, /entitlementStatus === 'checking'[\s\S]*Checking your plan…/);
+});
+
 test('Test Store preview can replace Manok with Itik without exposing fake cancellation controls', () => {
   assert.match(paywall, /serviceConfig\.revenueCatTestStore/);
   assert.match(paywall, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
@@ -108,8 +118,8 @@ test('all AI collection entry points gate Pugo before private content collection
   assert.ok(galleryGate >= 0 && galleryGate < foodSheet.indexOf('launchImageLibraryAsync'));
   assert.match(tabNavigator, /const openDescribe[\s\S]*?stateKey: 'entry', pendingAction: 'describe'/);
   assert.match(foodSheet, /case 'describe':\s*handleDescribe\(\);/);
-  assert.match(search, /if \(!hasPaidFeatures\)[\s\S]*navigation\.navigate\("Paywall"\)[\s\S]*requestConsent/);
-  assert.match(addComponent, /if \(!hasPaidFeatures\)[\s\S]*navigation\.navigate\('Paywall'\)[\s\S]*requestConsent/);
+  assert.match(search, /if \(!await ensurePaidAccess\(\)\)[\s\S]*navigation\.navigate\("Paywall"\)[\s\S]*requestConsent/);
+  assert.match(addComponent, /if \(!await ensurePaidAccess\(\)\)[\s\S]*navigation\.navigate\('Paywall'\)[\s\S]*requestConsent/);
 });
 
 test('adaptive reads and mutations have UI and service-boundary gates', () => {

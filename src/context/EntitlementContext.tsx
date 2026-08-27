@@ -4,25 +4,29 @@ import { AppState } from 'react-native';
 import { serviceConfig } from '../config/services';
 import { createBillingClient } from '../services/billing';
 import {
+  entitlementStatus,
   hasPaidFeatures,
   shouldApplyAccessUpdate,
   type BillingActionResult,
   type BillingOffering,
   type EatlogAccess,
   type EatlogUsage,
+  type EntitlementStatus,
 } from '../services/billing.types';
 import { getInstallationToken } from '../services/installIdentity';
 import { setAdaptiveAccess } from '../services/adaptiveAccess';
 import { createSubscriptionApi, setLocalAccessForAi } from '../services/subscriptionApi';
 
 interface EntitlementContextValue {
-  access: EatlogAccess;
+  access: EatlogAccess | null;
+  status: EntitlementStatus;
   offering: BillingOffering | null;
   usage: EatlogUsage;
   supportId: string | null;
   loadingProducts: boolean;
   refreshing: boolean;
   hasPaidFeatures: boolean;
+  ensurePaidAccess(): Promise<boolean>;
   refresh(): Promise<void>;
   purchase(tier: 'manok' | 'itik'): Promise<BillingActionResult>;
   restore(): Promise<BillingActionResult>;
@@ -40,14 +44,15 @@ const EntitlementContext = createContext<EntitlementContextValue | null>(null);
 export function EntitlementProvider({ children }: { children: React.ReactNode }) {
   const billing = useMemo(() => createBillingClient({ apiKey: serviceConfig.revenueCatApiKey }), []);
   const subscriptionApi = useMemo(() => createSubscriptionApi({ workerUrl: serviceConfig.foodWorkerUrl }), []);
-  const [access, setAccess] = useState<EatlogAccess>(initialAccess);
-  const accessRef = useRef(access);
+  const [access, setAccess] = useState<EatlogAccess | null>(null);
+  const accessRef = useRef(initialAccess);
   const [offering, setOffering] = useState<BillingOffering | null>(null);
   const [usage, setUsage] = useState<EatlogUsage>({ kind: 'none' });
   const [supportId, setSupportId] = useState<string | null>(null);
   const supportIdRef = useRef<string | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const accessPromise = useRef<Promise<EatlogAccess> | null>(null);
   const refreshPromise = useRef<Promise<void> | null>(null);
 
   const applyAccess = useCallback((value: EatlogAccess) => {
@@ -59,18 +64,34 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     return true;
   }, []);
 
+  const resolveAccess = useCallback((forceStore: boolean) => {
+    if (accessPromise.current) return accessPromise.current;
+    const pending = (async () => {
+      const local = await billing.customerInfo(forceStore);
+      applyAccess(local);
+      return accessRef.current;
+    })();
+    accessPromise.current = pending.finally(() => { accessPromise.current = null; });
+    return accessPromise.current;
+  }, [applyAccess, billing]);
+
+  const ensurePaidAccess = useCallback(async () => {
+    if (access === null) await resolveAccess(false);
+    return hasPaidFeatures(accessRef.current);
+  }, [access, resolveAccess]);
+
   const refreshAccess = useCallback(async (forceStore: boolean) => {
     if (refreshPromise.current) return refreshPromise.current;
     const pending = (async () => {
       setRefreshing(true);
       try {
+        const accessRequest = resolveAccess(forceStore);
         const installId = supportIdRef.current ?? await getInstallationToken();
         if (supportIdRef.current === null) {
           supportIdRef.current = installId;
           setSupportId(installId);
         }
-        const local = await billing.customerInfo(forceStore);
-        applyAccess(local);
+        await accessRequest;
         const products = await billing.offering();
         setOffering(products);
         if (accessRef.current.kind !== 'pugo') {
@@ -92,11 +113,13 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     })();
     refreshPromise.current = pending.finally(() => { refreshPromise.current = null; });
     return refreshPromise.current;
-  }, [applyAccess, billing, subscriptionApi]);
+  }, [billing, resolveAccess, subscriptionApi]);
 
   const refresh = useCallback(() => refreshAccess(true), [refreshAccess]);
 
   useEffect(() => {
+    setLocalAccessForAi(null);
+    setAdaptiveAccess(false);
     void refreshAccess(false);
     let unsubscribe: (() => void) | undefined;
     void billing.subscribe((next) => {
@@ -125,17 +148,19 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
   const value = useMemo<EntitlementContextValue>(() => ({
     access,
+    status: entitlementStatus(access),
     offering,
     usage,
     supportId,
     loadingProducts,
     refreshing,
-    hasPaidFeatures: hasPaidFeatures(access),
+    hasPaidFeatures: access !== null && hasPaidFeatures(access),
+    ensurePaidAccess,
     refresh,
     purchase,
     restore,
     manageSubscription: billing.manageSubscription,
-  }), [access, billing.manageSubscription, loadingProducts, offering, purchase, refresh, refreshing, restore, supportId, usage]);
+  }), [access, billing.manageSubscription, ensurePaidAccess, loadingProducts, offering, purchase, refresh, refreshing, restore, supportId, usage]);
 
   return <EntitlementContext.Provider value={value}>{children}</EntitlementContext.Provider>;
 }

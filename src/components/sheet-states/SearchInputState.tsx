@@ -70,7 +70,7 @@ export default function SearchInputState({
 	const [estimating, setEstimating] = useState(false);
 	const [estimateError, setEstimateError] = useState<string | null>(null);
 	const { requestConsent } = useRemoteEstimateConsent();
-	const { hasPaidFeatures } = useEntitlement();
+	const { ensurePaidAccess } = useEntitlement();
 	const navigation = useNavigation<any>();
 
 	const handleFoodPress = useCallback(
@@ -140,7 +140,7 @@ export default function SearchInputState({
 		const query = search.query.trim();
 		if (!query || estimating) return;
 		setEstimateError(null);
-		if (!hasPaidFeatures) {
+		if (!await ensurePaidAccess()) {
 			navigation.navigate("Paywall");
 			return;
 		}
@@ -154,7 +154,7 @@ export default function SearchInputState({
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [estimating, hasPaidFeatures, navigation, onEstimateResult, requestConsent, search.query]);
+	}, [ensurePaidAccess, estimating, navigation, onEstimateResult, requestConsent, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow

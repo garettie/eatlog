@@ -23,11 +23,7 @@ interface SubscriptionApiOptions {
   now?: () => number;
 }
 
-let activeAccess: EatlogAccess = {
-  kind: 'pugo',
-  checkedAt: new Date(0).toISOString(),
-  reason: 'unavailable',
-};
+let activeAccess: EatlogAccess | null = null;
 let activeGrant: AiGrant | null = null;
 
 function isAccess(value: unknown): value is EatlogAccess {
@@ -72,9 +68,9 @@ function isUsage(value: unknown): value is EatlogUsage {
     && isNullableDate(record.nextEligibleAt);
 }
 
-export function setLocalAccessForAi(access: EatlogAccess): void {
+export function setLocalAccessForAi(access: EatlogAccess | null): void {
   activeAccess = access;
-  if (access.kind === 'pugo') activeGrant = null;
+  if (access === null || access.kind === 'pugo') activeGrant = null;
 }
 
 export function clearAiGrant(): void {
@@ -84,6 +80,7 @@ export function clearAiGrant(): void {
 export function getAiAuthorization(now = Date.now()):
   | { ok: true; grant: string }
   | { ok: false; kind: AiAuthorizationFailure } {
+  if (activeAccess === null) return { ok: false, kind: 'entitlement-unavailable' };
   if (activeAccess.kind === 'pugo') return { ok: false, kind: 'paid-access-required' };
   if (!activeGrant || new Date(activeGrant.expiresAt).getTime() <= now) {
     return { ok: false, kind: 'entitlement-unavailable' };

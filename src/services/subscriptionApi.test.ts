@@ -18,6 +18,8 @@ const PAID = {
 };
 
 test('remote AI fails closed for Pugo, Worker outage, and expired grants', async () => {
+  setLocalAccessForAi(null);
+  assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
   setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:00:00Z' });
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'paid-access-required' });
   setLocalAccessForAi(PAID);
@@ -32,6 +34,7 @@ test('remote AI fails closed for Pugo, Worker outage, and expired grants', async
 });
 
 test('refresh keeps the signed grant only in memory and authorizes until expiry', async () => {
+  setLocalAccessForAi(PAID);
   const expiresAt = '2026-08-22T00:05:00.000Z';
   const api = createSubscriptionApi({
     workerUrl: 'https://staging.example',

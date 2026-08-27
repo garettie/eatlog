@@ -28,7 +28,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [isEstimating, setIsEstimating] = useState(false);
   const [describeError, setDescribeError] = useState<string | null>(null);
   const { requestConsent } = useRemoteEstimateConsent();
-  const { hasPaidFeatures } = useEntitlement();
+  const { ensurePaidAccess } = useEntitlement();
   const navigation = useNavigation<any>();
 
   const [manualName, setManualName] = useState('');
@@ -45,13 +45,13 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualNutrients.every((value) => Number.isFinite(value) && value >= 0)
     && manualNutrients.some((value) => value > 0);
 
-  const openDescribe = useCallback(() => {
-    if (!hasPaidFeatures) {
+  const openDescribe = useCallback(async () => {
+    if (!await ensurePaidAccess()) {
       navigation.navigate('Paywall');
       return;
     }
     setMode('describe');
-  }, [hasPaidFeatures, navigation]);
+  }, [ensurePaidAccess, navigation]);
 
   const reset = useCallback(() => {
     setMode(null);
@@ -79,7 +79,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const text = describeText.trim();
     if (!text) return;
     setDescribeError(null);
-    if (!hasPaidFeatures) {
+    if (!await ensurePaidAccess()) {
       navigation.navigate('Paywall');
       return;
     }
@@ -98,7 +98,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     } finally {
       setIsEstimating(false);
     }
-  }, [describeText, hasPaidFeatures, navigation, onAdd, requestConsent, reset]);
+  }, [describeText, ensurePaidAccess, navigation, onAdd, requestConsent, reset]);
 
   const handleManualAdd = useCallback(() => {
     if (!manualCanAdd) return;

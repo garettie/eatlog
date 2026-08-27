@@ -282,7 +282,7 @@ function AnalyticsScreen({
   const reduced = useReducedMotion();
   const today = useToday();
   const navigation = useNavigation<any>();
-  const { hasPaidFeatures } = useEntitlement();
+  const { ensurePaidAccess, hasPaidFeatures, status: entitlementStatus } = useEntitlement();
   const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
   const [selectedRange, setSelectedRange] = useState<RangeKey>('1M');
   const [selectedCalorieMonthStart, setSelectedCalorieMonthStart] = useState(() => monthStartISO(todayISO()));
@@ -557,11 +557,11 @@ function AnalyticsScreen({
   }, [loadCalorieMonth]);
 
   const retryRecommendation = useCallback(async () => {
-    if (!hasPaidFeatures) {
+    if (recommendationLoading) return;
+    if (!await ensurePaidAccess()) {
       navigation.navigate('Paywall');
       return;
     }
-    if (recommendationLoading) return;
     setRecommendationLoading(true);
     await enqueue(async () => {
       try {
@@ -577,14 +577,14 @@ function AnalyticsScreen({
         if (mountedRef.current) setRecommendationLoading(false);
       }
     });
-  }, [enqueue, hasPaidFeatures, navigation, recommendationLoading]);
+  }, [enqueue, ensurePaidAccess, navigation, recommendationLoading]);
 
   const resolveRecommendation = useCallback(async (action: 'accept' | 'keep') => {
-    if (!hasPaidFeatures) {
+    if (resolving || recommendation?.kind !== 'ready') return;
+    if (!await ensurePaidAccess()) {
       navigation.navigate('Paywall');
       return;
     }
-    if (resolving || recommendation?.kind !== 'ready') return;
     setResolving(action);
     setStaleMessage(false);
     let resolved = false;
@@ -615,17 +615,17 @@ function AnalyticsScreen({
     } finally {
       if (mountedRef.current) setResolving(null);
     }
-  }, [enqueue, hasPaidFeatures, navigation, onDataChanged, recommendation, resolving]);
+  }, [enqueue, ensurePaidAccess, navigation, onDataChanged, recommendation, resolving]);
 
   const confirmIntakeDay = useCallback(async (
     logDate: string,
     status: 'complete' | 'partial' | 'intentional_fast',
   ) => {
-    if (!hasPaidFeatures) {
+    if (confirmingIntakeDate || recommendation?.kind !== 'holding') return;
+    if (!await ensurePaidAccess()) {
       navigation.navigate('Paywall');
       return;
     }
-    if (confirmingIntakeDate || recommendation?.kind !== 'holding') return;
     setConfirmingIntakeDate(logDate);
     try {
       await enqueue(async () => {
@@ -640,7 +640,7 @@ function AnalyticsScreen({
     } finally {
       if (mountedRef.current) setConfirmingIntakeDate(null);
     }
-  }, [confirmingIntakeDate, enqueue, hasPaidFeatures, navigation, recommendation]);
+  }, [confirmingIntakeDate, enqueue, ensurePaidAccess, navigation, recommendation]);
 
   if (initialLoading && !data) {
     return (
@@ -714,7 +714,12 @@ function AnalyticsScreen({
     recommendation?.kind === 'ready'
     || confirmationDay != null
   );
-  const recommendationCard = !hasPaidFeatures ? (
+  const recommendationCard = entitlementStatus === 'checking' ? (
+    <Card className="min-h-[112px] items-center justify-center gap-3">
+      <ActivityIndicator color={M3.onSurfaceVariant} />
+      <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm">Checking your plan…</Text>
+    </Card>
+  ) : !hasPaidFeatures ? (
     <Card className="gap-3">
       <View className="flex-row items-center gap-3">
         <View className="w-10 h-10 rounded-full bg-m3-surface-container-highest items-center justify-center">

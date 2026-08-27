@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import { canBuyItik, hasPaidFeatures } from '../services/billing.types';
 import { APP_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
-type Access = ReturnType<typeof useEntitlement>['access'];
+type Access = NonNullable<ReturnType<typeof useEntitlement>['access']>;
 type BusyAction = 'purchase' | 'restore' | 'manage' | 'copy';
 type MessageScope = 'purchase' | 'utility';
 
@@ -205,6 +205,35 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
         setScopedMessage(scope, "Couldn't check the store. Your logbook still works.");
       });
   }, [busy, refresh, refreshing, setScopedMessage]);
+
+  if (access === null) {
+    return (
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 36 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <ResponsiveContent maxWidth={Math.min(APP_MAX_WIDTH, 600)} className="gap-5">
+          <View className="flex-row items-start gap-3">
+            <Text accessibilityRole="header" className="flex-1 text-2xl font-bold text-m3-on-surface">Checking your plan</Text>
+            {onClose ? (
+              <Pressable
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close plans"
+                className="h-12 w-12 items-center justify-center rounded-full active:bg-m3-surface-container-high"
+              >
+                <MaterialIcons name="close" size={24} color={M3.onSurface} />
+              </Pressable>
+            ) : null}
+          </View>
+          <Card className="min-h-[96px] items-center justify-center gap-3 p-4">
+            <ActivityIndicator color={M3.onSurfaceVariant} />
+            <Text accessibilityLiveRegion="polite" className="text-sm text-m3-on-surface-variant">Reading your saved purchase status…</Text>
+          </Card>
+        </ResponsiveContent>
+      </ScrollView>
+    );
+  }
 
   const manokActive = access.kind === 'manok' || access.kind === 'manok-trial';
   const hasCurrentPlan = hasPaidFeatures(access);

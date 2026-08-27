@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   canBuyItik,
+  entitlementStatus,
   hasPaidFeatures,
   normalizeAccess,
   shouldApplyAccessUpdate,
@@ -82,6 +83,15 @@ test('paid feature and Manok-to-Itik predicates preserve transition rules', () =
   assert.equal(canBuyItik(renewingManok), false);
   assert.equal(canBuyItik(cancelledManok), true);
   assert.equal(canBuyItik(itik), false);
+});
+
+test('unresolved access is checking rather than confirmed free', () => {
+  const pugo = normalizeAccess({ entitlement: null }, NOW);
+  const trial = access({ periodType: 'TRIAL' });
+
+  assert.equal(entitlementStatus(null), 'checking');
+  assert.equal(entitlementStatus(pugo), 'free');
+  assert.equal(entitlementStatus(trial), 'paid');
 });
 
 test('access updates reject stale snapshots and transient lookup failures', () => {

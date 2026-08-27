@@ -104,6 +104,8 @@ export interface BillingActionResult {
   message: string;
 }
 
+export type EntitlementStatus = 'checking' | 'free' | 'paid';
+
 function iso(value: unknown): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
   const date = new Date(value);
@@ -120,6 +122,11 @@ function isManokProduct(value: string): boolean {
 
 export function hasPaidFeatures(access: EatlogAccess): boolean {
   return access.kind !== 'pugo';
+}
+
+export function entitlementStatus(access: EatlogAccess | null): EntitlementStatus {
+  if (access === null) return 'checking';
+  return hasPaidFeatures(access) ? 'paid' : 'free';
 }
 
 export function canBuyItik(access: EatlogAccess): boolean {
