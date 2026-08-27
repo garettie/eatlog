@@ -150,11 +150,11 @@ Before uploading, verify the build record says:
 
 Upload the AAB manually to Play Console's internal-testing track. Do not upload the Preview APK.
 
-- [ ] Production AAB built successfully
-- [ ] AAB uploaded to internal testing
-- [ ] Play App Signing accepted
-- [ ] Version code recorded
-- [ ] EAS build ID recorded
+- [x] Production AAB built successfully
+- [x] AAB uploaded to internal testing
+- [x] Play App Signing accepted
+- [x] Version code recorded
+- [x] EAS build ID recorded
 
 ## 6. Create the real Play products
 
@@ -184,10 +184,10 @@ Activate the purchase option.
 
 Do not create `eatlog_itik_lifetime`. That identifier is obsolete.
 
-- [ ] Manok base plan active
-- [ ] Manok trial offer active
-- [ ] Itik purchase option active
-- [ ] Philippines prices show PHP 79 and PHP 799
+- [x] Manok base plan active
+- [x] Manok trial offer active
+- [x] Itik purchase option active
+- [x] Philippines prices show PHP 79 and PHP 799
 
 ## 7. Finish RevenueCat production mapping
 
@@ -202,9 +202,9 @@ In the existing Eatlog RevenueCat project:
 7. Attach Itik to package `$rc_lifetime` in offering `default`.
 8. Keep the Test Store products attached for the Preview app.
 
-- [ ] `default` offering returns the Google Manok and Itik products
-- [ ] Test Store Preview products still work
-- [ ] Restore behavior remains `Transfer to new App User ID`
+- [x] `default` offering returns the Google Manok and Itik products
+- [x] Test Store Preview products still work
+- [x] Restore behavior remains `Transfer to new App User ID`
 
 ## 8. Connect notifications and the webhook
 
@@ -216,10 +216,10 @@ Configure the production RevenueCat webhook:
 
 Connect RevenueCat's Google real-time developer notification topic to the Eatlog app in Play Console. Send the available test notifications.
 
-- [ ] RevenueCat webhook test returns HTTP 200
-- [ ] Google real-time developer notifications are connected
-- [ ] Test notification succeeds
-- [ ] Preview purchase smoke test still succeeds afterward
+- [x] RevenueCat webhook test returns HTTP 200
+- [x] Google real-time developer notifications are connected
+- [x] Test notification succeeds
+- [x] Preview purchase smoke test still succeeds afterward
 
 ## 9. Test the Play-installed build
 

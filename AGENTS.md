@@ -1,24 +1,3 @@
----
-ijfw_version: 1.3.2
-ijfw_schema: 1
-type: software
-primary_type: software
-secondary_types: []
-confidence: 0.907
-detected_at: 2026-07-29T01:14:49.485Z
-signals:
-  - kind: manifest
-    weight: 0.9
-    manifests: [package.json]
-  - kind: dir_design
-    weight: 0.4
-    name: assets
-  - kind: file_extension_ratio
-    weight: 0.7
-    domain: software
-    ratio: 1
-    count: 70
----
 # AGENTS.md
 
 Drop-in operating instructions for coding agents. Read this file before every task.
@@ -31,6 +10,22 @@ This file follows the [AGENTS.md](https://agents.md) open standard (Linux Founda
 ln -s AGENTS.md CLAUDE.md
 ln -s AGENTS.md GEMINI.md
 ```
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in the `garettie/eatlog` GitHub repository. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Eatlog uses a single-context domain-doc layout. See `docs/agents/domain.md`.
 
 ---
 
@@ -271,6 +266,10 @@ When the user corrects your approach, append a one-line rule here before ending 
 - RevenueCat v1 Manok verification must accept its documented subscription identity fields (`original_app_user_id`, `original_purchase_date`, and `store_transaction_id`); never require the undocumented `original_transaction_id`, and keep the derived quota identity stable across renewals.
 - Keep RevenueCat product identifiers canonical across the offering, app, and Worker: Manok is `eatlog_manok` and the lifetime Itik product is `eatlog_itik`.
 - When the owner says no Android emulator is available, do not attempt to create one; inspect the APK and request a phone bug report if a runtime stack is required.
+- @gorhom/bottom-sheet v5 on Android: never set `android_keyboardInputMode="adjustResize"` together with `keyboardBehavior="interactive"`; an internal guard (BottomSheet.js) forces `heightWithinContainer=0` and disables keyboard-driven sheet animations. Keep the default `adjustPan`.
+- Never nest `BottomSheetScrollView` inside `BottomSheetView`: BottomSheetView's mount effect overrides the scrollable type to VIEW, turning vertical pans into sheet drags and killing content scroll. Only use BottomSheetView when dynamic sizing needs measurement and no scroll view is inside it; otherwise wrap in plain `Animated.View`.
+- Play App access review demands free access behind any paywall: never answer "all functionality is available" or "reviewer can purchase" when paid features exist; ship a hidden reviewer-unlock gesture + code that grants a complimentary entitlement, and declare restricted functionality with exact mechanical steps.
+- Public Eatlog copy must sound like the founder and website: lead with the `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.` wordplay, use serious humor, and keep provider, infrastructure, policy, and form language out. The first-person `everything I need, nothing I don't` origin belongs in the README only; store copy must make narrow product claims and address the buyer directly.
 
 ---
 
@@ -285,11 +284,3 @@ This boilerplate synthesizes:
 - The AGENTS.md open standard (cross-tool portability via symlinks).
 
 Read once. Edit sections 10 and 11 for your project. Prune the rest over time. This file gets better the more you use it.
-
-<!-- IJFW-MEMORY-START -->
-Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
-<!-- IJFW-MEMORY-END -->
-
-<!-- IJFW-AGENTS-START -->
-No project agents yet. Run `ijfw team` to set them up.
-<!-- IJFW-AGENTS-END -->
