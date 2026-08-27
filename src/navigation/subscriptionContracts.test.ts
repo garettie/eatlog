@@ -36,17 +36,33 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(paywall, /Restore purchases/);
   assert.match(paywall, /Manage subscription/);
   assert.match(paywall, /Terms of Use/);
-  assert.match(paywall, /Paid plans unlock/);
+  assert.match(paywall, /What you get/);
   assert.match(paywall, /First month free\. Then renews monthly\./);
   assert.match(paywall, /Try store again/);
   assert.match(paywall, /We couldn't reach the store\. Prices and checkout didn't load\. Your logbook still works\./);
-  assert.match(paywall, /30 requests in any 24 hours and 250 in 30 days/);
+  assert.match(paywall, /30 requests per 24 hours · 250 per 30 days/);
   assert.match(paywall, /if \(!selectedProduct\) \{[\s\S]*retryPlans\('purchase'\)/);
   assert.doesNotMatch(purchaseDisabled, /selectedProduct/);
   assert.doesNotMatch(paywall, /Compare plans/);
-  assert.doesNotMatch(paywall, /AI actions/);
+  assert.doesNotMatch(paywall, /AI actions|AI use left|AI use limits/);
   assert.doesNotMatch(paywall, /This installed build or store did not return/);
   assert.doesNotMatch(paywall, /Trial allowance:/);
+  assert.doesNotMatch(paywall, /Your logbook stays yours on every plan/);
+  assert.doesNotMatch(paywall, /End Manok in the store|unused Manok time/);
+});
+
+test('active plans hide purchase options until Manage plan opens', () => {
+  const purchaseOptions = paywall.slice(
+    paywall.indexOf('{showPurchaseOptions ? ('),
+    paywall.indexOf('{!managingCurrentPlan ? ('),
+  );
+  assert.match(paywall, /const hasCurrentPlan = hasPaidFeatures\(access\)/);
+  assert.match(paywall, /const managingCurrentPlan = hasCurrentPlan && managingPlan/);
+  assert.match(paywall, /const showPurchaseOptions = \(!hasCurrentPlan \|\| managingCurrentPlan\) && access.kind !== 'itik'/);
+  assert.match(paywall, /\{hasCurrentPlan && !managingCurrentPlan \? \([\s\S]*title="Manage plan"/);
+  assert.match(purchaseOptions, /\{!manokActive \? \([\s\S]*tier="manok"/);
+  assert.match(purchaseOptions, /tier="itik"/);
+  assert.match(paywall, /\{!hasCurrentPlan \|\| managingCurrentPlan \? \([\s\S]*Purchase help/);
 });
 
 test('subscription tiers use the requested bird identities', () => {
@@ -82,7 +98,7 @@ test('local RevenueCat state remains the app authority across automatic and Work
 
 test('Test Store preview can replace Manok with Itik without exposing fake cancellation controls', () => {
   assert.match(paywall, /serviceConfig\.revenueCatTestStore/);
-  assert.match(paywall, /Preview mode: choose Itik above to switch your test plan\. Test purchases never charge you\./);
+  assert.match(paywall, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
 });
 
 test('all AI collection entry points gate Pugo before private content collection', () => {
