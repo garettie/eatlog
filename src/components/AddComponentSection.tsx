@@ -10,7 +10,6 @@ import { useFoodSearchController } from '../hooks/useFoodSearchController';
 import { M3 } from '../theme/tokens';
 import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
 import { useEntitlement } from '../context/EntitlementContext';
-import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from '../services/billing.types';
 import PrimaryButton from './PrimaryButton';
 import FoodSearchResultRow from './FoodSearchResultRow';
 
@@ -29,7 +28,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [isEstimating, setIsEstimating] = useState(false);
   const [describeError, setDescribeError] = useState<string | null>(null);
   const { requestConsent } = useRemoteEstimateConsent();
-  const { ensurePaidAccess } = useEntitlement();
+  const { beginAiEstimate } = useEntitlement();
   const navigation = useNavigation<any>();
 
   const [manualName, setManualName] = useState('');
@@ -46,15 +45,13 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualNutrients.every((value) => Number.isFinite(value) && value >= 0)
     && manualNutrients.some((value) => value > 0);
 
-  const openDescribe = useCallback(async () => {
-    const decision = await ensurePaidAccess();
-    if (decision === 'free') {
+  const openDescribe = useCallback(() => {
+    if (beginAiEstimate() === 'free') {
       navigation.navigate('Paywall');
       return;
     }
-    if (decision === 'unavailable') setDescribeError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
     setMode('describe');
-  }, [ensurePaidAccess, navigation]);
+  }, [beginAiEstimate, navigation]);
 
   const reset = useCallback(() => {
     setMode(null);
@@ -82,13 +79,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const text = describeText.trim();
     if (!text) return;
     setDescribeError(null);
-    const decision = await ensurePaidAccess();
-    if (decision === 'free') {
+    if (beginAiEstimate() === 'free') {
       navigation.navigate('Paywall');
-      return;
-    }
-    if (decision === 'unavailable') {
-      setDescribeError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
       return;
     }
     if (!await requestConsent()) return;
@@ -98,6 +90,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
       if (result.ok && result.result.components.length > 0) {
         onAdd(result.result.components);
         reset();
+      } else if (!result.ok && result.kind === 'paid-access-required') {
+        navigation.navigate('Paywall');
       } else {
         setDescribeError(result.ok ? "Couldn't estimate this meal. Try a different description." : result.message);
       }
@@ -106,7 +100,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     } finally {
       setIsEstimating(false);
     }
-  }, [describeText, ensurePaidAccess, navigation, onAdd, requestConsent, reset]);
+  }, [beginAiEstimate, describeText, navigation, onAdd, requestConsent, reset]);
 
   const handleManualAdd = useCallback(() => {
     if (!manualCanAdd) return;

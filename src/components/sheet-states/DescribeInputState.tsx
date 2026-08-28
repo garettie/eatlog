@@ -4,7 +4,6 @@ import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-shee
 import { useNavigation } from '@react-navigation/native';
 
 import { describeMeal, DescribeResult } from '../../services/foodScan';
-import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from '../../services/billing.types';
 import { M3 } from '../../theme/tokens';
 import { useEntitlement } from '../../context/EntitlementContext';
 import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
@@ -26,7 +25,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
   const inputRef = useRef<typeof BottomSheetTextInput>(null);
   const requestRef = useRef(0);
   const { requestConsent } = useRemoteEstimateConsent();
-  const { ensurePaidAccess } = useEntitlement();
+  const { beginAiEstimate } = useEntitlement();
   const navigation = useNavigation<any>();
 
   useEffect(() => () => { requestRef.current++; }, []);
@@ -36,13 +35,8 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
     if (!trimmed) return;
     Keyboard.dismiss();
     setError(null);
-    const decision = await ensurePaidAccess();
-    if (decision === 'free') {
+    if (beginAiEstimate() === 'free') {
       navigation.navigate('Paywall');
-      return;
-    }
-    if (decision === 'unavailable') {
-      setError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
       return;
     }
     if (!await requestConsent()) return;
@@ -54,6 +48,8 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
       if (result.ok) {
         setText('');
         onResult(result.result);
+      } else if (result.kind === 'paid-access-required') {
+        navigation.navigate('Paywall');
       } else {
         setError(result.message);
       }

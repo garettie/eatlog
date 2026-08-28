@@ -169,6 +169,15 @@ function paidRevenueCat(periodType = 'normal'): unknown {
   } };
 }
 
+function freeRevenueCat(): unknown {
+  return { subscriber: {
+    original_app_user_id: INSTALL_ID,
+    entitlements: {},
+    subscriptions: {},
+    non_subscriptions: {},
+  } };
+}
+
 test('normalizes a counted serving label to one unit and the consumed total', async () => {
   const countedEggs = {
     ...recognized,
@@ -682,22 +691,28 @@ test('emits only allowlisted operational fields without inputs, identifiers, dig
 
 test('subscription staging blocks Pugo before Gemini and issues a short-lived paid grant after RevenueCat verification', async () => {
   const store = new MemorySubscriptionStore();
+  let paid = false;
   let geminiCalls = 0;
   const fetchImpl = (async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat('trial'));
+    if (url.startsWith('https://api.revenuecat.com/')) {
+      return jsonResponse(paid ? paidRevenueCat('trial') : freeRevenueCat());
+    }
     geminiCalls += 1;
     return geminiResponse(recognized);
   }) as typeof fetch;
 
-  const pugo = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }), {
+  const pugo = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-pugo-0001',
+  }), {
     env: subscriptionEnv(), fetchImpl, subscriptionStore: store,
   });
   assert.equal(pugo.response.status, 402);
   assert.equal(pugo.body.error.code, 'PAID_ACCESS_REQUIRED');
   assert.equal(geminiCalls, 0);
 
-  const refreshed = await call(request('/v1/access/refresh', 'POST', {}), {
+  paid = true;
+  const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), {
     env: subscriptionEnv(), fetchImpl, subscriptionStore: store,
   });
   assert.equal(refreshed.response.status, 200);
@@ -711,6 +726,66 @@ test('subscription staging blocks Pugo before Gemini and issues a short-lived pa
   }), { env: subscriptionEnv(), fetchImpl, subscriptionStore: store });
   assert.equal(estimate.response.status, 200);
   assert.equal(geminiCalls, 1);
+});
+
+test('estimate authorizes inline, reuses cached access, and returns a grant for later requests', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let revenueCatCalls = 0;
+  let geminiCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) {
+      revenueCatCalls += 1;
+      return jsonResponse(paidRevenueCat());
+    }
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const first = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-inline-0001',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(first.response.status, 200);
+  assert.equal(revenueCatCalls, 1);
+  assert.equal(geminiCalls, 1);
+  assert.equal(typeof first.response.headers.get('x-eatlog-ai-grant'), 'string');
+  assert.equal(typeof first.response.headers.get('x-eatlog-ai-grant-expires-at'), 'string');
+
+  const cached = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    Authorization: 'Bearer expired-or-invalid-grant',
+    'X-Eatlog-Request-ID': 'request-inline-0002',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(cached.response.status, 200);
+  assert.equal(revenueCatCalls, 1);
+  assert.equal(geminiCalls, 2);
+
+  const forced = await call(request('/v1/access/refresh', 'POST', { force: true }), {
+    env, fetchImpl, subscriptionStore: store,
+  });
+  assert.equal(forced.response.status, 200);
+  assert.equal(revenueCatCalls, 2);
+});
+
+test('inline authorization rejects confirmed Pugo before parsing estimate content or calling Gemini', async () => {
+  let revenueCatCalls = 0;
+  let geminiCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) {
+      revenueCatCalls += 1;
+      return jsonResponse(freeRevenueCat());
+    }
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const result = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
+    'X-Eatlog-Request-ID': 'request-inline-free',
+  }), { env: subscriptionEnv(), fetchImpl, subscriptionStore: new MemorySubscriptionStore() });
+
+  assert.equal(result.response.status, 402);
+  assert.equal(result.body.error.code, 'PAID_ACCESS_REQUIRED');
+  assert.equal(revenueCatCalls, 1);
+  assert.equal(geminiCalls, 0);
 });
 
 test('RevenueCat outage uses only an unexpired verified cache and otherwise returns a redacted entitlement error', async () => {

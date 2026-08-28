@@ -56,7 +56,6 @@ import { M3 } from "../../theme/tokens";
 import { EASING } from "../../theme/motion";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
 import { useEntitlement } from "../../context/EntitlementContext";
-import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
 import type { ClarificationOutcome } from "./FoodSheetContent";
 import { formatPortionLabel } from "../../utils/portionLabels";
 import {
@@ -269,7 +268,7 @@ export default function ReviewState({
 	onGoBack,
 }: ReviewStateProps) {
 	const { requestConsent } = useRemoteEstimateConsent();
-	const { ensurePaidAccess } = useEntitlement();
+	const { beginAiEstimate } = useEntitlement();
 	const navigation = useNavigation<any>();
 	const [mealName, setMealName] = useState(result?.mealName ?? "");
 	const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(
@@ -721,13 +720,8 @@ export default function ReviewState({
 		const name = mealName.trim();
 		if (!name || clarifying) return;
 		setClarifyError(null);
-		const decision = await ensurePaidAccess();
-		if (decision === "free") {
+		if (beginAiEstimate() === "free") {
 			navigation.navigate("Paywall");
-			return;
-		}
-		if (decision === "unavailable") {
-			setClarifyError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
 			return;
 		}
 		if (!await requestConsent()) return;
@@ -758,7 +752,7 @@ export default function ReviewState({
 	}, [
 		mealName,
 		clarifying,
-		ensurePaidAccess,
+		beginAiEstimate,
 		navigation,
 		onClarify,
 		requestConsent,
@@ -772,16 +766,8 @@ export default function ReviewState({
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
 			setComponentClarifyError(null);
-			const decision = await ensurePaidAccess();
-			if (decision === "free") {
+			if (beginAiEstimate() === "free") {
 				navigation.navigate("Paywall");
-				return;
-			}
-			if (decision === "unavailable") {
-				setComponentClarifyError({
-					id: component.food.id,
-					message: PAID_ACCESS_UNAVAILABLE_MESSAGE,
-				});
 				return;
 			}
 			if (!await requestConsent()) return;
@@ -831,7 +817,7 @@ export default function ReviewState({
 		},
 		[
 			clarifyingComponentId,
-			ensurePaidAccess,
+			beginAiEstimate,
 			navigation,
 			onClarifyComponent,
 			requestConsent,

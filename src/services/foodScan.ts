@@ -3,7 +3,7 @@ import { buildFoodPortions, normalizeFoodName } from './foodSearchCore';
 import type { FoodResult } from './foodSearch';
 import { getInstallationToken, isInstallationToken } from './installIdentity';
 import { hasRemoteEstimateConsent } from './remoteEstimateConsent';
-import { getAiAuthorization, type AiAuthorizationFailure } from './subscriptionApi';
+import { acceptAiGrant, getAiAuthorization, type AiAuthorizationFailure } from './subscriptionApi';
 import {
     type FoodEstimateResponse,
     isRecognizedFoodEstimate,
@@ -78,6 +78,7 @@ export interface FoodEstimateClientOptions {
     timeoutMs?: number;
     hasConsent?: () => boolean | Promise<boolean>;
     getAiAuthorization?: () => { ok: true; grant: string } | { ok: false; kind: AiAuthorizationFailure };
+    acceptAiGrant?: (token: string, expiresAt: string) => void;
     requestId?: () => string | Promise<string>;
 }
 
@@ -90,7 +91,7 @@ function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
         'trial-allowance-exhausted': 'The estimate allowance is used. Manual logging still works.',
         'fair-use-daily-limit': 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when it resets.',
         'fair-use-30-day-limit': 'The 250-operation rolling 30-day fair-use limit is reached. Try again when it resets.',
-        'entitlement-unavailable': 'Paid access could not be verified. Refresh your plan and try again.',
+        'entitlement-unavailable': 'Could not start the estimate. Check your connection and try again.',
         network: 'Could not reach the estimation service. Check your connection and try again.',
         timeout: 'The estimation service took too long. Try again.',
         provider: 'The estimation service could not complete this request. Try again.',
@@ -172,9 +173,10 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const fetchImpl = options.fetchImpl ?? fetch;
     const loadInstallationToken = options.getInstallationToken ?? getInstallationToken;
     const now = options.now ?? Date.now;
-    const timeoutMs = options.timeoutMs ?? 22000;
+    const timeoutMs = options.timeoutMs ?? 35000;
     const checkConsent = options.hasConsent ?? hasRemoteEstimateConsent;
     const authorize = options.getAiAuthorization ?? getAiAuthorization;
+    const acceptGrant = options.acceptAiGrant ?? acceptAiGrant;
     const createRequestId = options.requestId ?? (async () => (await import('expo-crypto')).randomUUID());
 
     async function estimate(
@@ -183,7 +185,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     ): Promise<FoodEstimationResult> {
         if (!options.workerUrl) return failure('unavailable');
         const authorization = authorize();
-        if (!authorization.ok) return failure(authorization.kind);
+        if (!authorization.ok && authorization.kind === 'paid-access-required') return failure(authorization.kind);
         try {
             if (!await checkConsent()) return failure('consent-required');
         } catch {
@@ -199,15 +201,16 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
+            const headers: Record<string, string> = {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Eatlog-Install-ID': installId,
+                'X-Eatlog-Request-ID': await createRequestId(),
+            };
+            if (authorization.ok) headers.Authorization = `Bearer ${authorization.grant}`;
             const response = await fetchImpl(`${options.workerUrl}/v1/estimate`, {
                 method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-Eatlog-Install-ID': installId,
-                    'X-Eatlog-Request-ID': await createRequestId(),
-                    Authorization: `Bearer ${authorization.grant}`,
-                },
+                headers,
                 body: JSON.stringify({ operation, ...input }),
                 signal: controller.signal,
             });
@@ -227,6 +230,9 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                 }
                 return failure('provider');
             }
+            const refreshedGrant = response.headers.get('x-eatlog-ai-grant');
+            const refreshedGrantExpiry = response.headers.get('x-eatlog-ai-grant-expires-at');
+            if (refreshedGrant && refreshedGrantExpiry) acceptGrant(refreshedGrant, refreshedGrantExpiry);
             if (!(response.headers.get('content-type') ?? '').includes('application/json')) return failure('invalid-response');
             const result = await response.json() as FoodEstimateResponse;
             if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');

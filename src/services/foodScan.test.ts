@@ -252,6 +252,38 @@ test('paid access gates every AI operation before consent, identity loading, or 
     assert.deepEqual({ consentReads, tokenReads, fetches }, { consentReads: 0, tokenReads: 0, fetches: 0 });
 });
 
+test('unresolved access submits once and accepts the Worker grant from the estimate response', async () => {
+    const returnedGrant = 'inline.signed.worker-grant-value';
+    const expiresAt = '2026-08-28T00:05:00.000Z';
+    let requestHeaders: Record<string, string> | null = null;
+    const accepted: Array<{ token: string; expiresAt: string }> = [];
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getAiAuthorization: () => ({ ok: false, kind: 'entitlement-unavailable' }),
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        requestId: () => 'request-00000001',
+        acceptAiGrant: (token, expiry) => { accepted.push({ token, expiresAt: expiry }); },
+        fetchImpl: (async (_input, init) => {
+            requestHeaders = init?.headers as Record<string, string>;
+            return new Response(JSON.stringify(recognizedEstimate()), {
+                status: 200,
+                headers: {
+                    'content-type': 'application/json',
+                    'X-Eatlog-AI-Grant': returnedGrant,
+                    'X-Eatlog-AI-Grant-Expires-At': expiresAt,
+                },
+            });
+        }) as typeof fetch,
+    });
+
+    const result = await client.describeMeal('rice');
+
+    assert.equal(result.ok, true);
+    assert.equal(requestHeaders?.['Authorization'], undefined);
+    assert.deepEqual(accepted, [{ token: returnedGrant, expiresAt }]);
+});
+
 test('maps each known Worker entitlement and quota code to specific redacted copy', async () => {
     const cases = [
         ['PAID_ACCESS_REQUIRED', 'paid-access-required'],

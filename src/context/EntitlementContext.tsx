@@ -17,7 +17,11 @@ import {
 } from '../services/billing.types';
 import { getInstallationToken } from '../services/installIdentity';
 import { setAdaptiveAccess } from '../services/adaptiveAccess';
-import { createSubscriptionApi, setLocalAccessForAi } from '../services/subscriptionApi';
+import {
+  createSubscriptionApi,
+  getAiAuthorization,
+  setLocalAccessForAi,
+} from '../services/subscriptionApi';
 
 interface EntitlementContextValue {
   access: EatlogAccess | null;
@@ -29,6 +33,7 @@ interface EntitlementContextValue {
   refreshing: boolean;
   hasPaidFeatures: boolean;
   ensurePaidAccess(): Promise<PaidAccessDecision>;
+  beginAiEstimate(): 'proceed' | 'free';
   refresh(): Promise<void>;
   purchase(tier: 'manok' | 'itik'): Promise<BillingActionResult>;
   restore(): Promise<BillingActionResult>;
@@ -50,6 +55,8 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const [refreshing, setRefreshing] = useState(false);
   const accessPromise = useRef<Promise<EatlogAccess | null> | null>(null);
   const refreshPromise = useRef<Promise<void> | null>(null);
+  const supportIdPromise = useRef<Promise<string> | null>(null);
+  const remoteAccessPromise = useRef<Promise<boolean> | null>(null);
 
   const applyAccess = useCallback((value: EatlogAccess) => {
     if (!shouldApplyAccessUpdate(accessRef.current, value)) return false;
@@ -71,10 +78,45 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     return accessPromise.current;
   }, [applyAccess, billing]);
 
-  const ensurePaidAccess = useCallback(async () => {
+  const resolveSupportId = useCallback(() => {
+    if (supportIdRef.current !== null) return Promise.resolve(supportIdRef.current);
+    if (supportIdPromise.current) return supportIdPromise.current;
+    const pending = getInstallationToken().then((installId) => {
+      supportIdRef.current = installId;
+      setSupportId(installId);
+      return installId;
+    });
+    supportIdPromise.current = pending.finally(() => { supportIdPromise.current = null; });
+    return supportIdPromise.current;
+  }, []);
+
+  const refreshRemoteAccess = useCallback((forceStore = false) => {
+    if (remoteAccessPromise.current) return remoteAccessPromise.current;
+    const pending = (async () => {
+      try {
+        const installId = await resolveSupportId();
+        const remote = await subscriptionApi.refresh(installId, forceStore);
+        setUsage(remote.usage ?? { kind: 'none' });
+        return getAiAuthorization().ok;
+      } catch {
+        setUsage({ kind: 'none' });
+        return false;
+      }
+    })();
+    remoteAccessPromise.current = pending.finally(() => { remoteAccessPromise.current = null; });
+    return remoteAccessPromise.current;
+  }, [resolveSupportId, subscriptionApi]);
+
+  const ensurePaidAccess = useCallback(async (): Promise<PaidAccessDecision> => {
     if (entitlementStatus(accessRef.current) === 'checking') await resolveAccess(false);
     const status = entitlementStatus(accessRef.current);
     return status === 'checking' ? 'unavailable' : status;
+  }, [resolveAccess]);
+
+  const beginAiEstimate = useCallback((): 'proceed' | 'free' => {
+    const status = entitlementStatus(accessRef.current);
+    if (status === 'checking') void resolveAccess(false);
+    return status === 'free' ? 'free' : 'proceed';
   }, [resolveAccess]);
 
   const refreshAccess = useCallback(async (forceStore: boolean) => {
@@ -83,25 +125,16 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       setRefreshing(true);
       try {
         const accessRequest = resolveAccess(forceStore);
-        const installId = supportIdRef.current ?? await getInstallationToken();
-        if (supportIdRef.current === null) {
-          supportIdRef.current = installId;
-          setSupportId(installId);
-        }
+        await resolveSupportId();
         await accessRequest;
+        const current = accessRef.current;
+        const remoteRequest = current !== null && hasPaidFeatures(current)
+          ? refreshRemoteAccess(forceStore)
+          : null;
+        if (remoteRequest === null) setUsage({ kind: 'none' });
         const products = await billing.offering();
         setOffering(products);
-        const current = accessRef.current;
-        if (current !== null && hasPaidFeatures(current)) {
-          try {
-            const remote = await subscriptionApi.refresh(installId);
-            setUsage(remote.usage ?? { kind: 'none' });
-          } catch {
-            setUsage({ kind: 'none' });
-          }
-        } else {
-          setUsage({ kind: 'none' });
-        }
+        if (remoteRequest !== null) await remoteRequest;
       } catch {
         setUsage({ kind: 'none' });
       } finally {
@@ -111,7 +144,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     })();
     refreshPromise.current = pending.finally(() => { refreshPromise.current = null; });
     return refreshPromise.current;
-  }, [billing, resolveAccess, subscriptionApi]);
+  }, [billing, refreshRemoteAccess, resolveAccess, resolveSupportId]);
 
   const refresh = useCallback(() => refreshAccess(true), [refreshAccess]);
 
@@ -137,7 +170,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     }
     const result = await billing.purchase(tier, current);
     applyAccess(result.access);
-    if (result.state === 'success' || result.state === 'entitlement-pending') await refreshAccess(false);
+    if (result.state === 'success' || result.state === 'entitlement-pending') await refreshAccess(true);
     return { state: result.state, message: result.message };
   }, [applyAccess, billing, refreshAccess]);
 
@@ -148,7 +181,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     }
     const result = await billing.restore(current);
     applyAccess(result.access);
-    await refreshAccess(false);
+    await refreshAccess(true);
     return { state: result.state, message: result.message };
   }, [applyAccess, billing, refreshAccess]);
 
@@ -162,11 +195,12 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     refreshing,
     hasPaidFeatures: access !== null && hasPaidFeatures(access),
     ensurePaidAccess,
+    beginAiEstimate,
     refresh,
     purchase,
     restore,
     manageSubscription: billing.manageSubscription,
-  }), [access, billing.manageSubscription, ensurePaidAccess, loadingProducts, offering, purchase, refresh, refreshing, restore, supportId, usage]);
+  }), [access, beginAiEstimate, billing.manageSubscription, ensurePaidAccess, loadingProducts, offering, purchase, refresh, refreshing, restore, supportId, usage]);
 
   return <EntitlementContext.Provider value={value}>{children}</EntitlementContext.Provider>;
 }

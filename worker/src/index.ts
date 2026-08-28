@@ -34,6 +34,8 @@ const MAX_CONTEXT_DESCRIPTION_LENGTH = 500;
 const MAX_CONTEXT_NAME_LENGTH = 120;
 const MAX_REVENUECAT_BODY_BYTES = 256 * 1024;
 const REVENUECAT_ORIGIN = 'https://api.revenuecat.com';
+const AI_GRANT_HEADER = 'X-Eatlog-AI-Grant';
+const AI_GRANT_EXPIRES_HEADER = 'X-Eatlog-AI-Grant-Expires-At';
 
 const USDA_DATA_TYPES = ['Survey (FNDDS)', 'Foundation', 'SR Legacy', 'Branded'] as const;
 const OPERATIONS = ['scan', 'describe', 'clarify-meal', 'clarify-component'] as const;
@@ -569,9 +571,14 @@ async function refreshRevenueCatAccess(
   store: SubscriptionStore,
   fetchImpl: typeof fetch,
   now: number,
+  force: boolean,
 ): Promise<{ verified: VerifiedRevenueCatAccess; customerKey: string }> {
   requireSubscriptionConfiguration(env);
   const customerKey = await hashQuotaIdentity(`customer:${installId}`, env.RATE_LIMIT_SALT);
+  if (!force) {
+    const cached = await store.getCached(customerKey, now);
+    if (cached && !accessExpired(cached.access, now)) return { verified: cached, customerKey };
+  }
   try {
     const response = await fetchWithTimeout(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`, Accept: 'application/json' },
@@ -598,30 +605,80 @@ async function refreshRevenueCatAccess(
   }
 }
 
+interface IssuedAiGrant {
+  claims: GrantClaims;
+  token: string;
+  expiresAt: string;
+}
+
+async function issueAiGrant(
+  verified: VerifiedRevenueCatAccess,
+  env: Env,
+  now: number,
+): Promise<IssuedAiGrant | null> {
+  const access = paidKind(verified.access);
+  if (!access || !verified.subjectIdentity) return null;
+  requireSubscriptionConfiguration(env);
+  const claims: GrantClaims = {
+    aud: AI_GRANT_AUDIENCE,
+    sub: verified.subjectIdentity,
+    access,
+    iat: now,
+    exp: now + AI_GRANT_TTL_MS,
+  };
+  return {
+    claims,
+    token: await signAiGrant(claims, env.AI_GRANT_SIGNING_KEY),
+    expiresAt: new Date(claims.exp).toISOString(),
+  };
+}
+
 async function accessRefresh(
   installId: string,
   env: Env,
   store: SubscriptionStore,
   fetchImpl: typeof fetch,
   now: number,
+  force: boolean,
 ): Promise<Response> {
-  const { verified } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now);
-  const access = paidKind(verified.access);
-  if (!access || !verified.subjectIdentity) return json({ access: verified.access, usage: { kind: 'none' } });
-  requireSubscriptionConfiguration(env);
-  const claims = {
-    aud: AI_GRANT_AUDIENCE,
-    sub: verified.subjectIdentity,
-    access,
-    iat: now,
-    exp: now + AI_GRANT_TTL_MS,
-  } as const;
-  const usage = await store.usage(claims.sub, access, now);
+  const { verified } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force);
+  const grant = await issueAiGrant(verified, env, now);
+  if (!grant) return json({ access: verified.access, usage: { kind: 'none' } });
+  const usage = await store.usage(grant.claims.sub, grant.claims.access, now);
   return json({
     access: verified.access,
-    grant: { token: await signAiGrant(claims, env.AI_GRANT_SIGNING_KEY), expiresAt: new Date(claims.exp).toISOString() },
+    grant: { token: grant.token, expiresAt: grant.expiresAt },
     usage,
   });
+}
+
+async function authorizeEstimate(
+  request: Request,
+  installId: string,
+  env: Env,
+  store: SubscriptionStore,
+  fetchImpl: typeof fetch,
+  now: number,
+): Promise<{ claims: GrantClaims; refreshedGrant: IssuedAiGrant | null }> {
+  requireSubscriptionConfiguration(env);
+  const token = bearerToken(request);
+  if (token) {
+    const claims = await verifyAiGrant(token, env.AI_GRANT_SIGNING_KEY, now);
+    if (claims) return { claims, refreshedGrant: null };
+  }
+  const { verified } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false);
+  const refreshedGrant = await issueAiGrant(verified, env, now);
+  if (!refreshedGrant) {
+    throw new HttpError(402, 'PAID_ACCESS_REQUIRED', 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
+  }
+  return { claims: refreshedGrant.claims, refreshedGrant };
+}
+
+function attachGrant(response: Response, grant: IssuedAiGrant): Response {
+  const headers = new Headers(response.headers);
+  headers.set(AI_GRANT_HEADER, grant.token);
+  headers.set(AI_GRANT_EXPIRES_HEADER, grant.expiresAt);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 async function requireGrant(request: Request, env: Env, now: number): Promise<GrantClaims> {
@@ -962,13 +1019,18 @@ export async function handleRequest(
     if (route === 'access-refresh') {
       if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
       requireJsonContentType(request);
-      rejectUnknownProperties(await readJsonObject(request, 1024), []);
+      const body = await readJsonObject(request, 1024);
+      rejectUnknownProperties(body, ['force']);
+      if (body.force !== undefined && typeof body.force !== 'boolean') {
+        throw new HttpError(400, 'INVALID_BODY', 'Force must be boolean.', { rejection: 'force' });
+      }
       return await accessRefresh(
         installId,
         env,
         resolveSubscriptionStore(env, dependencies.subscriptionStore),
         fetchImpl,
         (dependencies.now ?? Date.now)(),
+        body.force === true,
       );
     }
 
@@ -986,16 +1048,20 @@ export async function handleRequest(
       return await usdaDetail(parseFdcId(url.pathname), env, context, fetchImpl, defaultCache);
     }
     requireJsonContentType(request);
-    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
-    if (!subscriptionsEnabled(env)) return await geminiEstimate(input, env, fetchImpl);
+    if (!subscriptionsEnabled(env)) {
+      const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
+      return await geminiEstimate(input, env, fetchImpl);
+    }
 
-    const now = (dependencies.now ?? Date.now)();
-    const claims = await requireGrant(request, env, now);
     const idempotencyKey = request.headers.get('x-eatlog-request-id')?.trim() ?? '';
     if (!/^[A-Za-z0-9-]{16,128}$/.test(idempotencyKey)) {
       throw new HttpError(400, 'INVALID_REQUEST_ID', 'Request identifier is invalid.', { rejection: 'request-id' });
     }
+    const now = (dependencies.now ?? Date.now)();
     const store = resolveSubscriptionStore(env, dependencies.subscriptionStore);
+    const authorization = await authorizeEstimate(request, installId, env, store, fetchImpl, now);
+    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
+    const claims = authorization.claims;
     const reservation = await store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now);
     if (!reservation.allowed) {
       const messages = {
@@ -1016,7 +1082,7 @@ export async function handleRequest(
     try {
       const response = await geminiEstimate(input, env, fetchImpl);
       await store.finalize(claims.sub, idempotencyKey);
-      return response;
+      return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
     } catch (error) {
       await store.refund(claims.sub, idempotencyKey);
       throw error;

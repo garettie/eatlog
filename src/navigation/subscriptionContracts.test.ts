@@ -15,6 +15,7 @@ const paywall = read('../screens/PaywallScreen.tsx');
 const tierBirdIcon = read('../components/TierBirdIcon.tsx');
 const entitlementProvider = read('../context/EntitlementContext.tsx');
 const foodSheet = read('../components/sheet-states/FoodSheetContent.tsx');
+const foodScan = read('../services/foodScan.ts');
 const search = read('../components/sheet-states/SearchInputState.tsx');
 const addComponent = read('../components/AddComponentSection.tsx');
 const describeInput = read('../components/sheet-states/DescribeInputState.tsx');
@@ -123,6 +124,25 @@ test('cold start stays unresolved until RevenueCat CustomerInfo is available', (
   assert.match(analytics, /entitlementStatus === 'checking'[\s\S]*Checking your plan…/);
 });
 
+test('AI estimate submission authorizes inline during the Worker request without a blocking preflight', () => {
+  const beginEstimate = entitlementProvider.slice(
+    entitlementProvider.indexOf('const beginAiEstimate ='),
+    entitlementProvider.indexOf('const refreshAccess ='),
+  );
+  const foodScanClient = read('../services/foodScan.ts');
+  const worker = read('../../worker/src/index.ts');
+  assert.match(entitlementProvider, /beginAiEstimate/);
+  assert.match(beginEstimate, /beginAiEstimate/);
+  assert.doesNotMatch(beginEstimate, /refreshRemoteAccess/);
+  assert.doesNotMatch(beginEstimate, /getAiAuthorization/);
+  assert.match(foodScanClient, /acceptAiGrant/);
+  assert.match(foodScanClient, /x-eatlog-ai-grant/i);
+  assert.match(foodScanClient, /paid-access-required/);
+  assert.match(worker, /authorizeEstimate/);
+  assert.match(worker, /refreshRevenueCatAccess/);
+  assert.match(worker, /X-Eatlog-AI-Grant/);
+});
+
 test('unresolved purchase and restore stop before the billing client', () => {
   const purchase = entitlementProvider.slice(
     entitlementProvider.indexOf('const purchase ='),
@@ -141,27 +161,28 @@ test('Test Store preview can replace Manok with Itik without exposing fake cance
   assert.match(paywall, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
 });
 
-test('all AI collection entry points resolve paid access before private content collection', () => {
-  const cameraGate = foodSheet.lastIndexOf('requirePaidAccess', foodSheet.indexOf('requestCameraPermissionsAsync'));
-  const galleryGate = foodSheet.lastIndexOf('requirePaidAccess', foodSheet.indexOf('launchImageLibraryAsync'));
-  assert.ok(cameraGate >= 0 && cameraGate < foodSheet.indexOf('requestCameraPermissionsAsync'));
-  assert.ok(galleryGate >= 0 && galleryGate < foodSheet.indexOf('launchImageLibraryAsync'));
+test('all AI collection entry points gate only confirmed free before private content collection', () => {
+  assert.match(foodSheet, /canBeginAiEstimate/);
+  const cameraGate = foodSheet.indexOf('canBeginAiEstimate()');
+  const cameraPermission = foodSheet.indexOf('requestCameraPermissionsAsync');
+  const galleryLaunch = foodSheet.indexOf('launchImageLibraryAsync');
+  assert.ok(cameraGate >= 0 && cameraGate < cameraPermission);
+  assert.ok(cameraGate < galleryLaunch);
   assert.match(tabNavigator, /const openDescribe[\s\S]*?stateKey: 'entry', pendingAction: 'describe'/);
   assert.match(foodSheet, /case 'describe':\s*handleDescribe\(\);/);
   for (const source of [search, addComponent, describeInput]) {
     const consent = source.indexOf('requestConsent()');
-    const accessGate = source.lastIndexOf('await ensurePaidAccess()', consent);
+    const accessGate = source.indexOf('beginAiEstimate()');
     assert.ok(consent >= 0 && accessGate >= 0 && accessGate < consent);
+    assert.equal(source.includes('await ensurePaidAccess()'), false);
   }
   for (const marker of ['const handleClarify =', 'const handleClarifyComponent =']) {
     const start = review.indexOf(marker);
     const consent = review.indexOf('requestConsent()', start);
-    const accessGate = review.lastIndexOf('await ensurePaidAccess()', consent);
+    const accessGate = review.indexOf('beginAiEstimate()', start);
     assert.ok(start >= 0 && consent >= 0 && accessGate >= start && accessGate < consent);
   }
-  for (const source of [search, addComponent, describeInput, review, analytics]) {
-    assert.match(source, /["']unavailable["']/);
-  }
+  assert.match(foodScan, /acceptAiGrant/);
 });
 
 test('adaptive reads and mutations have UI and service-boundary gates', () => {

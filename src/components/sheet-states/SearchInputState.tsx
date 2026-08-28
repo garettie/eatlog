@@ -17,7 +17,6 @@ import { useNavigation } from "@react-navigation/native";
 import { serviceConfig } from "../../config/services";
 import { useEntitlement } from "../../context/EntitlementContext";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
-import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
 import { insertFoodLog, type MealType, setFoodPinned } from "../../db/database";
 import { describeMeal, type DescribeResult } from "../../services/foodScan";
 import { loadFoodDetails, type FoodResult } from "../../services/foodSearch";
@@ -71,7 +70,7 @@ export default function SearchInputState({
 	const [estimating, setEstimating] = useState(false);
 	const [estimateError, setEstimateError] = useState<string | null>(null);
 	const { requestConsent } = useRemoteEstimateConsent();
-	const { ensurePaidAccess } = useEntitlement();
+	const { beginAiEstimate } = useEntitlement();
 	const navigation = useNavigation<any>();
 
 	const handleFoodPress = useCallback(
@@ -141,13 +140,8 @@ export default function SearchInputState({
 		const query = search.query.trim();
 		if (!query || estimating) return;
 		setEstimateError(null);
-		const decision = await ensurePaidAccess();
-		if (decision === "free") {
+		if (beginAiEstimate() === "free") {
 			navigation.navigate("Paywall");
-			return;
-		}
-		if (decision === "unavailable") {
-			setEstimateError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
 			return;
 		}
 		if (!await requestConsent()) return;
@@ -155,12 +149,13 @@ export default function SearchInputState({
 		const result = await describeMeal(query);
 		setEstimating(false);
 		if (!result.ok) {
-			setEstimateError(result.message);
+			if (result.kind === "paid-access-required") navigation.navigate("Paywall");
+			else setEstimateError(result.message);
 			return;
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [ensurePaidAccess, estimating, navigation, onEstimateResult, requestConsent, search.query]);
+	}, [beginAiEstimate, estimating, navigation, onEstimateResult, requestConsent, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow

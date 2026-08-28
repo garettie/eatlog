@@ -40,7 +40,6 @@ import { M3 } from '../../theme/tokens';
 import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
 import { useEntitlement } from '../../context/EntitlementContext';
 import { useNavigation } from '@react-navigation/native';
-import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from '../../services/billing.types';
 
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
@@ -96,7 +95,7 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     'trial-allowance-exhausted': 'Your estimate allowance is used. You can keep logging manually.',
     'fair-use-daily-limit': "You've reached the 24-hour fair-use limit. Try again after it resets.",
     'fair-use-30-day-limit': "You've reached the 30-day fair-use limit. Try again after it resets.",
-    'entitlement-unavailable': "Couldn't verify paid access. Refresh your plan and try again.",
+    'entitlement-unavailable': 'Could not start the estimate. Check your connection and try again.',
     network: 'Check your connection, then try again.',
     timeout: 'The estimate took too long. Try again.',
     provider: "Couldn't complete the estimate. Try again.",
@@ -178,7 +177,7 @@ export default function FoodSheetContent({
 }: FoodSheetContentProps) {
     const reduced = useReducedMotion();
     const { requestConsent } = useRemoteEstimateConsent();
-    const { ensurePaidAccess } = useEntitlement();
+    const { beginAiEstimate } = useEntitlement();
     const navigation = useNavigation<any>();
     const scanRequestRef = useRef(0);
     const scanInFlightRef = useRef(false);
@@ -394,13 +393,11 @@ export default function FoodSheetContent({
         [setState],
     );
 
-    const requirePaidAccess = useCallback(async (onUnavailable: () => void): Promise<boolean> => {
-        const decision = await ensurePaidAccess();
-        if (decision === 'paid') return true;
-        if (decision === 'free') navigation.navigate('Paywall');
-        else onUnavailable();
+    const canBeginAiEstimate = useCallback((): boolean => {
+        if (beginAiEstimate() === 'proceed') return true;
+        navigation.navigate('Paywall');
         return false;
-    }, [ensurePaidAccess, navigation]);
+    }, [beginAiEstimate, navigation]);
 
     const ensurePhotoEntryAvailable = useCallback(async (): Promise<boolean> => {
         if (serviceConfig.availability.gemini) return true;
@@ -451,7 +448,7 @@ export default function FoodSheetContent({
     }, [setState]);
 
     const handleCamera = useCallback(async () => {
-        if (!await requirePaidAccess(() => showScanError('provider', 'camera'))) return;
+        if (!canBeginAiEstimate()) return;
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -500,10 +497,10 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, requirePaidAccess, transitionTo, resetToEntry, setState, showScanError]);
+    }, [canBeginAiEstimate, ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleGallery = useCallback(async () => {
-        if (!await requirePaidAccess(() => showScanError('provider', 'gallery'))) return;
+        if (!canBeginAiEstimate()) return;
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -536,10 +533,10 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [ensurePhotoEntryAvailable, queuePhotoForTitle, requirePaidAccess, transitionTo, resetToEntry, setState, showScanError]);
+    }, [canBeginAiEstimate, ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
 
     const handlePhotoEstimate = useCallback(async () => {
-        if (!await requirePaidAccess(() => setPhotoEstimateError(PAID_ACCESS_UNAVAILABLE_MESSAGE))) return;
+        if (!canBeginAiEstimate()) return;
         if (scanInFlightRef.current) return;
         const pendingPhoto = pendingPhotoRef.current;
         if (!pendingPhoto) {
@@ -594,10 +591,15 @@ export default function FoodSheetContent({
                 return;
             }
             if (!scanResult.ok) {
-                setPhotoEstimateError(FAILURE_MESSAGES[scanResult.kind]);
+                if (scanResult.kind === 'paid-access-required') {
+                    setPhotoEstimateError(null);
+                } else {
+                    setPhotoEstimateError(FAILURE_MESSAGES[scanResult.kind]);
+                }
                 setPhotoEstimateBusy(false);
                 scanInFlightRef.current = false;
                 onGoBack();
+                if (scanResult.kind === 'paid-access-required') navigation.navigate('Paywall');
                 return;
             }
             const photoUri = await persistPendingPhoto();
@@ -616,7 +618,7 @@ export default function FoodSheetContent({
                 setPhotoEstimateBusy(false);
             }
         }
-    }, [onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, requirePaidAccess, setState, showScanError, state.pendingAction, transitionTo]);
+    }, [canBeginAiEstimate, navigation, onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, setState, showScanError, state.pendingAction, transitionTo]);
 
     const handleReuseMeal = useCallback(async (meal: LoggedMeal) => {
         if (mealReuseInFlightRef.current) return;
@@ -686,10 +688,10 @@ export default function FoodSheetContent({
     }, [discardPendingPhoto, onGoBack, setState]);
 
     const handleDescribe = useCallback(async () => {
-        if (!await requirePaidAccess(() => transitionTo('describe'))) return;
+        if (!canBeginAiEstimate()) return;
         discardPendingPhoto();
         transitionTo('describe');
-    }, [discardPendingPhoto, requirePaidAccess, transitionTo]);
+    }, [canBeginAiEstimate, discardPendingPhoto, transitionTo]);
 
     const handleDescribeResult = useCallback(
         (result: DescribeResult) => {

@@ -77,6 +77,13 @@ export function clearAiGrant(): void {
   activeGrant = null;
 }
 
+export function acceptAiGrant(token: string, expiresAt: string, now = Date.now()): boolean {
+  const grant = { token, expiresAt };
+  if (!isGrant(grant) || new Date(expiresAt).getTime() <= now) return false;
+  activeGrant = grant;
+  return true;
+}
+
 export function getAiAuthorization(now = Date.now()):
   | { ok: true; grant: string }
   | { ok: false; kind: AiAuthorizationFailure } {
@@ -102,7 +109,7 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
 
-  async function refresh(installId: string): Promise<AccessRefreshResult> {
+  async function refresh(installId: string, force = false): Promise<AccessRefreshResult> {
     if (!options.workerUrl) throw new Error('Subscription service unavailable.');
     const response = await fetchImpl(`${options.workerUrl}/v1/access/refresh`, {
       method: 'POST',
@@ -111,7 +118,7 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
         'Content-Type': 'application/json',
         'X-Eatlog-Install-ID': installId,
       },
-      body: '{}',
+      body: JSON.stringify(force ? { force: true } : {}),
     });
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) {
       throw new Error('Subscription service unavailable.');
