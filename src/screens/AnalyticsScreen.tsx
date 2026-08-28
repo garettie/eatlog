@@ -558,8 +558,13 @@ function AnalyticsScreen({
 
   const retryRecommendation = useCallback(async () => {
     if (recommendationLoading) return;
-    if (!await ensurePaidAccess()) {
+    const decision = await ensurePaidAccess();
+    if (decision === 'free') {
       navigation.navigate('Paywall');
+      return;
+    }
+    if (decision === 'unavailable') {
+      setRecommendationError(true);
       return;
     }
     setRecommendationLoading(true);
@@ -581,8 +586,13 @@ function AnalyticsScreen({
 
   const resolveRecommendation = useCallback(async (action: 'accept' | 'keep') => {
     if (resolving || recommendation?.kind !== 'ready') return;
-    if (!await ensurePaidAccess()) {
+    const decision = await ensurePaidAccess();
+    if (decision === 'free') {
       navigation.navigate('Paywall');
+      return;
+    }
+    if (decision === 'unavailable') {
+      setRecommendationError(true);
       return;
     }
     setResolving(action);
@@ -622,8 +632,13 @@ function AnalyticsScreen({
     status: 'complete' | 'partial' | 'intentional_fast',
   ) => {
     if (confirmingIntakeDate || recommendation?.kind !== 'holding') return;
-    if (!await ensurePaidAccess()) {
+    const decision = await ensurePaidAccess();
+    if (decision === 'free') {
       navigation.navigate('Paywall');
+      return;
+    }
+    if (decision === 'unavailable') {
+      setRecommendationError(true);
       return;
     }
     setConfirmingIntakeDate(logDate);

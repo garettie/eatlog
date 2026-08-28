@@ -105,6 +105,9 @@ export interface BillingActionResult {
 }
 
 export type EntitlementStatus = 'checking' | 'free' | 'paid';
+export type PaidAccessDecision = 'paid' | 'free' | 'unavailable';
+
+export const PAID_ACCESS_UNAVAILABLE_MESSAGE = "Couldn't verify your plan. Check your connection and try again.";
 
 function iso(value: unknown): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
@@ -120,13 +123,18 @@ function isManokProduct(value: string): boolean {
   return (MANOK_PRODUCT_IDS as readonly string[]).includes(value);
 }
 
-export function hasPaidFeatures(access: EatlogAccess): boolean {
-  return access.kind !== 'pugo';
+export function hasPaidFeatures(access: EatlogAccess, now = new Date()): boolean {
+  if (access.kind === 'pugo') return false;
+  const expiry = accessExpiresAt(access);
+  return expiry === null || Date.parse(expiry) > now.getTime();
 }
 
-export function entitlementStatus(access: EatlogAccess | null): EntitlementStatus {
+export function entitlementStatus(access: EatlogAccess | null, now = new Date()): EntitlementStatus {
   if (access === null) return 'checking';
-  return hasPaidFeatures(access) ? 'paid' : 'free';
+  if (access.kind === 'pugo') {
+    return access.reason === 'unavailable' || access.reason === 'malformed' ? 'checking' : 'free';
+  }
+  return hasPaidFeatures(access, now) ? 'paid' : 'checking';
 }
 
 export function canBuyItik(access: EatlogAccess): boolean {
@@ -141,18 +149,22 @@ function accessExpiresAt(access: EatlogAccess): string | null {
 }
 
 export function shouldApplyAccessUpdate(
-  current: EatlogAccess,
+  current: EatlogAccess | null,
   next: EatlogAccess,
   now = new Date(),
 ): boolean {
-  const currentCheckedAt = Date.parse(current.checkedAt);
   const nextCheckedAt = Date.parse(next.checkedAt);
   if (!Number.isFinite(nextCheckedAt)) return false;
+  const transient = next.kind === 'pugo'
+    && (next.reason === 'unavailable' || next.reason === 'malformed');
+  if (current === null) return !transient;
+
+  const currentCheckedAt = Date.parse(current.checkedAt);
   if (Number.isFinite(currentCheckedAt) && nextCheckedAt < currentCheckedAt) return false;
 
-  if (hasPaidFeatures(current) && next.kind === 'pugo' && next.reason === 'unavailable') {
+  if (transient) {
     const expiry = accessExpiresAt(current);
-    return expiry !== null && Date.parse(expiry) <= now.getTime();
+    return current.kind !== 'pugo' && expiry !== null && Date.parse(expiry) <= now.getTime();
   }
   return true;
 }

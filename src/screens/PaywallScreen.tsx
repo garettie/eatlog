@@ -12,7 +12,7 @@ import TierBirdIcon, { type EatlogTier } from '../components/TierBirdIcon';
 import { serviceConfig } from '../config/services';
 import { useEntitlement } from '../context/EntitlementContext';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { canBuyItik, hasPaidFeatures } from '../services/billing.types';
+import { canBuyItik, hasPaidFeatures, PAID_ACCESS_UNAVAILABLE_MESSAGE } from '../services/billing.types';
 import { APP_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
@@ -142,7 +142,7 @@ function CurrentPlan({ access }: { access: Access }) {
 
 function PlanContent({ onClose }: { onClose?: () => void }) {
   const {
-    access, offering, usage, supportId, loadingProducts, refreshing,
+    access, status: entitlementStatus, offering, usage, supportId, loadingProducts, refreshing,
     refresh, purchase, restore, manageSubscription,
   } = useEntitlement();
   const [selected, setSelected] = useState<'manok' | 'itik'>('manok');
@@ -206,7 +206,7 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
       });
   }, [busy, refresh, refreshing, setScopedMessage]);
 
-  if (access === null) {
+  if (access === null || entitlementStatus === 'checking') {
     return (
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 36 }}
@@ -227,8 +227,17 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
             ) : null}
           </View>
           <Card className="min-h-[96px] items-center justify-center gap-3 p-4">
-            <ActivityIndicator color={M3.onSurfaceVariant} />
-            <Text accessibilityLiveRegion="polite" className="text-sm text-m3-on-surface-variant">Reading your saved purchase status…</Text>
+            {loadingProducts || refreshing ? (
+              <ActivityIndicator color={M3.onSurfaceVariant} />
+            ) : (
+              <MaterialIcons name="cloud-off" size={24} color={M3.onSurfaceVariant} />
+            )}
+            <Text accessibilityLiveRegion="polite" className="text-center text-sm text-m3-on-surface-variant">
+              {loadingProducts || refreshing ? 'Reading your saved purchase status…' : PAID_ACCESS_UNAVAILABLE_MESSAGE}
+            </Text>
+            {!loadingProducts && !refreshing ? (
+              <PrimaryButton title="Check access" onPress={() => retryPlans('utility')} />
+            ) : null}
           </Card>
         </ResponsiveContent>
       </ScrollView>

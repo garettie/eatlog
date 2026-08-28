@@ -7,6 +7,7 @@ import {
   hasPaidFeatures,
   normalizeAccess,
   shouldApplyAccessUpdate,
+  type EatlogAccess,
   type RevenueCatEntitlementSnapshot,
 } from './billing.types';
 
@@ -85,17 +86,22 @@ test('paid feature and Manok-to-Itik predicates preserve transition rules', () =
   assert.equal(canBuyItik(itik), false);
 });
 
-test('unresolved access is checking rather than confirmed free', () => {
+test('unresolved and transient access are checking rather than confirmed free', () => {
   const pugo = normalizeAccess({ entitlement: null }, NOW);
+  const unavailable = normalizeAccess(undefined, NOW);
+  const malformed = access({ identifier: 'wrong' });
   const trial = access({ periodType: 'TRIAL' });
 
   assert.equal(entitlementStatus(null), 'checking');
+  assert.equal(entitlementStatus(unavailable), 'checking');
+  assert.equal(entitlementStatus(malformed), 'checking');
   assert.equal(entitlementStatus(pugo), 'free');
   assert.equal(entitlementStatus(trial), 'paid');
 });
 
-test('access updates reject stale snapshots and transient lookup failures', () => {
-  const current = access();
+test('access updates resolve authoritative startup states and reject transient or stale snapshots', () => {
+  const paid = access();
+  const free = normalizeAccess({ requestDate: NOW.toISOString(), entitlement: null }, NOW);
   const staleRevocation = {
     kind: 'pugo' as const,
     checkedAt: '2026-08-21T23:59:59.000Z',
@@ -106,9 +112,33 @@ test('access updates reject stale snapshots and transient lookup failures', () =
     checkedAt: '2026-08-22T00:01:00.000Z',
     reason: 'unavailable' as const,
   };
+  const malformed = { ...lookupFailure, reason: 'malformed' as const };
   const currentRevocation = { ...lookupFailure, reason: 'revoked' as const };
+  const expired = { ...lookupFailure, reason: 'expired' as const };
 
-  assert.equal(shouldApplyAccessUpdate(current, staleRevocation), false);
-  assert.equal(shouldApplyAccessUpdate(current, lookupFailure), false);
-  assert.equal(shouldApplyAccessUpdate(current, currentRevocation), true);
+  assert.equal(shouldApplyAccessUpdate(null, lookupFailure, NOW), false);
+  assert.equal(shouldApplyAccessUpdate(null, malformed, NOW), false);
+  assert.equal(shouldApplyAccessUpdate(null, paid, NOW), true);
+  assert.equal(shouldApplyAccessUpdate(null, free, NOW), true);
+  assert.equal(shouldApplyAccessUpdate(null, currentRevocation, NOW), true);
+  assert.equal(shouldApplyAccessUpdate(null, expired, NOW), true);
+  assert.equal(shouldApplyAccessUpdate(free, lookupFailure, NOW), false);
+  assert.equal(shouldApplyAccessUpdate(free, malformed, NOW), false);
+  assert.equal(shouldApplyAccessUpdate(paid, staleRevocation, NOW), false);
+  assert.equal(shouldApplyAccessUpdate(paid, lookupFailure, NOW), false);
+  assert.equal(shouldApplyAccessUpdate(paid, currentRevocation, NOW), true);
+});
+
+test('locally expired paid access stays gated and may settle as unavailable pending confirmation', () => {
+  const paid = access();
+  const afterExpiry = new Date('2026-09-01T00:00:01.000Z');
+  const lookupFailure: EatlogAccess = {
+    kind: 'pugo',
+    checkedAt: afterExpiry.toISOString(),
+    reason: 'unavailable',
+  };
+
+  assert.equal(hasPaidFeatures(paid, afterExpiry), false);
+  assert.equal(entitlementStatus(paid, afterExpiry), 'checking');
+  assert.equal(shouldApplyAccessUpdate(paid, lookupFailure, afterExpiry), true);
 });

@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, Text, View } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { useNavigation } from '@react-navigation/native';
 
 import { describeMeal, DescribeResult } from '../../services/foodScan';
+import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from '../../services/billing.types';
 import { M3 } from '../../theme/tokens';
+import { useEntitlement } from '../../context/EntitlementContext';
 import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
 import PrimaryButton from '../PrimaryButton';
 import SheetBackButton from './SheetBackButton';
@@ -23,6 +26,8 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
   const inputRef = useRef<typeof BottomSheetTextInput>(null);
   const requestRef = useRef(0);
   const { requestConsent } = useRemoteEstimateConsent();
+  const { ensurePaidAccess } = useEntitlement();
+  const navigation = useNavigation<any>();
 
   useEffect(() => () => { requestRef.current++; }, []);
 
@@ -31,6 +36,15 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
     if (!trimmed) return;
     Keyboard.dismiss();
     setError(null);
+    const decision = await ensurePaidAccess();
+    if (decision === 'free') {
+      navigation.navigate('Paywall');
+      return;
+    }
+    if (decision === 'unavailable') {
+      setError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
+      return;
+    }
     if (!await requestConsent()) return;
     const requestId = ++requestRef.current;
     setLoading(true);

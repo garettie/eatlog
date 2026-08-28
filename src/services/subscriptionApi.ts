@@ -1,4 +1,4 @@
-import type { EatlogAccess, EatlogUsage } from './billing.types';
+import { hasPaidFeatures, type EatlogAccess, type EatlogUsage } from './billing.types';
 
 export type AiAuthorizationFailure = 'paid-access-required' | 'entitlement-unavailable';
 
@@ -81,7 +81,17 @@ export function getAiAuthorization(now = Date.now()):
   | { ok: true; grant: string }
   | { ok: false; kind: AiAuthorizationFailure } {
   if (activeAccess === null) return { ok: false, kind: 'entitlement-unavailable' };
-  if (activeAccess.kind === 'pugo') return { ok: false, kind: 'paid-access-required' };
+  if (activeAccess.kind === 'pugo') {
+    return {
+      ok: false,
+      kind: activeAccess.reason === 'unavailable' || activeAccess.reason === 'malformed'
+        ? 'entitlement-unavailable'
+        : 'paid-access-required',
+    };
+  }
+  if (!hasPaidFeatures(activeAccess, new Date(now))) {
+    return { ok: false, kind: 'entitlement-unavailable' };
+  }
   if (!activeGrant || new Date(activeGrant.expiresAt).getTime() <= now) {
     return { ok: false, kind: 'entitlement-unavailable' };
   }

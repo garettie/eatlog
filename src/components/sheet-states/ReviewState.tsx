@@ -26,6 +26,7 @@ import Animated, {
 	withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 
 import { type MealType, saveMealWithComponents } from "../../db/database";
 import type { FoodResult } from "../../services/foodSearch";
@@ -54,6 +55,8 @@ import {
 import { M3 } from "../../theme/tokens";
 import { EASING } from "../../theme/motion";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
+import { useEntitlement } from "../../context/EntitlementContext";
+import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
 import type { ClarificationOutcome } from "./FoodSheetContent";
 import { formatPortionLabel } from "../../utils/portionLabels";
 import {
@@ -266,6 +269,8 @@ export default function ReviewState({
 	onGoBack,
 }: ReviewStateProps) {
 	const { requestConsent } = useRemoteEstimateConsent();
+	const { ensurePaidAccess } = useEntitlement();
+	const navigation = useNavigation<any>();
 	const [mealName, setMealName] = useState(result?.mealName ?? "");
 	const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(
 		photoUri ?? null,
@@ -716,6 +721,15 @@ export default function ReviewState({
 		const name = mealName.trim();
 		if (!name || clarifying) return;
 		setClarifyError(null);
+		const decision = await ensurePaidAccess();
+		if (decision === "free") {
+			navigation.navigate("Paywall");
+			return;
+		}
+		if (decision === "unavailable") {
+			setClarifyError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
+			return;
+		}
 		if (!await requestConsent()) return;
 		setClarifying(true);
 		try {
@@ -744,6 +758,8 @@ export default function ReviewState({
 	}, [
 		mealName,
 		clarifying,
+		ensurePaidAccess,
+		navigation,
 		onClarify,
 		requestConsent,
 		result?.originalDescription,
@@ -756,6 +772,18 @@ export default function ReviewState({
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
 			setComponentClarifyError(null);
+			const decision = await ensurePaidAccess();
+			if (decision === "free") {
+				navigation.navigate("Paywall");
+				return;
+			}
+			if (decision === "unavailable") {
+				setComponentClarifyError({
+					id: component.food.id,
+					message: PAID_ACCESS_UNAVAILABLE_MESSAGE,
+				});
+				return;
+			}
 			if (!await requestConsent()) return;
 			setClarifyingComponentId(component.food.id);
 			try {
@@ -803,6 +831,8 @@ export default function ReviewState({
 		},
 		[
 			clarifyingComponentId,
+			ensurePaidAccess,
+			navigation,
 			onClarifyComponent,
 			requestConsent,
 			mealName,

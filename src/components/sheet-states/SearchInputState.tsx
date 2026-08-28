@@ -17,6 +17,7 @@ import { useNavigation } from "@react-navigation/native";
 import { serviceConfig } from "../../config/services";
 import { useEntitlement } from "../../context/EntitlementContext";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
+import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
 import { insertFoodLog, type MealType, setFoodPinned } from "../../db/database";
 import { describeMeal, type DescribeResult } from "../../services/foodScan";
 import { loadFoodDetails, type FoodResult } from "../../services/foodSearch";
@@ -140,8 +141,13 @@ export default function SearchInputState({
 		const query = search.query.trim();
 		if (!query || estimating) return;
 		setEstimateError(null);
-		if (!await ensurePaidAccess()) {
+		const decision = await ensurePaidAccess();
+		if (decision === "free") {
 			navigation.navigate("Paywall");
+			return;
+		}
+		if (decision === "unavailable") {
+			setEstimateError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
 			return;
 		}
 		if (!await requestConsent()) return;

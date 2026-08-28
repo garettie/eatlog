@@ -62,6 +62,14 @@ const navigationTheme: Theme = {
 };
 
 export default function App() {
+	return (
+		<EntitlementProvider>
+			<AppContent />
+		</EntitlementProvider>
+	);
+}
+
+function AppContent() {
 	const [appReady, setAppReady] = useState(false);
 	const [splashFinished, setSplashFinished] = useState(false);
 	const [dbError, setDbError] = useState<string | null>(null);
@@ -308,11 +316,9 @@ export default function App() {
 						linking={navigationLinking}
 						theme={navigationTheme}
 					>
-						<EntitlementProvider>
-							<RemoteEstimateConsentProvider>
-								<RootNavigator />
-							</RemoteEstimateConsentProvider>
-						</EntitlementProvider>
+						<RemoteEstimateConsentProvider>
+							<RootNavigator />
+						</RemoteEstimateConsentProvider>
 					</NavigationContainer>
 				)}
 			</DataMaintenanceContext.Provider>

@@ -17,6 +17,8 @@ const entitlementProvider = read('../context/EntitlementContext.tsx');
 const foodSheet = read('../components/sheet-states/FoodSheetContent.tsx');
 const search = read('../components/sheet-states/SearchInputState.tsx');
 const addComponent = read('../components/AddComponentSection.tsx');
+const describeInput = read('../components/sheet-states/DescribeInputState.tsx');
+const review = read('../components/sheet-states/ReviewState.tsx');
 const analytics = read('../screens/AnalyticsScreen.tsx');
 const adaptive = read('../services/adaptiveReviews.ts');
 const database = read('../db/database.ts');
@@ -37,7 +39,7 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(paywall, /Manage subscription/);
   assert.match(paywall, /Terms of Use/);
   assert.match(paywall, /What you get/);
-  assert.match(paywall, /First month free\. Then renews monthly\./);
+  assert.match(paywall, /const manokDescription = 'Renews monthly[.]'/);
   assert.match(paywall, /Try store again/);
   assert.match(paywall, /We couldn't reach the store\. Prices and checkout didn't load\. Your logbook still works\./);
   assert.match(paywall, /30 requests per 24 hours · 250 per 30 days/);
@@ -47,6 +49,9 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.doesNotMatch(paywall, /AI actions|AI use left|AI use limits/);
   assert.doesNotMatch(paywall, /This installed build or store did not return/);
   assert.doesNotMatch(paywall, /Trial allowance:/);
+  for (const source of [paywall, profile, foodSheet]) {
+    assert.doesNotMatch(source, /Start your free month|First month free|1 month free|Trial active|Monthly trial|Manok trial|Trial requests left|Trial total|trial allowance/i);
+  }
   assert.doesNotMatch(paywall, /Your logbook stays yours on every plan/);
   assert.doesNotMatch(paywall, /End Manok in the store|unused Manok time/);
 });
@@ -97,13 +102,36 @@ test('local RevenueCat state remains the app authority across automatic and Work
 });
 
 test('cold start stays unresolved until RevenueCat CustomerInfo is available', () => {
+  const checkingPlan = paywall.slice(
+    paywall.indexOf("if (access === null || entitlementStatus === 'checking')"),
+    paywall.indexOf('const hasCurrentPlan'),
+  );
   assert.match(entitlementProvider, /useState<EatlogAccess \| null>\(null\)/);
+  assert.match(entitlementProvider, /useRef<EatlogAccess \| null>\(null\)/);
   assert.match(entitlementProvider, /entitlementStatus\(access\)/);
   assert.match(entitlementProvider, /ensurePaidAccess/);
   assert.match(entitlementProvider, /await billing\.customerInfo\(forceStore\)/);
-  assert.match(profile, /access === null \? 'Checking plan…'/);
-  assert.match(paywall, /if \(access === null\) \{[\s\S]*Checking your plan/);
+  assert.match(app, /export default function App\(\) \{[\s\S]*<EntitlementProvider>[\s\S]*<AppContent \/>/);
+  const navigation = app.slice(app.indexOf('<NavigationContainer'), app.indexOf('</NavigationContainer>'));
+  assert.doesNotMatch(navigation, /EntitlementProvider/);
+  assert.match(profile, /entitlementStatus === 'checking' \? 'Checking plan…'/);
+  assert.match(paywall, /if \(access === null \|\| entitlementStatus === 'checking'\) \{[\s\S]*Checking your plan/);
+  assert.match(checkingPlan, /PAID_ACCESS_UNAVAILABLE_MESSAGE/);
+  assert.match(checkingPlan, /retryPlans\('utility'\)/);
   assert.match(analytics, /entitlementStatus === 'checking'[\s\S]*Checking your plan…/);
+});
+
+test('unresolved purchase and restore stop before the billing client', () => {
+  const purchase = entitlementProvider.slice(
+    entitlementProvider.indexOf('const purchase ='),
+    entitlementProvider.indexOf('const restore ='),
+  );
+  const restore = entitlementProvider.slice(
+    entitlementProvider.indexOf('const restore ='),
+    entitlementProvider.indexOf('const value ='),
+  );
+  assert.match(purchase, /entitlementStatus\(current\) === 'checking'[\s\S]*return[\s\S]*billing\.purchase/);
+  assert.match(restore, /entitlementStatus\(current\) === 'checking'[\s\S]*return[\s\S]*billing\.restore/);
 });
 
 test('Test Store preview can replace Manok with Itik without exposing fake cancellation controls', () => {
@@ -111,15 +139,27 @@ test('Test Store preview can replace Manok with Itik without exposing fake cance
   assert.match(paywall, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
 });
 
-test('all AI collection entry points gate Pugo before private content collection', () => {
+test('all AI collection entry points resolve paid access before private content collection', () => {
   const cameraGate = foodSheet.lastIndexOf('requirePaidAccess', foodSheet.indexOf('requestCameraPermissionsAsync'));
   const galleryGate = foodSheet.lastIndexOf('requirePaidAccess', foodSheet.indexOf('launchImageLibraryAsync'));
   assert.ok(cameraGate >= 0 && cameraGate < foodSheet.indexOf('requestCameraPermissionsAsync'));
   assert.ok(galleryGate >= 0 && galleryGate < foodSheet.indexOf('launchImageLibraryAsync'));
   assert.match(tabNavigator, /const openDescribe[\s\S]*?stateKey: 'entry', pendingAction: 'describe'/);
   assert.match(foodSheet, /case 'describe':\s*handleDescribe\(\);/);
-  assert.match(search, /if \(!await ensurePaidAccess\(\)\)[\s\S]*navigation\.navigate\("Paywall"\)[\s\S]*requestConsent/);
-  assert.match(addComponent, /if \(!await ensurePaidAccess\(\)\)[\s\S]*navigation\.navigate\('Paywall'\)[\s\S]*requestConsent/);
+  for (const source of [search, addComponent, describeInput]) {
+    const consent = source.indexOf('requestConsent()');
+    const accessGate = source.lastIndexOf('await ensurePaidAccess()', consent);
+    assert.ok(consent >= 0 && accessGate >= 0 && accessGate < consent);
+  }
+  for (const marker of ['const handleClarify =', 'const handleClarifyComponent =']) {
+    const start = review.indexOf(marker);
+    const consent = review.indexOf('requestConsent()', start);
+    const accessGate = review.lastIndexOf('await ensurePaidAccess()', consent);
+    assert.ok(start >= 0 && consent >= 0 && accessGate >= start && accessGate < consent);
+  }
+  for (const source of [search, addComponent, describeInput, review, analytics]) {
+    assert.match(source, /["']unavailable["']/);
+  }
 });
 
 test('adaptive reads and mutations have UI and service-boundary gates', () => {

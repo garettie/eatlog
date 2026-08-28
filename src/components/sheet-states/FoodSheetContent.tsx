@@ -40,6 +40,7 @@ import { M3 } from '../../theme/tokens';
 import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
 import { useEntitlement } from '../../context/EntitlementContext';
 import { useNavigation } from '@react-navigation/native';
+import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from '../../services/billing.types';
 
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
@@ -210,12 +211,6 @@ export default function FoodSheetContent({
     const stateOffset = useSharedValue(0);
     const stateOpacity = useSharedValue(1);
     fromBarRef.current = !!state.fromBar;
-
-    const requirePaidAccess = useCallback(async (): Promise<boolean> => {
-        if (await ensurePaidAccess()) return true;
-        navigation.navigate('Paywall');
-        return false;
-    }, [ensurePaidAccess, navigation]);
 
     const discardPendingPhoto = useCallback(() => {
         scanRequestRef.current += 1;
@@ -399,6 +394,14 @@ export default function FoodSheetContent({
         [setState],
     );
 
+    const requirePaidAccess = useCallback(async (onUnavailable: () => void): Promise<boolean> => {
+        const decision = await ensurePaidAccess();
+        if (decision === 'paid') return true;
+        if (decision === 'free') navigation.navigate('Paywall');
+        else onUnavailable();
+        return false;
+    }, [ensurePaidAccess, navigation]);
+
     const ensurePhotoEntryAvailable = useCallback(async (): Promise<boolean> => {
         if (serviceConfig.availability.gemini) return true;
         if (reusableMealsAvailable !== null) return reusableMealsAvailable;
@@ -448,7 +451,7 @@ export default function FoodSheetContent({
     }, [setState]);
 
     const handleCamera = useCallback(async () => {
-        if (!await requirePaidAccess()) return;
+        if (!await requirePaidAccess(() => showScanError('provider', 'camera'))) return;
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -500,7 +503,7 @@ export default function FoodSheetContent({
     }, [ensurePhotoEntryAvailable, queuePhotoForTitle, requirePaidAccess, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleGallery = useCallback(async () => {
-        if (!await requirePaidAccess()) return;
+        if (!await requirePaidAccess(() => showScanError('provider', 'gallery'))) return;
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -536,7 +539,7 @@ export default function FoodSheetContent({
     }, [ensurePhotoEntryAvailable, queuePhotoForTitle, requirePaidAccess, transitionTo, resetToEntry, setState, showScanError]);
 
     const handlePhotoEstimate = useCallback(async () => {
-        if (!await requirePaidAccess()) return;
+        if (!await requirePaidAccess(() => setPhotoEstimateError(PAID_ACCESS_UNAVAILABLE_MESSAGE))) return;
         if (scanInFlightRef.current) return;
         const pendingPhoto = pendingPhotoRef.current;
         if (!pendingPhoto) {
@@ -683,7 +686,7 @@ export default function FoodSheetContent({
     }, [discardPendingPhoto, onGoBack, setState]);
 
     const handleDescribe = useCallback(async () => {
-        if (!await requirePaidAccess()) return;
+        if (!await requirePaidAccess(() => transitionTo('describe'))) return;
         discardPendingPhoto();
         transitionTo('describe');
     }, [discardPendingPhoto, requirePaidAccess, transitionTo]);

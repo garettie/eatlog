@@ -6,12 +6,14 @@ import { createBillingClient } from '../services/billing';
 import {
   entitlementStatus,
   hasPaidFeatures,
+  PAID_ACCESS_UNAVAILABLE_MESSAGE,
   shouldApplyAccessUpdate,
   type BillingActionResult,
   type BillingOffering,
   type EatlogAccess,
   type EatlogUsage,
   type EntitlementStatus,
+  type PaidAccessDecision,
 } from '../services/billing.types';
 import { getInstallationToken } from '../services/installIdentity';
 import { setAdaptiveAccess } from '../services/adaptiveAccess';
@@ -26,18 +28,12 @@ interface EntitlementContextValue {
   loadingProducts: boolean;
   refreshing: boolean;
   hasPaidFeatures: boolean;
-  ensurePaidAccess(): Promise<boolean>;
+  ensurePaidAccess(): Promise<PaidAccessDecision>;
   refresh(): Promise<void>;
   purchase(tier: 'manok' | 'itik'): Promise<BillingActionResult>;
   restore(): Promise<BillingActionResult>;
   manageSubscription(): Promise<BillingActionResult>;
 }
-
-const initialAccess: EatlogAccess = {
-  kind: 'pugo',
-  checkedAt: new Date(0).toISOString(),
-  reason: 'unavailable',
-};
 
 const EntitlementContext = createContext<EntitlementContextValue | null>(null);
 
@@ -45,14 +41,14 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const billing = useMemo(() => createBillingClient({ apiKey: serviceConfig.revenueCatApiKey }), []);
   const subscriptionApi = useMemo(() => createSubscriptionApi({ workerUrl: serviceConfig.foodWorkerUrl }), []);
   const [access, setAccess] = useState<EatlogAccess | null>(null);
-  const accessRef = useRef(initialAccess);
+  const accessRef = useRef<EatlogAccess | null>(null);
   const [offering, setOffering] = useState<BillingOffering | null>(null);
   const [usage, setUsage] = useState<EatlogUsage>({ kind: 'none' });
   const [supportId, setSupportId] = useState<string | null>(null);
   const supportIdRef = useRef<string | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const accessPromise = useRef<Promise<EatlogAccess> | null>(null);
+  const accessPromise = useRef<Promise<EatlogAccess | null> | null>(null);
   const refreshPromise = useRef<Promise<void> | null>(null);
 
   const applyAccess = useCallback((value: EatlogAccess) => {
@@ -60,7 +56,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     accessRef.current = value;
     setAccess(value);
     setLocalAccessForAi(value);
-    setAdaptiveAccess(value.kind !== 'pugo');
+    setAdaptiveAccess(hasPaidFeatures(value));
     return true;
   }, []);
 
@@ -76,9 +72,10 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   }, [applyAccess, billing]);
 
   const ensurePaidAccess = useCallback(async () => {
-    if (access === null) await resolveAccess(false);
-    return hasPaidFeatures(accessRef.current);
-  }, [access, resolveAccess]);
+    if (entitlementStatus(accessRef.current) === 'checking') await resolveAccess(false);
+    const status = entitlementStatus(accessRef.current);
+    return status === 'checking' ? 'unavailable' : status;
+  }, [resolveAccess]);
 
   const refreshAccess = useCallback(async (forceStore: boolean) => {
     if (refreshPromise.current) return refreshPromise.current;
@@ -94,7 +91,8 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
         await accessRequest;
         const products = await billing.offering();
         setOffering(products);
-        if (accessRef.current.kind !== 'pugo') {
+        const current = accessRef.current;
+        if (current !== null && hasPaidFeatures(current)) {
           try {
             const remote = await subscriptionApi.refresh(installId);
             setUsage(remote.usage ?? { kind: 'none' });
@@ -124,7 +122,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     let unsubscribe: (() => void) | undefined;
     void billing.subscribe((next) => {
       const applied = applyAccess(next);
-      if (applied && next.kind !== 'pugo') void refreshAccess(false);
+      if (applied && hasPaidFeatures(next)) void refreshAccess(false);
     }).then((remove) => { unsubscribe = remove; }).catch(() => {});
     const appState = AppState.addEventListener('change', (state) => {
       if (state === 'active') void refreshAccess(false);
@@ -133,14 +131,22 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   }, [applyAccess, billing, refreshAccess]);
 
   const purchase = useCallback(async (tier: 'manok' | 'itik') => {
-    const result = await billing.purchase(tier, accessRef.current);
+    const current = accessRef.current;
+    if (current === null || entitlementStatus(current) === 'checking') {
+      return { state: 'failed' as const, message: PAID_ACCESS_UNAVAILABLE_MESSAGE };
+    }
+    const result = await billing.purchase(tier, current);
     applyAccess(result.access);
     if (result.state === 'success' || result.state === 'entitlement-pending') await refreshAccess(false);
     return { state: result.state, message: result.message };
   }, [applyAccess, billing, refreshAccess]);
 
   const restore = useCallback(async () => {
-    const result = await billing.restore(accessRef.current);
+    const current = accessRef.current;
+    if (current === null || entitlementStatus(current) === 'checking') {
+      return { state: 'failed' as const, message: PAID_ACCESS_UNAVAILABLE_MESSAGE };
+    }
+    const result = await billing.restore(current);
     applyAccess(result.access);
     await refreshAccess(false);
     return { state: result.state, message: result.message };

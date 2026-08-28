@@ -10,6 +10,7 @@ import { useFoodSearchController } from '../hooks/useFoodSearchController';
 import { M3 } from '../theme/tokens';
 import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
 import { useEntitlement } from '../context/EntitlementContext';
+import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from '../services/billing.types';
 import PrimaryButton from './PrimaryButton';
 import FoodSearchResultRow from './FoodSearchResultRow';
 
@@ -46,10 +47,12 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualNutrients.some((value) => value > 0);
 
   const openDescribe = useCallback(async () => {
-    if (!await ensurePaidAccess()) {
+    const decision = await ensurePaidAccess();
+    if (decision === 'free') {
       navigation.navigate('Paywall');
       return;
     }
+    if (decision === 'unavailable') setDescribeError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
     setMode('describe');
   }, [ensurePaidAccess, navigation]);
 
@@ -79,8 +82,13 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const text = describeText.trim();
     if (!text) return;
     setDescribeError(null);
-    if (!await ensurePaidAccess()) {
+    const decision = await ensurePaidAccess();
+    if (decision === 'free') {
       navigation.navigate('Paywall');
+      return;
+    }
+    if (decision === 'unavailable') {
+      setDescribeError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
       return;
     }
     if (!await requestConsent()) return;
