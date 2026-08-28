@@ -137,25 +137,22 @@ function memoryAccessStore(initial: string | null = null) {
   };
 }
 
-test('verified paid access and its grant survive a cold start until the entitlement expires', async () => {
+test('verified paid access survives a cold start until the entitlement expires', async () => {
   const store = memoryAccessStore();
   setPaidAccessStore(store);
   const now = Date.parse('2026-08-22T00:00:00Z');
-  const expiresAt = '2026-09-21T00:00:00.000Z';
 
   setLocalAccessForAi(PAID);
-  assert.equal(acceptAiGrant('signed.header.payload-value', expiresAt, now), true);
 
   setLocalAccessForAi(null);
   assert.deepEqual(await restorePaidAccess(now), PAID);
-  assert.deepEqual(getAiAuthorization(now), { ok: true, grant: 'signed.header.payload-value' });
 
   setLocalAccessForAi(null);
   assert.equal(await restorePaidAccess(Date.parse('2026-09-22T00:00:01Z')), null);
   setPaidAccessStore(null);
 });
 
-test('a cached grant past its expiry is dropped while the cached access is still honored', async () => {
+test('the AI grant is never written to disk, even immediately after being accepted, so a cold start never restores it', async () => {
   const store = memoryAccessStore();
   setPaidAccessStore(store);
   const now = Date.parse('2026-08-22T00:00:00Z');
@@ -163,11 +160,14 @@ test('a cached grant past its expiry is dropped while the cached access is still
   setLocalAccessForAi(PAID);
   assert.equal(acceptAiGrant('signed.header.payload-value', '2026-08-23T00:00:00.000Z', now), true);
 
+  assert.equal(store.current()?.includes('signed.header.payload-value'), false);
+  assert.equal(store.current()?.includes('"grant"'), false);
+
   setLocalAccessForAi(null);
-  const restored = await restorePaidAccess(Date.parse('2026-08-24T00:00:00Z'));
+  const restored = await restorePaidAccess(Date.parse('2026-08-22T00:01:00Z'));
 
   assert.deepEqual(restored, PAID);
-  assert.deepEqual(getAiAuthorization(Date.parse('2026-08-24T00:00:00Z')), {
+  assert.deepEqual(getAiAuthorization(Date.parse('2026-08-22T00:01:00Z')), {
     ok: false,
     kind: 'entitlement-unavailable',
   });

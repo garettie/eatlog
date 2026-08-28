@@ -99,7 +99,7 @@ function persistPaidAccess(): void {
   if (!store || activeAccess === null) return;
   if (activeAccess.kind === 'pugo'
     && (activeAccess.reason === 'unavailable' || activeAccess.reason === 'malformed')) return;
-  const snapshot = activeAccess.kind === 'pugo' ? null : { access: activeAccess, grant: activeGrant };
+  const snapshot = activeAccess.kind === 'pugo' ? null : { access: activeAccess };
   void store.write(JSON.stringify(snapshot)).catch(() => {});
 }
 
@@ -116,9 +116,6 @@ export async function restorePaidAccess(now = Date.now()): Promise<EatlogAccess 
   const snapshot = parsed as Record<string, unknown>;
   if (!isAccess(snapshot.access) || !hasPaidFeatures(snapshot.access, new Date(now))) return null;
   activeAccess = snapshot.access;
-  activeGrant = isGrant(snapshot.grant) && new Date(snapshot.grant.expiresAt).getTime() > now
-    ? snapshot.grant
-    : null;
   return snapshot.access;
 }
 
