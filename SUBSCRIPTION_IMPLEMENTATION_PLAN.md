@@ -2,7 +2,7 @@
 
 **Status:** Billing and Test Store implementation complete; Android production rollout preparation in progress; lifetime AI economics remain a launch gate
 
-**Last updated:** 2026-08-24
+**Last updated:** 2026-08-28
 
 **Release order:** Google Play first, then the Apple App Store
 
@@ -16,12 +16,12 @@ This plan supersedes the one-time PHP 299 purchase model described in `PRODUCT.m
 
 Change Eatlog from a paid download to a free local-first app with three customer-facing tiers: Eatlog Pugo, Eatlog Manok, and Eatlog Itik.
 
-Eatlog Pugo keeps core logging and ownership features free. Eatlog Manok is a PHP 79 monthly subscription with a one-month store-managed introductory trial for eligible users. Eatlog Itik is a PHP 799 non-consumable lifetime purchase. Manok and Itik unlock the same paid features and use server-enforced fair-use limits for Gemini requests.
+Eatlog Pugo keeps core logging and ownership features free and includes five initial photo or description estimates per rolling 24 hours. Eatlog Manok is a PHP 79 monthly subscription with a one-month store-managed introductory trial for eligible users. Eatlog Itik is a PHP 799 non-consumable lifetime purchase. Manok and Itik add meal and component re-estimates, adaptive recommendations, and higher server-enforced Gemini limits.
 
 The implementation succeeds when:
 
 - Pugo users can log food, track weight, view history and charts, use Health Connect on Android, and manage their data without starting a trial.
-- Pugo users cannot send Gemini requests or create, refresh, confirm, accept, or keep adaptive recommendations.
+- Pugo users share five `scan` or `describe` operations per rolling 24 hours. They cannot send `clarify-meal` or `clarify-component` requests or create, refresh, confirm, accept, or keep adaptive recommendations.
 - Eligible users can start one store-managed one-month trial through Eatlog Manok.
 - Trial users receive full adaptive features plus the agreed trial AI allowances.
 - Eatlog Manok, Eatlog Itik, and complimentary users receive the same product features and fair-use policy.
@@ -89,7 +89,7 @@ This plan assumes Eatlog has no public listing or purchasers under the PHP 299 m
 | Weight entry, trend, history, and charts | Yes | Yes | Yes | Yes | Yes |
 | Health Connect on Android | Yes | Yes | Yes | Yes | Yes |
 | Backup, restore, CSV export, reset, and deletion | Yes | Yes | Yes | Yes | Yes |
-| AI Scan, Photo, and Describe | No | Trial allowance | Fair use | Fair use | Fair use |
+| AI Scan, Photo, and Describe | 5 per rolling 24 hours | Trial allowance | Fair use | Fair use | Fair use |
 | AI meal and component clarification | No | Trial allowance | Fair use | Fair use | Fair use |
 | Adaptive recommendation calculation and review | No | Yes | Yes | Yes | Yes |
 | Trial counter display | No | Yes | No | No | No |
@@ -143,13 +143,26 @@ At expiry:
 - Keep the latest accepted target active.
 - Leave a pending adaptive review stored but dormant.
 - Stop new adaptive calculations and all adaptive-review mutations.
-- Stop every Gemini request before installation-token loading, image selection, or upload.
+- Stop paid-only meal and component re-estimates before consent, installation-token loading, image preparation, context construction, or upload. Keep Pugo initial estimates available under their rolling allowance.
 - Keep Pugo logging, weight tracking, charts, history, search, Health Connect, backup, export, and deletion available.
 - Replace trial counters with clear Manok and Itik purchase actions.
 
 If the user later buys Manok or Itik, or receives complimentary access, let the adaptive service evaluate current evidence. Do not apply an old pending recommendation without refreshing its evidence and stale-state checks.
 
-## 5. Paid and complimentary fair use
+## 5. Pugo and paid AI allowances
+
+### Pugo allowance
+
+Pugo shares one installation-scoped pool across `scan` and `describe`:
+
+- 5 initial estimates in any rolling 24-hour window.
+- No meal or component clarification.
+- `remaining24Hours` counts requests still available. `nextEligibleAt` stays `null` until exhausted, then identifies when the oldest active request leaves the window.
+- Clearing app data or reinstalling can reset this allowance because Eatlog has no account or cross-install free identity.
+
+The Worker salts and hashes the canonical installation token for quota state. It returns `PUGO_DAILY_LIMIT` on the sixth active request and `PAID_ACCESS_REQUIRED` for `clarify-meal` or `clarify-component`. Pugo uses `gemini-2.5-flash-lite` first and `gemini-3.5-flash-lite` as fallback.
+
+### Paid and complimentary fair use
 
 Manok and Itik marketing may say **No weekly AI limits**. Do not use the word `unlimited` without a nearby fair-use qualification.
 
@@ -188,6 +201,7 @@ Return structured errors:
 
 ```text
 PAID_ACCESS_REQUIRED
+PUGO_DAILY_LIMIT
 TRIAL_DAILY_LIMIT
 TRIAL_ALLOWANCE_EXHAUSTED
 FAIR_USE_DAILY_LIMIT
@@ -201,7 +215,7 @@ Include `retryAfter` or `nextEligibleAt` when time can resolve the error. Do not
 
 Eatlog Manok has recurring revenue for recurring AI cost. Eatlog Itik collects PHP 799 once while Gemini can create cost for as long as the buyer uses hosted AI. Keep the agreed quota, but make lifetime-cost evidence a production launch gate.
 
-The prior planning estimate used Gemini Flash-Lite pricing and PHP 61.866 per USD. Recalculate with the production model, measured token use, current exchange rate, taxes, and store terms before launch.
+The Pugo route uses `gemini-2.5-flash-lite` with `gemini-3.5-flash-lite` fallback. Paid, trial, and complimentary access use `gemini-3.5-flash-lite` with `gemini-3.1-flash-lite` fallback. Recalculate with both production routes, measured token use, current exchange rate, taxes, and store terms before launch.
 
 | Scenario | Estimated Gemini cost per call | 60-call trial | 250-call paid ceiling |
 | --- | ---: | ---: | ---: |
@@ -339,18 +353,18 @@ The first paid-tier release does not need an Eatlog promo-code entry field. Goog
 
 ### Trust boundary
 
-The mobile app cannot assert that a user paid, started a trial, received a complimentary grant, or has remaining quota. The Worker verifies those facts before any Gemini dispatch.
+The mobile app cannot assert that a user paid, started a trial, received a complimentary grant, has confirmed Pugo access, or has remaining quota. The Worker verifies access and quota before any Gemini dispatch.
 
 Add these flows:
 
 ```text
 RevenueCat SDK -> store purchase or restore -> CustomerInfo -> app access UI
 RevenueCat webhook -> Worker entitlement cache
-App access refresh -> Worker verifies RevenueCat -> signed short-lived AI grant
-App estimate request -> Worker validates grant -> atomic quota -> Gemini
+App access refresh -> Worker verifies RevenueCat -> signed AI grant for confirmed Pugo or paid access
+App estimate request -> Worker validates grant or refreshes inline -> atomic quota -> access-class Gemini route
 ```
 
-Pugo continues to call USDA through the Worker. Open Food Facts remains a direct public request. Only Gemini routes require an active Manok trial, Manok subscription, Itik purchase, or complimentary grant.
+Pugo continues to call USDA through the Worker and may call Gemini for five shared initial estimates per rolling 24 hours. Open Food Facts remains a direct public request. Meal and component clarification plus adaptive recommendations require an active Manok trial, Manok subscription, Itik purchase, or complimentary grant.
 
 ### Worker endpoints
 
@@ -363,13 +377,13 @@ POST /v1/revenuecat/webhook
 POST /v1/estimate
 ```
 
-`POST /v1/access/refresh` verifies the RevenueCat customer and returns normalized access plus a signed, short-lived AI grant when access permits AI.
+`POST /v1/access/refresh` verifies the RevenueCat customer and returns normalized access plus a signed AI grant for confirmed Pugo or paid access. Pugo grants use a salted installation-scoped quota subject; paid grants retain stable purchase identities.
 
 `GET /v1/usage` returns only counters and next-eligible timestamps for the verified quota subject.
 
 `POST /v1/revenuecat/webhook` requires a configured authorization value, validates the payload, updates cached entitlement state, and handles duplicate or out-of-order events.
 
-`POST /v1/estimate` validates the signed grant and quota before calling Gemini. Keep the current consent check in the app as a separate privacy requirement.
+`POST /v1/estimate` validates or refreshes the signed grant, applies the access-class quota, and selects the access-class Gemini model route. Keep the current consent check in the app as a separate privacy requirement.
 
 ### Worker state
 
@@ -377,13 +391,14 @@ Use a SQLite-backed Durable Object or an equivalent transactional Worker store f
 
 - Entitlement cache records with expiry and source.
 - Stable salted quota subjects.
+- Pugo initial-estimate timestamps keyed to a salted installation identity.
 - Trial initial-estimate timestamps and total.
 - Trial clarification timestamps and total.
 - Manok, Itik, and complimentary combined operation timestamps.
 - Request reservations and idempotency outcomes.
 - Processed webhook event IDs.
 
-Key Manok trial and subscription quota state from a salted stable original subscription identity. Key Itik quota state from a salted stable non-consumable transaction identity. Key complimentary usage from a salted stable promotional-grant identity. Never use the installation token as the sole quota subject after an entitlement exists.
+Key Pugo usage from `hashQuotaIdentity("pugo:" + canonicalInstallId, QUOTA_IDENTITY_SALT)`. Key Manok trial and subscription quota state from a salted stable original subscription identity. Key Itik quota state from a salted stable non-consumable transaction identity. Key complimentary usage from a salted stable promotional-grant identity. Never use the installation token as the sole quota subject after a paid entitlement exists.
 
 Prune timestamps outside the longest 30-day window and expired idempotency records. Keep no food content in Worker state.
 
@@ -440,23 +455,21 @@ The service owns RevenueCat calls and normalization. The provider owns app state
 
 Open the paywall from:
 
-- Scan before camera permission or camera launch.
-- Photo before gallery permission or image selection.
-- Describe before opening or submitting AI description entry.
-- Explicit AI estimation from food-search no-results.
+- Pugo meal and component re-estimate actions, before consent or private-content construction.
+- A Worker `PAID_ACCESS_REQUIRED` defense response.
 - A locked adaptive recommendation card in Analytics.
 - Profile > Plan.
 
-Preflight access before collecting a photo or description. A Pugo user must not select an image and then lose it to a paywall transition.
+Initial Scan, Photo, Describe, and food-search estimates call the operation-aware gate with `initial` and proceed for Pugo. Re-estimates call it with `reestimate`; confirmed Pugo opens the plan screen, while unresolved access shows the existing unavailable message. Both re-estimate denials return before consent, image preparation, context construction, installation-token loading, or fetch.
 
 ### Paywall content
 
 The paywall must show:
 
-- Eatlog Pugo as the current free tier when the user has no paid entitlement.
+- Eatlog Pugo as the current free tier when the user has no paid entitlement, including five initial estimates per rolling 24 hours and no follow-up re-estimates.
 - Eatlog Manok at its localized monthly price.
 - Eatlog Itik at its localized lifetime price.
-- AI Scan, Photo, Describe, and clarification access.
+- Higher AI estimate limits plus meal and component re-estimates as paid benefits.
 - Adaptive recommendations.
 - One-month Manok trial terms when the Manok package reports an eligible offer.
 - A clear `Pay once` and `No renewal` statement for Itik.
@@ -489,7 +502,7 @@ Profile > Plan shows:
 - Manage Subscription for Manok only.
 - Restore Purchases.
 - Support ID with a copy action.
-- Trial counters or near-limit fair-use state when relevant.
+- Pugo free-estimate count, trial counters, or near-limit fair-use state when relevant.
 
 ### AI client errors
 
@@ -499,6 +512,7 @@ Suggested failure kinds:
 
 ```text
 paid-access-required
+pugo-daily-limit
 trial-daily-limit
 trial-allowance-exhausted
 fair-use-daily-limit
@@ -537,7 +551,7 @@ Keep Gemini consent independent of paid access:
 
 - A user can buy Manok or Itik and decline Gemini consent.
 - Declining consent keeps adaptive recommendations available because they run locally.
-- Eatlog checks consent before installation-token loading or any Gemini request.
+- Eatlog checks consent before installation-token loading or any Gemini request. Pugo initial estimates use the same consent and data flow as paid estimates.
 - Consent copy must state that clarification can resend the selected scan image with component names and gram estimates.
 
 Update the data inventory for:
@@ -610,8 +624,9 @@ Do not create production promo campaigns until the production products and entit
 ### Worker tests
 
 - Reject missing, expired, forged, wrong-audience, and malformed AI grants.
-- Accept valid Manok trial, Manok, Itik, and complimentary grants.
-- Reject Pugo before Gemini dispatch.
+- Accept valid Pugo, Manok trial, Manok, Itik, and complimentary grants.
+- Allow five mixed Pugo `scan` and `describe` requests per rolling 24 hours, then return `PUGO_DAILY_LIMIT`.
+- Reject Pugo `clarify-meal` and `clarify-component` before reservation or Gemini dispatch.
 - Enforce both trial operation classes and whole-trial totals.
 - Enforce Manok, Itik, and complimentary rolling 24-hour and 30-day windows.
 - Count simultaneous requests without exceeding limits.
@@ -630,6 +645,7 @@ Do not create production promo campaigns until the production products and entit
 ### App integration tests
 
 - Pugo startup with RevenueCat online, slow, offline, and misconfigured.
+- Pugo access refresh, initial Scan, Photo, and Describe, shared allowance depletion, quota recovery, and paid-only meal/component re-estimates.
 - Manok subscription and Itik non-consumable purchase success.
 - Eligible and ineligible trial purchase.
 - Purchase cancellation, pending payment, billing error, and interrupted entitlement refresh.
@@ -699,7 +715,7 @@ Add or publish Terms of Use and configure `EXPO_PUBLIC_TERMS_URL`. Keep the priv
 Store and in-app copy must state:
 
 - Eatlog is free to download.
-- Eatlog Pugo includes free logging and weight tracking.
+- Eatlog Pugo includes free logging and weight tracking plus five photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok or Itik.
 - Eatlog Manok costs the localized monthly price and renews until canceled.
 - Eligible Manok users receive a one-month introductory trial.
 - Eatlog Itik costs the localized one-time price, does not renew, and grants lifetime access to the paid tier.
@@ -740,19 +756,20 @@ Terms must define `lifetime` as a non-expiring Itik entitlement on the purchase 
 ### Phase 3: Worker entitlement and quota enforcement
 
 - Add RevenueCat verification, webhook cache, signed grants, transactional quota state, and usage responses.
-- Gate `/v1/estimate` before Gemini.
-- Add aggregate token and cost metadata.
+- Gate `/v1/estimate` before Gemini and apply the access-class quota.
+- Route Pugo through Gemini 2.5 Flash-Lite then 3.5 Flash-Lite; retain the paid 3.5/3.1 route.
+- Add aggregate token and model-specific cost metadata.
 
-**Exit check:** Worker tests prove that Pugo cannot reach Gemini and each access class receives the correct atomic limits.
+**Exit check:** Worker tests prove five shared Pugo initial estimates, paid-only Pugo clarification, exact rolling boundaries, stable installation quota identity, model routing, and unchanged trial/paid limits.
 
 ### Phase 4: Feature gates
 
-- Gate all AI entry points before content collection.
+- Gate paid-only re-estimates before private-content collection while allowing Pugo initial estimates.
 - Gate adaptive service reads and writes.
-- Preserve Pugo search, logging, weight, charts, Health Connect, and ownership features.
-- Map paid-access and quota errors in the AI client.
+- Preserve Pugo search, logging, weight, charts, Health Connect, ownership features, and initial AI allowance.
+- Map paid-access and every quota error in the AI client.
 
-**Exit check:** An expired, refunded, or revoked entitlement cannot cause a Gemini call or adaptive mutation, while Pugo workflows pass regression tests.
+**Exit check:** An expired, refunded, or revoked entitlement receives confirmed Pugo initial access without an adaptive mutation; unresolved access fails closed; Pugo re-estimates stop before consent.
 
 ### Phase 5: Paywall and purchase-management UI
 
@@ -784,9 +801,9 @@ Terms must define `lifetime` as a non-expiring Itik entitlement on the purchase 
 Do not launch when any item remains unresolved:
 
 - An existing paid purchaser lacks a migration decision.
-- A Pugo user can reach Gemini or mutate adaptive reviews.
+- Pugo exceeds five initial estimates in a rolling 24-hour window, reaches a meal/component re-estimate, or uses a model outside the 2.5-to-3.5 route.
 - Manok expiry, Itik refund, or purchase restore deletes or hides owned Pugo data.
-- Reinstall resets trial or paid quota.
+- Reinstall resets trial or paid quota, or two paths on the same Pugo installation use different quota subjects.
 - Manok purchase, restore, cancellation, grace, or expiry lacks device evidence.
 - Itik purchase, repurchase prevention, restore, refund, or revocation lacks device evidence.
 - A Manok-to-Itik transition can leave monthly renewal active without a direct warning and management action.
@@ -807,7 +824,7 @@ Do not launch when any item remains unresolved:
 - Web checkout.
 - Grandfathering without evidence of an existing purchaser.
 - Advertising-supported AI access.
-- AI access for Pugo users after trial expiry.
+- Pugo meal or component re-estimates.
 
 ## 20. Official setup references
 

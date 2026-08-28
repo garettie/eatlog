@@ -140,10 +140,7 @@ export default function SearchInputState({
 		const query = search.query.trim();
 		if (!query || estimating) return;
 		setEstimateError(null);
-		if (beginAiEstimate() === "free") {
-			navigation.navigate("Paywall");
-			return;
-		}
+		beginAiEstimate("initial");
 		if (!await requestConsent()) return;
 		setEstimating(true);
 		const result = await describeMeal(query);

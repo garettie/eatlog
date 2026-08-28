@@ -46,12 +46,9 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualNutrients.some((value) => value > 0);
 
   const openDescribe = useCallback(() => {
-    if (beginAiEstimate() === 'free') {
-      navigation.navigate('Paywall');
-      return;
-    }
+    beginAiEstimate('initial');
     setMode('describe');
-  }, [beginAiEstimate, navigation]);
+  }, [beginAiEstimate]);
 
   const reset = useCallback(() => {
     setMode(null);
@@ -79,10 +76,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const text = describeText.trim();
     if (!text) return;
     setDescribeError(null);
-    if (beginAiEstimate() === 'free') {
-      navigation.navigate('Paywall');
-      return;
-    }
+    beginAiEstimate('initial');
     if (!await requestConsent()) return;
     setIsEstimating(true);
     try {

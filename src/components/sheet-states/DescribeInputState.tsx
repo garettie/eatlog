@@ -35,10 +35,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
     if (!trimmed) return;
     Keyboard.dismiss();
     setError(null);
-    if (beginAiEstimate() === 'free') {
-      navigation.navigate('Paywall');
-      return;
-    }
+    beginAiEstimate('initial');
     if (!await requestConsent()) return;
     const requestId = ++requestRef.current;
     setLoading(true);

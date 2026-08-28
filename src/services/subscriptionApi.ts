@@ -41,6 +41,12 @@ function isAccess(value: unknown): value is EatlogAccess {
     && ['pugo', 'manok-trial', 'manok', 'itik', 'complimentary'].includes(String(record.kind));
 }
 
+function isResolvedPugo(access: EatlogAccess): boolean {
+  return access.kind === 'pugo'
+    && access.reason !== 'unavailable'
+    && access.reason !== 'malformed';
+}
+
 function isGrant(value: unknown): value is AiGrant {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
@@ -62,6 +68,10 @@ function isUsage(value: unknown): value is EatlogUsage {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   if (record.kind === 'none') return true;
+  if (record.kind === 'free') {
+    return isCount(record.remaining24Hours)
+      && isNullableDate(record.nextEligibleAt);
+  }
   if (record.kind === 'trial') {
     return isCount(record.initialRemaining24Hours)
       && isCount(record.initialRemainingTrial)
@@ -120,8 +130,13 @@ export async function restorePaidAccess(now = Date.now()): Promise<EatlogAccess 
 }
 
 export function setLocalAccessForAi(access: EatlogAccess | null): void {
+  const previous = activeAccess;
   activeAccess = access;
-  if (access === null || access.kind === 'pugo') activeGrant = null;
+  if (access === null
+    || access.kind === 'pugo' && !isResolvedPugo(access)
+    || (previous?.kind === 'pugo') !== (access.kind === 'pugo')) {
+    activeGrant = null;
+  }
   persistPaidAccess();
 }
 
@@ -142,15 +157,10 @@ export function getAiAuthorization(now = Date.now()):
   | { ok: true; grant: string }
   | { ok: false; kind: AiAuthorizationFailure } {
   if (activeAccess === null) return { ok: false, kind: 'entitlement-unavailable' };
-  if (activeAccess.kind === 'pugo') {
-    return {
-      ok: false,
-      kind: activeAccess.reason === 'unavailable' || activeAccess.reason === 'malformed'
-        ? 'entitlement-unavailable'
-        : 'paid-access-required',
-    };
+  if (activeAccess.kind === 'pugo' && !isResolvedPugo(activeAccess)) {
+    return { ok: false, kind: 'entitlement-unavailable' };
   }
-  if (!hasPaidFeatures(activeAccess, new Date(now))) {
+  if (activeAccess.kind !== 'pugo' && !hasPaidFeatures(activeAccess, new Date(now))) {
     return { ok: false, kind: 'entitlement-unavailable' };
   }
   if (!activeGrant || new Date(activeGrant.expiresAt).getTime() <= now) {
@@ -179,7 +189,8 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
     }
     const value = await response.json() as Partial<WorkerAccessRefreshResponse>;
     if (!isAccess(value.access)) throw new Error('Subscription service unavailable.');
-    activeGrant = value.access.kind !== 'pugo'
+    const grantMatchesResolvedAccess = value.access.kind !== 'pugo' || isResolvedPugo(value.access);
+    activeGrant = grantMatchesResolvedAccess
       && isGrant(value.grant)
       && new Date(value.grant.expiresAt).getTime() > now()
       ? value.grant

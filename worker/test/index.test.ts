@@ -415,8 +415,8 @@ test('owns Gemini models, prompts, schema, fallback order, and bypasses cache', 
   assert.equal(response.status, 200);
   assert.equal(body.components.length, 1);
   assert.equal(urls.length, 2);
-  assert.ok(urls[0].includes(`/models/${contract.GEMINI_MODELS[0]}:generateContent`));
-  assert.ok(urls[1].includes(`/models/${contract.GEMINI_MODELS[1]}:generateContent`));
+  assert.ok(urls[0].includes(`/models/${contract.PAID_GEMINI_MODELS[0]}:generateContent`));
+  assert.ok(urls[1].includes(`/models/${contract.PAID_GEMINI_MODELS[1]}:generateContent`));
   assert.ok(urls.every((url) => url.startsWith(contract.GEMINI_ORIGIN)));
   assert.match(bodies[0].contents[0].parts[0].text, /User description: "one cup rice"/);
   assert.match(bodies[0].systemInstruction.parts[0].text, /nutritionally material ingredient-level/i);
@@ -689,56 +689,164 @@ test('emits only allowlisted operational fields without inputs, identifiers, dig
   }
 });
 
-test('subscription staging blocks Pugo before Gemini and issues a short-lived paid grant after RevenueCat verification', async () => {
+test('Pugo refresh and inline estimates share one five-request installation allowance', async () => {
   const store = new MemorySubscriptionStore();
-  let paid = false;
-  let geminiCalls = 0;
+  const env = subscriptionEnv();
+  const geminiUrls: string[] = [];
+  let revenueCatCalls = 0;
   const fetchImpl = (async (input: string | URL | Request) => {
     const url = String(input);
     if (url.startsWith('https://api.revenuecat.com/')) {
-      return jsonResponse(paid ? paidRevenueCat('trial') : freeRevenueCat());
+      revenueCatCalls += 1;
+      return jsonResponse(freeRevenueCat());
     }
-    geminiCalls += 1;
+    geminiUrls.push(url);
     return geminiResponse(recognized);
   }) as typeof fetch;
 
-  const pugo = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
-    'X-Eatlog-Request-ID': 'request-pugo-0001',
-  }), {
-    env: subscriptionEnv(), fetchImpl, subscriptionStore: store,
-  });
-  assert.equal(pugo.response.status, 402);
-  assert.equal(pugo.body.error.code, 'PAID_ACCESS_REQUIRED');
-  assert.equal(geminiCalls, 0);
-
-  paid = true;
   const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), {
-    env: subscriptionEnv(), fetchImpl, subscriptionStore: store,
+    env, fetchImpl, subscriptionStore: store,
   });
   assert.equal(refreshed.response.status, 200);
-  assert.equal(refreshed.body.access.kind, 'manok-trial');
+  assert.equal(refreshed.body.access.kind, 'pugo');
   assert.equal(typeof refreshed.body.grant.token, 'string');
-  assert.equal(refreshed.body.usage.kind, 'trial');
+  assert.deepEqual(refreshed.body.usage, {
+    kind: 'free',
+    remaining24Hours: 5,
+    nextEligibleAt: null,
+  });
 
-  const estimate = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+  const first = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-pugo-0001',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(first.response.status, 200);
+  assert.equal(first.response.headers.get('x-eatlog-ai-grant') != null, true);
+
+  const usage = await call(request('/v1/usage', 'GET', undefined, {
     Authorization: `Bearer ${refreshed.body.grant.token}`,
-    'X-Eatlog-Request-ID': 'request-00000001',
-  }), { env: subscriptionEnv(), fetchImpl, subscriptionStore: store });
-  assert.equal(estimate.response.status, 200);
-  assert.equal(geminiCalls, 1);
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.deepEqual(usage.body, {
+    kind: 'free',
+    remaining24Hours: 4,
+    nextEligibleAt: null,
+  });
+
+  for (let index = 2; index <= 5; index += 1) {
+    const input = index % 2 === 0
+      ? { operation: 'scan', imageBase64: JPEG }
+      : { operation: 'describe', text: 'rice' };
+    const result = await call(request('/v1/estimate', 'POST', input, {
+      Authorization: `Bearer ${refreshed.body.grant.token}`,
+      'X-Eatlog-Request-ID': `request-pugo-000${index}`,
+    }), { env, fetchImpl, subscriptionStore: store });
+    assert.equal(result.response.status, 200);
+  }
+
+  const over = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    Authorization: `Bearer ${refreshed.body.grant.token}`,
+    'X-Eatlog-Request-ID': 'request-pugo-0006',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(over.response.status, 429);
+  assert.equal(over.body.error.code, 'PUGO_DAILY_LIMIT');
+  assert.equal(typeof over.body.error.nextEligibleAt, 'string');
+  assert.equal(geminiUrls.length, 5);
+  assert.equal(geminiUrls.every((url) => url.includes(`/models/${contract.PUGO_GEMINI_MODELS[0]}:generateContent`)), true);
+  assert.equal(revenueCatCalls, 1);
+
+  for (const operation of ['clarify-meal', 'clarify-component']) {
+    const result = await call(request('/v1/estimate', 'POST', {
+      operation,
+      text: 'rice',
+      context: { mealName: 'Rice', components: [{ name: 'Rice', estimatedGrams: 158 }] },
+    }, {
+      Authorization: `Bearer ${refreshed.body.grant.token}`,
+      'X-Eatlog-Request-ID': `request-${operation}`,
+    }), { env, fetchImpl, subscriptionStore: store });
+    assert.equal(result.response.status, 402);
+    assert.equal(result.body.error.code, 'PAID_ACCESS_REQUIRED');
+  }
+  assert.equal(geminiUrls.length, 5);
+});
+
+test('Pugo falls back from Gemini 2.5 to 3.5 and uses only the successful model rate pair', async () => {
+  const original = console.log;
+  const logs: Array<Record<string, unknown>> = [];
+  console.log = (value?: unknown) => {
+    if (typeof value === 'string') logs.push(JSON.parse(value));
+  };
+  try {
+    const urls: string[] = [];
+    const env = subscriptionEnv({
+      GEMINI_INPUT_USD_PER_MILLION: '0.1',
+      GEMINI_OUTPUT_USD_PER_MILLION: '0.4',
+      GEMINI_25_INPUT_USD_PER_MILLION: '1',
+      GEMINI_25_OUTPUT_USD_PER_MILLION: '2',
+    });
+    const fallbackFetch = (async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
+      urls.push(url);
+      if (urls.length === 1) return new Response('{', { headers: { 'Content-Type': 'application/json' } });
+      return jsonResponse({
+        candidates: [{ content: { parts: [{ text: JSON.stringify(recognized) }] } }],
+        usageMetadata: { promptTokenCount: 1_000, candidatesTokenCount: 250 },
+      });
+    }) as typeof fetch;
+    const fallback = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+      'X-Eatlog-Request-ID': 'request-pugo-fallback',
+    }), {
+      env,
+      fetchImpl: fallbackFetch,
+      subscriptionStore: new MemorySubscriptionStore(),
+    });
+    assert.equal(fallback.response.status, 200);
+    assert.equal(urls.length, 2);
+    assert.ok(urls[0].includes(`/models/${contract.PUGO_GEMINI_MODELS[0]}:generateContent`));
+    assert.ok(urls[1].includes(`/models/${contract.PUGO_GEMINI_MODELS[1]}:generateContent`));
+    const fallbackUsage = logs.find((entry) => entry.event === 'ai_usage');
+    assert.equal(fallbackUsage?.model, 'gemini-3.5-flash-lite');
+    assert.equal(fallbackUsage?.estimatedCostUsd, 0.0002);
+
+    logs.length = 0;
+    const primary = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+      'X-Eatlog-Request-ID': 'request-pugo-primary',
+    }), {
+      env: subscriptionEnv({
+        GEMINI_INPUT_USD_PER_MILLION: '0.1',
+        GEMINI_OUTPUT_USD_PER_MILLION: '0.4',
+        GEMINI_25_INPUT_USD_PER_MILLION: '',
+        GEMINI_25_OUTPUT_USD_PER_MILLION: '-1',
+      }),
+      fetchImpl: (async (input: string | URL | Request) => (
+        String(input).startsWith('https://api.revenuecat.com/')
+          ? jsonResponse(freeRevenueCat())
+          : jsonResponse({
+              candidates: [{ content: { parts: [{ text: JSON.stringify(recognized) }] } }],
+              usageMetadata: { promptTokenCount: 1_000, candidatesTokenCount: 250 },
+            })
+      )) as typeof fetch,
+      subscriptionStore: new MemorySubscriptionStore(),
+    });
+    assert.equal(primary.response.status, 200);
+    const primaryUsage = logs.find((entry) => entry.event === 'ai_usage');
+    assert.equal(primaryUsage?.model, 'gemini-2.5-flash-lite');
+    assert.equal(primaryUsage?.estimatedCostUsd, null);
+  } finally {
+    console.log = original;
+  }
 });
 
 test('estimate authorizes inline, reuses cached access, and returns a grant for later requests', async () => {
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
   let revenueCatCalls = 0;
-  let geminiCalls = 0;
+  const geminiUrls: string[] = [];
   const fetchImpl = (async (input: string | URL | Request) => {
     if (String(input).startsWith('https://api.revenuecat.com/')) {
       revenueCatCalls += 1;
       return jsonResponse(paidRevenueCat());
     }
-    geminiCalls += 1;
+    geminiUrls.push(String(input));
     return geminiResponse(recognized);
   }) as typeof fetch;
 
@@ -747,7 +855,8 @@ test('estimate authorizes inline, reuses cached access, and returns a grant for 
   }), { env, fetchImpl, subscriptionStore: store });
   assert.equal(first.response.status, 200);
   assert.equal(revenueCatCalls, 1);
-  assert.equal(geminiCalls, 1);
+  assert.equal(geminiUrls.length, 1);
+  assert.ok(geminiUrls[0].includes(`/models/${contract.PAID_GEMINI_MODELS[0]}:generateContent`));
   assert.equal(typeof first.response.headers.get('x-eatlog-ai-grant'), 'string');
   assert.equal(typeof first.response.headers.get('x-eatlog-ai-grant-expires-at'), 'string');
 
@@ -757,7 +866,7 @@ test('estimate authorizes inline, reuses cached access, and returns a grant for 
   }), { env, fetchImpl, subscriptionStore: store });
   assert.equal(cached.response.status, 200);
   assert.equal(revenueCatCalls, 1);
-  assert.equal(geminiCalls, 2);
+  assert.equal(geminiUrls.length, 2);
 
   const forced = await call(request('/v1/access/refresh', 'POST', { force: true }), {
     env, fetchImpl, subscriptionStore: store,
@@ -766,25 +875,33 @@ test('estimate authorizes inline, reuses cached access, and returns a grant for 
   assert.equal(revenueCatCalls, 2);
 });
 
-test('inline authorization rejects confirmed Pugo before parsing estimate content or calling Gemini', async () => {
-  let revenueCatCalls = 0;
+test('malformed or unavailable RevenueCat access fails before parsing private content or calling Gemini', async () => {
   let geminiCalls = 0;
-  const fetchImpl = (async (input: string | URL | Request) => {
-    if (String(input).startsWith('https://api.revenuecat.com/')) {
-      revenueCatCalls += 1;
-      return jsonResponse(freeRevenueCat());
-    }
+  const malformedFetch = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse({ nope: true });
     geminiCalls += 1;
     return geminiResponse(recognized);
   }) as typeof fetch;
+  const malformed = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
+    'X-Eatlog-Request-ID': 'request-malformed-free',
+  }), {
+    env: subscriptionEnv(),
+    fetchImpl: malformedFetch,
+    subscriptionStore: new MemorySubscriptionStore(),
+  });
+  assert.equal(malformed.response.status, 503);
+  assert.equal(malformed.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
+  assert.equal(geminiCalls, 0);
 
-  const result = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
-    'X-Eatlog-Request-ID': 'request-inline-free',
-  }), { env: subscriptionEnv(), fetchImpl, subscriptionStore: new MemorySubscriptionStore() });
-
-  assert.equal(result.response.status, 402);
-  assert.equal(result.body.error.code, 'PAID_ACCESS_REQUIRED');
-  assert.equal(revenueCatCalls, 1);
+  const unavailable = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
+    'X-Eatlog-Request-ID': 'request-unavailable-free',
+  }), {
+    env: subscriptionEnv(),
+    fetchImpl: (async () => { throw new Error('RevenueCat unavailable'); }) as typeof fetch,
+    subscriptionStore: new MemorySubscriptionStore(),
+  });
+  assert.equal(unavailable.response.status, 503);
+  assert.equal(unavailable.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
   assert.equal(geminiCalls, 0);
 });
 

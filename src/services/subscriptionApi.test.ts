@@ -20,6 +20,12 @@ const PAID = {
   billingState: 'active' as const,
 };
 
+const PUGO = {
+  kind: 'pugo' as const,
+  checkedAt: '2026-08-22T00:00:00Z',
+  reason: 'none' as const,
+};
+
 test('inline response grants authorize until expiry and reject malformed or expired values', () => {
   setLocalAccessForAi(PAID);
   clearAiGrant();
@@ -34,11 +40,11 @@ test('inline response grants authorize until expiry and reject malformed or expi
   assert.deepEqual(getAiAuthorization(Date.parse(expiresAt)), { ok: false, kind: 'entitlement-unavailable' });
 });
 
-test('remote AI fails closed for Pugo, Worker outage, and expired grants', async () => {
+test('remote AI fails closed without a Pugo grant, during Worker outage, and after grant expiry', async () => {
   setLocalAccessForAi(null);
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
-  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:00:00Z' });
-  assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'paid-access-required' });
+  setLocalAccessForAi(PUGO);
+  assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
   setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:00:00Z', reason: 'unavailable' });
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
   setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:00:00Z', reason: 'malformed' });
@@ -67,6 +73,47 @@ test('refresh keeps the signed grant only in memory and authorizes until expiry'
   await api.refresh('a'.repeat(32));
   assert.deepEqual(getAiAuthorization(Date.parse('2026-08-22T00:01:00Z')), { ok: true, grant: 'signed.header.payload-value' });
   assert.deepEqual(getAiAuthorization(Date.parse(expiresAt)), { ok: false, kind: 'entitlement-unavailable' });
+});
+
+test('refresh accepts a Pugo grant and validates free usage without persisting the grant', async () => {
+  const store = memoryAccessStore();
+  setPaidAccessStore(store);
+  setLocalAccessForAi(PUGO);
+  const now = Date.parse('2026-08-22T00:00:00Z');
+  const expiresAt = '2026-08-23T00:00:00.000Z';
+  const api = createSubscriptionApi({
+    workerUrl: 'https://staging.example',
+    now: () => now,
+    fetchImpl: (async () => new Response(JSON.stringify({
+      access: PUGO,
+      grant: { token: 'signed.pugo.payload-value', expiresAt },
+      usage: { kind: 'free', remaining24Hours: 5, nextEligibleAt: null },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })) as typeof fetch,
+  });
+
+  assert.deepEqual(await api.refresh('a'.repeat(32)), {
+    usage: { kind: 'free', remaining24Hours: 5, nextEligibleAt: null },
+  });
+  assert.deepEqual(getAiAuthorization(now + 60_000), {
+    ok: true,
+    grant: 'signed.pugo.payload-value',
+  });
+  assert.equal(store.current()?.includes('signed.pugo.payload-value'), false);
+
+  setLocalAccessForAi({ ...PUGO, checkedAt: '2026-08-22T00:01:00Z' });
+  assert.deepEqual(getAiAuthorization(now + 60_000), {
+    ok: true,
+    grant: 'signed.pugo.payload-value',
+  });
+  setLocalAccessForAi(PAID);
+  assert.deepEqual(getAiAuthorization(now + 60_000), {
+    ok: false,
+    kind: 'entitlement-unavailable',
+  });
+  setPaidAccessStore(null);
 });
 
 test('manual access refresh sends force while automatic refresh stays cache-first', async () => {

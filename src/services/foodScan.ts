@@ -36,6 +36,7 @@ export type FoodEstimationFailureKind =
     | 'unavailable'
     | 'consent-required'
     | 'paid-access-required'
+    | 'pugo-daily-limit'
     | 'trial-daily-limit'
     | 'trial-allowance-exhausted'
     | 'fair-use-daily-limit'
@@ -87,6 +88,7 @@ function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
         unavailable: 'Estimates are unavailable in this build.',
         'consent-required': 'Enable online estimates to use this.',
         'paid-access-required': 'Eatlog Manok or Itik is required for AI estimates.',
+        'pugo-daily-limit': "You've used your 5 free estimates for this 24-hour window. Try again after it resets.",
         'trial-daily-limit': 'The estimate allowance for this 24-hour window is used. Try again when it resets.',
         'trial-allowance-exhausted': 'The estimate allowance is used. Manual logging still works.',
         'fair-use-daily-limit': 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when it resets.',
@@ -224,6 +226,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                     try { code = ((await response.json()) as { error?: { code?: unknown } }).error?.code; } catch { code = null; }
                     const mapping: Record<string, FoodEstimationFailureKind> = {
                         PAID_ACCESS_REQUIRED: 'paid-access-required',
+                        PUGO_DAILY_LIMIT: 'pugo-daily-limit',
                         TRIAL_DAILY_LIMIT: 'trial-daily-limit',
                         TRIAL_ALLOWANCE_EXHAUSTED: 'trial-allowance-exhausted',
                         FAIR_USE_DAILY_LIMIT: 'fair-use-daily-limit',

@@ -1,15 +1,15 @@
 # Eatlog store policy worksheets
 
-Updated: 2026-08-11
+Updated: 2026-08-28
 
 These are source answers, not submitted console records. Reconcile them against the final binaries, provider contracts, and current store forms. Fields that require an account or owner decision remain labeled.
 
 ## Fixed product facts
 
-- Eatlog's target acquisition is free. Pugo provides local logging; Manok is PHP 79 monthly; Itik is a PHP 799 one-time lifetime entitlement. The closed-test Manok offer must be deactivated before public production.
+- Eatlog's target acquisition is free. Pugo provides local logging plus five initial photo or description estimates per rolling 24 hours; Manok is PHP 79 monthly; Itik is a PHP 799 one-time lifetime entitlement. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. The closed-test Manok offer must be deactivated before public production.
 - RevenueCat and the Eatlog Worker verify purchases and entitlements. There is no app account, authentication, cloud food/weight database, ads, or third-party analytics.
 - Android ships first. Android and iOS purchases are separate.
-- Data is local-first. Online actions are Scan, Describe/clarification/re-estimation, USDA search/detail, and explicit Open Food Facts full search. Gemini estimate actions require the current accepted consent; food search remains separate.
+- Data is local-first. Online actions are Scan, Describe, paid clarification/re-estimation, USDA search/detail, and explicit Open Food Facts full search. Pugo Scan and Describe share a five-estimate rolling allowance; clarification and re-estimation require Manok, Itik, or complimentary access. Every Gemini estimate also requires the current accepted consent; food search remains separate.
 - Card sharing renders a 1080 by 1920 PNG locally with the permanent Eatlog mark. Save image writes it to the system photo library; Share sends it only to a destination the user selects in operating-system UI. Neither action uses an Eatlog backend or social publishing service, and no mark toggle exists.
 - Health Connect is Android-only and limited to Weight read/write. HealthKit and Apple Health are absent from v1.
 - Adults; general wellness; nutrition and weight values are estimates.
@@ -20,8 +20,8 @@ Use the conservative answers below until the production provider-contract review
 
 | Form area | Draft answer | Purpose | Linkage/tracking | Status |
 | --- | --- | --- | --- | --- |
-| Photos and videos | Collected remotely only when the user chooses Estimate as new after local camera/gallery selection | App functionality | Local selection and past-meal reuse are not collected; not used for tracking or account linkage | Verify Gemini/Cloudflare retention in production console |
-| Other user-generated content | Collected for Describe/re-estimation and food-search text | App functionality | Not used for tracking; no account linkage | Verify provider retention |
+| Photos and videos | Collected remotely only when the user invokes an allowed initial estimate or paid re-estimate after local camera/gallery selection | App functionality | Local selection and past-meal reuse are not collected; not used for tracking or account linkage | Verify Gemini/Cloudflare retention in production console |
+| Other user-generated content | Collected for allowed Describe/re-estimation and food-search text | App functionality | Not used for tracking; no account linkage | Verify provider retention |
 | Device or other IDs | App-scoped random installation token sent to Eatlog Worker and used as RevenueCat App User ID | Fraud prevention, security, entitlement, and app functionality | Not advertising ID; not used for tracking | Confirm final Google category mapping |
 | Health and fitness | Weight/nutrition data stays in app-private storage; Android Weight crosses only to Health Connect at user request | App functionality | Not sent to Eatlog backend; not tracking | Confirm Health Connect declaration interaction |
 | App activity | Operational route/status/latency fields only; no body/query/prompt/response logs | Analytics for service reliability and security | Aggregate operational use; not tracking | Verify deployed Worker logs |
@@ -109,7 +109,7 @@ Reviewer path:
 2. Complete local onboarding with synthetic adult data.
 3. Use the center Add control; it is an action button, not a fifth tab.
 4. Manual logging works without online services.
-5. On a build with online estimates, onboarding shows the concise AI meal-estimate consent. Camera/gallery selection and past-meal reuse remain local regardless of that choice. Okay enables later Estimate as new, Describe, clarification, and re-estimation without repeated prompts; Not now completes onboarding and sends nothing. A later explicit AI action reopens the same full-screen choice while preserving local photo/title state. Profile → Privacy shows Enabled/Off, names Google Gemini, and provides withdrawal.
+5. On a build with online estimates, onboarding shows the concise AI meal-estimate consent. Camera/gallery selection and past-meal reuse remain local regardless of that choice. Pugo shares five initial Estimate as new and Describe requests per rolling 24 hours. Okay enables an allowed request without repeated prompts; Not now completes onboarding and sends nothing. Meal and component re-estimates open the plan screen before consent or private-content construction unless Manok, Itik, or complimentary access is active. Profile → Privacy shows Enabled/Off, names Google Gemini, and provides withdrawal.
 6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly; neither provider depends on Gemini consent.
 7. In Diary, tap any meal image or food-icon rail, or swipe a meal and choose Share immediately left of Delete. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; photo-less meals use Nutrition. The position dots, permanent Eatlog mark, Save image, and Share stay visible without vertical scrolling; no mark control or toggle state exists. Today, day summaries, Analytics, and standalone foods have no Share action.
 8. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
@@ -117,9 +117,9 @@ Reviewer path:
 
 Provider explanation:
 
-- After consent, Gemini estimates and USDA requests use the owner-operated Cloudflare Worker. Consent is client-side and the Worker remains a defensive boundary; the client blocks before installation-token loading or fetch when consent is absent.
+- After an allowed request passes access and quota checks, consent gates Gemini estimates before installation-token loading or fetch. Gemini estimates and USDA requests use the owner-operated Cloudflare Worker; the Worker independently enforces Pugo and paid access.
 - Open Food Facts is a direct, explicit full-search provider and is attributed under ODbL/Database Contents License terms.
-- No account, paywall, subscription, in-app purchase, cloud sync, advertising, or telemetry is present.
+- There is no app account, cloud sync, advertising, or telemetry. Manok and Itik use store in-app purchases verified by RevenueCat; the app includes a plan screen, restore, and subscription-management actions.
 
 Account-bound additions:
 

@@ -31,11 +31,12 @@ Run on A36 and ICUR with synthetic inputs only.
 2. Slow network and forced timeout: Scan, Describe, and USDA stop; the selected photo/text remains local and retry is available.
 3. HTTP error and malformed response through a controlled test harness: no partial garbage is logged; Open Food Facts failure does not erase USDA/local results and vice versa.
 4. Missing or invalid installation identity through a development fault injection: no request is sent and the feature reports unavailable without displaying/logging the token.
-5. Rate limit: response shows a retryable failure and honors `Retry-After`; no repeated automatic request loop occurs.
-6. Fresh onboarding: verify the concise AI meal-estimate consent appears before setup completes. Select Okay once, then verify Scan, Describe, clarification, and re-estimation proceed without another consent prompt. On a declined run, verify Not now enters Eatlog, sends no request or installation token, preserves local search/manual features, and a later explicit AI action reopens the full-screen choice before camera/gallery permission or transmission.
-7. With estimates enabled, turn them off from Profile → Privacy and invoke re-estimation. Verify the choice reappears before transmission; declining preserves the current edits and undo state.
+5. Pugo rolling limit: across mixed Scan, Photo, and Describe requests, the fifth initial estimate succeeds and the sixth shows `You've used your 5 free estimates for this 24-hour window. Try again after it resets.` The Plan screen shows `0/5` and the reset time; no repeated automatic request occurs.
+6. Pugo re-estimation: meal and component actions open the plan screen before consent, content construction, installation-token loading, or fetch. Paid/Test Store access proceeds to consent and the Worker.
+7. Fresh onboarding: verify the concise AI meal-estimate consent appears before setup completes. Select Okay once, then verify allowed Scan and Describe requests proceed without another consent prompt. On a declined run, verify Not now enters Eatlog, sends no request or installation token, preserves local search/manual features, and a later explicit initial AI action reopens the full-screen choice before transmission.
+8. With paid estimates enabled, turn them off from Profile → Privacy and invoke re-estimation. Verify the choice reappears before transmission; declining preserves the current edits and undo state.
 
-Do not run a cost-bearing Gemini Scan against production without owner approval.
+Do not run a cost-bearing Gemini request against staging or production without owner approval. Record approval, synthetic input, access class, selected model, status, latency, and aggregate token/cost fields without recording content or identifiers.
 
 ## Backup, corruption, and rollback cases
 

@@ -117,11 +117,56 @@ test('signed AI grants reject forged, expired, wrong-audience, and overlong gran
   assert.equal(await verifyAiGrant(await signAiGrant({ ...base, exp: NOW + 31 * 24 * 60 * 60_000 }, 'signing-secret'), 'signing-secret', NOW), null);
 });
 
-test('signed AI grants accept every paid access class', async () => {
-  for (const access of ['manok-trial', 'manok', 'itik', 'complimentary'] as const) {
+test('signed AI grants accept every AI access class', async () => {
+  for (const access of ['pugo', 'manok-trial', 'manok', 'itik', 'complimentary'] as const) {
     const claims: GrantClaims = { aud: AI_GRANT_AUDIENCE, sub: access, access, iat: NOW, exp: NOW + 60_000 };
     assert.deepEqual(await verifyAiGrant(await signAiGrant(claims, 'signing-secret'), 'signing-secret', NOW), claims);
   }
+});
+
+test('Pugo shares five initial estimates per rolling 24 hours and rejects clarifications', async () => {
+  const store = new MemorySubscriptionStore();
+  assert.deepEqual(await store.usage('pugo', 'pugo', NOW), {
+    kind: 'free',
+    remaining24Hours: 5,
+    nextEligibleAt: null,
+  });
+
+  for (let index = 0; index < 5; index += 1) {
+    const operation = index % 2 === 0 ? 'scan' : 'describe';
+    const decision = await store.reserve('pugo', 'pugo', operation, `pugo-${index}`, NOW + index);
+    assert.equal(decision.allowed, true);
+    assert.deepEqual(decision.usage, {
+      kind: 'free',
+      remaining24Hours: 4 - index,
+      nextEligibleAt: index === 4 ? new Date(NOW + 24 * 60 * 60 * 1000).toISOString() : null,
+    });
+  }
+
+  const exhausted = await store.reserve('pugo', 'pugo', 'scan', 'pugo-over', NOW + 5);
+  assert.equal(exhausted.allowed, false);
+  assert.equal(exhausted.code, 'PUGO_DAILY_LIMIT');
+  assert.equal(exhausted.nextEligibleAt, new Date(NOW + 24 * 60 * 60 * 1000).toISOString());
+
+  for (const operation of ['clarify-meal', 'clarify-component']) {
+    const denied = await store.reserve('pugo-clarify', 'pugo', operation, operation, NOW);
+    assert.equal(denied.allowed, false);
+    assert.equal(denied.code, 'PAID_ACCESS_REQUIRED');
+    assert.equal(denied.usage.kind, 'free');
+  }
+
+  await store.refund('pugo', 'pugo-0');
+  assert.deepEqual(await store.usage('pugo', 'pugo', NOW + 5), {
+    kind: 'free',
+    remaining24Hours: 1,
+    nextEligibleAt: null,
+  });
+
+  const boundary = new MemorySubscriptionStore();
+  for (let index = 0; index < 5; index += 1) {
+    assert.equal((await boundary.reserve('boundary', 'pugo', 'scan', `boundary-${index}`, NOW)).allowed, true);
+  }
+  assert.equal((await boundary.reserve('boundary', 'pugo', 'describe', 'boundary-next', NOW + 24 * 60 * 60 * 1000)).allowed, true);
 });
 
 test('trial quotas keep initial and clarification daily and whole-trial limits separate', async () => {

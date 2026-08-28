@@ -55,7 +55,7 @@ function accessDetail(access: Access): string {
   if (access.reason === 'revoked') return 'Paid access was removed. Your logbook is untouched.';
   if (access.reason === 'malformed') return "We couldn't verify paid access. Restore or check again.";
   if (access.reason === 'unavailable') return "We couldn't check paid access. Local logging still works.";
-  return 'Free for logging, targets, and your data.';
+  return 'Free logging plus 5 AI estimates per rolling 24 hours.';
 }
 
 interface PlanOptionProps {
@@ -411,8 +411,8 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
           <>
         <View className="gap-3 pt-1">
           <Text accessibilityRole="header" className="text-base font-bold text-m3-on-surface">What you get</Text>
-          <FeatureLine icon="document-scanner">Meal estimates from photos or descriptions</FeatureLine>
-          <FeatureLine icon="tune">Follow-up changes to an estimate</FeatureLine>
+          <FeatureLine icon="document-scanner">Higher AI estimate limits</FeatureLine>
+          <FeatureLine icon="tune">Meal and component re-estimates</FeatureLine>
           <FeatureLine icon="insights">Weekly target updates from your trend</FeatureLine>
           <Pressable
             onPress={() => setLimitsOpen((value) => !value)}
@@ -426,18 +426,30 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
           {limitsOpen ? (
             <View className="gap-3 pb-1">
               <View className="flex-row items-start gap-4">
-                <Text className="w-20 text-sm font-semibold text-m3-on-surface">{usage.kind === 'trial' ? 'Your access' : 'Manok / Itik'}</Text>
+                <Text className="w-20 text-sm font-semibold text-m3-on-surface">
+                  {usage.kind === 'free' ? 'Pugo' : usage.kind === 'trial' ? 'Your access' : 'Manok / Itik'}
+                </Text>
                 <Text className="flex-1 text-sm text-m3-on-surface-variant">
-                  {usage.kind === 'trial'
-                    ? '5 estimates and 5 follow-ups per 24 hours · 30 of each total'
-                    : '30 requests per 24 hours · 250 per 30 days'}
+                  {usage.kind === 'free'
+                    ? '5 photo or description estimates per rolling 24 hours · no follow-up re-estimates'
+                    : usage.kind === 'trial'
+                      ? '5 estimates and 5 follow-ups per 24 hours · 30 of each total'
+                      : '30 requests per 24 hours · 250 per 30 days'}
                 </Text>
               </View>
             </View>
           ) : null}
         </View>
 
-        {usage.kind === 'trial' ? (
+        {usage.kind === 'free' ? (
+          <Card className="gap-3 p-4">
+            <Text className="text-base font-bold text-m3-on-surface">Free estimates left</Text>
+            <View className="flex-row items-baseline justify-between gap-3">
+              <Text className="text-sm text-m3-on-surface-variant">Next 24 hours</Text>
+              <Text className="text-sm font-semibold tabular-nums text-m3-on-surface">{usage.remaining24Hours}/5</Text>
+            </View>
+          </Card>
+        ) : usage.kind === 'trial' ? (
           <Card className="gap-3 p-4">
             <Text className="text-base font-bold text-m3-on-surface">Requests left</Text>
             <View className="gap-2">

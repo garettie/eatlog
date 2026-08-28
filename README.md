@@ -34,8 +34,8 @@ Photo when you're in a hurry. Manual when you're not. Fix what it guessed wrong,
 
 ## The birds
 
-- **Pugo.** Food logging, weight tracking, Diary, and Analytics.
-- **Manok.** Adds meal estimates and adaptive plan recommendations through a monthly plan.
+- **Pugo.** Food logging, weight tracking, Diary, Analytics, and 5 photo or description estimates per rolling 24 hours.
+- **Manok.** Adds follow-up re-estimates, higher estimate limits, and adaptive plan recommendations through a monthly plan.
 - **Itik.** The same paid features with a one-time lifetime purchase.
 
 Current prices and terms appear in the app store purchase sheet.

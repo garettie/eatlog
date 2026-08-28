@@ -1,7 +1,7 @@
 ---
 title: Eatlog Privacy Policy
 publication_status: published
-policy_version: 1.0
+policy_version: 1.1
 effective_date: 2026-08-28
 last_updated: 2026-08-28
 ---
@@ -16,9 +16,9 @@ Eatlog is an account-free nutrition and weight log. It stores your profile, targ
 
 Eatlog stores the information you enter during setup and use, including your display name, birth date, sex, height, activity level, nutrition goal, target weight, preferred units, food logs, meal details, nutrition estimates, targets, weight records, and review decisions. Saved meal photos are stored as app-private files. Recent online search results may stay briefly in memory.
 
-Eatlog also stores an app-scoped random installation token outside its database to limit abuse of the online service. This file is not included in an Eatlog backup or CSV export.
+Eatlog also stores an app-scoped random installation token outside its database. The token identifies one installation for Pugo's rolling AI allowance, request throttling, and RevenueCat access checks. This file is not included in an Eatlog backup or CSV export.
 
-Eatlog uses that token as a RevenueCat App User ID to check subscription, lifetime, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement and quota state outside SQLite, backups, and CSV exports.
+RevenueCat uses that token as its App User ID to check subscription, lifetime, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement, signed grants, and Pugo or paid quota state outside SQLite, backups, and CSV exports.
 
 If the build has online meal estimates, Eatlog stores your current Gemini-estimate consent decision in a separate app-private file outside SQLite. The decision is not included in an Eatlog backup or CSV export. Delete all data clears it.
 
@@ -28,9 +28,9 @@ Eatlog uses online services only for the actions described below.
 
 ### Scan, Describe, and re-estimation
 
-Before the first request, Eatlog shows a short choice: you can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA/Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. When enabled, Scan, Describe, clarification, and re-estimation require the current accepted consent version; Profile → Privacy lets you turn online estimates off.
+Before an allowed request, Eatlog shows a short choice: you can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA/Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. Pugo allows five initial photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok, Itik, or complimentary access and are denied before consent or private-content construction. Every allowed estimate still requires the current accepted consent version; Profile → Privacy lets you turn online estimates off.
 
-Taking or choosing a meal photo and reusing a past meal stays on the device. After consent, choosing Estimate as new sends the selected, resized photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini; Describe and re-estimation send the meal text you enter. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the result before saving it.
+Taking or choosing a meal photo and reusing a past meal stays on the device. After access and consent checks, choosing Estimate as new sends the selected, resized photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini; Describe and allowed re-estimates send the meal text you enter. The request includes the app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply access-specific limits. Eatlog requires you to review the result before saving it.
 
 ### USDA FoodData Central
 
@@ -44,9 +44,9 @@ Eatlog does not send your nutrition logs, weight history, profile, targets, save
 
 ## Purchase processing
 
-Eatlog is free to download. Pugo local logging remains usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.
+Eatlog is free to download. Pugo local logging and its five-estimate rolling allowance remain usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.
 
-Short-lived signed AI grants and salted quota records enforce access-specific fair-use limits. They contain no food, photo, weight, or profile content. Expiry, refund, or revocation removes paid feature access without deleting local food, weight, target, or adaptive history.
+Short-lived signed AI grants and salted Pugo or paid quota records enforce access-specific limits. They contain no food, photo, weight, or profile content and remain outside SQLite, backups, and CSV exports. Expiry, refund, or revocation removes paid features and returns confirmed installations to Pugo without deleting local food, weight, target, or adaptive history.
 
 ## Android Health Connect
 

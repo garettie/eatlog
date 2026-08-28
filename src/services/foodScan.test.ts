@@ -287,6 +287,7 @@ test('unresolved access submits once and accepts the Worker grant from the estim
 test('maps each known Worker entitlement and quota code to specific redacted copy', async () => {
     const cases = [
         ['PAID_ACCESS_REQUIRED', 'paid-access-required'],
+        ['PUGO_DAILY_LIMIT', 'pugo-daily-limit'],
         ['TRIAL_DAILY_LIMIT', 'trial-daily-limit'],
         ['TRIAL_ALLOWANCE_EXHAUSTED', 'trial-allowance-exhausted'],
         ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
@@ -304,6 +305,9 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
         if (!result.ok) {
             assert.equal(result.kind, kind);
             assert.equal(result.message.includes('raw provider'), false);
+            if (kind === 'pugo-daily-limit') {
+                assert.equal(result.message, "You've used your 5 free estimates for this 24-hour window. Try again after it resets.");
+            }
         }
     }
 });

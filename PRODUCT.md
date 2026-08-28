@@ -6,7 +6,9 @@
 
 ## Platform
 
-Android-first public release with iOS v1 support
+adaptive
+
+React Native (Expo) shipping both targets from one codebase: Android-first public release with iOS v1 support.
 
 ## Users
 
@@ -24,9 +26,9 @@ MacroFactor-class premium UX at public-release scale. The differentiator is a fa
 
 ## Access model
 
-- Eatlog Pugo is the free tier for local food logging, weight tracking, charts, Health Connect, backup, and export.
+- Eatlog Pugo is the free tier for local food logging, weight tracking, charts, Health Connect, backup, export, and five shared photo or description estimates per rolling 24 hours.
 - Eatlog Manok is PHP 79 monthly. Eatlog Itik is a PHP 799 one-time lifetime entitlement.
-- Manok, Itik, and complimentary access unlock AI estimates and local adaptive recommendations. The Worker remains authoritative for AI entitlement and quota enforcement.
+- Manok, Itik, and complimentary access add meal and component re-estimates, higher AI limits, and local adaptive recommendations. The Worker remains authoritative for every AI grant, quota, and model route.
 - Expiry, refund, or revocation never deletes owned food, weight, target, or adaptive data. Entitlement state stays outside SQLite, backups, and CSV exports.
 
 ## Operating Context
@@ -41,7 +43,7 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | --- | --- | --- |
 | Onboarding and initial targets | Implemented | Strong first-run flow; needs an edit path and physical-device verification. |
 | Today | Implemented | Coherent daily summary with useful empty, loading, and error states. |
-| Food entry | Implemented | Local past-meal reuse, search, and manual logging remain in Pugo; paid AI Scan, Photo, Describe, clarification, and re-estimation also require separate Gemini consent. |
+| Food entry | Implemented | Local past-meal reuse, search, manual logging, and five shared AI Scan, Photo, or Describe requests per rolling 24 hours remain in Pugo. Meal/component re-estimation requires Manok, Itik, or complimentary access. Every remote estimate also requires separate Gemini consent. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
 | Weight and Analytics | Implemented | Weight/chart metrics remain in Pugo; adaptive reads and mutations require Manok, Itik, or complimentary access. |
 | Profile and Settings | Implemented | Profile editing, privacy controls, backup/restore, CSV export, reset, Health Connect, help, and detail routes are available. |
@@ -59,7 +61,7 @@ The implemented core has a coherent visual language and daily loop. Source-level
 - Six setup/calculation steps plus an optional final full-screen AI-estimate consent step when the build has an estimate Worker, with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware completion flow.
 - Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, photo-first empty state, and calendar-accurate scale/trend/goal weight display.
 - Central entry bottom sheet: local camera/gallery selection, ranked past-meal reuse with the newly selected photo, explicit new estimation, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
-- Gemini vision/text meal estimation returning a named meal and per-100g component nutrition; clarification can re-estimate an edited scan/description.
+- Gemini vision/text meal estimation returns a named meal and per-100g component nutrition. Pugo initial estimates use Gemini 2.5 Flash-Lite with 3.5 Flash-Lite fallback; paid access keeps the 3.5/3.1 route and can re-estimate an edited scan or description.
 - On-device SQLite profile, food log, meal, target, food-cache, weight-log, pin, and adaptive-review records with sequential non-destructive migrations.
 - Diary: calendar strip, overflow-aware daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, aligned edit/delete swipe actions, and undo.
 - Analytics: 1M/3M/6M/1Y weight ranges, scale and EWMA trend charting, intake coverage, expenditure/target context, goal-rate progress, and persisted weekly Accept/Keep recommendations.

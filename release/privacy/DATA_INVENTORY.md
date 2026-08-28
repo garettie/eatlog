@@ -1,6 +1,6 @@
 # Eatlog data inventory
 
-Verified against source on 2026-08-11. This inventory describes the account-free v1 application and its Cloudflare Worker. It is the source for privacy copy and store disclosures; it is not a claim that the draft public pages are hosted.
+Verified against source on 2026-08-28. This inventory describes the account-free v1 application and its Cloudflare Worker. It is the source for privacy copy and store disclosures; it is not a claim that the public pages are deployed.
 
 ## Storage on the device
 
@@ -15,9 +15,9 @@ Verified against source on 2026-08-11. This inventory describes the account-free
 | AI food cache | Normalized foods, brands, preparation, serving information, nutrition values, and Scan/Describe source | `food_cache` in SQLite until reset or app removal | No additional transmission; populated from a returned estimate | Included in database backup, excluded from human-readable CSV, removed by reset |
 | Pins | Keys for pinned foods | `pinned_foods` in SQLite until unpinned, reset, or app removal | No | Pin/unpin; included in database backup |
 | Online search cache | Recent USDA/Open Food Facts result sets and provider state | In process memory for a short TTL; ends when the app process ends | The original lookup already used the provider described below | Search cancellation, retry, or app close |
-| Installation identity | App-scoped random token, after M4 implementation | App-private persistence outside SQLite and backups | Sent to the Eatlog Worker for request throttling; never shown or logged | Regenerates after missing/corrupt state or app removal; excluded from backup and CSV |
-| Remote-estimate consent | Current version plus `accepted` or `declined` decision | App-private file outside SQLite until the user changes it, resets data, or removes the app | No | Okay enables Gemini estimates; Not now keeps local features usable; Profile → Privacy withdraws it; excluded from backup and CSV |
-| Purchase access | RevenueCat App User ID (the app-scoped installation token), store product and entitlement metadata, expiry/renewal state, and short-lived signed AI grant | RevenueCat SDK cache plus app process memory; no Eatlog SQLite row | RevenueCat, the platform store, and the Eatlog Worker | Restore, refresh, store subscription management; excluded from backup and CSV |
+| Installation identity | App-scoped random token | App-private persistence outside SQLite, backups, and CSV exports | Sent to the Eatlog Worker for Pugo quota identity and request throttling; used as RevenueCat App User ID; never shown or logged | Regenerates after missing/corrupt state or app removal |
+| Remote-estimate consent | Current version plus `accepted` or `declined` decision | App-private file outside SQLite until the user changes it, resets data, or removes the app | No | Okay enables allowed Gemini estimates; Not now keeps local features usable; Profile → Privacy withdraws it; excluded from backup and CSV |
+| Purchase and AI access | Store product and entitlement metadata, short-lived signed AI grant, and in-memory Pugo grant | RevenueCat SDK cache plus app process memory; no Eatlog SQLite row | RevenueCat, the platform store, and the Eatlog Worker | Restore, refresh, store subscription management; excluded from backup and CSV |
 
 SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals`, `food_logs`, `food_cache`, `pinned_foods`, `daily_targets`, `adaptive_reviews`, `health_connect_state`, `health_connect_weight_exports`, and `adaptive_intake_day_confirmations`.
 
@@ -26,12 +26,13 @@ SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals
 ### Estimate as new, Describe, and re-estimation
 
 1. The user can take or choose a photo and search or reuse grouped meal history entirely on the device. Those actions do not request online-estimate consent, prepare an upload, or contact the Worker.
-2. If the user chooses Estimate as new, Describe, clarification, or re-estimation, Eatlog requests the current online-estimate consent when required. A decline keeps the selected photo, title, and local suggestions without sending data.
-3. Estimate as new sends a resized/compressed base64 image and optional meal title; Describe and re-estimation send the entered food or meal text. Requests also carry the app-scoped installation token.
-4. The Eatlog Cloudflare Worker validates the request, applies installation-token and IP-based rate limits, and sends the requested content to Google Gemini.
-5. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
+2. The operation-aware gate allows initial Scan, Photo, and Describe requests to proceed while access resolves. Confirmed Pugo meal or component re-estimates open the plan screen; unresolved re-estimates fail unavailable. Both re-estimate denials occur before consent, content construction, installation-token loading, or fetch.
+3. For an allowed request, Eatlog requests the current online-estimate consent when required. A decline keeps the selected photo, title, and local suggestions without sending data.
+4. Estimate as new sends a resized/compressed base64 image and optional meal title; Describe and allowed re-estimates send the entered food or meal text. Requests also carry the app-scoped installation token.
+5. The Eatlog Cloudflare Worker verifies access, applies installation-scoped and IP-based limits, and sends the requested content to Google Gemini. Pugo receives five shared initial operations per rolling 24 hours; clarification is paid-only.
+6. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
 
-Before content collection, paid AI actions require a current Manok trial, Manok, Itik, or complimentary entitlement. The Worker independently verifies paid access, validates a signed short-lived grant, and atomically applies trial or fair-use quotas before Gemini dispatch. RevenueCat receives the installation token as its App User ID and store purchase/entitlement metadata. RevenueCat webhooks invalidate cached entitlement state. Worker state contains salted quota subjects, counters, idempotency records, and webhook IDs, but no food content.
+The Worker independently issues and verifies short-lived signed grants, derives salted quota subjects, and atomically applies Pugo, trial, or paid limits before Gemini dispatch. Pugo grants are held in app memory only. RevenueCat receives the installation token as its App User ID and store purchase/entitlement metadata. RevenueCat webhooks invalidate cached entitlement state. Worker state contains salted quota subjects, counters, idempotency records, and webhook IDs, but no food content.
 
 The Worker must not log request bodies, images, descriptions, prompts, model responses, raw installation tokens, token hashes, IP addresses, headers, transaction IDs, grants, or secrets. It may log aggregate model/token counts and configured cost estimates. Cloudflare, RevenueCat, Google, and the platform store process the request or purchase to provide and protect the service; their production terms and retention settings require an owner console review before release.
 
@@ -76,7 +77,7 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 
 ## Backup, restore, export, sharing, deletion
 
-- A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. Installation identity, entitlement state, receipts, grants, quota history, RevenueCat identifiers, and remote-estimate consent are outside SQLite and never enter the archive.
+- A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. Installation identity, entitlement state, receipts, grants, Pugo and paid quota history, RevenueCat identifiers, and remote-estimate consent are outside SQLite and never enter the archive.
 - Restore stages and validates the archive, file sizes and hashes, record counts, database integrity, foreign keys, schema version, and photo mappings before replacing live data. It rejects future schemas without mutation. A safety copy supports automatic rollback if replacement fails.
 - A CSV export is a zipped, human-readable set of profile, meal, component, weight, target, and adaptive-review CSV files plus a manifest. It contains no photos or Health Connect synchronization metadata and cannot be restored.
 - Sharing renders the selected meal card on-device as a 1080 by 1920 PNG, writes it only to temporary cache, and removes capture/cache files after the Save image or Share attempt. Save image adds the PNG to Photos or Gallery; Share sends it only to the operating-system destination the user chooses. Every Photo, Framed, Nutrition, and photo-less fallback card permanently includes the Eatlog mark; no mark toggle exists. Eatlog has no sharing backend, public link, social feed, destination tracking, or source-EXIF transfer.

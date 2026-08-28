@@ -46,6 +46,12 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(paywall, /Try store again/);
   assert.match(paywall, /We couldn't reach the store\. Prices and checkout didn't load\. Your logbook still works\./);
   assert.match(paywall, /30 requests per 24 hours · 250 per 30 days/);
+  assert.match(paywall, /Free logging plus 5 AI estimates per rolling 24 hours[.]/);
+  assert.match(paywall, /5 photo or description estimates per rolling 24 hours · no follow-up re-estimates/);
+  assert.match(paywall, /Free estimates left/);
+  assert.match(paywall, /usage[.]remaining24Hours}\/5/);
+  assert.match(paywall, /Higher AI estimate limits/);
+  assert.match(paywall, /Meal and component re-estimates/);
   assert.match(paywall, /if \(!selectedProduct\) \{[\s\S]*retryPlans\('purchase'\)/);
   assert.doesNotMatch(purchaseDisabled, /selectedProduct/);
   assert.doesNotMatch(paywall, /Compare plans/);
@@ -161,7 +167,15 @@ test('Test Store preview can replace Manok with Itik without exposing fake cance
   assert.match(paywall, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
 });
 
-test('all AI collection entry points gate only confirmed free before private content collection', () => {
+test('initial estimates proceed while re-estimates gate before private content collection', () => {
+  const beginEstimate = entitlementProvider.slice(
+    entitlementProvider.indexOf('const beginAiEstimate ='),
+    entitlementProvider.indexOf('const refreshAccess ='),
+  );
+  assert.match(beginEstimate, /operation === 'initial'[\s\S]*return 'proceed'/);
+  assert.match(beginEstimate, /status === 'checking'[\s\S]*return 'unavailable'/);
+  assert.match(beginEstimate, /status === 'free' \? 'upgrade' : 'proceed'/);
+
   assert.match(foodSheet, /canBeginAiEstimate/);
   const cameraGate = foodSheet.indexOf('canBeginAiEstimate()');
   const cameraPermission = foodSheet.indexOf('requestCameraPermissionsAsync');
@@ -172,15 +186,22 @@ test('all AI collection entry points gate only confirmed free before private con
   assert.match(foodSheet, /case 'describe':\s*handleDescribe\(\);/);
   for (const source of [search, addComponent, describeInput]) {
     const consent = source.indexOf('requestConsent()');
-    const accessGate = source.indexOf('beginAiEstimate()');
+    const accessGate = Math.max(
+      source.indexOf("beginAiEstimate('initial')"),
+      source.indexOf('beginAiEstimate("initial")'),
+    );
     assert.ok(consent >= 0 && accessGate >= 0 && accessGate < consent);
     assert.equal(source.includes('await ensurePaidAccess()'), false);
   }
   for (const marker of ['const handleClarify =', 'const handleClarifyComponent =']) {
     const start = review.indexOf(marker);
     const consent = review.indexOf('requestConsent()', start);
-    const accessGate = review.indexOf('beginAiEstimate()', start);
+    const accessGate = review.indexOf('beginAiEstimate("reestimate")', start);
+    const upgrade = review.indexOf('navigation.navigate("Paywall")', accessGate);
+    const unavailable = review.indexOf('PAID_ACCESS_UNAVAILABLE_MESSAGE', accessGate);
     assert.ok(start >= 0 && consent >= 0 && accessGate >= start && accessGate < consent);
+    assert.ok(upgrade > accessGate && upgrade < consent);
+    assert.ok(unavailable > accessGate && unavailable < consent);
   }
   assert.match(foodScan, /acceptAiGrant/);
 });

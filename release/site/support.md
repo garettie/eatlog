@@ -1,7 +1,7 @@
 ---
 title: Eatlog Support
 publication_status: ready-to-publish
-last_updated: 2026-08-24
+last_updated: 2026-08-28
 ---
 
 # Eatlog Support
@@ -17,7 +17,7 @@ Eatlog support is available at `sggajitos@gmail.com`. We aim to respond within 3
 
 ## Online estimates or food search are unavailable
 
-Check that the device has an internet connection, then retry. Scan and Describe use Eatlog’s online estimation service. USDA search also runs online. Open Food Facts runs only after you press Search and requires a release build with provider contact details. Manual logging, personal history, targets, and local analytics remain available without these services.
+Check that the device has an internet connection, then retry. Scan and Describe use Eatlog’s online estimation service. USDA search also runs online. Open Food Facts runs only after you press Search and requires a release build with provider contact details. Pugo includes five photo or description estimates in a rolling 24-hour window. If you reach the limit, use manual logging or wait until the oldest estimate leaves the window. Meal and component re-estimates require Manok or Itik.
 
 Review each estimate before saving it. Estimates and community food data can be incomplete or wrong.
 

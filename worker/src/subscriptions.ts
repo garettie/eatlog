@@ -1,6 +1,7 @@
 export const AI_GRANT_AUDIENCE = 'eatlog-ai';
 export const AI_GRANT_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const ENTITLEMENT_CACHE_TTL_MS = 60 * 60 * 1000;
+export const PUGO_DAILY_LIMIT = 5;
 const TRIAL_DAILY_LIMIT = 5;
 const TRIAL_TOTAL_LIMIT = 30;
 const PAID_DAILY_LIMIT = 30;
@@ -28,7 +29,7 @@ export const THIRTY_DAYS_MS = 30 * DAY_MS;
 const MANOK_PRODUCTS = new Set(['eatlog_manok', 'eatlog_manok:monthly', 'eatlog_manok_monthly']);
 const ITIK_PRODUCT = 'eatlog_itik';
 
-export type PaidAccessKind = 'manok-trial' | 'manok' | 'itik' | 'complimentary';
+export type AiAccessKind = 'pugo' | 'manok-trial' | 'manok' | 'itik' | 'complimentary';
 export type WorkerAccess =
   | { kind: 'pugo'; checkedAt: string; reason?: 'none' | 'unavailable' | 'malformed' | 'expired' | 'revoked' }
   | { kind: 'manok-trial'; checkedAt: string; expiresAt: string; willRenew: boolean; productId: string; billingState: 'active' | 'grace' }
@@ -38,6 +39,7 @@ export type WorkerAccess =
 
 export type Usage =
   | { kind: 'none' }
+  | { kind: 'free'; remaining24Hours: number; nextEligibleAt: string | null }
   | {
       kind: 'trial';
       initialRemaining24Hours: number;
@@ -61,7 +63,7 @@ export interface CachedAccess extends VerifiedRevenueCatAccess {
 export interface GrantClaims {
   aud: typeof AI_GRANT_AUDIENCE;
   sub: string;
-  access: PaidAccessKind;
+  access: AiAccessKind;
   iat: number;
   exp: number;
 }
@@ -69,7 +71,7 @@ export interface GrantClaims {
 export interface QuotaDecision {
   allowed: boolean;
   duplicate: boolean;
-  code?: 'TRIAL_DAILY_LIMIT' | 'TRIAL_ALLOWANCE_EXHAUSTED' | 'FAIR_USE_DAILY_LIMIT' | 'FAIR_USE_30_DAY_LIMIT';
+  code?: 'PAID_ACCESS_REQUIRED' | 'PUGO_DAILY_LIMIT' | 'TRIAL_DAILY_LIMIT' | 'TRIAL_ALLOWANCE_EXHAUSTED' | 'FAIR_USE_DAILY_LIMIT' | 'FAIR_USE_30_DAY_LIMIT';
   nextEligibleAt?: string;
   usage: Usage;
 }
@@ -78,10 +80,10 @@ export interface SubscriptionStore {
   getCached(customerKey: string, now: number, stale?: boolean): Promise<CachedAccess | null>;
   putCached(customerKey: string, value: CachedAccess): Promise<void>;
   recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'>;
-  reserve(subject: string, access: PaidAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision>;
+  reserve(subject: string, access: AiAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision>;
   finalize(subject: string, requestId: string): Promise<void>;
   refund(subject: string, requestId: string): Promise<void>;
-  usage(subject: string, access: PaidAccessKind, now: number): Promise<Usage>;
+  usage(subject: string, access: AiAccessKind, now: number): Promise<Usage>;
 }
 
 export interface QuotaEvent {
@@ -90,9 +92,11 @@ export interface QuotaEvent {
   requestId: string;
 }
 
-export function operationClass(access: PaidAccessKind, operation: string): QuotaEvent['operationClass'] {
-  if (access !== 'manok-trial') return 'paid';
-  return operation === 'scan' || operation === 'describe' ? 'initial' : 'clarification';
+export function operationClass(access: AiAccessKind, operation: string): QuotaEvent['operationClass'] {
+  if (access === 'pugo' || access === 'manok-trial') {
+    return operation === 'scan' || operation === 'describe' ? 'initial' : 'clarification';
+  }
+  return 'paid';
 }
 
 function remaining(limit: number, used: number): number {
@@ -104,7 +108,16 @@ function nextAt(events: QuotaEvent[], windowStart: number): string | null {
   return oldest ? new Date(oldest.timestamp + DAY_MS).toISOString() : null;
 }
 
-export function quotaUsage(events: QuotaEvent[], access: PaidAccessKind, now: number): Usage {
+export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: number): Usage {
+  if (access === 'pugo') {
+    const since = now - DAY_MS;
+    const active = events.filter((event) => event.operationClass === 'initial' && event.timestamp > since);
+    return {
+      kind: 'free',
+      remaining24Hours: remaining(PUGO_DAILY_LIMIT, active.length),
+      nextEligibleAt: active.length >= PUGO_DAILY_LIMIT ? nextAt(active, since) : null,
+    };
+  }
   if (access === 'manok-trial') {
     const initial = events.filter((event) => event.operationClass === 'initial');
     const clarification = events.filter((event) => event.operationClass === 'clarification');
@@ -131,9 +144,16 @@ export function quotaUsage(events: QuotaEvent[], access: PaidAccessKind, now: nu
   };
 }
 
-export function decideQuota(events: QuotaEvent[], access: PaidAccessKind, operation: string, now: number): QuotaDecision {
+export function decideQuota(events: QuotaEvent[], access: AiAccessKind, operation: string, now: number): QuotaDecision {
   const usage = quotaUsage(events, access, now);
-  if (usage.kind === 'trial') {
+  if (usage.kind === 'free') {
+    if (operationClass(access, operation) !== 'initial') {
+      return { allowed: false, duplicate: false, code: 'PAID_ACCESS_REQUIRED', usage };
+    }
+    if (usage.remaining24Hours === 0) {
+      return { allowed: false, duplicate: false, code: 'PUGO_DAILY_LIMIT', ...(usage.nextEligibleAt ? { nextEligibleAt: usage.nextEligibleAt } : {}), usage };
+    }
+  } else if (usage.kind === 'trial') {
     const initial = operationClass(access, operation) === 'initial';
     const trialRemaining = initial ? usage.initialRemainingTrial : usage.clarificationRemainingTrial;
     const dailyRemaining = initial ? usage.initialRemaining24Hours : usage.clarificationRemaining24Hours;
@@ -192,7 +212,7 @@ export class MemorySubscriptionStore implements SubscriptionStore {
     });
   }
 
-  reserve(subject: string, access: PaidAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision> {
+  reserve(subject: string, access: AiAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision> {
     return this.synchronized(() => {
       const requestKey = `${subject}:${requestId}`;
       for (const [key, request] of this.requests) {
@@ -226,7 +246,7 @@ export class MemorySubscriptionStore implements SubscriptionStore {
     this.requests.set(key, { ...request, state: 'refunded' });
   }
 
-  async usage(subject: string, access: PaidAccessKind, now: number): Promise<Usage> {
+  async usage(subject: string, access: AiAccessKind, now: number): Promise<Usage> {
     return quotaUsage(this.events.get(subject) ?? [], access, now);
   }
 }
@@ -254,8 +274,8 @@ export async function signAiGrant(claims: GrantClaims, secret: string): Promise<
   return `${payload}.${base64UrlEncode(await hmac(payload, secret))}`;
 }
 
-function isPaidAccessKind(value: unknown): value is PaidAccessKind {
-  return value === 'manok-trial' || value === 'manok' || value === 'itik' || value === 'complimentary';
+function isAiAccessKind(value: unknown): value is AiAccessKind {
+  return value === 'pugo' || value === 'manok-trial' || value === 'manok' || value === 'itik' || value === 'complimentary';
 }
 
 export async function verifyAiGrant(token: string, secret: string, now: number): Promise<GrantClaims | null> {
@@ -283,7 +303,7 @@ export async function verifyAiGrant(token: string, secret: string, now: number):
   const value = claims as Record<string, unknown>;
   if (value.aud !== AI_GRANT_AUDIENCE
     || typeof value.sub !== 'string'
-    || !isPaidAccessKind(value.access)
+    || !isAiAccessKind(value.access)
     || typeof value.iat !== 'number'
     || typeof value.exp !== 'number'
     || value.exp <= now

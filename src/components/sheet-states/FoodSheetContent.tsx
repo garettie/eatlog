@@ -91,6 +91,7 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     unavailable: 'Photo and description estimates are unavailable.',
     'consent-required': 'Enable online estimates to use this.',
     'paid-access-required': 'Choose Eatlog Manok or Itik to use AI estimates.',
+    'pugo-daily-limit': "You've used your 5 free estimates for this 24-hour window. Try again after it resets.",
     'trial-daily-limit': "You've used today's estimate allowance. Try again after it resets.",
     'trial-allowance-exhausted': 'Your estimate allowance is used. You can keep logging manually.',
     'fair-use-daily-limit': "You've reached the 24-hour fair-use limit. Try again after it resets.",
@@ -394,10 +395,9 @@ export default function FoodSheetContent({
     );
 
     const canBeginAiEstimate = useCallback((): boolean => {
-        if (beginAiEstimate() === 'proceed') return true;
-        navigation.navigate('Paywall');
-        return false;
-    }, [beginAiEstimate, navigation]);
+        beginAiEstimate('initial');
+        return true;
+    }, [beginAiEstimate]);
 
     const ensurePhotoEntryAvailable = useCallback(async (): Promise<boolean> => {
         if (serviceConfig.availability.gemini) return true;

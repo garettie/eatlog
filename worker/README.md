@@ -9,6 +9,12 @@
 
 The default `wrangler.jsonc` remains the legacy Worker contract. Subscription development uses `eatlog-food-subscription-staging`, its SQLite Durable Object, RevenueCat Test Store project, and staging bindings. Play builds use the separate `eatlog-food-subscription-production` Worker and production RevenueCat project. The three configs must not share Worker names, Durable Object state, rate-limit namespace IDs, secret storage, or EAS environments.
 
+## AI routes and cost metadata
+
+Confirmed Pugo access routes `scan` and `describe` through `gemini-2.5-flash-lite`, then `gemini-3.5-flash-lite`. Manok trial, Manok, Itik, complimentary access, and the subscription-disabled legacy route use `gemini-3.5-flash-lite`, then `gemini-3.1-flash-lite`. Both routes keep the same prompt, request schema, structured response schema, 2,048-token output cap, and shared 20-second fallback budget. Pugo clarification is rejected before provider dispatch.
+
+Set `GEMINI_25_INPUT_USD_PER_MILLION` and `GEMINI_25_OUTPUT_USD_PER_MILLION` for Gemini 2.5 Flash-Lite aggregate cost estimates. `GEMINI_INPUT_USD_PER_MILLION` and `GEMINI_OUTPUT_USD_PER_MILLION` apply to the 3.5/3.1 route. These are non-secret deployment configuration, but values must come from the current provider price sheet; missing, empty, negative, or non-finite pairs omit `estimatedCostUsd` rather than falling back to another model's rate.
+
 ## Deploy
 
 Do not deploy either subscription Worker without owner approval. A deployment changes external state. Before approval, the owner must confirm the target account and supply these secret values without exposing them: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. Always pass the intended subscription config to secret, deploy, deployment-list, and rollback commands; never use a bare deploy command for a subscription Worker. The exact staging and production procedures are in the release runbook.

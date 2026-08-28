@@ -36,7 +36,7 @@ interface EntitlementContextValue {
   refreshing: boolean;
   hasPaidFeatures: boolean;
   ensurePaidAccess(): Promise<PaidAccessDecision>;
-  beginAiEstimate(): 'proceed' | 'free';
+  beginAiEstimate(operation: 'initial' | 'reestimate'): 'proceed' | 'upgrade' | 'unavailable';
   refresh(): Promise<void>;
   purchase(tier: 'manok' | 'itik'): Promise<BillingActionResult>;
   restore(): Promise<BillingActionResult>;
@@ -116,10 +116,19 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     return status === 'checking' ? 'unavailable' : status;
   }, [resolveAccess]);
 
-  const beginAiEstimate = useCallback((): 'proceed' | 'free' => {
+  const beginAiEstimate = useCallback((
+    operation: 'initial' | 'reestimate',
+  ): 'proceed' | 'upgrade' | 'unavailable' => {
     const status = entitlementStatus(accessRef.current);
-    if (status === 'checking') void resolveAccess(false);
-    return status === 'free' ? 'free' : 'proceed';
+    if (operation === 'initial') {
+      if (status === 'checking') void resolveAccess(false);
+      return 'proceed';
+    }
+    if (status === 'checking') {
+      void resolveAccess(false);
+      return 'unavailable';
+    }
+    return status === 'free' ? 'upgrade' : 'proceed';
   }, [resolveAccess]);
 
   const refreshAccess = useCallback(async (forceStore: boolean) => {
@@ -131,7 +140,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
         await resolveSupportId();
         await accessRequest;
         const current = accessRef.current;
-        const remoteRequest = current !== null && hasPaidFeatures(current)
+        const remoteRequest = current !== null && entitlementStatus(current) !== 'checking'
           ? refreshRemoteAccess(forceStore)
           : null;
         if (remoteRequest === null) setUsage({ kind: 'none' });
@@ -161,7 +170,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     let unsubscribe: (() => void) | undefined;
     void billing.subscribe((next) => {
       const applied = applyAccess(next);
-      if (applied && hasPaidFeatures(next)) void refreshAccess(false);
+      if (applied && entitlementStatus(next) !== 'checking') void refreshAccess(false);
     }).then((remove) => { unsubscribe = remove; }).catch(() => {});
     const appState = AppState.addEventListener('change', (state) => {
       if (state === 'active') void refreshAccess(false);

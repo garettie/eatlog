@@ -1,6 +1,6 @@
 import type {
   CachedAccess,
-  PaidAccessKind,
+  AiAccessKind,
   QuotaDecision,
   SubscriptionStore,
   Usage,
@@ -19,8 +19,8 @@ export class DurableSubscriptionStore implements SubscriptionStore {
   getCached(customerKey: string, now: number, stale = false): Promise<CachedAccess | null> { return this.call('/cache/get', { customerKey, now, stale }); }
   putCached(customerKey: string, value: CachedAccess): Promise<void> { return this.call('/cache/put', { customerKey, ...value }); }
   async recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'> { return (await this.call<{ result: 'accepted' | 'duplicate' | 'stale' }>('/webhook', { eventId, eventTimestamp, customerKeys })).result; }
-  reserve(subject: string, access: PaidAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision> { return this.call('/quota/reserve', { subject, access, operation, requestId, now }); }
+  reserve(subject: string, access: AiAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision> { return this.call('/quota/reserve', { subject, access, operation, requestId, now }); }
   finalize(subject: string, requestId: string): Promise<void> { return this.call('/quota/finalize', { subject, requestId }); }
   refund(subject: string, requestId: string): Promise<void> { return this.call('/quota/refund', { subject, requestId }); }
-  usage(subject: string, access: PaidAccessKind, now: number): Promise<Usage> { return this.call('/quota/usage', { subject, access, now }); }
+  usage(subject: string, access: AiAccessKind, now: number): Promise<Usage> { return this.call('/quota/usage', { subject, access, now }); }
 }

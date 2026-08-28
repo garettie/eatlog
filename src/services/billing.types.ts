@@ -71,6 +71,11 @@ export interface BillingOffering {
   itik: BillingProduct | null;
 }
 
+export interface FreeUsage {
+  remaining24Hours: number;
+  nextEligibleAt: string | null;
+}
+
 export interface TrialUsage {
   initialRemaining24Hours: number;
   initialRemainingTrial: number;
@@ -88,6 +93,7 @@ export interface PaidUsage {
 
 export type EatlogUsage =
   | { kind: 'none' }
+  | ({ kind: 'free' } & FreeUsage)
   | ({ kind: 'trial' } & TrialUsage)
   | ({ kind: 'paid' } & PaidUsage);
 

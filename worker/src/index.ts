@@ -10,7 +10,7 @@ import {
   signAiGrant,
   verifyAiGrant,
   type GrantClaims,
-  type PaidAccessKind,
+  type AiAccessKind,
   type SubscriptionStore,
   type VerifiedRevenueCatAccess,
 } from './subscriptions';
@@ -20,7 +20,8 @@ const USDA_ORIGIN = 'https://api.nal.usda.gov';
 const USDA_SEARCH_PATH = '/fdc/v1/foods/search';
 const USDA_PAGE_SIZE = 25;
 const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
-const GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
+const PUGO_GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite'] as const;
+const PAID_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
 const USDA_TIMEOUT_MS = 8000;
 const GEMINI_TOTAL_TIMEOUT_MS = 20000;
 const GEMINI_MAX_OUTPUT_TOKENS = 2048;
@@ -66,6 +67,8 @@ export interface Env {
   ACCESS_STATE?: DurableObjectNamespace;
   GEMINI_INPUT_USD_PER_MILLION?: string;
   GEMINI_OUTPUT_USD_PER_MILLION?: string;
+  GEMINI_25_INPUT_USD_PER_MILLION?: string;
+  GEMINI_25_OUTPUT_USD_PER_MILLION?: string;
 }
 
 interface CacheLike {
@@ -87,12 +90,22 @@ interface ErrorMeta {
   rejection?: string;
 }
 
+function configuredRate(value: string | undefined): number {
+  if (value == null || value.trim() === '') return Number.NaN;
+  const rate = Number(value);
+  return Number.isFinite(rate) && rate >= 0 ? rate : Number.NaN;
+}
+
 function logAiUsage(upstream: unknown, model: string, env: Env): void {
   const usage = (upstream as any)?.usageMetadata;
   const inputTokens = Number(usage?.promptTokenCount ?? 0);
   const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-  const inputRate = Number(env.GEMINI_INPUT_USD_PER_MILLION ?? NaN);
-  const outputRate = Number(env.GEMINI_OUTPUT_USD_PER_MILLION ?? NaN);
+  const inputRate = configuredRate(model === 'gemini-2.5-flash-lite'
+    ? env.GEMINI_25_INPUT_USD_PER_MILLION
+    : env.GEMINI_INPUT_USD_PER_MILLION);
+  const outputRate = configuredRate(model === 'gemini-2.5-flash-lite'
+    ? env.GEMINI_25_OUTPUT_USD_PER_MILLION
+    : env.GEMINI_OUTPUT_USD_PER_MILLION);
   console.log(JSON.stringify({
     event: 'ai_usage',
     model,
@@ -557,13 +570,30 @@ async function constantTimeEqual(provided: string, expected: string): Promise<bo
   return difference === 0;
 }
 
+function pugoAccessConfirmed(access: VerifiedRevenueCatAccess['access']): boolean {
+  return access.kind === 'pugo'
+    && (access.reason === 'none' || access.reason === 'expired' || access.reason === 'revoked');
+}
+
+async function withPugoQuotaSubject(
+  verified: VerifiedRevenueCatAccess,
+  installId: string,
+  env: Env & { QUOTA_IDENTITY_SALT: string },
+): Promise<VerifiedRevenueCatAccess> {
+  if (verified.subjectIdentity || !pugoAccessConfirmed(verified.access)) return verified;
+  return {
+    ...verified,
+    subjectIdentity: await hashQuotaIdentity(`pugo:${installId}`, env.QUOTA_IDENTITY_SALT),
+  };
+}
+
+function grantAccess(access: VerifiedRevenueCatAccess['access']): AiAccessKind | null {
+  return access.kind === 'pugo' && !pugoAccessConfirmed(access) ? null : access.kind;
+}
+
 function bearerToken(request: Request): string | null {
   const header = request.headers.get('authorization')?.trim() ?? '';
   return header.startsWith('Bearer ') ? header.slice(7).trim() : null;
-}
-
-function paidKind(access: VerifiedRevenueCatAccess['access']): PaidAccessKind | null {
-  return access.kind === 'pugo' ? null : access.kind;
 }
 
 async function refreshRevenueCatAccess(
@@ -578,17 +608,27 @@ async function refreshRevenueCatAccess(
   const customerKey = await hashQuotaIdentity(`customer:${installId}`, env.RATE_LIMIT_SALT);
   if (!force) {
     const cached = await store.getCached(customerKey, now);
-    if (cached && !accessExpired(cached.access, now)) return { verified: cached, customerKey };
+    if (cached && !accessExpired(cached.access, now)) {
+      const verified = await withPugoQuotaSubject(cached, installId, env);
+      if (verified.subjectIdentity !== cached.subjectIdentity) {
+        await store.putCached(customerKey, { ...cached, ...verified });
+      }
+      return { verified, customerKey };
+    }
   }
   try {
     const response = await fetchWithTimeout(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`, Accept: 'application/json' },
     }, 8000, 'revenuecat', 'bypass');
     const normalized = normalizeRevenueCatSubscriber(await readUpstreamJson(response, 'revenuecat', 'bypass'), now);
-    const subjectIdentity = normalized.subjectIdentity
+    const paidSubjectIdentity = normalized.subjectIdentity
       ? await hashQuotaIdentity(normalized.subjectIdentity, env.QUOTA_IDENTITY_SALT)
       : null;
-    const verified = { access: normalized.access, subjectIdentity };
+    const verified = await withPugoQuotaSubject(
+      { access: normalized.access, subjectIdentity: paidSubjectIdentity },
+      installId,
+      env,
+    );
     const expiry = accessExpiresAt(normalized.access) ?? Number.POSITIVE_INFINITY;
     await store.putCached(customerKey, {
       ...verified,
@@ -600,7 +640,7 @@ async function refreshRevenueCatAccess(
     if (!cached || accessExpired(cached.access, now)) {
       throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { upstream: 'revenuecat', rejection: 'entitlement-refresh' });
     }
-    return { verified: cached, customerKey };
+    return { verified: await withPugoQuotaSubject(cached, installId, env), customerKey };
   }
 }
 
@@ -615,7 +655,7 @@ async function issueAiGrant(
   env: Env,
   now: number,
 ): Promise<IssuedAiGrant | null> {
-  const access = paidKind(verified.access);
+  const access = grantAccess(verified.access);
   if (!access || !verified.subjectIdentity) return null;
   requireSubscriptionConfiguration(env);
   const claims: GrantClaims = {
@@ -668,7 +708,7 @@ async function authorizeEstimate(
   const { verified } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false);
   const refreshedGrant = await issueAiGrant(verified, env, now);
   if (!refreshedGrant) {
-    throw new HttpError(402, 'PAID_ACCESS_REQUIRED', 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
+    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Refresh your plan and try again.', { rejection: 'entitlement-refresh' });
   }
   return { claims: refreshedGrant.claims, refreshedGrant };
 }
@@ -916,11 +956,16 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
   };
 }
 
-async function geminiEstimate(input: EstimateInput, env: Env, fetchImpl: typeof fetch): Promise<Response> {
+async function geminiEstimate(
+  input: EstimateInput,
+  env: Env,
+  fetchImpl: typeof fetch,
+  models: readonly string[],
+): Promise<Response> {
   const started = Date.now();
   const parts: Array<Record<string, unknown>> = [{ text: promptFor(input) }];
   if (input.imageBase64) parts.push({ inlineData: { mimeType: 'image/jpeg', data: input.imageBase64 } });
-  for (const model of GEMINI_MODELS) {
+  for (const model of models) {
     const remaining = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
     if (remaining <= 0) throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Estimation service timed out.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'timeout' });
     let response: Response;
@@ -939,23 +984,23 @@ async function geminiEstimate(input: EstimateInput, env: Env, fetchImpl: typeof 
         }),
       }, remaining, 'gemini', 'bypass');
     } catch (error) {
-      if (model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) throw error;
+      if (model === models[models.length - 1]) throw error;
       continue;
     }
     if (!response.ok) {
-      if (model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) throw new HttpError(502, 'UPSTREAM_ERROR', 'Estimation service rejected the request.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-status' });
+      if (model === models[models.length - 1]) throw new HttpError(502, 'UPSTREAM_ERROR', 'Estimation service rejected the request.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-status' });
       continue;
     }
     let upstream: unknown;
     try {
       upstream = await readUpstreamJson(response, 'gemini', 'bypass');
     } catch (error) {
-      if (model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) throw error;
+      if (model === models[models.length - 1]) throw error;
       continue;
     }
     const text = (upstream as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof text !== 'string') {
-      if (model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
+      if (model === models[models.length - 1]) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
       continue;
     }
     let parsed: unknown;
@@ -965,7 +1010,7 @@ async function geminiEstimate(input: EstimateInput, env: Env, fetchImpl: typeof 
       logAiUsage(upstream, model, env);
       return json(normalized);
     }
-    if (model === GEMINI_MODELS[GEMINI_MODELS.length - 1]) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
+    if (model === models[models.length - 1]) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
   }
   throw new HttpError(502, 'UPSTREAM_UNAVAILABLE', 'Estimation service is unavailable.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream' });
 }
@@ -1049,7 +1094,7 @@ export async function handleRequest(
     requireJsonContentType(request);
     if (!subscriptionsEnabled(env)) {
       const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
-      return await geminiEstimate(input, env, fetchImpl);
+      return await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS);
     }
 
     const idempotencyKey = request.headers.get('x-eatlog-request-id')?.trim() ?? '';
@@ -1063,7 +1108,11 @@ export async function handleRequest(
     const claims = authorization.claims;
     const reservation = await store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now);
     if (!reservation.allowed) {
+      if (reservation.code === 'PAID_ACCESS_REQUIRED') {
+        throw new HttpError(402, reservation.code, 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
+      }
       const messages = {
+        PUGO_DAILY_LIMIT: 'The 5-estimate rolling 24-hour Pugo allowance is used. Try again when the window resets.',
         TRIAL_DAILY_LIMIT: 'The trial rolling 24-hour allowance for this AI action is used. Try again when the window resets.',
         TRIAL_ALLOWANCE_EXHAUSTED: 'The trial allowance for this AI action is used. Manok or Itik keeps AI access available.',
         FAIR_USE_DAILY_LIMIT: 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when the window resets.',
@@ -1079,7 +1128,8 @@ export async function handleRequest(
       );
     }
     try {
-      const response = await geminiEstimate(input, env, fetchImpl);
+      const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
+      const response = await geminiEstimate(input, env, fetchImpl, models);
       await store.finalize(claims.sub, idempotencyKey);
       return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
     } catch (error) {
@@ -1106,7 +1156,8 @@ export const contract = {
   USDA_ORIGIN,
   USDA_PAGE_SIZE,
   GEMINI_ORIGIN,
-  GEMINI_MODELS,
+  PUGO_GEMINI_MODELS,
+  PAID_GEMINI_MODELS,
   MAX_RESULTS,
   MAX_COMPONENTS,
   FOOD_ESTIMATE_SCHEMA,

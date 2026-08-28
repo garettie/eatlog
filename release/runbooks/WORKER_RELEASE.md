@@ -26,7 +26,7 @@ Before any production change, record these facts in the release record without s
 - app commit, app version/builds, and Worker commit/package version;
 - production Worker origin and current deployment version;
 - previous healthy deployment version and exact rollback target;
-- Gemini primary/fallback models and the date their availability was checked;
+- Pugo Gemini route `gemini-2.5-flash-lite` → `gemini-3.5-flash-lite`, paid/legacy route `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite`, and the date all three models' structured-output availability was checked;
 - USDA search/detail contract-check date;
 - configured install, IP, and emergency limiter names and values;
 - date and result of Gemini quota/budget and Cloudflare notification checks;
@@ -40,8 +40,8 @@ Use the official [Cloudflare deployment commands](https://developers.cloudflare.
 1. Set `EATLOG_WORKER_URL` in the shell without printing it. Run `npm run smoke:health`. This performs one read-only `GET /healthz` and requires HTTP 200 with `{ "ok": true }`.
 2. Against local or preview, run `npm run smoke:validation`. It checks a wrong method, missing token, malformed JSON, and oversized text with synthetic input. It never calls USDA or Gemini. It does consume rate-limit entries, so production use requires owner approval.
 3. **OWNER-ONLY — external provider calls.** With a fresh synthetic installation token, run common and full USDA searches, then one selected-food detail request. Use only generic test queries. Record Worker status, latency, result count, and cache outcome; do not capture the query, token, headers, or response body in release evidence. Check USDA quota headers only in an owner-controlled direct contract check or provider console.
-4. **OWNER-ONLY — Gemini cost and quota.** Run Describe with non-sensitive synthetic text. Run Scan only after explicit cost approval, using a non-identifying test image captured for release QA. Confirm primary/fallback behavior, bounded timeout, response normalization, and editable results without saving real data.
-5. Exercise rate limiting in a local/test harness. Confirm HTTP 429 and `Retry-After: 60`. Unit tests cover limiter failures, upstream timeouts, malformed upstream JSON/content type/shape, and redacted 4xx/5xx logs without calling providers.
+4. **OWNER-ONLY — Gemini cost, model compatibility, and quota.** After explicit cost approval, use non-sensitive synthetic inputs against staging. Confirm Pugo Describe and Scan use `gemini-2.5-flash-lite`, accept the unchanged structured schema, stay inside the shared 20-second budget, normalize into editable results, and emit the 2.5-specific configured cost. Confirm an approved Manok/Test Store request keeps the `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` route. Exercise fallback only through a controlled staging failure; never weaken the schema to make a model pass.
+5. Exercise Pugo's shared rolling allowance with a fresh installation in staging only after owner cost approval: five mixed Scan/Describe reservations succeed, the sixth returns `PUGO_DAILY_LIMIT`, and usage reports zero remaining plus `nextEligibleAt`. Exercise paid-only clarification and every boundary/concurrency case in the local test harness.
 
 Do not run provider smokes against production merely to fill a checklist. Stop if they would incur unapproved cost, consume a constrained quota, or use personal content.
 
@@ -76,13 +76,15 @@ Never print, paste into release notes, or commit a secret. If a secret appears i
 
 ### Subscription staging owner checkpoint
 
-This action changes external Cloudflare state. It does not itself create an EAS build, Play product, or production webhook, and it normally has no direct cost on the configured plan.
+This action changes external Cloudflare state. Deployment normally has no direct cost on the configured plan. Gemini compatibility and Pugo quota smokes call a paid provider and require separate owner approval before each run.
 
 1. Confirm the Cloudflare account: `npx wrangler whoami`.
 2. Create each staging secret with `npx wrangler secret put <NAME> --config wrangler.subscription-staging.jsonc`: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. Do not print values.
-3. Deploy with `npx wrangler deploy --config wrangler.subscription-staging.jsonc` only after owner approval.
-4. Record the staging URL and configure only the subscription-preview EAS environment as `EXPO_PUBLIC_FOOD_WORKER_URL`; configure its RevenueCat Test Store public key as `EXPO_PUBLIC_REVENUECAT_API_KEY`.
-5. Roll back using the recorded prior version. If this is the first deployment and no subscription preview uses it, delete only `eatlog-food-subscription-staging` from the Cloudflare dashboard.
+3. Configure non-secret model rates without guessing: `GEMINI_25_INPUT_USD_PER_MILLION` and `GEMINI_25_OUTPUT_USD_PER_MILLION` for Gemini 2.5 Flash-Lite; `GEMINI_INPUT_USD_PER_MILLION` and `GEMINI_OUTPUT_USD_PER_MILLION` for the 3.5/3.1 route. Missing, empty, negative, or non-finite rates intentionally omit `estimatedCostUsd`.
+4. Deploy with `npx wrangler deploy --config wrangler.subscription-staging.jsonc` only after owner approval.
+5. Record the staging URL and configure only the subscription-preview EAS environment as `EXPO_PUBLIC_FOOD_WORKER_URL`; configure its RevenueCat Test Store public key as `EXPO_PUBLIC_REVENUECAT_API_KEY`.
+6. Obtain separate owner approval for cost-bearing provider calls, then run the staging checks in the smoke sequence and record model, status, latency, token counts, and cost estimate without request content or identifiers.
+7. Roll back using the recorded prior version. If this is the first deployment and no subscription preview uses it, delete only `eatlog-food-subscription-staging` from the Cloudflare dashboard.
 
 ### Subscription production owner checkpoint
 

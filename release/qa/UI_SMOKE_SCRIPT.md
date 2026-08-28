@@ -49,17 +49,23 @@ No real person, meal, photo, or health record may be used.
 13. Open Analytics and visit each available range or segment.
    Expected: logging consistency, calorie history, weight state, and plan state render without invalid numbers, overlap, or stale data. Empty or insufficient-evidence states are direct and actionable. Capture Analytics.
 14. Open Profile. Visit Personal details, Goal and rate, Nutrition targets, Units, How Eatlog works, Privacy, About, Licenses and attributions, Backup and restore, and Export data.
-   Expected: every back action returns correctly; long copy scrolls; links appear only when valid release URLs are configured; no placeholder contact or URL appears. On iOS, no Health Connect control or wording appears. On Android, Health Connect appears only in its Android locations.
-15. Open Privacy.
-   Expected: local storage, Google Gemini estimate consent and withdrawal, remote Scan/Describe/clarification/re-estimation, USDA, explicit Open Food Facts search, installation-token/IP rate limiting, backup/export, and deletion behavior match the release policy. The screen shows `Enabled` or `Off`; enabling opens the same full-screen consent UI, and turning estimates off does not disable food search. Ordinary logging screens contain no recurring privacy paragraph.
-16. With estimates enabled, turn online estimates off in Privacy, open an existing meal, and choose re-estimation. Decline the consent screen.
-    Expected: no network error is shown, all meal/component edits and undo state remain, and a later explicit AI action may ask again. Create a CSV export and dismiss or save the share sheet as directed by the platform run.
-   Expected: cancellation does not claim a completed export. A saved archive contains readable CSV files and is rejected if selected as a restore source.
-17. Create an `.eatlog-backup`; first run with no meal photo, then with at least two synthetic meal photos where the device case permits.
+    Expected: every back action returns correctly; long copy scrolls; links appear only when valid release URLs are configured; no placeholder contact or URL appears. On iOS, no Health Connect control or wording appears. On Android, Health Connect appears only in its Android locations.
+15. Open Profile → Plan as confirmed Pugo.
+    Expected: the ordinary Pugo detail says `Free logging plus 5 AI estimates per rolling 24 hours.` Benefits say `Higher AI estimate limits` and `Meal and component re-estimates`. The limit says `5 photo or description estimates per rolling 24 hours · no follow-up re-estimates`. The free card says `Free estimates left`, `Next 24 hours`, and the current value out of five. Capture the Plan screen at the smallest and largest target widths.
+16. With owner-approved staging provider calls, mix Scan, Photo, and Describe until the Pugo allowance is exhausted.
+    Expected: the fifth initial estimate succeeds; the sixth stays in the existing recovery flow and says `You've used your 5 free estimates for this 24-hour window. Try again after it resets.` No automatic retry occurs. Without owner approval, record this step as blocked rather than issuing a request.
+17. From a confirmed Pugo meal review, invoke meal and component re-estimation.
+    Expected: the plan screen opens before consent, image preparation, installation-token loading, or a Worker request; current edits and undo state remain.
+18. Open Privacy.
+    Expected: local storage, Google Gemini estimate consent and withdrawal, initial Scan/Describe, paid clarification/re-estimation, USDA, explicit Open Food Facts search, installation-token/IP rate limiting, backup/export, and deletion behavior match the release policy. The screen shows `Enabled` or `Off`; enabling opens the same full-screen consent UI, and turning estimates off does not disable food search. Ordinary logging screens contain no recurring privacy paragraph.
+19. With paid/Test Store estimates enabled, turn online estimates off in Privacy, open an existing meal, and choose re-estimation. Decline the consent screen.
+    Expected: no network error is shown, all meal/component edits and undo state remain, and a later explicit allowed AI action may ask again. Create a CSV export and dismiss or save the share sheet as directed by the platform run.
+    Expected: cancellation does not claim a completed export. A saved archive contains readable CSV files and is rejected if selected as a restore source.
+20. Create an `.eatlog-backup`; first run with no meal photo, then with at least two synthetic meal photos where the device case permits.
     Expected: cancellation during a cancellable stage reports cancellation. A completed archive previews the correct row/photo counts and restores only after both confirmations.
-18. Restore the backup, then verify Today, Diary, Analytics, Profile, weights, targets, and photos.
+21. Restore the backup, then verify Today, Diary, Analytics, Profile, weights, targets, and photos.
     Expected: restored values match the source; no prior-device Health Connect sync state is active. Run the corrupt and rollback cases from `DEVICE_MATRIX.md` before signing off.
-19. Open Profile → Delete all data. Cancel each confirmation once, then repeat and complete deletion.
+22. Open Profile → Delete all data. Cancel each confirmation once, then repeat and complete deletion.
     Expected: cancellation preserves all data. Completion returns Eatlog to onboarding and removes profile, logs, weights, targets, reviews, meal photos, and the consent decision. iOS shows no Health Connect wording; Android reports its Health Connect cleanup result accurately. Onboarding requests a fresh consent decision.
 
 ## Visual and accessibility pass

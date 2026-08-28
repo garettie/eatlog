@@ -24,7 +24,7 @@
   <main id="main" tabindex="-1">
     <header class="legal-hero">
       <div class="legal-hero__inner">
-        <div class="legal-hero__meta"><span>Version 1.0</span><span>Effective August 28, 2026</span></div>
+        <div class="legal-hero__meta"><span>Version 1.1</span><span>Effective August 28, 2026</span></div>
         <h1>Privacy Policy</h1>
         <p>What stays on your phone, what leaves it, which services receive it, and how you can remove it.</p>
       </div>
@@ -52,16 +52,16 @@
 
         <h2 id="device-data">Data stored on your device</h2>
         <p>Eatlog stores the information you enter during setup and use, including your display name, birth date, sex, height, activity level, nutrition goal, target weight, preferred units, food logs, meal details, nutrition estimates, targets, weight records, and review decisions. Saved meal photos are stored as app-private files. Recent online search results may stay briefly in memory.</p>
-        <p>Eatlog also stores an app-scoped random installation token outside its database to limit abuse of the online service. This file is not included in an Eatlog backup or CSV export.</p>
-        <p>Eatlog uses that token as a RevenueCat App User ID to check subscription, lifetime, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement and quota state outside SQLite, backups, and CSV exports.</p>
+        <p>Eatlog also stores an app-scoped random installation token outside its database. The token identifies one installation for Pugo's rolling AI allowance, request throttling, and RevenueCat access checks. This file is not included in an Eatlog backup or CSV export.</p>
+        <p>RevenueCat uses that token as its App User ID to check subscription, lifetime, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement, signed grants, and Pugo or paid quota state outside SQLite, backups, and CSV exports.</p>
         <p>If the build has online meal estimates, Eatlog stores your current Gemini-estimate consent decision in a separate app-private file outside SQLite. The decision is not included in an Eatlog backup or CSV export. Delete all data clears it.</p>
 
         <h2 id="online-data">When Eatlog sends data online</h2>
         <p>Eatlog uses online services only for the actions described below.</p>
 
         <h3>Scan, Describe, and re-estimation</h3>
-        <p>Before the first request, Eatlog shows a short choice. You can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA or Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. When enabled, Scan, Describe, clarification, and re-estimation require the current accepted consent version. Profile &gt; Privacy lets you turn online estimates off.</p>
-        <p>Taking or choosing a meal photo and reusing a past meal stays on the device. After consent, choosing Estimate as new sends the selected, resized photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini. Describe and re-estimation send the meal text you enter. The request includes an app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply rate limits. Eatlog requires you to review the result before saving it.</p>
+        <p>Before an allowed request, Eatlog shows a short choice. You can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA or Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. Pugo allows five initial photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok, Itik, or complimentary access and are denied before consent or private-content construction. Every allowed estimate still requires the current accepted consent version. Profile &gt; Privacy lets you turn online estimates off.</p>
+        <p>Taking or choosing a meal photo and reusing a past meal stays on the device. After access and consent checks, choosing Estimate as new sends the selected, resized photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini. Describe and allowed re-estimates send the meal text you enter. The request includes the app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply access-specific limits. Eatlog requires you to review the result before saving it.</p>
 
         <h3>USDA FoodData Central</h3>
         <p>Eatlog can send a food search query or selected USDA food ID through the Eatlog Worker to USDA FoodData Central. The Worker may cache normalized USDA responses. Eatlog stores a USDA result in your history only when you log it.</p>
@@ -71,8 +71,8 @@
         <p>Eatlog does not send your nutrition logs, weight history, profile, targets, saved meal photos, backups, or exports to its Worker unless a specific Scan, Describe, re-estimation, or food-search action needs the selected content described above.</p>
 
         <h2 id="purchases">Purchase processing</h2>
-        <p>Eatlog is free to download. Pugo local logging remains usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.</p>
-        <p>Short-lived signed AI grants and salted quota records enforce access-specific fair-use limits. They contain no food, photo, weight, or profile content. Expiry, refund, or revocation removes paid feature access without deleting local food, weight, target, or adaptive history.</p>
+        <p>Eatlog is free to download. Pugo local logging and its five-estimate rolling allowance remain usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.</p>
+        <p>Short-lived signed AI grants and salted Pugo or paid quota records enforce access-specific limits. They contain no food, photo, weight, or profile content and remain outside SQLite, backups, and CSV exports. Expiry, refund, or revocation removes paid features and returns confirmed installations to Pugo without deleting local food, weight, target, or adaptive history.</p>
 
         <h2 id="health-connect">Android Health Connect</h2>
         <p>Health Connect is available only on Android. If you choose to connect it, Eatlog requests permission to read and write Weight records only. Eatlog can import Weight records for local trends and write weights you enter in Eatlog. Connection state and record identifiers stay in the local database and are not sent to Eatlog's Worker. You can disconnect Eatlog or revoke access in Android settings.</p>
@@ -103,7 +103,7 @@
 
   <footer class="site-footer">
     <div class="section-shell site-footer__inner">
-      <div><a class="brand" href="/" aria-label="Eatlog home"><img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt=""><span>Eatlog</span></a><p class="footer-copy">Privacy Policy version 1.0. Effective August 28, 2026. Contact sggajitos@gmail.com.</p></div>
+      <div><a class="brand" href="/" aria-label="Eatlog home"><img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt=""><span>Eatlog</span></a><p class="footer-copy">Privacy Policy version 1.1. Effective August 28, 2026. Contact sggajitos@gmail.com.</p></div>
       <nav class="footer-links" aria-label="Footer navigation"><a href="/">Overview</a><a href="/terms">Terms</a><a href="/support">Support</a><a href="#main">Back to top</a></nav>
     </div>
   </footer>

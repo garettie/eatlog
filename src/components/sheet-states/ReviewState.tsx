@@ -56,6 +56,7 @@ import { M3 } from "../../theme/tokens";
 import { EASING } from "../../theme/motion";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
 import { useEntitlement } from "../../context/EntitlementContext";
+import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
 import type { ClarificationOutcome } from "./FoodSheetContent";
 import { formatPortionLabel } from "../../utils/portionLabels";
 import {
@@ -335,6 +336,17 @@ export default function ReviewState({
 		hasInvalidComponentName ||
 		hasUnreviewedNutrition ||
 		hasInvalidPortion;
+	const blockedReason = components.length === 0
+		? "Add a food before logging."
+		: !mealName.trim()
+			? "Name this meal before logging."
+			: hasInvalidComponentName
+				? "Name every food before logging."
+				: hasUnreviewedNutrition
+					? "Review nutrition for renamed foods."
+					: hasInvalidPortion
+						? "Enter a valid portion for every food."
+						: null;
 
 	useEffect(() => {
 		logDateOverrideRef.current = false;
@@ -720,8 +732,13 @@ export default function ReviewState({
 		const name = mealName.trim();
 		if (!name || clarifying) return;
 		setClarifyError(null);
-		if (beginAiEstimate() === "free") {
+		const accessDecision = beginAiEstimate("reestimate");
+		if (accessDecision === "upgrade") {
 			navigation.navigate("Paywall");
+			return;
+		}
+		if (accessDecision === "unavailable") {
+			setClarifyError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
 			return;
 		}
 		if (!await requestConsent()) return;
@@ -766,8 +783,16 @@ export default function ReviewState({
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
 			setComponentClarifyError(null);
-			if (beginAiEstimate() === "free") {
+			const accessDecision = beginAiEstimate("reestimate");
+			if (accessDecision === "upgrade") {
 				navigation.navigate("Paywall");
+				return;
+			}
+			if (accessDecision === "unavailable") {
+				setComponentClarifyError({
+					id: component.food.id,
+					message: PAID_ACCESS_UNAVAILABLE_MESSAGE,
+				});
 				return;
 			}
 			if (!await requestConsent()) return;
@@ -1494,6 +1519,13 @@ export default function ReviewState({
 					>
 						{logError}
 					</Text>
+				) : blockedReason ? (
+					<Text
+						className="text-m3-error text-xs font-medium"
+						accessibilityLiveRegion="polite"
+					>
+						{blockedReason}
+					</Text>
 				) : null}
 				<PrimaryButton
 					title={editMealId ? "Update meal" : "Log meal"}
@@ -1503,9 +1535,7 @@ export default function ReviewState({
 					loading={logging}
 					disabled={loggingBlocked}
 					accessibilityHint={
-						loggingBlocked
-							? "Resolve the highlighted meal or food fields before logging"
-							: undefined
+						loggingBlocked ? blockedReason ?? undefined : undefined
 					}
 				/>
 			</View>

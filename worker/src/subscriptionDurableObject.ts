@@ -5,7 +5,7 @@ import {
   decideQuota,
   operationClass,
   quotaUsage,
-  type PaidAccessKind,
+  type AiAccessKind,
   type QuotaEvent,
 } from './subscriptions';
 
@@ -63,7 +63,7 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
     }
     if (path === '/quota/usage' || path === '/quota/reserve') {
       const subject = String(body.subject ?? '');
-      const access = String(body.access) as PaidAccessKind;
+      const access = String(body.access) as AiAccessKind;
       const now = Number(body.now);
       sql.exec('DELETE FROM quota_events WHERE timestamp <= ?', now - THIRTY_DAYS_MS);
       sql.exec('DELETE FROM quota_requests WHERE created_at <= ?', now - THIRTY_DAYS_MS);
