@@ -61,7 +61,6 @@ import type { ClarificationOutcome } from "./FoodSheetContent";
 import { formatPortionLabel } from "../../utils/portionLabels";
 import {
 	buildFoodAmountOptions,
-	initialPortionSelection,
 	selectFoodAmount,
 	selectedServing,
 	servingsForSelection,
@@ -70,55 +69,26 @@ import {
 	setServingAmount,
 	type FoodAmountOption,
 	type PortionMode,
-	type PortionSelection,
 } from "../../utils/portionSelection";
-
-interface EditableComponent {
-	food: FoodResult;
-	per100g: { calories: number; protein: number; carbs: number; fat: number };
-	selection: PortionSelection;
-	portionValid: boolean;
-	originalName: string;
-	nutritionAcknowledged: boolean;
-}
-
-type UndoAction =
-	| { kind: "remove"; comp: EditableComponent; idx: number }
-	| {
-			kind: "meal-reestimate";
-			components: EditableComponent[];
-			mealName: string;
-	  }
-	| {
-			kind: "component-reestimate";
-			previous: EditableComponent;
-			replacementId: string;
-	  };
-
-const UNDO_TIMEOUT_MS = 10_000;
-
-function toEditable(food: FoodResult): EditableComponent {
-	return {
-		food,
-		per100g: {
-			calories: Math.round(food.caloriesPer100g ?? 0),
-			protein: Math.round((food.proteinPer100g ?? 0) * 10) / 10,
-			carbs: Math.round((food.carbsPer100g ?? 0) * 10) / 10,
-			fat: Math.round((food.fatPer100g ?? 0) * 10) / 10,
-		},
-		selection: initialPortionSelection(food),
-		portionValid: true,
-		originalName: food.name,
-		nutritionAcknowledged: true,
-	};
-}
-
-function componentNameChanged(component: EditableComponent): boolean {
-	return (
-		component.food.name.trim().toLowerCase() !==
-		component.originalName.trim().toLowerCase()
-	);
-}
+import {
+	acknowledgeComponentNutrition,
+	applyUndo,
+	componentNameChanged,
+	componentReviewStatus,
+	computeMealTotals,
+	describeLogBlocker,
+	formatCollapsedPortion,
+	isLoggingBlocked,
+	removeComponentAt,
+	renameComponent,
+	replaceComponent,
+	setComponentPer100g,
+	toEditable,
+	toEstimateContext,
+	UNDO_TIMEOUT_MS,
+	type EditableComponent,
+	type UndoAction,
+} from "../../utils/mealReview";
 
 function DisclosureChevron({ expanded }: { expanded: boolean }) {
 	const reducedMotion = useReducedMotion();
@@ -142,52 +112,6 @@ function DisclosureChevron({ expanded }: { expanded: boolean }) {
 	);
 }
 
-function toEstimateContext(components: EditableComponent[]): EstimateContextComponent[] {
-	return components
-		.map((component) => ({
-			name: component.food.name.trim(),
-			estimatedGrams: component.selection.grams,
-		}))
-		.filter(
-			(component) =>
-				component.name.length > 0 &&
-				Number.isFinite(component.estimatedGrams) &&
-				component.estimatedGrams > 0,
-		);
-}
-
-function formatCollapsedPortion(
-	component: EditableComponent,
-	serving: FoodResult["portions"][number] | null,
-): string {
-	const grams = Math.round(component.selection.grams * 10) / 10;
-	if (!serving || component.selection.mode !== "servings") return `${grams}g`;
-
-	const servings = servingsForSelection(component.selection, serving);
-	const servingsLabel = String(Math.round(servings * 100) / 100);
-	const servingLabel = formatPortionLabel(
-		serving.label,
-		Math.abs(servings - 1) < 0.001 ? serving.grams : grams,
-	);
-	return Math.abs(servings - 1) < 0.001
-		? servingLabel
-		: `${servingsLabel} × ${servingLabel}`;
-}
-
-
-function componentReviewStatus(
-	component: EditableComponent,
-): { label: string; isError: boolean } | null {
-	if (!component.food.name.trim()) return { label: "Name required", isError: true };
-	if (!component.portionValid) return { label: "Fix portion", isError: true };
-	if (componentNameChanged(component) && !component.nutritionAcknowledged) {
-		return { label: "Review nutrition", isError: true };
-	}
-	if (component.food.confidence === "low") {
-		return { label: "Check estimate", isError: false };
-	}
-	return null;
-}
 
 interface ReviewStateProps {
 	result: DescribeResult | null;

@@ -152,7 +152,7 @@ export default function PortionStepper({
 
         <View className={`${hasServing ? 'w-[104px] shrink-0' : 'flex-1'} h-[52px] bg-m3-surface-container rounded-xl px-2 items-center justify-center border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/40'}`}>
           {unitMode === 'servings' && hasServing ? (
-            <View className="relative w-full h-full items-center justify-center">
+            <View className="w-full h-full flex-row items-center justify-center">
               <BottomSheetTextInput
                 value={servingsText}
                 onChangeText={handleServingsChange}
@@ -164,22 +164,17 @@ export default function PortionStepper({
                 accessibilityHint={servingsInvalid ? 'Invalid amount. Enter at least 0.1 serving.' : 'Enter at least 0.1 serving'}
                 keyboardType="numeric"
                 returnKeyType="done"
-                className={`w-full h-full text-center bg-transparent px-0 text-xl font-bold tabular-nums ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
+                className={`flex-1 h-full text-right bg-transparent px-0 text-xl font-bold tabular-nums ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
               />
-              <View
-                pointerEvents="none"
-                className="absolute right-2 top-0 bottom-0 justify-center"
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                className="max-w-[40px] shrink-0 ml-1 text-m3-on-surface-variant text-compact font-semibold"
               >
-                <Text
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                  className="max-w-[40px] text-m3-on-surface-variant text-compact font-semibold"
-                >
-                  {servingIndicator}
-                </Text>
-              </View>
+                {servingIndicator}
+              </Text>
             </View>
           ) : (
             <View className="relative w-full h-full items-center justify-center">
