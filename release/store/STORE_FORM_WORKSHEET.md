@@ -12,7 +12,7 @@ Updated: 2026-08-24. These are source answers, not submitted records. Reconcile 
 | Package | `com.sgaret.eatlog` | Ready; immutable after record creation |
 | Free or paid | Free from first availability | Ready; keep public rollout inactive until subscription gates pass |
 | Philippines price | Manok PHP 79 monthly; Itik PHP 799 lifetime | STORE ACCOUNT: verify purchase-sheet prices before release |
-| Subscriptions / in-app products | `eatlog_manok` monthly plus trial; non-consumable `eatlog_itik` | STORE ACCOUNT / CLOSED TESTING |
+| Subscriptions / in-app products | `eatlog_manok` monthly; closed-test-only `one-month-trial` offer deactivated before production; non-consumable `eatlog_itik` | STORE ACCOUNT / CLOSED TESTING |
 | Category | Health & Fitness | Ready; recheck console taxonomy |
 | Tags | Select only console tags that literally match food, nutrition, weight, or diary functions | STORE ACCOUNT |
 | Ads | No | Ready |

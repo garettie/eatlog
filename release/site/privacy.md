@@ -18,7 +18,7 @@ Eatlog stores the information you enter during setup and use, including your dis
 
 Eatlog also stores an app-scoped random installation token outside its database to limit abuse of the online service. This file is not included in an Eatlog backup or CSV export.
 
-Eatlog uses that token as a RevenueCat App User ID to check Manok, Itik, trial, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement and quota state outside SQLite, backups, and CSV exports.
+Eatlog uses that token as a RevenueCat App User ID to check subscription, lifetime, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement and quota state outside SQLite, backups, and CSV exports.
 
 If the build has online meal estimates, Eatlog stores your current Gemini-estimate consent decision in a separate app-private file outside SQLite. The decision is not included in an Eatlog backup or CSV export. Delete all data clears it.
 
@@ -46,7 +46,7 @@ Eatlog does not send your nutrition logs, weight history, profile, targets, save
 
 Eatlog is free to download. Pugo local logging remains usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.
 
-Short-lived signed AI grants and salted quota records enforce trial and paid fair-use limits. They contain no food, photo, weight, or profile content. Expiry, refund, or revocation removes paid feature access without deleting local food, weight, target, or adaptive history.
+Short-lived signed AI grants and salted quota records enforce access-specific fair-use limits. They contain no food, photo, weight, or profile content. Expiry, refund, or revocation removes paid feature access without deleting local food, weight, target, or adaptive history.
 
 ## Android Health Connect
 

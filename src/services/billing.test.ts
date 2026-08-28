@@ -62,6 +62,16 @@ test('configures once with the installation token and consumes localized default
   });
 });
 
+test('does not advertise an offer when the store default has no free phase', async () => {
+  const manok = pkg('manok');
+  manok.product.defaultOption = { freePhase: null };
+  const itik = pkg('itik');
+  const offering = { identifier: 'default', monthly: manok, lifetime: itik, availablePackages: [manok, itik] };
+  const sdk = adapter({ getOfferings: async () => ({ current: offering, all: { default: offering } }) });
+  const client = createBillingClient({ apiKey: 'test_public_key', purchases: sdk, getInstallationToken: async () => 'a'.repeat(32), now: () => NOW });
+  assert.equal((await client.offering())?.manok?.trialEligible, false);
+});
+
 test('maps purchase success, cancellation, failure, pending, and delayed entitlement refresh', async () => {
   assert.equal((await createBillingClient({ apiKey: 'key', purchases: adapter(), getInstallationToken: async () => 'a'.repeat(32), now: () => NOW }).purchase('manok', PUGO)).state, 'success');
   for (const [code, expected] of [['1', 'cancelled'], ['20', 'pending'], ['10', 'failed']] as const) {

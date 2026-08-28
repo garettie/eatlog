@@ -25,8 +25,8 @@ MacroFactor-class premium UX at public-release scale. The differentiator is a fa
 ## Access model
 
 - Eatlog Pugo is the free tier for local food logging, weight tracking, charts, Health Connect, backup, and export.
-- Eatlog Manok is PHP 79 monthly with an eligible one-month introductory trial. Eatlog Itik is a PHP 799 one-time lifetime entitlement.
-- Manok trial, Manok, Itik, and complimentary access unlock AI estimates and local adaptive recommendations. The Worker remains authoritative for AI entitlement and quota enforcement.
+- Eatlog Manok is PHP 79 monthly. Eatlog Itik is a PHP 799 one-time lifetime entitlement.
+- Manok, Itik, and complimentary access unlock AI estimates and local adaptive recommendations. The Worker remains authoritative for AI entitlement and quota enforcement.
 - Expiry, refund, or revocation never deletes owned food, weight, target, or adaptive data. Entitlement state stays outside SQLite, backups, and CSV exports.
 
 ## Operating Context
@@ -43,7 +43,7 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | Today | Implemented | Coherent daily summary with useful empty, loading, and error states. |
 | Food entry | Implemented | Local past-meal reuse, search, and manual logging remain in Pugo; paid AI Scan, Photo, Describe, clarification, and re-estimation also require separate Gemini consent. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
-| Weight and Analytics | Implemented | Weight/chart metrics remain in Pugo; adaptive reads and mutations require trial, paid, or complimentary access. |
+| Weight and Analytics | Implemented | Weight/chart metrics remain in Pugo; adaptive reads and mutations require Manok, Itik, or complimentary access. |
 | Profile and Settings | Implemented | Profile editing, privacy controls, backup/restore, CSV export, reset, Health Connect, help, and detail routes are available. |
 | Data ownership | Implemented | Backup, restore, CSV export, and guarded full reset are implemented; consent remains outside backup/export. |
 | Cloud sync | Not implemented | Post-MVP. Its eventual home is Profile > Data & Sync, not a top-level tab. |

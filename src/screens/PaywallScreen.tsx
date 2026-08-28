@@ -25,7 +25,7 @@ function dateLabel(value: string): string {
 }
 
 function accessName(kind: Access['kind']): string {
-  if (kind === 'manok-trial') return 'Monthly trial';
+  if (kind === 'manok-trial') return 'Monthly';
   if (kind === 'manok') return 'Monthly';
   if (kind === 'itik') return 'Lifetime';
   if (kind === 'complimentary') return 'Complimentary';
@@ -265,6 +265,7 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
     || access.kind === 'itik'
     || selectedIsActive
     || itikBlocked;
+  const manokOfferEligible = offering?.manok?.trialEligible === true;
   const purchaseTitle = selectedIsActive
     ? 'Current plan'
     : itikBlocked
@@ -274,23 +275,19 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
         : !selectedProduct
           ? 'Try store again'
           : selectedTier === 'manok'
-            ? offering?.manok?.trialEligible
-              ? 'Start your free month'
+            ? manokOfferEligible
+              ? 'Continue to Google Play'
               : `Start monthly · ${selectedProduct.priceString}`
             : `Buy lifetime · ${selectedProduct.priceString}`;
   const manokPrice = offering?.manok
     ? `${offering.manok.priceString} / month`
     : loadingProducts ? 'Checking price…' : 'Price unavailable';
-  const manokDescription = offering?.manok?.trialEligible
-    ? 'First month free. Then renews monthly.'
+  const manokDescription = manokOfferEligible && offering?.manok
+    ? `1 month free, then ${offering.manok.priceString} / month until canceled in Google Play.`
     : 'Renews monthly.';
-  const manokBadge = access.kind === 'manok-trial'
-    ? 'Trial active'
-    : access.kind === 'manok'
-      ? 'Your plan'
-      : offering?.manok?.trialEligible
-        ? '1 month free'
-        : null;
+  const manokBadge = access.kind === 'manok-trial' || access.kind === 'manok'
+    ? 'Your plan'
+    : null;
   const itikPrice = offering?.itik
     ? `${offering.itik.priceString} once`
     : loadingProducts ? 'Checking price…' : 'Price unavailable';
@@ -427,12 +424,12 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
           {limitsOpen ? (
             <View className="gap-3 pb-1">
               <View className="flex-row items-start gap-4">
-                <Text className="w-12 text-sm font-semibold text-m3-on-surface">Trial</Text>
-                <Text className="flex-1 text-sm text-m3-on-surface-variant">5 estimates and 5 follow-ups per 24 hours · 30 of each total</Text>
-              </View>
-              <View className="flex-row items-start gap-4">
-                <Text className="w-12 text-sm font-semibold text-m3-on-surface">Paid</Text>
-                <Text className="flex-1 text-sm text-m3-on-surface-variant">30 requests per 24 hours · 250 per 30 days</Text>
+                <Text className="w-20 text-sm font-semibold text-m3-on-surface">{usage.kind === 'trial' ? 'Your access' : 'Manok / Itik'}</Text>
+                <Text className="flex-1 text-sm text-m3-on-surface-variant">
+                  {usage.kind === 'trial'
+                    ? '5 estimates and 5 follow-ups per 24 hours · 30 of each total'
+                    : '30 requests per 24 hours · 250 per 30 days'}
+                </Text>
               </View>
             </View>
           ) : null}
@@ -440,14 +437,14 @@ function PlanContent({ onClose }: { onClose?: () => void }) {
 
         {usage.kind === 'trial' ? (
           <Card className="gap-3 p-4">
-            <Text className="text-base font-bold text-m3-on-surface">Trial requests left</Text>
+            <Text className="text-base font-bold text-m3-on-surface">Requests left</Text>
             <View className="gap-2">
               <View className="flex-row items-baseline justify-between gap-3">
                 <Text className="text-sm text-m3-on-surface-variant">Next 24 hours</Text>
                 <Text className="min-w-0 flex-1 text-right text-sm tabular-nums text-m3-on-surface">{usage.initialRemaining24Hours}/5 estimates · {usage.clarificationRemaining24Hours}/5 follow-ups</Text>
               </View>
               <View className="flex-row items-baseline justify-between gap-3">
-                <Text className="text-sm text-m3-on-surface-variant">Trial total</Text>
+                <Text className="text-sm text-m3-on-surface-variant">Access period</Text>
                 <Text className="min-w-0 flex-1 text-right text-sm tabular-nums text-m3-on-surface">{usage.initialRemainingTrial}/30 estimates · {usage.clarificationRemainingTrial}/30 follow-ups</Text>
               </View>
             </View>

@@ -166,11 +166,11 @@ Create these only under package `com.sgaret.eatlog`.
 - Base plan ID: `monthly`
 - Billing period: one month
 - Philippines price: PHP 79
-- Trial offer ID: `one-month-trial`
-- Trial: one month free for eligible new subscribers
+- Closed-test offer ID: `one-month-trial`
+- Closed-test offer: one month free for eligible new subscribers
 - Renewal: PHP 79 each month until canceled
 
-Activate the base plan and trial offer.
+Activate the base plan for every track. Keep the offer active only through internal and closed testing.
 
 ### Itik one-time purchase
 
@@ -185,7 +185,7 @@ Activate the purchase option.
 Do not create `eatlog_itik_lifetime`. That identifier is obsolete.
 
 - [x] Manok base plan active
-- [x] Manok trial offer active
+- [x] Manok closed-test offer active
 - [x] Itik purchase option active
 - [x] Philippines prices show PHP 79 and PHP 799
 
@@ -224,12 +224,13 @@ Connect RevenueCat's Google real-time developer notification topic to the Eatlog
 ## 9. Test the Play-installed build
 
 Add the Google accounts used for testing as Play license testers. Install Eatlog from the internal-testing Play link. Do not sideload the AAB or a production APK.
+Closed-test membership alone does not make purchases free. Billing testers must use an account listed under Play Console license testing and choose a Play test payment instrument. A real free-period subscription renews at the monthly price unless the tester cancels it; canceling keeps access through the current expiry date.
 
 Test all of these on the Play-installed build:
 
 - [ ] Pugo starts and local logging works without buying anything
 - [ ] Paywall shows the localized PHP 79 and PHP 799 prices
-- [ ] Eligible Manok account sees the one-month trial
+- [ ] Eligible closed-test account receives the one-month offer in Google Play checkout
 - [ ] Manok purchase unlocks paid access after relaunch
 - [ ] Manage subscription opens Google Play
 - [ ] Canceling Manok leaves access active until its reported expiration
@@ -258,6 +259,35 @@ Do not start the closed-test clock until these checks pass.
 - [ ] Twelve-testers-for-fourteen-days requirement completed
 - [ ] Production access approved
 - [ ] No unresolved P0 or P1 billing issue
+
+### Before public production
+
+The only billing configuration change is in Play Console:
+
+1. Open Monetize with Play → Products → Subscriptions → `eatlog_manok`.
+2. Open `one-month-trial` under the active `monthly` base plan and select **Deactivate**.
+
+Leave the `monthly` base plan, RevenueCat offering and entitlement, Worker, and app configuration unchanged. Current tester access keeps its existing renewal or expiry date.
+
+The remaining items are checks, not setup changes:
+
+- [ ] `one-month-trial` is inactive
+- [ ] `monthly` remains active
+- [ ] A new account sees the localized monthly price
+- [ ] A current tester keeps Manok access
+- [ ] Billing testers used Play test payment instruments, or canceled any real subscription before its charge date
+
+### Give selected people free access after launch
+
+#### Google Play promo codes
+
+Open Play Console → Monetize with Play → Promo codes → Create promo code. Choose `eatlog_manok`, select one-time-use codes, set a duration from 3 to 90 days, set the campaign dates, and download the CSV. Send each person one code or a `https://play.google.com/redeem?code=CODE` link. Test one code in the Play-installed production build before sending the rest.
+
+#### RevenueCat manual access
+
+Ask the person for Profile → Plan → Support ID. In the production RevenueCat project, find that Customer, open Entitlements, select Grant, choose `eatlog_paid`, and set an end date. Ask the person to open Profile → Plan → Check access.
+
+A RevenueCat grant does not charge, renew, or convert to Manok. It uses the normal paid fair-use limits. Revoke a mistaken grant from the same entitlement card; this does not alter a Google Play purchase.
 
 ## 11. Release and move personal data
 

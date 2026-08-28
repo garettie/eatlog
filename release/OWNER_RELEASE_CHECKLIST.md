@@ -39,7 +39,7 @@ Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch,
 ## 5. Configure Google Play paid access
 
 - [ ] **STORE ACCOUNT:** create package `com.sgaret.eatlog` as free from its first availability. Do not use a paid download as a temporary testing gate.
-- [ ] **STORE ACCOUNT:** create `eatlog_manok` with the PHP 79 `monthly` base plan and `one-month-trial` offer, plus non-consumable `eatlog_itik` with the PHP 799 `buy` option. Do not activate production products until the owner checkpoint.
+- [ ] **STORE ACCOUNT:** create `eatlog_manok` with the PHP 79 `monthly` base plan and a closed-test-only `one-month-trial` offer, plus non-consumable `eatlog_itik` with the PHP 799 `buy` option. Keep the offer limited to internal and closed testing.
 - [ ] **STORE ACCOUNT:** keep production rollout inactive until closed-track purchase, restore, cancellation, expiry, refund, and lifetime-cost gates pass.
 - [ ] **STORE ACCOUNT / CREDENTIAL:** enable Play App Signing, preserve the EAS upload key, and create submission access only after the record exists.
 - [ ] **STORE ACCOUNT:** enter `release/store/metadata.mjs` copy and `release/store/STORE_FORM_WORKSHEET.md` answers. Submit Data Safety, Health Apps, Health Connect Weight-only justification, content rating, target audience, ads/account answers, privacy URL, and support email against the exact candidate.
@@ -57,7 +57,7 @@ Halt on a secret exposure, unsafe target, data loss, provider-contract mismatch,
 ## 7. Complete Google testing and submission
 
 - [ ] **STORE ACCOUNT / PHYSICAL DEVICE:** run internal testing, then the required closed test. If the account is subject to the current personal-account rule, keep at least 12 testers opted in for 14 continuous days and retain the scenario/issue record.
-- [ ] **STORE ACCOUNT:** apply for production access when required. Submit the exact tested subscription-enabled candidate; do not rebuild or change copy/forms without repeating affected checks.
+- [ ] **STORE ACCOUNT:** apply for production access when required. Before rollout, deactivate `one-month-trial` and leave every other billing setting unchanged. Confirm a new account sees the monthly price and a current tester keeps access. Submit the tested candidate; repeat affected checks after any build, copy, or form change.
 - [ ] **STORE ACCOUNT:** after approval, start at 10 percent and follow the M8 halt gates before 25, 50, and 100 percent. Keep preview APK access restricted.
 
 ## 8. Create the App Store record after Android fixes land

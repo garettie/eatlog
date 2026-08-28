@@ -297,7 +297,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
                 <View className={isTwoPane ? 'flex-[3] min-w-0 gap-6' : 'gap-6'}>
                     <Section title="Eatlog">
-                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : access?.kind === 'pugo' ? 'Eatlog Pugo' : access?.kind === 'manok-trial' ? 'Eatlog Manok trial' : access?.kind === 'manok' ? 'Eatlog Manok' : access?.kind === 'itik' ? 'Eatlog Itik · Lifetime' : 'Complimentary access'} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={false} />
+                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : access?.kind === 'pugo' ? 'Eatlog Pugo' : access?.kind === 'manok-trial' || access?.kind === 'manok' ? 'Eatlog Manok' : access?.kind === 'itik' ? 'Eatlog Itik · Lifetime' : 'Complimentary access'} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={false} />
                     </Section>
                     <Section title="Plan">
                         <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} onPress={() => navigation.navigate('PersonalDetails')} />

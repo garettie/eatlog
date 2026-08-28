@@ -6,7 +6,7 @@ These are source answers, not submitted console records. Reconcile them against 
 
 ## Fixed product facts
 
-- Eatlog's target acquisition is free. Pugo provides local logging; Manok is PHP 79 monthly with an eligible one-month trial; Itik is a PHP 799 one-time lifetime entitlement.
+- Eatlog's target acquisition is free. Pugo provides local logging; Manok is PHP 79 monthly; Itik is a PHP 799 one-time lifetime entitlement. The closed-test Manok offer must be deactivated before public production.
 - RevenueCat and the Eatlog Worker verify purchases and entitlements. There is no app account, authentication, cloud food/weight database, ads, or third-party analytics.
 - Android ships first. Android and iOS purchases are separate.
 - Data is local-first. Online actions are Scan, Describe/clarification/re-estimation, USDA search/detail, and explicit Open Food Facts full search. Gemini estimate actions require the current accepted consent; food search remains separate.

@@ -16,7 +16,6 @@ export const storeMetadata = {
         currency: "PHP",
         amount: 79,
         period: "monthly",
-        trial: "one month for eligible users",
       },
       itik: {
         currency: "PHP",
@@ -63,7 +62,7 @@ There is no Eatlog account, no cloud copy of your food or weight history, no ads
 
 Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
 
-Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Manok adds meal estimates and adaptive plan recommendations through a monthly plan, with a one-month trial for eligible users. Itik unlocks the same paid features with a one-time lifetime purchase. Current prices and terms appear in the store purchase sheet.
+Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Manok adds meal estimates and adaptive plan recommendations through a monthly plan. Itik unlocks the same paid features with a one-time lifetime purchase. Current prices and terms appear in the store purchase sheet.
 
 On Android, optional Health Connect support reads and writes Weight only after you choose to connect it.
 
@@ -98,7 +97,7 @@ There is no Eatlog account, no cloud copy of your food or weight history, no ads
 
 Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
 
-Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Manok adds meal estimates and adaptive plan recommendations through a monthly plan, with a one-month trial for eligible users. Itik unlocks the same paid features with a one-time lifetime purchase. Current prices and terms appear in the store purchase sheet.
+Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Manok adds meal estimates and adaptive plan recommendations through a monthly plan. Itik unlocks the same paid features with a one-time lifetime purchase. Current prices and terms appear in the store purchase sheet.
 
 Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
     promotionalText:

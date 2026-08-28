@@ -1,6 +1,6 @@
 # Eatlog
 
-> Before you eat, log.
+> Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
 I built Eatlog for myself around a simple rule: everything I need, nothing I don't. Fast input, editable estimates, useful trends, and a diary that stays on my phone. No account to create. No cloud diary. No streak mascot waiting to judge lunch.
 
@@ -35,7 +35,7 @@ Photo when you're in a hurry. Manual when you're not. Fix what it guessed wrong,
 ## The birds
 
 - **Pugo.** Food logging, weight tracking, Diary, and Analytics.
-- **Manok.** Adds meal estimates and adaptive plan recommendations through a monthly plan. Eligible users get a one-month trial.
+- **Manok.** Adds meal estimates and adaptive plan recommendations through a monthly plan.
 - **Itik.** The same paid features with a one-time lifetime purchase.
 
 Current prices and terms appear in the app store purchase sheet.

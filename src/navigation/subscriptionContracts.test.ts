@@ -39,7 +39,9 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(paywall, /Manage subscription/);
   assert.match(paywall, /Terms of Use/);
   assert.match(paywall, /What you get/);
-  assert.match(paywall, /const manokDescription = 'Renews monthly[.]'/);
+  assert.match(paywall, /const manokOfferEligible = offering\?\.manok\?\.trialEligible === true/);
+  assert.match(paywall, /1 month free, then .* until canceled in Google Play[.]/);
+  assert.match(paywall, /manokOfferEligible[\s\S]*Continue to Google Play[\s\S]*Start monthly/);
   assert.match(paywall, /Try store again/);
   assert.match(paywall, /We couldn't reach the store\. Prices and checkout didn't load\. Your logbook still works\./);
   assert.match(paywall, /30 requests per 24 hours · 250 per 30 days/);
@@ -50,7 +52,7 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.doesNotMatch(paywall, /This installed build or store did not return/);
   assert.doesNotMatch(paywall, /Trial allowance:/);
   for (const source of [paywall, profile, foodSheet]) {
-    assert.doesNotMatch(source, /Start your free month|First month free|1 month free|Trial active|Monthly trial|Manok trial|Trial requests left|Trial total|trial allowance/i);
+    assert.doesNotMatch(source, /Trial active|Monthly trial|Manok trial|Trial requests left|Trial total|trial allowance/i);
   }
   assert.doesNotMatch(paywall, /Your logbook stays yours on every plan/);
   assert.doesNotMatch(paywall, /End Manok in the store|unused Manok time/);
