@@ -6,7 +6,9 @@ import {
   clearAiGrant,
   createSubscriptionApi,
   getAiAuthorization,
+  restorePaidAccess,
   setLocalAccessForAi,
+  setPaidAccessStore,
 } from './subscriptionApi';
 
 const PAID = {
@@ -124,4 +126,63 @@ test('a contradictory Worker refresh cannot replace verified local paid access',
 
   assert.deepEqual(result, { usage: { kind: 'none' } });
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
+});
+
+function memoryAccessStore(initial: string | null = null) {
+  let value = initial;
+  return {
+    read: async () => value,
+    write: async (next: string) => { value = next; },
+    current: () => value,
+  };
+}
+
+test('verified paid access and its grant survive a cold start until the entitlement expires', async () => {
+  const store = memoryAccessStore();
+  setPaidAccessStore(store);
+  const now = Date.parse('2026-08-22T00:00:00Z');
+  const expiresAt = '2026-09-21T00:00:00.000Z';
+
+  setLocalAccessForAi(PAID);
+  assert.equal(acceptAiGrant('signed.header.payload-value', expiresAt, now), true);
+
+  setLocalAccessForAi(null);
+  assert.deepEqual(await restorePaidAccess(now), PAID);
+  assert.deepEqual(getAiAuthorization(now), { ok: true, grant: 'signed.header.payload-value' });
+
+  setLocalAccessForAi(null);
+  assert.equal(await restorePaidAccess(Date.parse('2026-09-22T00:00:01Z')), null);
+  setPaidAccessStore(null);
+});
+
+test('a cached grant past its expiry is dropped while the cached access is still honored', async () => {
+  const store = memoryAccessStore();
+  setPaidAccessStore(store);
+  const now = Date.parse('2026-08-22T00:00:00Z');
+
+  setLocalAccessForAi(PAID);
+  assert.equal(acceptAiGrant('signed.header.payload-value', '2026-08-23T00:00:00.000Z', now), true);
+
+  setLocalAccessForAi(null);
+  const restored = await restorePaidAccess(Date.parse('2026-08-24T00:00:00Z'));
+
+  assert.deepEqual(restored, PAID);
+  assert.deepEqual(getAiAuthorization(Date.parse('2026-08-24T00:00:00Z')), {
+    ok: false,
+    kind: 'entitlement-unavailable',
+  });
+  setPaidAccessStore(null);
+});
+
+test('Pugo access clears the persisted snapshot so revoked plans cannot be restored', async () => {
+  const store = memoryAccessStore();
+  setPaidAccessStore(store);
+
+  setLocalAccessForAi(PAID);
+  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'revoked' });
+
+  assert.equal(store.current(), 'null');
+  setLocalAccessForAi(null);
+  assert.equal(await restorePaidAccess(Date.parse('2026-08-22T00:02:00Z')), null);
+  setPaidAccessStore(null);
 });

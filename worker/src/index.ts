@@ -1,9 +1,10 @@
 import {
   AI_GRANT_AUDIENCE,
-  AI_GRANT_TTL_MS,
+  AI_GRANT_MAX_TTL_MS,
   ENTITLEMENT_CACHE_TTL_MS,
   aggregateAiUsage,
   accessExpired,
+  accessExpiresAt,
   hashQuotaIdentity,
   normalizeRevenueCatSubscriber,
   signAiGrant,
@@ -588,16 +589,14 @@ async function refreshRevenueCatAccess(
       ? await hashQuotaIdentity(normalized.subjectIdentity, env.QUOTA_IDENTITY_SALT)
       : null;
     const verified = { access: normalized.access, subjectIdentity };
-    const expiry = normalized.access.kind === 'pugo' || normalized.access.kind === 'itik'
-      ? Number.POSITIVE_INFINITY
-      : normalized.access.expiresAt == null ? Number.POSITIVE_INFINITY : Date.parse(normalized.access.expiresAt);
+    const expiry = accessExpiresAt(normalized.access) ?? Number.POSITIVE_INFINITY;
     await store.putCached(customerKey, {
       ...verified,
       validUntil: Math.min(now + ENTITLEMENT_CACHE_TTL_MS, expiry),
     });
     return { verified, customerKey };
   } catch {
-    const cached = await store.getCached(customerKey, now);
+    const cached = await store.getCached(customerKey, now, true);
     if (!cached || accessExpired(cached.access, now)) {
       throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { upstream: 'revenuecat', rejection: 'entitlement-refresh' });
     }
@@ -624,7 +623,7 @@ async function issueAiGrant(
     sub: verified.subjectIdentity,
     access,
     iat: now,
-    exp: now + AI_GRANT_TTL_MS,
+    exp: Math.min(now + AI_GRANT_MAX_TTL_MS, accessExpiresAt(verified.access) ?? Number.POSITIVE_INFINITY),
   };
   return {
     claims,

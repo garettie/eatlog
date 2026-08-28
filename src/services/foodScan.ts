@@ -79,7 +79,7 @@ export interface FoodEstimateClientOptions {
     hasConsent?: () => boolean | Promise<boolean>;
     getAiAuthorization?: () => { ok: true; grant: string } | { ok: false; kind: AiAuthorizationFailure };
     acceptAiGrant?: (token: string, expiresAt: string) => void;
-    requestId?: () => string | Promise<string>;
+    requestId?: (payload: string) => string | Promise<string>;
 }
 
 function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
@@ -177,7 +177,10 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const checkConsent = options.hasConsent ?? hasRemoteEstimateConsent;
     const authorize = options.getAiAuthorization ?? getAiAuthorization;
     const acceptGrant = options.acceptAiGrant ?? acceptAiGrant;
-    const createRequestId = options.requestId ?? (async () => (await import('expo-crypto')).randomUUID());
+    const createRequestId = options.requestId ?? (async (payload: string) => {
+        const Crypto = await import('expo-crypto');
+        return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, payload);
+    });
 
     async function estimate(
         operation: EstimateOperation,
@@ -201,17 +204,18 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
+            const payload = JSON.stringify({ operation, ...input });
             const headers: Record<string, string> = {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 'X-Eatlog-Install-ID': installId,
-                'X-Eatlog-Request-ID': await createRequestId(),
+                'X-Eatlog-Request-ID': await createRequestId(payload),
             };
             if (authorization.ok) headers.Authorization = `Bearer ${authorization.grant}`;
             const response = await fetchImpl(`${options.workerUrl}/v1/estimate`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ operation, ...input }),
+                body: payload,
                 signal: controller.signal,
             });
             if (!response.ok) {

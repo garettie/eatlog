@@ -3,7 +3,11 @@ import test from 'node:test';
 
 import {
   AI_GRANT_AUDIENCE,
+  AI_GRANT_MAX_TTL_MS,
   MemorySubscriptionStore,
+  THIRTY_DAYS_MS,
+  accessExpired,
+  accessExpiresAt,
   aggregateAiUsage,
   normalizeRevenueCatSubscriber,
   signAiGrant,
@@ -24,18 +28,21 @@ test('aggregate token fixtures calculate configured cost without request content
 });
 
 function subscriber(kind: 'trial' | 'manok' | 'itik' | 'complimentary'): unknown {
-  const product = kind === 'itik' ? 'eatlog_itik' : kind === 'complimentary' ? 'rc_promo' : 'eatlog_manok';
+  const product = kind === 'itik'
+    ? 'eatlog_itik'
+    : kind === 'complimentary' ? 'rc_promo_eatlog_paid_monthly' : 'eatlog_manok';
   return { subscriber: {
     original_app_user_id: 'user-id',
     entitlements: { eatlog_paid: {
       product_identifier: product,
       expires_date: kind === 'itik' ? null : '2026-09-22T00:00:00Z',
-      store: kind === 'complimentary' ? 'promotional' : 'play_store',
+      purchase_date: '2026-08-22T00:00:00Z',
     } },
-    subscriptions: kind === 'trial' || kind === 'manok' ? { [product]: {
+    subscriptions: kind === 'itik' ? {} : { [product]: {
+      store: kind === 'complimentary' ? 'promotional' : 'play_store',
       original_transaction_id: 'stable-subscription', period_type: kind === 'trial' ? 'trial' : 'normal',
       unsubscribe_detected_at: null, billing_issues_detected_at: null,
-    } } : {},
+    } },
     non_subscriptions: kind === 'itik' ? { [product]: [{ id: 'stable-lifetime', purchase_date: '2026-08-01T00:00:00Z' }] } : {},
   } };
 }
@@ -107,7 +114,7 @@ test('signed AI grants reject forged, expired, wrong-audience, and overlong gran
   assert.equal(await verifyAiGrant(valid, 'wrong-secret', NOW), null);
   assert.equal(await verifyAiGrant(await signAiGrant({ ...base, exp: NOW - 1 }, 'signing-secret'), 'signing-secret', NOW), null);
   assert.equal(await verifyAiGrant(await signAiGrant({ ...base, aud: 'wrong' as typeof AI_GRANT_AUDIENCE }, 'signing-secret'), 'signing-secret', NOW), null);
-  assert.equal(await verifyAiGrant(await signAiGrant({ ...base, exp: NOW + 10 * 60_000 }, 'signing-secret'), 'signing-secret', NOW), null);
+  assert.equal(await verifyAiGrant(await signAiGrant({ ...base, exp: NOW + 31 * 24 * 60 * 60_000 }, 'signing-secret'), 'signing-secret', NOW), null);
 });
 
 test('signed AI grants accept every paid access class', async () => {
@@ -175,4 +182,73 @@ test('quota and webhook idempotency state is reusable after the 30-day retention
   assert.equal((await store.reserve('subject', 'manok', 'scan', 'request', NOW + 31 * 24 * 60 * 60 * 1000)).duplicate, false);
   assert.equal(await store.recordWebhook('event', NOW, ['customer']), 'accepted');
   assert.equal(await store.recordWebhook('event', NOW + 31 * 24 * 60 * 60 * 1000, ['customer']), 'accepted');
+});
+
+test('promotional grants resolve from the subscription record because v1 entitlements carry no store', () => {
+  const promotional = subscriber('complimentary') as any;
+  assert.equal(promotional.subscriber.entitlements.eatlog_paid.store, undefined);
+
+  const verified = normalizeRevenueCatSubscriber(promotional, NOW);
+  assert.equal(verified.access.kind, 'complimentary');
+  assert.ok(verified.subjectIdentity);
+
+  promotional.subscriber.subscriptions = {};
+  assert.equal(normalizeRevenueCatSubscriber(promotional, NOW).access.kind, 'pugo');
+});
+
+test('AI grants stay valid until the verified entitlement expires', async () => {
+  const expiry = NOW + 20 * 24 * 60 * 60 * 1000;
+  const claims: GrantClaims = { aud: AI_GRANT_AUDIENCE, sub: 'subject', access: 'manok', iat: NOW, exp: expiry };
+  const token = await signAiGrant(claims, 'signing-secret');
+
+  assert.deepEqual(await verifyAiGrant(token, 'signing-secret', NOW + 19 * 24 * 60 * 60 * 1000), claims);
+  assert.equal(await verifyAiGrant(token, 'signing-secret', expiry), null);
+});
+
+test('verified access survives a RevenueCat outage until the entitlement expires', async () => {
+  const store = new MemorySubscriptionStore();
+  const verified = normalizeRevenueCatSubscriber(subscriber('manok'), NOW);
+  await store.putCached('customer', { ...verified, validUntil: NOW + 60 * 60 * 1000 });
+
+  const stale = NOW + 5 * 24 * 60 * 60 * 1000;
+  assert.equal(await store.getCached('customer', stale), null);
+  assert.equal((await store.getCached('customer', stale, true))?.access.kind, 'manok');
+
+  const expired = Date.parse('2026-09-23T00:00:00Z');
+  assert.equal(await store.getCached('customer', expired, true), null);
+});
+
+test('a lifetime-duration complimentary grant has no expiration date and stays permanent, like Itik', () => {
+  const lifetime = subscriber('complimentary') as any;
+  lifetime.subscriber.entitlements.eatlog_paid.expires_date = null;
+
+  const verified = normalizeRevenueCatSubscriber(lifetime, NOW);
+  assert.equal(verified.access.kind, 'complimentary');
+  assert.equal((verified.access as any).expiresAt, null);
+  assert.ok(verified.subjectIdentity);
+  assert.equal(accessExpired(verified.access, NOW + 10 * THIRTY_DAYS_MS), false);
+  assert.equal(accessExpiresAt(verified.access), null);
+});
+
+test('a lifetime complimentary grant without a stable RevenueCat identity still fails closed', () => {
+  const lifetime = subscriber('complimentary') as any;
+  lifetime.subscriber.entitlements.eatlog_paid.expires_date = null;
+  delete lifetime.subscriber.original_app_user_id;
+
+  assert.deepEqual(normalizeRevenueCatSubscriber(lifetime, NOW), {
+    access: { kind: 'pugo', checkedAt: new Date(NOW).toISOString(), reason: 'malformed' },
+    subjectIdentity: null,
+  });
+});
+
+test('an AI grant for a lifetime complimentary user is capped at the max grant TTL, not left unbounded', async () => {
+  const lifetime = subscriber('complimentary') as any;
+  lifetime.subscriber.entitlements.eatlog_paid.expires_date = null;
+  const verified = normalizeRevenueCatSubscriber(lifetime, NOW);
+
+  const exp = Math.min(NOW + AI_GRANT_MAX_TTL_MS, accessExpiresAt(verified.access) ?? Number.POSITIVE_INFINITY);
+  assert.equal(exp, NOW + AI_GRANT_MAX_TTL_MS);
+  const token = await signAiGrant({ aud: AI_GRANT_AUDIENCE, sub: 'subject', access: 'complimentary', iat: NOW, exp }, 'signing-secret');
+  assert.ok(await verifyAiGrant(token, 'signing-secret', NOW + AI_GRANT_MAX_TTL_MS - 1));
+  assert.equal(await verifyAiGrant(token, 'signing-secret', NOW + AI_GRANT_MAX_TTL_MS), null);
 });

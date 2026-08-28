@@ -36,7 +36,7 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       const customerKey = String(body.customerKey ?? '');
       const now = Number(body.now);
       const row = [...sql.exec<CacheRow>('SELECT access_json, subject, valid_until FROM access_cache WHERE customer_key = ?', customerKey)][0];
-      if (!row || row.valid_until <= now) return Response.json(null);
+      if (!row || (body.stale !== true && row.valid_until <= now)) return Response.json(null);
       return Response.json({ access: JSON.parse(row.access_json), subjectIdentity: row.subject, validUntil: row.valid_until });
     }
     if (path === '/cache/put') {

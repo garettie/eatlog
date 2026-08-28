@@ -48,7 +48,9 @@ function accessDetail(access: Access): string {
   if (access.kind === 'itik') {
     return `Yours for good${access.purchasedAt ? ` · Bought ${dateLabel(access.purchasedAt)}` : ''}`;
   }
-  if (access.kind === 'complimentary') return `Available until ${dateLabel(access.expiresAt)}`;
+  if (access.kind === 'complimentary') {
+    return access.expiresAt ? `Available until ${dateLabel(access.expiresAt)}` : 'Yours for good, courtesy of Eatlog.';
+  }
   if (access.reason === 'expired') return 'Paid access ended. Your logbook is untouched.';
   if (access.reason === 'revoked') return 'Paid access was removed. Your logbook is untouched.';
   if (access.reason === 'malformed') return "We couldn't verify paid access. Restore or check again.";

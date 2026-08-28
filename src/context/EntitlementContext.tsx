@@ -19,8 +19,11 @@ import { getInstallationToken } from '../services/installIdentity';
 import { setAdaptiveAccess } from '../services/adaptiveAccess';
 import {
   createSubscriptionApi,
+  documentPaidAccessStore,
   getAiAuthorization,
+  restorePaidAccess,
   setLocalAccessForAi,
+  setPaidAccessStore,
 } from '../services/subscriptionApi';
 
 interface EntitlementContextValue {
@@ -149,9 +152,12 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const refresh = useCallback(() => refreshAccess(true), [refreshAccess]);
 
   useEffect(() => {
-    setLocalAccessForAi(null);
-    setAdaptiveAccess(false);
-    void refreshAccess(false);
+    setPaidAccessStore(documentPaidAccessStore());
+    void (async () => {
+      const restored = await restorePaidAccess().catch(() => null);
+      if (restored) applyAccess(restored);
+      await refreshAccess(false);
+    })();
     let unsubscribe: (() => void) | undefined;
     void billing.subscribe((next) => {
       const applied = applyAccess(next);

@@ -142,3 +142,27 @@ test('locally expired paid access stays gated and may settle as unavailable pend
   assert.equal(entitlementStatus(paid, afterExpiry), 'checking');
   assert.equal(shouldApplyAccessUpdate(paid, lookupFailure, afterExpiry), true);
 });
+
+test('a lifetime-duration complimentary grant has no expiration date and behaves like Itik', () => {
+  const lifetime = access({
+    store: 'PROMOTIONAL',
+    productIdentifier: 'rc_promo_eatlog_paid',
+    expirationDate: null,
+    willRenew: false,
+  });
+
+  assert.deepEqual(lifetime, {
+    kind: 'complimentary',
+    expiresAt: null,
+    checkedAt: NOW.toISOString(),
+  });
+  assert.equal(hasPaidFeatures(lifetime, new Date('2099-01-01T00:00:00Z')), true);
+  assert.equal(canBuyItik(lifetime), true);
+
+  const laterUnavailable: EatlogAccess = {
+    kind: 'pugo',
+    checkedAt: '2026-08-23T00:00:00.000Z',
+    reason: 'unavailable',
+  };
+  assert.equal(shouldApplyAccessUpdate(lifetime, laterUnavailable, NOW), false);
+});

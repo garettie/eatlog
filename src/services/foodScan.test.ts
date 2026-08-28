@@ -363,3 +363,36 @@ test('provider and malformed response failures remain sanitized', async () => {
         message: 'The estimation service returned an unusable result. Try again or enter it manually.',
     });
 });
+
+test('retrying the same photo reuses one request identifier so the retry is not charged twice', async () => {
+    const payloads: string[] = [];
+    const requestIds: string[] = [];
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://worker.example',
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
+        requestId: (payload) => {
+            payloads.push(payload);
+            let hash = 0;
+            for (let index = 0; index < payload.length; index += 1) {
+                hash = (hash * 31 + payload.charCodeAt(index)) | 0;
+            }
+            return `request-${(hash >>> 0).toString(16).padStart(16, '0')}`;
+        },
+        fetchImpl: (async (_url: string, init: RequestInit) => {
+            requestIds.push((init.headers as Record<string, string>)['X-Eatlog-Request-ID']);
+            return jsonResponse(recognizedEstimate());
+        }) as unknown as typeof fetch,
+    });
+
+    await client.scanFood('photo-bytes', 'Lunch');
+    await client.scanFood('photo-bytes', 'Lunch');
+    await client.scanFood('a-different-photo', 'Lunch');
+
+    assert.equal(payloads[0], payloads[1]);
+    assert.notEqual(payloads[0], payloads[2]);
+    assert.match(requestIds[0], /^[A-Za-z0-9-]{16,128}$/);
+    assert.equal(requestIds[1], requestIds[0]);
+    assert.notEqual(requestIds[2], requestIds[0]);
+});

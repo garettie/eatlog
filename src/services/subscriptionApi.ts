@@ -23,8 +23,16 @@ interface SubscriptionApiOptions {
   now?: () => number;
 }
 
+export interface PaidAccessStore {
+  read(): Promise<string | null>;
+  write(value: string): Promise<void>;
+}
+
+const PAID_ACCESS_FILE_NAME = 'paid-access-v1';
+
 let activeAccess: EatlogAccess | null = null;
 let activeGrant: AiGrant | null = null;
+let accessStore: PaidAccessStore | null = null;
 
 function isAccess(value: unknown): value is EatlogAccess {
   if (!value || typeof value !== 'object') return false;
@@ -68,19 +76,68 @@ function isUsage(value: unknown): value is EatlogUsage {
     && isNullableDate(record.nextEligibleAt);
 }
 
+export function setPaidAccessStore(store: PaidAccessStore | null): void {
+  accessStore = store;
+}
+
+export function documentPaidAccessStore(): PaidAccessStore {
+  const open = async () => {
+    const { File, Paths } = await import('expo-file-system');
+    return new File(Paths.document, PAID_ACCESS_FILE_NAME);
+  };
+  return {
+    read: async () => {
+      const file = await open();
+      return file.exists ? await file.text() : null;
+    },
+    write: async (value) => { (await open()).write(value); },
+  };
+}
+
+function persistPaidAccess(): void {
+  const store = accessStore;
+  if (!store || activeAccess === null) return;
+  if (activeAccess.kind === 'pugo'
+    && (activeAccess.reason === 'unavailable' || activeAccess.reason === 'malformed')) return;
+  const snapshot = activeAccess.kind === 'pugo' ? null : { access: activeAccess, grant: activeGrant };
+  void store.write(JSON.stringify(snapshot)).catch(() => {});
+}
+
+export async function restorePaidAccess(now = Date.now()): Promise<EatlogAccess | null> {
+  const store = accessStore;
+  if (!store || activeAccess !== null) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse((await store.read()) ?? 'null');
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const snapshot = parsed as Record<string, unknown>;
+  if (!isAccess(snapshot.access) || !hasPaidFeatures(snapshot.access, new Date(now))) return null;
+  activeAccess = snapshot.access;
+  activeGrant = isGrant(snapshot.grant) && new Date(snapshot.grant.expiresAt).getTime() > now
+    ? snapshot.grant
+    : null;
+  return snapshot.access;
+}
+
 export function setLocalAccessForAi(access: EatlogAccess | null): void {
   activeAccess = access;
   if (access === null || access.kind === 'pugo') activeGrant = null;
+  persistPaidAccess();
 }
 
 export function clearAiGrant(): void {
   activeGrant = null;
+  persistPaidAccess();
 }
 
 export function acceptAiGrant(token: string, expiresAt: string, now = Date.now()): boolean {
   const grant = { token, expiresAt };
   if (!isGrant(grant) || new Date(expiresAt).getTime() <= now) return false;
   activeGrant = grant;
+  persistPaidAccess();
   return true;
 }
 
@@ -130,6 +187,7 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
       && new Date(value.grant.expiresAt).getTime() > now()
       ? value.grant
       : null;
+    persistPaidAccess();
     return { usage: isUsage(value.usage) ? value.usage : { kind: 'none' } };
   }
 

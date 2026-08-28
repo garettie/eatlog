@@ -37,7 +37,7 @@ export type EatlogAccess =
     })
   | (AccessBase & {
       kind: 'complimentary';
-      expiresAt: string;
+      expiresAt: string | null;
     });
 
 export interface RevenueCatEntitlementSnapshot {
@@ -208,7 +208,6 @@ export function normalizeAccess(
     };
   }
   if (entitlement.store === 'PROMOTIONAL') {
-    if (!expiry) return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
     return { kind: 'complimentary', expiresAt: expiry, checkedAt: checked };
   }
   if (!isManokProduct(productId) || typeof entitlement.willRenew !== 'boolean') {

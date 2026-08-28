@@ -1,5 +1,5 @@
 export const AI_GRANT_AUDIENCE = 'eatlog-ai';
-export const AI_GRANT_TTL_MS = 5 * 60 * 1000;
+export const AI_GRANT_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const ENTITLEMENT_CACHE_TTL_MS = 60 * 60 * 1000;
 const TRIAL_DAILY_LIMIT = 5;
 const TRIAL_TOTAL_LIMIT = 30;
@@ -34,7 +34,7 @@ export type WorkerAccess =
   | { kind: 'manok-trial'; checkedAt: string; expiresAt: string; willRenew: boolean; productId: string; billingState: 'active' | 'grace' }
   | { kind: 'manok'; checkedAt: string; expiresAt: string | null; willRenew: boolean; productId: string; billingState: 'active' | 'grace' }
   | { kind: 'itik'; checkedAt: string; productId: string; purchasedAt: string | null }
-  | { kind: 'complimentary'; checkedAt: string; expiresAt: string };
+  | { kind: 'complimentary'; checkedAt: string; expiresAt: string | null };
 
 export type Usage =
   | { kind: 'none' }
@@ -75,7 +75,7 @@ export interface QuotaDecision {
 }
 
 export interface SubscriptionStore {
-  getCached(customerKey: string, now: number): Promise<CachedAccess | null>;
+  getCached(customerKey: string, now: number, stale?: boolean): Promise<CachedAccess | null>;
   putCached(customerKey: string, value: CachedAccess): Promise<void>;
   recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'>;
   reserve(subject: string, access: PaidAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision>;
@@ -162,9 +162,9 @@ export class MemorySubscriptionStore implements SubscriptionStore {
     return result;
   }
 
-  async getCached(customerKey: string, now: number): Promise<CachedAccess | null> {
+  async getCached(customerKey: string, now: number, stale = false): Promise<CachedAccess | null> {
     const cached = this.cache.get(customerKey) ?? null;
-    if (!cached || cached.validUntil <= now || accessExpired(cached.access, now)) return null;
+    if (!cached || (!stale && cached.validUntil <= now) || accessExpired(cached.access, now)) return null;
     return cached;
   }
 
@@ -288,7 +288,7 @@ export async function verifyAiGrant(token: string, secret: string, now: number):
     || typeof value.exp !== 'number'
     || value.exp <= now
     || value.iat > now + 60_000
-    || value.exp - value.iat > AI_GRANT_TTL_MS) return null;
+    || value.exp - value.iat > AI_GRANT_MAX_TTL_MS) return null;
   return {
     aud: AI_GRANT_AUDIENCE,
     sub: value.sub,
@@ -328,6 +328,9 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
   const originalAppUserId = stringValue(record.original_app_user_id);
   const subscriptions = record.subscriptions && typeof record.subscriptions === 'object' ? record.subscriptions as Record<string, unknown> : {};
   const nonSubscriptions = record.non_subscriptions && typeof record.non_subscriptions === 'object' ? record.non_subscriptions as Record<string, unknown> : {};
+  const subscription = subscriptions[productId] && typeof subscriptions[productId] === 'object'
+    ? subscriptions[productId] as Record<string, unknown>
+    : {};
 
   const itikTransactions = Array.isArray(nonSubscriptions[ITIK_PRODUCT])
     ? nonSubscriptions[ITIK_PRODUCT] as Array<Record<string, unknown>>
@@ -343,9 +346,9 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
     };
   }
 
-  const store = stringValue(paid.store);
-  if (store === 'promotional' || store === 'PROMOTIONAL') {
-    if (!expiresAt || !originalAppUserId) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
+  const store = (stringValue(subscription.store) ?? stringValue(paid.store))?.toLowerCase();
+  if (store === 'promotional') {
+    if (!originalAppUserId) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
     return {
       access: { kind: 'complimentary', checkedAt, expiresAt },
       subjectIdentity: `complimentary:${originalAppUserId}:eatlog_paid`,
@@ -353,9 +356,6 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
   }
 
   if (!MANOK_PRODUCTS.has(productId) || !expiresAt) return { access: { kind: 'pugo', checkedAt, reason: 'malformed' }, subjectIdentity: null };
-  const subscription = subscriptions[productId] && typeof subscriptions[productId] === 'object'
-    ? subscriptions[productId] as Record<string, unknown>
-    : {};
   const originalPurchaseDate = dateValue(subscription.original_purchase_date);
   const subscriptionIdentity = stringValue(subscription.original_transaction_id)
     ?? (originalAppUserId && originalPurchaseDate
@@ -378,9 +378,15 @@ export function normalizeRevenueCatSubscriber(value: unknown, now: number): Veri
   };
 }
 
+export function accessExpiresAt(access: WorkerAccess): number | null {
+  if (access.kind === 'pugo' || access.kind === 'itik' || access.expiresAt == null) return null;
+  const expiry = Date.parse(access.expiresAt);
+  return Number.isFinite(expiry) ? expiry : null;
+}
+
 export function accessExpired(access: WorkerAccess, now: number): boolean {
-  if (access.kind === 'pugo' || access.kind === 'itik') return false;
-  return access.expiresAt != null && Date.parse(access.expiresAt) <= now;
+  const expiry = accessExpiresAt(access);
+  return expiry !== null && expiry <= now;
 }
 
 export async function hashQuotaIdentity(identity: string, salt: string): Promise<string> {
