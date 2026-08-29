@@ -45,17 +45,11 @@ export function accessDetail(access: Access): string {
   return 'Free logging plus 5 AI estimates per rolling 24 hours.';
 }
 
-/** The line a blocked Pugo user needs first: when their next free estimate arrives. */
+/**
+ * The line a blocked Pugo user needs first: when their next free estimate arrives. Only the
+ * free tier gets this, for the same reason it is the only tier with a counter.
+ */
 export function quotaResetLabel(usage: EatlogUsage): string | null {
-  if (usage.kind === 'free') {
-    return usage.nextEligibleAt ? `Your next free estimate unlocks at ${timeLabel(usage.nextEligibleAt)}.` : null;
-  }
-  if (usage.kind === 'trial') {
-    const next = usage.nextInitialEligibleAt ?? usage.nextClarificationEligibleAt;
-    return next ? `Your next request unlocks at ${timeLabel(next)}.` : null;
-  }
-  if (usage.kind === 'paid') {
-    return usage.nextEligibleAt ? `Your next request unlocks at ${timeLabel(usage.nextEligibleAt)}.` : null;
-  }
-  return null;
+  if (usage.kind !== 'free' || !usage.nextEligibleAt) return null;
+  return `Your next free estimate unlocks at ${timeLabel(usage.nextEligibleAt)}.`;
 }

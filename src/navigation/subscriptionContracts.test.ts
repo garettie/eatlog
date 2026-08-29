@@ -64,19 +64,31 @@ test('the plan surfaces lead with value, then price, then the purchase action', 
     assert.ok(value >= 0 && options > value, 'plan options must follow the value summary');
     assert.ok(cta > options, 'the purchase button must follow the plan options');
   }
-  // The concrete limits are the offer, so they are open rather than behind a disclosure.
-  assert.match(planParts, /Estimates per 24 hours/);
-  assert.match(planParts, /Requests per 30 days/);
+  // The comparison is the offer, so it is open rather than behind a disclosure.
+  assert.match(planParts, /Photos and descriptions/);
+  assert.match(planParts, /Follow-up re-estimates/);
   assert.doesNotMatch(planParts, /Usage limits/);
   assert.doesNotMatch(planScreen, /Usage limits/);
 });
 
-test('a subscriber sees remaining requests without a manage mode or a competing close control', () => {
-  // Quota is the reason a subscriber opens this screen, so it is never gated on near-exhaustion.
+test('paid tiers read as unlimited under fair use and never show a request counter', () => {
+  // The caps are abuse protection, not a budget the customer watches. Advertising them beside
+  // the free tier's, or metering a subscriber, both make a paid plan feel small.
+  assert.match(planParts, /if \(usage\.kind !== 'free'\) return null/);
+  assert.doesNotMatch(planParts, /usage\.kind === 'trial'|usage\.kind === 'paid'/);
+  assert.doesNotMatch(planParts, /remaining30Days|initialRemainingTrial|clarificationRemaining/);
+  assert.match(planParts, /paid="Unlimited"/);
+  assert.doesNotMatch(planParts, /paid="30"|paid="250"/);
+  assert.match(planParts, /subject to fair use/);
+  assert.match(planCopy, /usage\.kind !== 'free'/);
+  for (const source of [planScreen, paywall]) {
+    assert.doesNotMatch(source, /30 requests per 24 hours|250 per 30 days/);
+  }
+});
+
+test('the plan screen keeps no manage mode and no control competing with Back', () => {
   assert.match(planScreen, /<QuotaCard usage=\{usage\} \/>/);
   assert.doesNotMatch(planParts, /remaining24Hours <= 5|remaining30Days <= 25/);
-  assert.match(planParts, /usage\.remaining24Hours\}\/30/);
-  assert.match(planParts, /usage\.remaining30Days\}\/250/);
   // The Profile route exits through the navigator's back affordance alone.
   assert.doesNotMatch(planScreen, /managingPlan|Manage plan|accessibilityLabel="Close plans"/);
   assert.doesNotMatch(planScreen, /name="close"/);

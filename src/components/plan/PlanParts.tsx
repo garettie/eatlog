@@ -142,43 +142,16 @@ function QuotaRow({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Remaining requests, shown whenever they are known rather than only near exhaustion.
- * Checking what is left is the reason a subscriber opens the plan screen at all.
+ * The free tier's remaining estimates, and only those. Paid tiers read as unlimited under
+ * fair use, so a counter is never shown to them: their caps exist to stop abuse, not to be a
+ * budget the customer watches. Anyone who does reach a cap is told inline at that moment.
  */
 export function QuotaCard({ usage }: { usage: EatlogUsage }) {
-  if (usage.kind === 'none') return null;
-  if (usage.kind === 'free') {
-    return (
-      <Card className="gap-3 p-4">
-        <Text className="text-base font-bold text-m3-on-surface">Free estimates left</Text>
-        <QuotaRow label="Next 24 hours" value={`${usage.remaining24Hours}/5`} />
-      </Card>
-    );
-  }
-  if (usage.kind === 'trial') {
-    return (
-      <Card className="gap-3 p-4">
-        <Text className="text-base font-bold text-m3-on-surface">Requests left</Text>
-        <View className="gap-2">
-          <QuotaRow
-            label="Next 24 hours"
-            value={`${usage.initialRemaining24Hours}/5 estimates · ${usage.clarificationRemaining24Hours}/5 follow-ups`}
-          />
-          <QuotaRow
-            label="Access period"
-            value={`${usage.initialRemainingTrial}/30 estimates · ${usage.clarificationRemainingTrial}/30 follow-ups`}
-          />
-        </View>
-      </Card>
-    );
-  }
+  if (usage.kind !== 'free') return null;
   return (
     <Card className="gap-3 p-4">
-      <Text className="text-base font-bold text-m3-on-surface">Requests left</Text>
-      <View className="gap-2">
-        <QuotaRow label="Next 24 hours" value={`${usage.remaining24Hours}/30`} />
-        <QuotaRow label="Next 30 days" value={`${usage.remaining30Days}/250`} />
-      </View>
+      <Text className="text-base font-bold text-m3-on-surface">Free estimates left</Text>
+      <QuotaRow label="Next 24 hours" value={`${usage.remaining24Hours}/5`} />
     </Card>
   );
 }
@@ -205,7 +178,10 @@ function LimitRow({ label, free, paid }: { label: string; free: string; paid: st
 }
 
 /**
- * The limits are the offer, so they stay open rather than sitting behind a disclosure.
+ * The comparison is the offer, so it stays open rather than sitting behind a disclosure.
+ * The free side carries its real number because five a day is the boundary someone actually
+ * meets. The paid side reads as unlimited under fair use rather than advertising its own
+ * caps, which are abuse protection a normal user never reaches.
  */
 export function ValueSummary() {
   return (
@@ -215,14 +191,14 @@ export function ValueSummary() {
       <FeatureLine icon="insights">Weekly target updates from your trend</FeatureLine>
       <View className="mt-1 gap-2 rounded-2xl bg-m3-surface-container px-4 py-3">
         <View className="flex-row items-baseline gap-3">
-          <Text className="flex-1 text-xs font-semibold text-m3-on-surface-variant">Limits</Text>
-          <Text className="w-16 text-right text-xs font-semibold text-m3-on-surface-variant">Free</Text>
-          <Text className="w-16 text-right text-xs font-semibold text-m3-on-surface">Paid</Text>
+          <Text className="flex-1 text-xs font-semibold text-m3-on-surface-variant">Estimates</Text>
+          <Text className="w-20 text-right text-xs font-semibold text-m3-on-surface-variant">Free</Text>
+          <Text className="w-20 text-right text-xs font-semibold text-m3-on-surface">Paid</Text>
         </View>
-        <LimitRow label="Estimates per 24 hours" free="5" paid="30" />
-        <LimitRow label="Requests per 30 days" free="—" paid="250" />
-        <LimitRow label="Follow-up re-estimates" free="No" paid="Yes" />
+        <LimitRow label="Photos and descriptions" free="5 a day" paid="Unlimited" />
+        <LimitRow label="Follow-up re-estimates" free="—" paid="Unlimited" />
       </View>
+      <Text className="px-1 text-xs text-m3-on-surface-variant">Unlimited use is subject to fair use.</Text>
     </View>
   );
 }
