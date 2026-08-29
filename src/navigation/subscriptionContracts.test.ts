@@ -66,7 +66,7 @@ test('the plan surfaces lead with value, then price, then the purchase action', 
   }
   // The comparison is the offer, so it is open rather than behind a disclosure.
   assert.match(planParts, /Photos and descriptions/);
-  assert.match(planParts, /Follow-up re-estimates/);
+  assert.match(planParts, /Redo after edits/);
   assert.doesNotMatch(planParts, /Usage limits/);
   assert.doesNotMatch(planScreen, /Usage limits/);
 });

@@ -171,8 +171,8 @@ function LimitRow({ label, free, paid }: { label: string; free: string; paid: st
   return (
     <View className="flex-row items-baseline gap-3">
       <Text className="flex-1 text-sm text-m3-on-surface-variant">{label}</Text>
-      <Text className="w-16 text-right text-sm tabular-nums text-m3-on-surface-variant">{free}</Text>
-      <Text className="w-16 text-right text-sm font-semibold tabular-nums text-m3-on-surface">{paid}</Text>
+      <Text numberOfLines={1} className="w-20 text-right text-sm tabular-nums text-m3-on-surface-variant">{free}</Text>
+      <Text numberOfLines={1} className="w-20 text-right text-sm font-semibold tabular-nums text-m3-on-surface">{paid}</Text>
     </View>
   );
 }
@@ -187,16 +187,16 @@ export function ValueSummary() {
   return (
     <View className="gap-3">
       <Text accessibilityRole="header" className="text-base font-bold text-m3-on-surface">What you get</Text>
-      <FeatureLine icon="tune">Meal and component re-estimates</FeatureLine>
+      <FeatureLine icon="tune">Redo any meal or component with AI</FeatureLine>
       <FeatureLine icon="insights">Weekly target updates from your trend</FeatureLine>
       <View className="mt-1 gap-2 rounded-2xl bg-m3-surface-container px-4 py-3">
         <View className="flex-row items-baseline gap-3">
           <Text className="flex-1 text-xs font-semibold text-m3-on-surface-variant">Estimates</Text>
-          <Text className="w-20 text-right text-xs font-semibold text-m3-on-surface-variant">Free</Text>
-          <Text className="w-20 text-right text-xs font-semibold text-m3-on-surface">Paid</Text>
+          <Text numberOfLines={1} className="w-20 text-right text-xs font-semibold text-m3-on-surface-variant">Free</Text>
+          <Text numberOfLines={1} className="w-20 text-right text-xs font-semibold text-m3-on-surface">Paid</Text>
         </View>
         <LimitRow label="Photos and descriptions" free="5 a day" paid="Unlimited" />
-        <LimitRow label="Follow-up re-estimates" free="—" paid="Unlimited" />
+        <LimitRow label="Redo after edits" free="—" paid="Unlimited" />
       </View>
       <Text className="px-1 text-xs text-m3-on-surface-variant">Unlimited use is subject to fair use.</Text>
     </View>

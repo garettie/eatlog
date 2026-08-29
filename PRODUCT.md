@@ -28,7 +28,7 @@ MacroFactor-class premium UX at public-release scale. The differentiator is a fa
 
 - Eatlog Pugo is the free tier for local food logging, weight tracking, charts, Health Connect, backup, export, and five shared photo or description estimates per rolling 24 hours.
 - Eatlog Manok is PHP 79 monthly. Eatlog Itik is a PHP 799 one-time lifetime entitlement.
-- Manok, Itik, and complimentary access add meal and component re-estimates, higher AI limits, and local adaptive recommendations. The Worker remains authoritative for every AI grant, quota, and model route.
+- Manok, Itik, and complimentary access let you redo any meal or component with AI, add higher AI limits, and unlock local adaptive recommendations. The Worker remains authoritative for every AI grant, quota, and model route.
 - Expiry, refund, or revocation never deletes owned food, weight, target, or adaptive data. Entitlement state stays outside SQLite, backups, and CSV exports.
 
 ## Operating Context
@@ -61,7 +61,7 @@ The implemented core has a coherent visual language and daily loop. Source-level
 - Six setup/calculation steps plus an optional final full-screen AI-estimate consent step when the build has an estimate Worker, with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware completion flow.
 - Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, photo-first empty state, and calendar-accurate scale/trend/goal weight display.
 - Central entry bottom sheet: local camera/gallery selection, ranked past-meal reuse with the newly selected photo, explicit new estimation, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
-- Gemini vision/text meal estimation returns a named meal and per-100g component nutrition. Pugo initial estimates use Gemini 2.5 Flash-Lite with 3.5 Flash-Lite fallback; paid access keeps the 3.5/3.1 route and can re-estimate an edited scan or description.
+- Gemini vision/text meal estimation returns a named meal and per-100g component nutrition. Pugo initial estimates use Gemini 2.5 Flash-Lite with 3.5 Flash-Lite fallback; paid access keeps the 3.5/3.1 route and can redo an edited scan or description.
 - On-device SQLite profile, food log, meal, target, food-cache, weight-log, pin, and adaptive-review records with sequential non-destructive migrations.
 - Diary: calendar strip, overflow-aware daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, aligned edit/delete swipe actions, and undo.
 - Analytics: 1M/3M/6M/1Y weight ranges, scale and EWMA trend charting, intake coverage, expenditure/target context, goal-rate progress, and persisted weekly Accept/Keep recommendations.

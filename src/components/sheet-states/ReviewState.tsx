@@ -678,7 +678,7 @@ export default function ReviewState({
 			if (clarification.consentDeclined) return;
 			const newResult = clarification.result;
 			if (!newResult || newResult.components.length === 0) {
-				setClarifyError("Couldn't re-estimate. Try a different name.");
+				setClarifyError("Couldn't redo it. Try a different name.");
 				setClarifying(false);
 				return;
 			}
@@ -688,7 +688,7 @@ export default function ReviewState({
 			setComponents(newResult.components.map(toEditable));
 			setExpandedIds(new Set());
 		} catch {
-			setClarifyError("Re-estimate failed. Check your connection.");
+			setClarifyError("Redo failed. Check your connection.");
 		} finally {
 			setClarifying(false);
 		}
@@ -735,7 +735,7 @@ export default function ReviewState({
 				if (!clarified) {
 					setComponentClarifyError({
 						id: component.food.id,
-						message: "Couldn't re-estimate. Try a more specific name.",
+						message: "Couldn't redo it. Try a more specific name.",
 					});
 					return;
 				}
@@ -760,7 +760,7 @@ export default function ReviewState({
 			} catch {
 				setComponentClarifyError({
 					id: component.food.id,
-					message: "Re-estimate failed. Check your connection.",
+					message: "Redo failed. Check your connection.",
 				});
 			} finally {
 				setClarifyingComponentId(null);
@@ -815,13 +815,13 @@ export default function ReviewState({
 				mealName.trim() !== originalMealNameRef.current ? (
 					<View className="min-h-[48px] flex-row items-center gap-3 px-1">
 						<Text className="flex-1 text-m3-on-surface-variant text-xs">
-							Nutrition stays unchanged until re-estimated.
+							Nutrition stays unchanged until you redo it.
 						</Text>
 						<Pressable
 							onPress={handleClarify}
 							disabled={clarifying || logging}
 							accessibilityRole="button"
-							accessibilityLabel="Re-estimate meal with AI"
+							accessibilityLabel="Redo the meal estimate with AI"
 							accessibilityHint="Replaces the meal estimate. Undo restores the previous values."
 							className="min-h-[48px] flex-row items-center justify-center gap-2 rounded-full px-3 active:bg-m3-surface-container-high disabled:opacity-50"
 						>
@@ -835,7 +835,7 @@ export default function ReviewState({
 								/>
 							)}
 							<Text className="text-m3-on-surface text-xs font-semibold">
-								Re-estimate
+								Redo
 							</Text>
 						</Pressable>
 					</View>
@@ -1097,7 +1097,7 @@ export default function ReviewState({
 																		clarifyingComponentId !== null || logging
 																	}
 																	accessibilityRole="button"
-																	accessibilityLabel={`Re-estimate ${comp.food.name} with AI`}
+																	accessibilityLabel={`Redo the ${comp.food.name} estimate with AI`}
 																	accessibilityHint="Replaces this food estimate. Undo restores previous values."
 																	className="min-h-[48px] self-start flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-4 active:opacity-60 disabled:opacity-50"
 																>
@@ -1115,7 +1115,7 @@ export default function ReviewState({
 																		/>
 																	)}
 																	<Text className="text-m3-on-surface text-xs font-semibold">
-																		Re-estimate
+																		Redo
 																	</Text>
 																</Pressable>
 															</View>
@@ -1392,8 +1392,8 @@ export default function ReviewState({
 								{undoAction.kind === "remove"
 									? `${undoAction.comp.food.name.trim() || "Unnamed food"} removed. Undo available.`
 									: undoAction.kind === "meal-reestimate"
-										? "Meal re-estimated. Undo available."
-										: "Food re-estimated. Undo available."}
+										? "Meal redone. Undo available."
+										: "Food redone. Undo available."}
 							</Text>
 						</View>
 						<Pressable
