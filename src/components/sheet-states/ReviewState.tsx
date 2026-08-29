@@ -18,6 +18,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { MaterialIcons } from "@expo/vector-icons";
 import Animated, {
+	FadeIn,
 	FadeInUp,
 	FadeOutDown,
 	useAnimatedStyle,
@@ -823,16 +824,24 @@ export default function ReviewState({
 							accessibilityRole="button"
 							accessibilityLabel="Redo the meal estimate with AI"
 							accessibilityHint="Replaces the meal estimate. Undo restores the previous values."
-							className="min-h-[48px] flex-row items-center justify-center gap-2 rounded-full px-3 active:bg-m3-surface-container-high disabled:opacity-50"
+							className="min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-4 active:opacity-60 disabled:opacity-50"
 						>
 							{clarifying ? (
-								<ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+								<Animated.View
+									entering={reducedMotion ? undefined : FadeIn.duration(150)}
+								>
+									<ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+								</Animated.View>
 							) : (
-								<MaterialIcons
-									name="auto-fix-high"
-									size={16}
-									color={M3.onSurface}
-								/>
+								<Animated.View
+									entering={reducedMotion ? undefined : FadeIn.duration(150)}
+								>
+									<MaterialIcons
+										name="auto-fix-high"
+										size={16}
+										color={M3.onSurface}
+									/>
+								</Animated.View>
 							)}
 							<Text className="text-m3-on-surface text-xs font-semibold">
 								Redo
@@ -1064,7 +1073,11 @@ export default function ReviewState({
 											</View>
 
 											{isExpanded ? (
-												<View>
+												<Animated.View
+													entering={
+														reducedMotion ? undefined : FadeInUp.duration(200)
+													}
+												>
 													{(comp.food.confidence === "low" &&
 														comp.food.confidenceReason) ||
 													nameChanged ? (
@@ -1103,16 +1116,24 @@ export default function ReviewState({
 																>
 																	{clarifyingComponentId ===
 																	comp.food.id ? (
-																		<ActivityIndicator
-																			size="small"
-																			color={M3.onSurfaceVariant}
-																		/>
+																		<Animated.View
+																			entering={reducedMotion ? undefined : FadeIn.duration(150)}
+																		>
+																			<ActivityIndicator
+																				size="small"
+																				color={M3.onSurfaceVariant}
+																			/>
+																		</Animated.View>
 																	) : (
-																		<MaterialIcons
-																			name="auto-fix-high"
-																			size={16}
-																			color={M3.onSurface}
-																		/>
+																		<Animated.View
+																			entering={reducedMotion ? undefined : FadeIn.duration(150)}
+																		>
+																			<MaterialIcons
+																				name="auto-fix-high"
+																				size={16}
+																				color={M3.onSurface}
+																			/>
+																		</Animated.View>
 																	)}
 																	<Text className="text-m3-on-surface text-xs font-semibold">
 																		Redo
@@ -1158,48 +1179,59 @@ export default function ReviewState({
 																updatePortionValidity(idx, valid)
 															}
 														/>
-														<View className="flex-row overflow-hidden rounded-xl bg-m3-surface-container">
-															{[
-																{
-																	label: "Calories",
-																	value: String(cal),
-																	color: "text-m3-calories",
-																},
-																{
-																	label: "Protein",
-																	value: `${protein}g`,
-																	color: "text-m3-protein",
-																},
-																{
-																	label: "Carbs",
-																	value: `${carbs}g`,
-																	color: "text-m3-carbs",
-																},
-																{
-																	label: "Fat",
-																	value: `${fat}g`,
-																	color: "text-m3-fat",
-																},
-															].map((macro, macroIndex) => (
-																<View
-																	key={macro.label}
-																	className={`min-w-0 flex-1 items-center gap-0.5 px-1 py-3 ${macroIndex > 0 ? "border-l border-m3-outline-variant/40" : ""}`}
+														<View className="flex-row items-center overflow-hidden rounded-xl bg-m3-surface-container px-4 py-3">
+															<View className="w-16">
+																<Text
+																	className="text-m3-on-surface text-lg font-bold tabular-nums"
+																	numberOfLines={1}
+																	adjustsFontSizeToFit
+																	minimumFontScale={0.85}
 																>
-																	<Text
-																		className="text-m3-on-surface text-base font-bold tabular-nums"
-																		numberOfLines={1}
-																		adjustsFontSizeToFit
-																		minimumFontScale={0.85}
+																	{cal}
+																</Text>
+																<Text className="text-m3-calories text-compact font-medium">
+																	kcal
+																</Text>
+															</View>
+															<View className="h-8 w-px bg-m3-outline-variant/50" />
+															<View className="flex-1 flex-row">
+																{[
+																	{
+																		label: "Protein",
+																		value: `${protein}g`,
+																		color: "text-m3-protein",
+																	},
+																	{
+																		label: "Carbs",
+																		value: `${carbs}g`,
+																		color: "text-m3-carbs",
+																	},
+																	{
+																		label: "Fat",
+																		value: `${fat}g`,
+																		color: "text-m3-fat",
+																	},
+																].map((macro) => (
+																	<View
+																		key={macro.label}
+																		className="min-w-0 flex-1 items-center"
 																	>
-																		{macro.value}
-																	</Text>
-																	<Text
-																		className={`text-compact font-medium ${macro.color}`}
-																	>
-																		{macro.label}
-																	</Text>
-																</View>
-															))}
+																		<Text
+																			className="text-m3-on-surface text-sm font-bold tabular-nums"
+																			numberOfLines={1}
+																			adjustsFontSizeToFit
+																			minimumFontScale={0.85}
+																		>
+																			{macro.value}
+																		</Text>
+																		<Text
+																			className={`text-compact font-medium ${macro.color}`}
+																		>
+																			{macro.label}
+																		</Text>
+																	</View>
+																))}
+															</View>
 														</View>
 													</View>
 
@@ -1349,7 +1381,7 @@ export default function ReviewState({
 															</Pressable>
 														) : null}
 													</View>
-												</View>
+												</Animated.View>
 											) : null}
 										</View>
 									);
