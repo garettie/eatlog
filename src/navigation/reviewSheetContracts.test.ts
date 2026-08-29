@@ -29,6 +29,10 @@ const mealSelectorSource = readFileSync(
   resolve(testDirectory, '../components/MealSelector.tsx'),
   'utf8',
 );
+const mealReviewSource = readFileSync(
+  resolve(testDirectory, '../utils/mealReview.ts'),
+  'utf8',
+);
 
 test('expanded meal components keep identity stable and defer nutrition editing', () => {
   assert.match(reviewStateSource, /accessibilityState=\{\{ expanded: false \}\}/);
@@ -142,7 +146,9 @@ test('portion mode and amount editor share one contrasting control row', () => {
   assert.match(portionStepperSource, /\{servingIndicator\}/);
   assert.match(reviewStateSource, /accessibilityLabel="Food name"/);
   assert.match(reviewStateSource, /font-medium tabular-nums rounded-xl/);
-  assert.match(reviewStateSource, /Math\.abs\(servings - 1\) < 0\.001 \? serving\.grams : grams/);
+  // The portion summary moved out of the component into utils/mealReview; its behaviour is
+  // covered directly by utils/portionSummary.test.ts.
+  assert.match(mealReviewSource, /Math\.abs\(servings - 1\) < 0\.001 \? serving\.grams : grams/);
 });
 
 test('grams editor centers the value independently of its suffix', () => {
