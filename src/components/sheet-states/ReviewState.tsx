@@ -872,7 +872,7 @@ export default function ReviewState({
 					/>
 
 					<View className="min-h-[68px] flex-row items-center rounded-2xl bg-m3-surface-container px-4 py-3 border border-m3-outline-variant/40">
-						<View className="w-20">
+						<View className="w-20 items-center">
 							<Text className="text-m3-on-surface text-2xl font-bold tabular-nums">
 								{totalMacros.calories}
 							</Text>
@@ -1180,7 +1180,7 @@ export default function ReviewState({
 															}
 														/>
 														<View className="flex-row items-center overflow-hidden rounded-xl bg-m3-surface-container px-4 py-3">
-															<View className="w-16">
+															<View className="w-16 items-center">
 																<Text
 																	className="text-m3-on-surface text-lg font-bold tabular-nums"
 																	numberOfLines={1}
@@ -1355,14 +1355,15 @@ export default function ReviewState({
 														) : null}
 													</View>
 
-													<View className="min-h-[56px] border-t border-m3-outline-variant/50 px-4 pt-2 flex-row items-center justify-between gap-3">
+													<View className="min-h-[56px] border-t border-m3-outline-variant/50 px-4 flex-row items-center justify-between gap-3">
 														<Pressable
 															onPress={() => removeComponent(idx)}
 															disabled={logging}
 															accessibilityRole="button"
 															accessibilityLabel={`Remove ${comp.food.name.trim() || "unnamed food"}`}
-															className="min-h-[48px] justify-center px-2 active:opacity-60 disabled:opacity-50"
+															className="min-h-[48px] flex-row items-center gap-1.5 -ml-2 px-2 active:opacity-60 disabled:opacity-50"
 														>
+															<MaterialIcons name="delete-outline" size={16} color={M3.error} />
 															<Text className="text-m3-error text-xs font-semibold">
 																Remove food
 															</Text>
