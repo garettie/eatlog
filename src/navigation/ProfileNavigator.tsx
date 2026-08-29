@@ -16,7 +16,7 @@ import {
 import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
 import { AboutScreen, AttributionsScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
 import { supportsHealthConnect } from '../services/platformFeatures';
-import { ProfileSubscriptionPlanScreen } from '../screens/PaywallScreen';
+import { ProfileSubscriptionPlanScreen } from '../screens/PlanScreen';
 
 interface ProfileNavigatorProps {
   dataVersion: number;

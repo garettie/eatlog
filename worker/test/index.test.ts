@@ -875,7 +875,7 @@ test('estimate authorizes inline, reuses cached access, and returns a grant for 
   assert.equal(revenueCatCalls, 2);
 });
 
-test('malformed or unavailable RevenueCat access fails before parsing private content or calling Gemini', async () => {
+test('malformed RevenueCat access fails before parsing private content or calling Gemini', async () => {
   let geminiCalls = 0;
   const malformedFetch = (async (input: string | URL | Request) => {
     if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse({ nope: true });
@@ -892,20 +892,97 @@ test('malformed or unavailable RevenueCat access fails before parsing private co
   assert.equal(malformed.response.status, 503);
   assert.equal(malformed.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
   assert.equal(geminiCalls, 0);
-
-  const unavailable = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
-    'X-Eatlog-Request-ID': 'request-unavailable-free',
-  }), {
-    env: subscriptionEnv(),
-    fetchImpl: (async () => { throw new Error('RevenueCat unavailable'); }) as typeof fetch,
-    subscriptionStore: new MemorySubscriptionStore(),
-  });
-  assert.equal(unavailable.response.status, 503);
-  assert.equal(unavailable.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
-  assert.equal(geminiCalls, 0);
 });
 
-test('RevenueCat outage uses only an unexpired verified cache and otherwise returns a redacted entitlement error', async () => {
+test('an unreachable RevenueCat grants Pugo quota instead of blocking a free estimate', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let geminiCalls = 0;
+  let revenueCatCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) {
+      revenueCatCalls += 1;
+      throw new Error('RevenueCat unavailable');
+    }
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const estimate = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-outage-0001',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(estimate.response.status, 200);
+  assert.equal(geminiCalls, 1);
+
+  const grant = estimate.response.headers.get('x-eatlog-ai-grant');
+  assert.equal(typeof grant, 'string');
+  const usage = await call(request('/v1/usage', 'GET', undefined, {
+    Authorization: `Bearer ${grant}`,
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.deepEqual(usage.body, { kind: 'free', remaining24Hours: 4, nextEligibleAt: null });
+
+  const invalid = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
+    'X-Eatlog-Request-ID': 'request-outage-0002',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(invalid.response.status, 400);
+  assert.equal(geminiCalls, 1);
+
+  // The provisional cache absorbs the outage so each request does not re-pay the timeout.
+  assert.equal(revenueCatCalls, 1);
+
+  // The fallback grant expires with the outage window. At the 30-day ceiling it would be a
+  // bearer token asserting free limits long after RevenueCat recovered, and authorizeEstimate
+  // honours a valid grant without re-checking.
+  const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), {
+    env, fetchImpl, subscriptionStore: store,
+  });
+  const lifetimeMs = Date.parse(refreshed.body.grant.expiresAt) - Date.now();
+  assert.ok(lifetimeMs > 0 && lifetimeMs <= 60_000, `provisional grant lived ${lifetimeMs}ms`);
+});
+
+test('a paid customer keeps access through an outage that follows a routine webhook', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const online = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => jsonResponse(paidRevenueCat())) as typeof fetch,
+    subscriptionStore: store,
+  });
+  assert.equal(online.body.access.kind, 'manok');
+
+  // A renewal invalidates the cached entitlement so the next request re-verifies.
+  const accepted = await call(request('/v1/revenuecat/webhook', 'POST', {
+    api_version: '1.0',
+    event: {
+      id: 'event-renewal', event_timestamp_ms: 200, app_user_id: INSTALL_ID,
+      original_app_user_id: INSTALL_ID, aliases: [INSTALL_ID], type: 'RENEWAL',
+    },
+  }, { Authorization: 'Bearer webhook-secret' }), { env, subscriptionStore: store });
+  assert.equal(accepted.body.result, 'accepted');
+
+  // RevenueCat is now unreachable. Invalidation must not have destroyed the fallback, or a
+  // renewal followed by a hiccup would silently demote a paying customer to free limits.
+  const outage = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => { throw new Error('RevenueCat unavailable'); }) as typeof fetch,
+    subscriptionStore: store,
+  });
+  assert.equal(outage.response.status, 200);
+  assert.equal(outage.body.access.kind, 'manok');
+  assert.equal(outage.body.usage.kind, 'paid');
+
+  // The invalidation still forces a live re-check once the upstream answers again.
+  let revenueCatCalls = 0;
+  const recovered = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => { revenueCatCalls += 1; return jsonResponse(paidRevenueCat()); }) as typeof fetch,
+    subscriptionStore: store,
+  });
+  assert.equal(recovered.body.access.kind, 'manok');
+  assert.equal(revenueCatCalls, 1);
+});
+
+test('RevenueCat outage prefers an unexpired verified cache and otherwise falls back to redacted Pugo access', async () => {
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
   const online = await call(request('/v1/access/refresh', 'POST', {}), {
@@ -924,13 +1001,17 @@ test('RevenueCat outage uses only an unexpired verified cache and otherwise retu
   assert.equal(cached.response.status, 200);
   assert.equal(JSON.stringify(cached.body).includes(raw), false);
 
+  assert.equal(cached.body.access.kind, 'manok');
+
   const empty = await call(request('/v1/access/refresh', 'POST', {}), {
     env,
     fetchImpl: (async () => { throw new Error(raw); }) as typeof fetch,
     subscriptionStore: new MemorySubscriptionStore(),
   });
-  assert.equal(empty.response.status, 503);
-  assert.equal(empty.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
+  assert.equal(empty.response.status, 200);
+  assert.equal(empty.body.access.kind, 'pugo');
+  assert.equal(typeof empty.body.grant.token, 'string');
+  assert.equal(empty.body.usage.kind, 'free');
   assert.equal(JSON.stringify(empty.body).includes(raw), false);
 });
 

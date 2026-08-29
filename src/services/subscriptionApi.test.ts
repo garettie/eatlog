@@ -10,6 +10,7 @@ import {
   setLocalAccessForAi,
   setPaidAccessStore,
 } from './subscriptionApi';
+import { hasPaidFeatures } from './billing.types';
 
 const PAID = {
   kind: 'manok' as const,
@@ -221,14 +222,34 @@ test('the AI grant is never written to disk, even immediately after being accept
   setPaidAccessStore(null);
 });
 
-test('Pugo access clears the persisted snapshot so revoked plans cannot be restored', async () => {
+test('a revoked plan is restored as Pugo, never as paid access', async () => {
   const store = memoryAccessStore();
   setPaidAccessStore(store);
+  const now = Date.parse('2026-08-22T00:02:00Z');
 
   setLocalAccessForAi(PAID);
   setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'revoked' });
+  setLocalAccessForAi(null);
 
-  assert.equal(store.current(), 'null');
+  // Persisting a resolved Pugo lets a cold start open on an honest free state, and restoring
+  // it can only narrow access: the paid snapshot it replaced is unreachable afterwards.
+  const restored = await restorePaidAccess(now);
+  assert.equal(restored?.kind, 'pugo');
+  assert.equal(hasPaidFeatures(restored!, new Date(now)), false);
+  assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
+  setPaidAccessStore(null);
+});
+
+test('an unresolved plan is never persisted, so a transient failure cannot outlive the session', async () => {
+  const store = memoryAccessStore();
+  setPaidAccessStore(store);
+
+  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'unavailable' });
+  assert.equal(store.current(), null);
+
+  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'malformed' });
+  assert.equal(store.current(), null);
+
   setLocalAccessForAi(null);
   assert.equal(await restorePaidAccess(Date.parse('2026-08-22T00:02:00Z')), null);
   setPaidAccessStore(null);

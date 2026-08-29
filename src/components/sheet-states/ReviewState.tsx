@@ -193,7 +193,7 @@ export default function ReviewState({
 	onGoBack,
 }: ReviewStateProps) {
 	const { requestConsent } = useRemoteEstimateConsent();
-	const { beginAiEstimate } = useEntitlement();
+	const { ensurePaidAccess } = useEntitlement();
 	const navigation = useNavigation<any>();
 	const [mealName, setMealName] = useState(result?.mealName ?? "");
 	const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(
@@ -656,8 +656,10 @@ export default function ReviewState({
 		const name = mealName.trim();
 		if (!name || clarifying) return;
 		setClarifyError(null);
-		const accessDecision = beginAiEstimate("reestimate");
-		if (accessDecision === "upgrade") {
+		// Awaited rather than sampled: on a cold start the plan is still resolving, and
+		// answering "unavailable" from an unfinished lookup denies a re-estimate the user has.
+		const accessDecision = await ensurePaidAccess();
+		if (accessDecision === "free") {
 			navigation.navigate("Paywall");
 			return;
 		}
@@ -693,7 +695,7 @@ export default function ReviewState({
 	}, [
 		mealName,
 		clarifying,
-		beginAiEstimate,
+		ensurePaidAccess,
 		navigation,
 		onClarify,
 		requestConsent,
@@ -707,8 +709,8 @@ export default function ReviewState({
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
 			setComponentClarifyError(null);
-			const accessDecision = beginAiEstimate("reestimate");
-			if (accessDecision === "upgrade") {
+			const accessDecision = await ensurePaidAccess();
+			if (accessDecision === "free") {
 				navigation.navigate("Paywall");
 				return;
 			}
@@ -766,7 +768,7 @@ export default function ReviewState({
 		},
 		[
 			clarifyingComponentId,
-			beginAiEstimate,
+			ensurePaidAccess,
 			navigation,
 			onClarifyComponent,
 			requestConsent,

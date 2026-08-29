@@ -107,10 +107,15 @@ export function documentPaidAccessStore(): PaidAccessStore {
 function persistPaidAccess(): void {
   const store = accessStore;
   if (!store || activeAccess === null) return;
-  if (activeAccess.kind === 'pugo'
-    && (activeAccess.reason === 'unavailable' || activeAccess.reason === 'malformed')) return;
-  const snapshot = activeAccess.kind === 'pugo' ? null : { access: activeAccess };
-  void store.write(JSON.stringify(snapshot)).catch(() => {});
+  // A transient failure is not an answer, so it never overwrites a stored one. A resolved
+  // Pugo is: persisting it lets a cold start open on an honest free state instead of a
+  // spinner, and Pugo is the least-privileged state so restoring it can only narrow access.
+  if (activeAccess.kind === 'pugo' && !isResolvedPugo(activeAccess)) return;
+  void store.write(JSON.stringify({ access: activeAccess })).catch(() => {});
+}
+
+function isRestorable(access: EatlogAccess, now: number): boolean {
+  return access.kind === 'pugo' ? isResolvedPugo(access) : hasPaidFeatures(access, new Date(now));
 }
 
 export async function restorePaidAccess(now = Date.now()): Promise<EatlogAccess | null> {
@@ -124,7 +129,7 @@ export async function restorePaidAccess(now = Date.now()): Promise<EatlogAccess 
   }
   if (!parsed || typeof parsed !== 'object') return null;
   const snapshot = parsed as Record<string, unknown>;
-  if (!isAccess(snapshot.access) || !hasPaidFeatures(snapshot.access, new Date(now))) return null;
+  if (!isAccess(snapshot.access) || !isRestorable(snapshot.access, now)) return null;
   activeAccess = snapshot.access;
   return snapshot.access;
 }

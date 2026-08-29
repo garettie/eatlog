@@ -178,7 +178,7 @@ export default function FoodSheetContent({
 }: FoodSheetContentProps) {
     const reduced = useReducedMotion();
     const { requestConsent } = useRemoteEstimateConsent();
-    const { beginAiEstimate } = useEntitlement();
+    const { warmEntitlement } = useEntitlement();
     const navigation = useNavigation<any>();
     const scanRequestRef = useRef(0);
     const scanInFlightRef = useRef(false);
@@ -394,11 +394,6 @@ export default function FoodSheetContent({
         [setState],
     );
 
-    const canBeginAiEstimate = useCallback((): boolean => {
-        beginAiEstimate('initial');
-        return true;
-    }, [beginAiEstimate]);
-
     const ensurePhotoEntryAvailable = useCallback(async (): Promise<boolean> => {
         if (serviceConfig.availability.gemini) return true;
         if (reusableMealsAvailable !== null) return reusableMealsAvailable;
@@ -448,7 +443,7 @@ export default function FoodSheetContent({
     }, [setState]);
 
     const handleCamera = useCallback(async () => {
-        if (!canBeginAiEstimate()) return;
+        warmEntitlement();
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -497,10 +492,10 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [canBeginAiEstimate, ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
+    }, [warmEntitlement, ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
 
     const handleGallery = useCallback(async () => {
-        if (!canBeginAiEstimate()) return;
+        warmEntitlement();
         if (scanInFlightRef.current) return;
         scanInFlightRef.current = true;
         const requestId = ++scanRequestRef.current;
@@ -533,10 +528,10 @@ export default function FoodSheetContent({
         } finally {
             if (requestId === scanRequestRef.current) scanInFlightRef.current = false;
         }
-    }, [canBeginAiEstimate, ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
+    }, [warmEntitlement, ensurePhotoEntryAvailable, queuePhotoForTitle, transitionTo, resetToEntry, setState, showScanError]);
 
     const handlePhotoEstimate = useCallback(async () => {
-        if (!canBeginAiEstimate()) return;
+        warmEntitlement();
         if (scanInFlightRef.current) return;
         const pendingPhoto = pendingPhotoRef.current;
         if (!pendingPhoto) {
@@ -618,7 +613,7 @@ export default function FoodSheetContent({
                 setPhotoEstimateBusy(false);
             }
         }
-    }, [canBeginAiEstimate, navigation, onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, setState, showScanError, state.pendingAction, transitionTo]);
+    }, [warmEntitlement, navigation, onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, setState, showScanError, state.pendingAction, transitionTo]);
 
     const handleReuseMeal = useCallback(async (meal: LoggedMeal) => {
         if (mealReuseInFlightRef.current) return;
@@ -688,10 +683,10 @@ export default function FoodSheetContent({
     }, [discardPendingPhoto, onGoBack, setState]);
 
     const handleDescribe = useCallback(async () => {
-        if (!canBeginAiEstimate()) return;
+        warmEntitlement();
         discardPendingPhoto();
         transitionTo('describe');
-    }, [canBeginAiEstimate, discardPendingPhoto, transitionTo]);
+    }, [warmEntitlement, discardPendingPhoto, transitionTo]);
 
     const handleDescribeResult = useCallback(
         (result: DescribeResult) => {

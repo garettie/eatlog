@@ -25,7 +25,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
   const inputRef = useRef<typeof BottomSheetTextInput>(null);
   const requestRef = useRef(0);
   const { requestConsent } = useRemoteEstimateConsent();
-  const { beginAiEstimate } = useEntitlement();
+  const { warmEntitlement } = useEntitlement();
   const navigation = useNavigation<any>();
 
   useEffect(() => () => { requestRef.current++; }, []);
@@ -35,7 +35,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
     if (!trimmed) return;
     Keyboard.dismiss();
     setError(null);
-    beginAiEstimate('initial');
+    warmEntitlement();
     if (!await requestConsent()) return;
     const requestId = ++requestRef.current;
     setLoading(true);

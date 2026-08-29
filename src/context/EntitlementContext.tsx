@@ -6,7 +6,9 @@ import { createBillingClient } from '../services/billing';
 import {
   entitlementStatus,
   hasPaidFeatures,
+  needsRevalidation,
   PAID_ACCESS_UNAVAILABLE_MESSAGE,
+  paidAndSettled,
   shouldApplyAccessUpdate,
   type BillingActionResult,
   type BillingOffering,
@@ -20,11 +22,19 @@ import { setAdaptiveAccess } from '../services/adaptiveAccess';
 import {
   createSubscriptionApi,
   documentPaidAccessStore,
-  getAiAuthorization,
   restorePaidAccess,
   setLocalAccessForAi,
   setPaidAccessStore,
 } from '../services/subscriptionApi';
+
+/**
+ * `ok` resolved the plan and its usage counters, `partial` resolved the plan but not the
+ * counters, and `failed` could not establish the plan at all. Callers must be able to tell
+ * these apart: a refresh that quietly resolves on failure reports success it never had.
+ */
+export type RefreshOutcome = 'ok' | 'partial' | 'failed';
+
+const FOREGROUND_REFRESH_INTERVAL_MS = 60 * 1000;
 
 interface EntitlementContextValue {
   access: EatlogAccess | null;
@@ -36,8 +46,8 @@ interface EntitlementContextValue {
   refreshing: boolean;
   hasPaidFeatures: boolean;
   ensurePaidAccess(): Promise<PaidAccessDecision>;
-  beginAiEstimate(operation: 'initial' | 'reestimate'): 'proceed' | 'upgrade' | 'unavailable';
-  refresh(): Promise<void>;
+  warmEntitlement(): void;
+  refresh(): Promise<RefreshOutcome>;
   purchase(tier: 'manok' | 'itik'): Promise<BillingActionResult>;
   restore(): Promise<BillingActionResult>;
   manageSubscription(): Promise<BillingActionResult>;
@@ -57,7 +67,10 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const accessPromise = useRef<Promise<EatlogAccess | null> | null>(null);
-  const refreshPromise = useRef<Promise<void> | null>(null);
+  /** Whether RevenueCat has given a real answer this session, as opposed to a restored one. */
+  const accessConfirmed = useRef(false);
+  const refreshPromise = useRef<Promise<RefreshOutcome> | null>(null);
+  const lastRefreshAt = useRef(0);
   const supportIdPromise = useRef<Promise<string> | null>(null);
   const remoteAccessPromise = useRef<Promise<boolean> | null>(null);
 
@@ -74,6 +87,9 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     if (accessPromise.current) return accessPromise.current;
     const pending = (async () => {
       const local = await billing.customerInfo(forceStore);
+      const transient = local.kind === 'pugo'
+        && (local.reason === 'unavailable' || local.reason === 'malformed');
+      if (!transient) accessConfirmed.current = true;
       applyAccess(local);
       return accessRef.current;
     })();
@@ -100,9 +116,10 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
         const installId = await resolveSupportId();
         const remote = await subscriptionApi.refresh(installId, forceStore);
         setUsage(remote.usage ?? { kind: 'none' });
-        return getAiAuthorization().ok;
+        return true;
       } catch {
-        setUsage({ kind: 'none' });
+        // Keep the last known counters. Blanking them reads as "your quota is gone" when the
+        // only thing that actually happened is that this one request did not land.
         return false;
       }
     })();
@@ -110,46 +127,49 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     return remoteAccessPromise.current;
   }, [resolveSupportId, subscriptionApi]);
 
+  /**
+   * Trust runs one way. A stored paid plan is good until its own expiry date, so it answers
+   * immediately and never puts a network round trip in front of a user who opened the app to
+   * take one photo. A stored free plan is only last session's answer, so it is re-checked
+   * before it is allowed to turn anyone away — otherwise a lapsed subscriber who resubscribed,
+   * or someone who bought on another device, meets a paywall they already paid to skip.
+   */
   const ensurePaidAccess = useCallback(async (): Promise<PaidAccessDecision> => {
-    if (entitlementStatus(accessRef.current) === 'checking') await resolveAccess(false);
+    const stored = accessRef.current;
+    if (stored !== null && hasPaidFeatures(stored)) return 'paid';
+    if (needsRevalidation(stored, accessConfirmed.current)) await resolveAccess(false);
     const status = entitlementStatus(accessRef.current);
     return status === 'checking' ? 'unavailable' : status;
   }, [resolveAccess]);
 
-  const beginAiEstimate = useCallback((
-    operation: 'initial' | 'reestimate',
-  ): 'proceed' | 'upgrade' | 'unavailable' => {
-    const status = entitlementStatus(accessRef.current);
-    if (operation === 'initial') {
-      if (status === 'checking') void resolveAccess(false);
-      return 'proceed';
-    }
-    if (status === 'checking') {
-      void resolveAccess(false);
-      return 'unavailable';
-    }
-    return status === 'free' ? 'upgrade' : 'proceed';
+  // Initial estimates never gate on entitlement: Pugo includes them and the Worker owns the
+  // quota. This only starts an unresolved lookup so the re-estimate path and the plan screen
+  // have an answer ready.
+  const warmEntitlement = useCallback((): void => {
+    if (needsRevalidation(accessRef.current, accessConfirmed.current)) void resolveAccess(false);
   }, [resolveAccess]);
 
-  const refreshAccess = useCallback(async (forceStore: boolean) => {
+  const refreshAccess = useCallback((forceStore: boolean): Promise<RefreshOutcome> => {
     if (refreshPromise.current) return refreshPromise.current;
-    const pending = (async () => {
+    const pending = (async (): Promise<RefreshOutcome> => {
       setRefreshing(true);
       try {
         const accessRequest = resolveAccess(forceStore);
         await resolveSupportId();
         await accessRequest;
         const current = accessRef.current;
-        const remoteRequest = current !== null && entitlementStatus(current) !== 'checking'
-          ? refreshRemoteAccess(forceStore)
-          : null;
+        const resolved = current !== null && entitlementStatus(current) !== 'checking';
+        const remoteRequest = resolved ? refreshRemoteAccess(forceStore) : null;
+        // Without a resolved plan there is no subject to attribute usage to, so the counters
+        // are genuinely unknown rather than merely stale.
         if (remoteRequest === null) setUsage({ kind: 'none' });
-        const products = await billing.offering();
-        setOffering(products);
-        if (remoteRequest !== null) await remoteRequest;
+        setOffering(await billing.offering());
+        if (remoteRequest === null) return 'failed';
+        return await remoteRequest ? 'ok' : 'partial';
       } catch {
-        setUsage({ kind: 'none' });
+        return 'failed';
       } finally {
+        lastRefreshAt.current = Date.now();
         setLoadingProducts(false);
         setRefreshing(false);
       }
@@ -173,7 +193,13 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       if (applied && entitlementStatus(next) !== 'checking') void refreshAccess(false);
     }).then((remove) => { unsubscribe = remove; }).catch(() => {});
     const appState = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void refreshAccess(false);
+      // Returning from the camera, a permission dialog, or the store sheet all count as a
+      // foreground. Rate-limit them to the entitlement cache lifetime the Worker already uses.
+      if (state !== 'active' || Date.now() - lastRefreshAt.current < FOREGROUND_REFRESH_INTERVAL_MS) return;
+      // A settled subscription is not re-verified on every return to the app. RevenueCat's own
+      // update listener still delivers renewals, cancellations, and revocations as they happen.
+      if (paidAndSettled(accessRef.current)) return;
+      void refreshAccess(false);
     });
     return () => { unsubscribe?.(); appState.remove(); };
   }, [applyAccess, billing, refreshAccess]);
@@ -210,12 +236,12 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     refreshing,
     hasPaidFeatures: access !== null && hasPaidFeatures(access),
     ensurePaidAccess,
-    beginAiEstimate,
+    warmEntitlement,
     refresh,
     purchase,
     restore,
     manageSubscription: billing.manageSubscription,
-  }), [access, beginAiEstimate, billing.manageSubscription, ensurePaidAccess, loadingProducts, offering, purchase, refresh, refreshing, restore, supportId, usage]);
+  }), [access, warmEntitlement, billing.manageSubscription, ensurePaidAccess, loadingProducts, offering, purchase, refresh, refreshing, restore, supportId, usage]);
 
   return <EntitlementContext.Provider value={value}>{children}</EntitlementContext.Provider>;
 }

@@ -2,6 +2,7 @@ import {
   AI_GRANT_AUDIENCE,
   AI_GRANT_MAX_TTL_MS,
   ENTITLEMENT_CACHE_TTL_MS,
+  PROVISIONAL_PUGO_CACHE_TTL_MS,
   aggregateAiUsage,
   accessExpired,
   accessExpiresAt,
@@ -603,7 +604,7 @@ async function refreshRevenueCatAccess(
   fetchImpl: typeof fetch,
   now: number,
   force: boolean,
-): Promise<{ verified: VerifiedRevenueCatAccess; customerKey: string }> {
+): Promise<{ verified: VerifiedRevenueCatAccess; customerKey: string; provisional: boolean }> {
   requireSubscriptionConfiguration(env);
   const customerKey = await hashQuotaIdentity(`customer:${installId}`, env.RATE_LIMIT_SALT);
   if (!force) {
@@ -613,7 +614,7 @@ async function refreshRevenueCatAccess(
       if (verified.subjectIdentity !== cached.subjectIdentity) {
         await store.putCached(customerKey, { ...cached, ...verified });
       }
-      return { verified, customerKey };
+      return { verified, customerKey, provisional: cached.provisional === true };
     }
   }
   try {
@@ -634,13 +635,34 @@ async function refreshRevenueCatAccess(
       ...verified,
       validUntil: Math.min(now + ENTITLEMENT_CACHE_TTL_MS, expiry),
     });
-    return { verified, customerKey };
+    return { verified, customerKey, provisional: false };
   } catch {
+    // The last verified access outranks the fallback, however old it is. Webhook
+    // invalidation expires this row instead of removing it precisely so a paying customer
+    // still has something to fall back to here.
     const cached = await store.getCached(customerKey, now, true);
-    if (!cached || accessExpired(cached.access, now)) {
-      throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { upstream: 'revenuecat', rejection: 'entitlement-refresh' });
+    if (cached && !accessExpired(cached.access, now)) {
+      return {
+        verified: await withPugoQuotaSubject(cached, installId, env),
+        customerKey,
+        provisional: cached.provisional === true,
+      };
     }
-    return { verified: await withPugoQuotaSubject(cached, installId, env), customerKey };
+    // Nothing verified has ever been seen for this install, or what was seen has expired.
+    // Pugo quota is keyed on the install alone, so serve it rather than blocking a free
+    // estimate on an upstream the free tier never needed. Both the cache entry and the grant
+    // it produces expire with the outage window, never outliving their own justification.
+    const verified = await withPugoQuotaSubject(
+      { access: { kind: 'pugo', checkedAt: new Date(now).toISOString(), reason: 'none' }, subjectIdentity: null },
+      installId,
+      env,
+    );
+    await store.putCached(customerKey, {
+      ...verified,
+      validUntil: now + PROVISIONAL_PUGO_CACHE_TTL_MS,
+      provisional: true,
+    });
+    return { verified, customerKey, provisional: true };
   }
 }
 
@@ -654,16 +676,21 @@ async function issueAiGrant(
   verified: VerifiedRevenueCatAccess,
   env: Env,
   now: number,
+  provisional = false,
 ): Promise<IssuedAiGrant | null> {
   const access = grantAccess(verified.access);
   if (!access || !verified.subjectIdentity) return null;
   requireSubscriptionConfiguration(env);
+  // A provisional grant states only that RevenueCat was unreachable, so it must expire with
+  // the outage window. Left at the normal ceiling it would be a bearer token asserting free
+  // limits for 30 days, and `authorizeEstimate` honours a valid grant without re-checking.
+  const ceiling = provisional ? PROVISIONAL_PUGO_CACHE_TTL_MS : AI_GRANT_MAX_TTL_MS;
   const claims: GrantClaims = {
     aud: AI_GRANT_AUDIENCE,
     sub: verified.subjectIdentity,
     access,
     iat: now,
-    exp: Math.min(now + AI_GRANT_MAX_TTL_MS, accessExpiresAt(verified.access) ?? Number.POSITIVE_INFINITY),
+    exp: Math.min(now + ceiling, accessExpiresAt(verified.access) ?? Number.POSITIVE_INFINITY),
   };
   return {
     claims,
@@ -680,8 +707,8 @@ async function accessRefresh(
   now: number,
   force: boolean,
 ): Promise<Response> {
-  const { verified } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force);
-  const grant = await issueAiGrant(verified, env, now);
+  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force);
+  const grant = await issueAiGrant(verified, env, now, provisional);
   if (!grant) return json({ access: verified.access, usage: { kind: 'none' } });
   const usage = await store.usage(grant.claims.sub, grant.claims.access, now);
   return json({
@@ -705,8 +732,8 @@ async function authorizeEstimate(
     const claims = await verifyAiGrant(token, env.AI_GRANT_SIGNING_KEY, now);
     if (claims) return { claims, refreshedGrant: null };
   }
-  const { verified } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false);
-  const refreshedGrant = await issueAiGrant(verified, env, now);
+  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false);
+  const refreshedGrant = await issueAiGrant(verified, env, now, provisional);
   if (!refreshedGrant) {
     throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Refresh your plan and try again.', { rejection: 'entitlement-refresh' });
   }

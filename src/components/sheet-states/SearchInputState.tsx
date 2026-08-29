@@ -70,7 +70,7 @@ export default function SearchInputState({
 	const [estimating, setEstimating] = useState(false);
 	const [estimateError, setEstimateError] = useState<string | null>(null);
 	const { requestConsent } = useRemoteEstimateConsent();
-	const { beginAiEstimate } = useEntitlement();
+	const { warmEntitlement } = useEntitlement();
 	const navigation = useNavigation<any>();
 
 	const handleFoodPress = useCallback(
@@ -140,7 +140,7 @@ export default function SearchInputState({
 		const query = search.query.trim();
 		if (!query || estimating) return;
 		setEstimateError(null);
-		beginAiEstimate("initial");
+		warmEntitlement();
 		if (!await requestConsent()) return;
 		setEstimating(true);
 		const result = await describeMeal(query);
@@ -152,7 +152,7 @@ export default function SearchInputState({
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [beginAiEstimate, estimating, navigation, onEstimateResult, requestConsent, search.query]);
+	}, [warmEntitlement, estimating, navigation, onEstimateResult, requestConsent, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow

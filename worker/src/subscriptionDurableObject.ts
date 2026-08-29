@@ -10,7 +10,7 @@ import {
 } from './subscriptions';
 
 interface DurableEnv {}
-interface CacheRow { [key: string]: SqlStorageValue; access_json: string; subject: string | null; valid_until: number }
+interface CacheRow { [key: string]: SqlStorageValue; access_json: string; subject: string | null; valid_until: number; provisional: number }
 interface EventRow { [key: string]: SqlStorageValue; operation_class: QuotaEvent['operationClass']; timestamp: number; request_id: string }
 
 export class EntitlementQuotaState extends DurableObject<DurableEnv> {
@@ -25,6 +25,7 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       CREATE INDEX IF NOT EXISTS quota_events_subject_time ON quota_events(subject, timestamp);
     `);
     try { this.ctx.storage.sql.exec('ALTER TABLE quota_requests ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0'); } catch {}
+    try { this.ctx.storage.sql.exec('ALTER TABLE access_cache ADD COLUMN provisional INTEGER NOT NULL DEFAULT 0'); } catch {}
   }
 
   // fallow-ignore-next-line unused-class-member -- Cloudflare invokes the Durable Object fetch entry point.
@@ -35,12 +36,17 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
     if (path === '/cache/get') {
       const customerKey = String(body.customerKey ?? '');
       const now = Number(body.now);
-      const row = [...sql.exec<CacheRow>('SELECT access_json, subject, valid_until FROM access_cache WHERE customer_key = ?', customerKey)][0];
+      const row = [...sql.exec<CacheRow>('SELECT access_json, subject, valid_until, provisional FROM access_cache WHERE customer_key = ?', customerKey)][0];
       if (!row || (body.stale !== true && row.valid_until <= now)) return Response.json(null);
-      return Response.json({ access: JSON.parse(row.access_json), subjectIdentity: row.subject, validUntil: row.valid_until });
+      return Response.json({
+        access: JSON.parse(row.access_json),
+        subjectIdentity: row.subject,
+        validUntil: row.valid_until,
+        provisional: row.provisional === 1,
+      });
     }
     if (path === '/cache/put') {
-      sql.exec('INSERT OR REPLACE INTO access_cache (customer_key, access_json, subject, valid_until) VALUES (?, ?, ?, ?)', String(body.customerKey), JSON.stringify(body.access), body.subjectIdentity == null ? null : String(body.subjectIdentity), Number(body.validUntil));
+      sql.exec('INSERT OR REPLACE INTO access_cache (customer_key, access_json, subject, valid_until, provisional) VALUES (?, ?, ?, ?, ?)', String(body.customerKey), JSON.stringify(body.access), body.subjectIdentity == null ? null : String(body.subjectIdentity), Number(body.validUntil), body.provisional === true ? 1 : 0);
       return Response.json({ ok: true });
     }
     if (path === '/webhook') {
@@ -57,7 +63,9 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       sql.exec('INSERT INTO webhook_events (event_id, event_timestamp) VALUES (?, ?)', eventId, eventTimestamp);
       for (const key of customerKeys) {
         sql.exec('INSERT OR REPLACE INTO webhook_subjects (customer_key, last_event_timestamp) VALUES (?, ?)', key, eventTimestamp);
-        sql.exec('DELETE FROM access_cache WHERE customer_key = ?', key);
+        // Expire rather than delete, so the row survives as an outage fallback. The next
+        // request still re-verifies because valid_until has passed.
+        sql.exec('UPDATE access_cache SET valid_until = 0 WHERE customer_key = ?', key);
       }
       return Response.json({ result: 'accepted' });
     }

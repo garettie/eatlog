@@ -12,6 +12,10 @@ const tabNavigator = read('./TabNavigator.tsx');
 const profileNavigator = read('./ProfileNavigator.tsx');
 const profile = read('../screens/ProfileScreen.tsx');
 const paywall = read('../screens/PaywallScreen.tsx');
+const planScreen = read('../screens/PlanScreen.tsx');
+const planParts = read('../components/plan/PlanParts.tsx');
+const planPurchase = read('../components/plan/usePlanPurchase.ts');
+const planCopy = read('../components/plan/planCopy.ts');
 const tierBirdIcon = read('../components/TierBirdIcon.tsx');
 const entitlementProvider = read('../context/EntitlementContext.tsx');
 const foodSheet = read('../components/sheet-states/FoodSheetContent.tsx');
@@ -27,56 +31,58 @@ const dataBackup = read('../services/dataBackup.ts');
 const dataExport = read('../services/dataExport.ts');
 
 test('entitlement provider owns paywall and Profile plan routes', () => {
-  const purchaseDisabled = paywall.slice(
-    paywall.indexOf('const purchaseDisabled'),
-    paywall.indexOf('const purchaseTitle'),
-  );
   assert.match(app, /<EntitlementProvider>/);
   assert.match(rootNavigator, /name="Paywall"/);
   assert.match(profileNavigator, /name="SubscriptionPlan"/);
+  assert.match(profileNavigator, /from '\.\.\/screens\/PlanScreen'/);
   assert.match(profile, /Plan/);
-  assert.match(paywall, /Support ID/);
-  assert.match(paywall, /Restore purchases/);
-  assert.match(paywall, /Manage subscription/);
-  assert.match(paywall, /Terms of Use/);
-  assert.match(paywall, /What you get/);
-  assert.match(paywall, /const manokOfferEligible = offering\?\.manok\?\.trialEligible === true/);
-  assert.match(paywall, /1 month free, then .* until canceled in Google Play[.]/);
-  assert.match(paywall, /manokOfferEligible[\s\S]*Continue to Google Play[\s\S]*Start monthly/);
-  assert.match(paywall, /Try store again/);
-  assert.match(paywall, /We couldn't reach the store\. Prices and checkout didn't load\. Your logbook still works\./);
-  assert.match(paywall, /30 requests per 24 hours · 250 per 30 days/);
-  assert.match(paywall, /Free logging plus 5 AI estimates per rolling 24 hours[.]/);
-  assert.match(paywall, /5 photo or description estimates per rolling 24 hours · no follow-up re-estimates/);
-  assert.match(paywall, /Free estimates left/);
-  assert.match(paywall, /usage[.]remaining24Hours}\/5/);
-  assert.match(paywall, /Higher AI estimate limits/);
-  assert.match(paywall, /Meal and component re-estimates/);
-  assert.match(paywall, /if \(!selectedProduct\) \{[\s\S]*retryPlans\('purchase'\)/);
-  assert.doesNotMatch(purchaseDisabled, /selectedProduct/);
-  assert.doesNotMatch(paywall, /Compare plans/);
-  assert.doesNotMatch(paywall, /AI actions|AI use left|AI use limits/);
-  assert.doesNotMatch(paywall, /This installed build or store did not return/);
-  assert.doesNotMatch(paywall, /Trial allowance:/);
-  for (const source of [paywall, profile, foodSheet]) {
+  assert.match(planScreen, /Support ID/);
+  assert.match(planScreen, /Restore purchases/);
+  assert.match(planScreen, /Manage subscription/);
+  assert.match(planParts, /What you get/);
+  assert.match(planPurchase, /offering\?\.manok\?\.trialEligible === true/);
+  assert.match(planPurchase, /1 month free, then .* until canceled in Google Play[.]/);
+  assert.match(planCopy, /Free logging plus 5 AI estimates per rolling 24 hours[.]/);
+  for (const source of [paywall, planScreen]) {
+    assert.match(source, /Terms of Use/);
+    assert.match(source, /We couldn't reach the store, so prices and checkout didn't load\. Your logbook still works\./);
+    assert.doesNotMatch(source, /Compare plans/);
+    assert.doesNotMatch(source, /AI actions|AI use left|AI use limits/);
+    assert.doesNotMatch(source, /Your logbook stays yours on every plan/);
+  }
+  for (const source of [paywall, planScreen, profile, foodSheet]) {
     assert.doesNotMatch(source, /Trial active|Monthly trial|Manok trial|Trial requests left|Trial total|trial allowance/i);
   }
-  assert.doesNotMatch(paywall, /Your logbook stays yours on every plan/);
-  assert.doesNotMatch(paywall, /End Manok in the store|unused Manok time/);
 });
 
-test('active plans hide purchase options until Manage plan opens', () => {
-  const purchaseOptions = paywall.slice(
-    paywall.indexOf('{showPurchaseOptions ? ('),
-    paywall.indexOf('{!managingCurrentPlan ? ('),
-  );
-  assert.match(paywall, /const hasCurrentPlan = hasPaidFeatures\(access\)/);
-  assert.match(paywall, /const managingCurrentPlan = hasCurrentPlan && managingPlan/);
-  assert.match(paywall, /const showPurchaseOptions = \(!hasCurrentPlan \|\| managingCurrentPlan\) && access.kind !== 'itik'/);
-  assert.match(paywall, /\{hasCurrentPlan && !managingCurrentPlan \? \([\s\S]*title="Manage plan"/);
-  assert.match(purchaseOptions, /\{!manokActive \? \([\s\S]*tier="manok"/);
-  assert.match(purchaseOptions, /tier="itik"/);
-  assert.match(paywall, /\{!hasCurrentPlan \|\| managingCurrentPlan \? \([\s\S]*Purchase help/);
+test('the plan surfaces lead with value, then price, then the purchase action', () => {
+  // Reasons to buy must precede the prices, and the prices must precede the commitment.
+  for (const source of [paywall, planScreen]) {
+    const value = source.indexOf('<ValueSummary />');
+    const options = source.indexOf('<PlanOptionGroup');
+    const cta = source.indexOf('<PrimaryButton');
+    assert.ok(value >= 0 && options > value, 'plan options must follow the value summary');
+    assert.ok(cta > options, 'the purchase button must follow the plan options');
+  }
+  // The concrete limits are the offer, so they are open rather than behind a disclosure.
+  assert.match(planParts, /Estimates per 24 hours/);
+  assert.match(planParts, /Requests per 30 days/);
+  assert.doesNotMatch(planParts, /Usage limits/);
+  assert.doesNotMatch(planScreen, /Usage limits/);
+});
+
+test('a subscriber sees remaining requests without a manage mode or a competing close control', () => {
+  // Quota is the reason a subscriber opens this screen, so it is never gated on near-exhaustion.
+  assert.match(planScreen, /<QuotaCard usage=\{usage\} \/>/);
+  assert.doesNotMatch(planParts, /remaining24Hours <= 5|remaining30Days <= 25/);
+  assert.match(planParts, /usage\.remaining24Hours\}\/30/);
+  assert.match(planParts, /usage\.remaining30Days\}\/250/);
+  // The Profile route exits through the navigator's back affordance alone.
+  assert.doesNotMatch(planScreen, /managingPlan|Manage plan|accessibilityLabel="Close plans"/);
+  assert.doesNotMatch(planScreen, /name="close"/);
+  // A settled selection is a card, not a radio the user cannot deselect.
+  assert.match(planParts, /accessibilityRole="radiogroup"/);
+  assert.match(planScreen, /<UpgradeOption/);
 });
 
 test('subscription tiers use the requested bird identities', () => {
@@ -88,33 +94,56 @@ test('subscription tiers use the requested bird identities', () => {
 });
 
 test('purchase support controls keep their layout stable and expose the Support ID', () => {
-  const purchaseHelp = paywall.slice(
-    paywall.indexOf('Purchase help'),
-    paywall.indexOf('<View className="flex-row flex-wrap justify-center gap-4">'),
+  const purchaseHelp = planScreen.slice(
+    planScreen.indexOf('Purchase help'),
+    planScreen.indexOf('<View className="flex-row flex-wrap justify-center gap-4">'),
   );
-  assert.notEqual(paywall.indexOf('Purchase help'), -1);
+  assert.notEqual(planScreen.indexOf('Purchase help'), -1);
   assert.match(purchaseHelp, />Restore purchases<\/Text>/);
-  assert.match(purchaseHelp, />Check access<\/Text>/);
   assert.match(purchaseHelp, />Support ID<\/Text>/);
-  assert.match(paywall, /const supportIdDisplay = supportId \?\?/);
-  assert.match(purchaseHelp, /\{supportIdDisplay\}/);
-  assert.match(purchaseHelp, /min-h-\[64px\][\s\S]*accessibilityLiveRegion=\{utilityMessage \? 'polite' : 'none'\}/);
+  assert.match(purchaseHelp, /min-h-\[64px\]/);
+  assert.match(purchaseHelp, /accessibilityLiveRegion=\{utilityMessage \? 'polite' : 'none'\}/);
   assert.doesNotMatch(purchaseHelp, /flex-wrap/);
+  // Selection inside a control that copies on press fights the press on Android.
+  assert.doesNotMatch(purchaseHelp, /selectable/);
+  // Checking access is the pull-to-refresh gesture, not a button beside Restore.
+  assert.match(planScreen, /<RefreshControl/);
+  assert.doesNotMatch(purchaseHelp, />Check access<\/Text>/);
+});
+
+test('a background refresh never disables the purchase button', () => {
+  const disabled = planPurchase.slice(
+    planPurchase.indexOf('const disabled ='),
+    planPurchase.indexOf('const run ='),
+  );
+  // Returning from the camera or a permission dialog must not grey out checkout.
+  assert.doesNotMatch(disabled, /refreshing/);
+  assert.doesNotMatch(planPurchase, /refreshing/);
+  for (const source of [paywall, planScreen]) {
+    assert.doesNotMatch(source, /disabled=\{[^}]*refreshing/);
+  }
+});
+
+test('a refresh reports its own outcome instead of always resolving', () => {
+  assert.match(entitlementProvider, /export type RefreshOutcome = 'ok' \| 'partial' \| 'failed'/);
+  assert.match(entitlementProvider, /refresh\(\): Promise<RefreshOutcome>/);
+  assert.match(entitlementProvider, /return 'failed'/);
+  assert.match(entitlementProvider, /return await remoteRequest \? 'ok' : 'partial'/);
+  // A failed counter refresh keeps the last known numbers instead of blanking them.
+  assert.doesNotMatch(entitlementProvider, /catch \{\s*setUsage\(\{ kind: 'none' \}\);\s*\} finally/);
+  assert.match(planScreen, /REFRESH_MESSAGES\[await refresh\(\)\]/);
+  // Foregrounding is rate-limited so app switching does not hammer the Worker.
+  assert.match(entitlementProvider, /FOREGROUND_REFRESH_INTERVAL_MS/);
 });
 
 test('local RevenueCat state remains the app authority across automatic and Worker refreshes', () => {
   assert.match(entitlementProvider, /shouldApplyAccessUpdate/);
   assert.match(entitlementProvider, /billing\.customerInfo\(forceStore\)/);
-  assert.match(entitlementProvider, /catch \{\s*setUsage\(\{ kind: 'none' \}\);\s*\} finally/);
   assert.doesNotMatch(entitlementProvider, /customerInfo\(true\)/);
   assert.doesNotMatch(entitlementProvider, /applyAccess\(remote\.access\)/);
 });
 
-test('cold start stays unresolved until RevenueCat CustomerInfo is available', () => {
-  const checkingPlan = paywall.slice(
-    paywall.indexOf("if (access === null || entitlementStatus === 'checking')"),
-    paywall.indexOf('const hasCurrentPlan'),
-  );
+test('an unresolved plan still renders the plan surfaces instead of a blocking spinner', () => {
   assert.match(entitlementProvider, /useState<EatlogAccess \| null>\(null\)/);
   assert.match(entitlementProvider, /useRef<EatlogAccess \| null>\(null\)/);
   assert.match(entitlementProvider, /entitlementStatus\(access\)/);
@@ -124,23 +153,26 @@ test('cold start stays unresolved until RevenueCat CustomerInfo is available', (
   const navigation = app.slice(app.indexOf('<NavigationContainer'), app.indexOf('</NavigationContainer>'));
   assert.doesNotMatch(navigation, /EntitlementProvider/);
   assert.match(profile, /entitlementStatus === 'checking' \? 'Checking plan…'/);
-  assert.match(paywall, /if \(access === null \|\| entitlementStatus === 'checking'\) \{[\s\S]*Checking your plan/);
-  assert.match(checkingPlan, /PAID_ACCESS_UNAVAILABLE_MESSAGE/);
-  assert.match(checkingPlan, /retryPlans\('utility'\)/);
   assert.match(analytics, /entitlementStatus === 'checking'[\s\S]*Checking your plan…/);
+  // Neither plan surface replaces itself with a checking state: the plans are content, and
+  // only the current-plan card carries the unknown.
+  for (const source of [paywall, planScreen]) {
+    assert.doesNotMatch(source, /Checking your plan/);
+    assert.doesNotMatch(source, /entitlementStatus === 'checking'/);
+  }
+  assert.match(planParts, /access \? accessName\(access\.kind\) : 'Unconfirmed'/);
 });
 
 test('AI estimate submission authorizes inline during the Worker request without a blocking preflight', () => {
-  const beginEstimate = entitlementProvider.slice(
-    entitlementProvider.indexOf('const beginAiEstimate ='),
+  const warmEntitlement = entitlementProvider.slice(
+    entitlementProvider.indexOf('const warmEntitlement ='),
     entitlementProvider.indexOf('const refreshAccess ='),
   );
   const foodScanClient = read('../services/foodScan.ts');
   const worker = read('../../worker/src/index.ts');
-  assert.match(entitlementProvider, /beginAiEstimate/);
-  assert.match(beginEstimate, /beginAiEstimate/);
-  assert.doesNotMatch(beginEstimate, /refreshRemoteAccess/);
-  assert.doesNotMatch(beginEstimate, /getAiAuthorization/);
+  assert.match(entitlementProvider, /warmEntitlement/);
+  assert.doesNotMatch(warmEntitlement, /refreshRemoteAccess/);
+  assert.doesNotMatch(warmEntitlement, /getAiAuthorization/);
   assert.match(foodScanClient, /acceptAiGrant/);
   assert.match(foodScanClient, /x-eatlog-ai-grant/i);
   assert.match(foodScanClient, /paid-access-required/);
@@ -163,21 +195,40 @@ test('unresolved purchase and restore stop before the billing client', () => {
 });
 
 test('Test Store preview can replace Manok with Itik without exposing fake cancellation controls', () => {
-  assert.match(paywall, /serviceConfig\.revenueCatTestStore/);
-  assert.match(paywall, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
+  assert.match(planScreen, /serviceConfig\.revenueCatTestStore/);
+  assert.match(planScreen, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
 });
 
 test('initial estimates proceed while re-estimates gate before private content collection', () => {
-  const beginEstimate = entitlementProvider.slice(
-    entitlementProvider.indexOf('const beginAiEstimate ='),
+  const warmEntitlement = entitlementProvider.slice(
+    entitlementProvider.indexOf('const warmEntitlement ='),
     entitlementProvider.indexOf('const refreshAccess ='),
   );
-  assert.match(beginEstimate, /operation === 'initial'[\s\S]*return 'proceed'/);
-  assert.match(beginEstimate, /status === 'checking'[\s\S]*return 'unavailable'/);
-  assert.match(beginEstimate, /status === 'free' \? 'upgrade' : 'proceed'/);
+  const ensure = entitlementProvider.slice(
+    entitlementProvider.indexOf('const ensurePaidAccess ='),
+    entitlementProvider.indexOf('const warmEntitlement ='),
+  );
+  // Warming resolves an unknown plan but never answers with one, so an initial estimate
+  // cannot be blocked by it. Re-estimates await the resolution instead of sampling it.
+  assert.match(warmEntitlement, /needsRevalidation\(accessRef\.current, accessConfirmed\.current\)/);
+  assert.doesNotMatch(warmEntitlement, /return '(proceed|upgrade|unavailable)'/);
+  assert.match(ensure, /await resolveAccess\(false\)/);
+  assert.match(ensure, /'checking' \? 'unavailable' : status/);
+  // A stored paid plan answers from its own expiry date, with no network call in front of a
+  // user who opened the app to take one photo.
+  assert.match(ensure, /if \(stored !== null && hasPaidFeatures\(stored\)\) return 'paid'/);
+  assert.ok(
+    ensure.indexOf("return 'paid'") < ensure.indexOf('await resolveAccess'),
+    'a valid paid plan must answer before any refresh is awaited',
+  );
+  // A stored free plan is only last session's answer, so it is re-checked before it denies.
+  assert.match(ensure, /needsRevalidation\(stored, accessConfirmed\.current\)/);
+  assert.match(entitlementProvider, /if \(!transient\) accessConfirmed\.current = true/);
+  // A settled subscription is not re-verified on every foreground.
+  assert.match(entitlementProvider, /if \(paidAndSettled\(accessRef\.current\)\) return/);
 
-  assert.match(foodSheet, /canBeginAiEstimate/);
-  const cameraGate = foodSheet.indexOf('canBeginAiEstimate()');
+  assert.match(foodSheet, /warmEntitlement/);
+  const cameraGate = foodSheet.indexOf('warmEntitlement()');
   const cameraPermission = foodSheet.indexOf('requestCameraPermissionsAsync');
   const galleryLaunch = foodSheet.indexOf('launchImageLibraryAsync');
   assert.ok(cameraGate >= 0 && cameraGate < cameraPermission);
@@ -186,17 +237,14 @@ test('initial estimates proceed while re-estimates gate before private content c
   assert.match(foodSheet, /case 'describe':\s*handleDescribe\(\);/);
   for (const source of [search, addComponent, describeInput]) {
     const consent = source.indexOf('requestConsent()');
-    const accessGate = Math.max(
-      source.indexOf("beginAiEstimate('initial')"),
-      source.indexOf('beginAiEstimate("initial")'),
-    );
+    const accessGate = source.indexOf('warmEntitlement()');
     assert.ok(consent >= 0 && accessGate >= 0 && accessGate < consent);
     assert.equal(source.includes('await ensurePaidAccess()'), false);
   }
   for (const marker of ['const handleClarify =', 'const handleClarifyComponent =']) {
     const start = review.indexOf(marker);
     const consent = review.indexOf('requestConsent()', start);
-    const accessGate = review.indexOf('beginAiEstimate("reestimate")', start);
+    const accessGate = review.indexOf('await ensurePaidAccess()', start);
     const upgrade = review.indexOf('navigation.navigate("Paywall")', accessGate);
     const unavailable = review.indexOf('PAID_ACCESS_UNAVAILABLE_MESSAGE', accessGate);
     assert.ok(start >= 0 && consent >= 0 && accessGate >= start && accessGate < consent);

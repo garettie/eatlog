@@ -1,6 +1,9 @@
 export const AI_GRANT_AUDIENCE = 'eatlog-ai';
 export const AI_GRANT_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const ENTITLEMENT_CACHE_TTL_MS = 60 * 60 * 1000;
+// Applied only to the Pugo access synthesized when RevenueCat is unreachable, so the next
+// request retries the upstream instead of serving free limits for a full cache lifetime.
+export const PROVISIONAL_PUGO_CACHE_TTL_MS = 60 * 1000;
 export const PUGO_DAILY_LIMIT = 5;
 const TRIAL_DAILY_LIMIT = 5;
 const TRIAL_TOTAL_LIMIT = 30;
@@ -58,6 +61,12 @@ export interface VerifiedRevenueCatAccess {
 
 export interface CachedAccess extends VerifiedRevenueCatAccess {
   validUntil: number;
+  /**
+   * True when this row records only that RevenueCat was unreachable. It must never be
+   * mistaken for a verified answer on a later read, or the short-lived grant it justifies
+   * would be reissued at the full ceiling.
+   */
+  provisional?: boolean;
 }
 
 export interface GrantClaims {
@@ -206,7 +215,11 @@ export class MemorySubscriptionStore implements SubscriptionStore {
       this.webhookEventTimestamps.set(eventId, eventTimestamp);
       for (const key of customerKeys) {
         this.webhookTimestamps.set(key, eventTimestamp);
-        this.cache.delete(key);
+        // Expire rather than delete. The next request still re-verifies against RevenueCat,
+        // but the last known access stays readable as an outage fallback, so a routine
+        // renewal event cannot strand a paying customer on free limits.
+        const cached = this.cache.get(key);
+        if (cached) this.cache.set(key, { ...cached, validUntil: 0 });
       }
       return 'accepted';
     });

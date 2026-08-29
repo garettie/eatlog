@@ -143,6 +143,33 @@ export function entitlementStatus(access: EatlogAccess | null, now = new Date())
   return hasPaidFeatures(access, now) ? 'paid' : 'checking';
 }
 
+/** How close to expiry a paid plan must be before automatic re-verification resumes. */
+export const PAID_REVERIFY_MARGIN_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * True when the stored plan is paid and its expiry is far enough away that asking again
+ * proves nothing. A subscription is settled by the date it carries, so the only automatic
+ * reasons to re-verify are that date approaching or the store pushing a change.
+ */
+export function paidAndSettled(access: EatlogAccess | null, now = new Date()): boolean {
+  if (access === null || !hasPaidFeatures(access, now)) return false;
+  const expiry = accessExpiresAt(access);
+  return expiry === null || Date.parse(expiry) - now.getTime() > PAID_REVERIFY_MARGIN_MS;
+}
+
+/**
+ * True when a stored plan must be re-resolved before it is allowed to deny a paid feature.
+ * A restored snapshot is last session's answer: trusting it to say no would paywall a lapsed
+ * subscriber who resubscribed, or someone who bought on another device.
+ */
+export function needsRevalidation(
+  access: EatlogAccess | null,
+  confirmedThisSession: boolean,
+  now = new Date(),
+): boolean {
+  return !confirmedThisSession || entitlementStatus(access, now) === 'checking';
+}
+
 export function canBuyItik(access: EatlogAccess): boolean {
   return access.kind !== 'itik' && (access.kind !== 'manok' && access.kind !== 'manok-trial' || !access.willRenew);
 }

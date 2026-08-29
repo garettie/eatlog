@@ -28,7 +28,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const [isEstimating, setIsEstimating] = useState(false);
   const [describeError, setDescribeError] = useState<string | null>(null);
   const { requestConsent } = useRemoteEstimateConsent();
-  const { beginAiEstimate } = useEntitlement();
+  const { warmEntitlement } = useEntitlement();
   const navigation = useNavigation<any>();
 
   const [manualName, setManualName] = useState('');
@@ -46,9 +46,9 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     && manualNutrients.some((value) => value > 0);
 
   const openDescribe = useCallback(() => {
-    beginAiEstimate('initial');
+    warmEntitlement();
     setMode('describe');
-  }, [beginAiEstimate]);
+  }, [warmEntitlement]);
 
   const reset = useCallback(() => {
     setMode(null);
@@ -76,7 +76,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     const text = describeText.trim();
     if (!text) return;
     setDescribeError(null);
-    beginAiEstimate('initial');
+    warmEntitlement();
     if (!await requestConsent()) return;
     setIsEstimating(true);
     try {
@@ -94,7 +94,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
     } finally {
       setIsEstimating(false);
     }
-  }, [beginAiEstimate, describeText, navigation, onAdd, requestConsent, reset]);
+  }, [warmEntitlement, describeText, navigation, onAdd, requestConsent, reset]);
 
   const handleManualAdd = useCallback(() => {
     if (!manualCanAdd) return;
