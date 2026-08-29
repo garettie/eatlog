@@ -1015,6 +1015,23 @@ async function geminiEstimate(
       continue;
     }
     if (!response.ok) {
+      // Name the model and its status. Without this a chain that fails end to end is
+      // indistinguishable from any other upstream problem, and no response body is logged so
+      // no provider detail leaks.
+      let reason = '';
+      try {
+        const body = await response.clone().json() as { error?: { message?: unknown; status?: unknown } };
+        // Google's own validation text, truncated. Enough to name the malformed field without
+        // carrying the request content that provoked it.
+        reason = `${String(body.error?.status ?? '')} ${String(body.error?.message ?? '')}`.trim().slice(0, 300);
+      } catch { reason = ''; }
+      console.log(JSON.stringify({
+        event: 'ai_model_rejected',
+        model,
+        upstreamStatus: response.status,
+        imageBytes: input.imageBase64 ? Math.round(input.imageBase64.length * 0.75) : 0,
+        reason,
+      }));
       if (model === models[models.length - 1]) throw new HttpError(502, 'UPSTREAM_ERROR', 'Estimation service rejected the request.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-status' });
       continue;
     }
