@@ -10,12 +10,15 @@ interface MealPhotoEditorProps {
   value: string | null;
   onChange: (uri: string | null) => void;
   disabled?: boolean;
+  /** "card" = compact thumb row; "band" = full-width scan media with a Change/Remove row. */
+  layout?: 'card' | 'band';
 }
 
 export default function MealPhotoEditor({
   value,
   onChange,
   disabled = false,
+  layout = 'card',
 }: MealPhotoEditorProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +81,83 @@ export default function MealPhotoEditor({
       { text: 'Cancel', style: 'cancel' },
     ]);
   }, [busy, disabled, pickPhoto]);
+
+  if (layout === 'band') {
+    return (
+      <View className="gap-2">
+        {value ? (
+          <View className="gap-2">
+            {failedPreviewUri === value ? (
+              <View className="h-44 w-full items-center justify-center rounded-2xl bg-m3-surface-container-highest">
+                <MaterialIcons name="image-not-supported" size={28} color={M3.onSurfaceVariant} />
+              </View>
+            ) : (
+              <Image
+                source={{ uri: value }}
+                className="h-44 w-full rounded-2xl bg-m3-surface-container-highest"
+                resizeMode="cover"
+                fadeDuration={0}
+                onError={() => setFailedPreviewUri(value)}
+              />
+            )}
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={chooseSource}
+                disabled={busy || disabled}
+                accessibilityRole="button"
+                accessibilityLabel="Replace meal photo"
+                accessibilityState={{ disabled: busy || disabled, busy }}
+                className="min-h-[48px] flex-1 flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high active:opacity-60"
+              >
+                {busy ? (
+                  <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+                ) : (
+                  <>
+                    <MaterialIcons name="photo-camera" size={16} color={M3.onSurfaceVariant} />
+                    <Text className="text-m3-on-surface text-xs font-semibold">Change</Text>
+                  </>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={() => onChange(null)}
+                disabled={busy || disabled}
+                accessibilityRole="button"
+                accessibilityLabel="Remove meal photo"
+                accessibilityState={{ disabled: busy || disabled, busy }}
+                className="min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-4 active:opacity-60"
+              >
+                <MaterialIcons name="delete-outline" size={16} color={M3.error} />
+                <Text className="text-m3-error text-xs font-semibold">Remove</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <Pressable
+            onPress={chooseSource}
+            disabled={busy || disabled}
+            accessibilityRole="button"
+            accessibilityLabel="Add meal photo"
+            accessibilityState={{ disabled: busy || disabled, busy }}
+            className="h-44 w-full items-center justify-center gap-2 rounded-2xl bg-m3-surface-container-high border border-m3-outline-variant/30 active:opacity-70"
+          >
+            {busy ? (
+              <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+            ) : (
+              <>
+                <MaterialIcons name="add-a-photo" size={24} color={M3.onSurfaceVariant} />
+                <Text className="text-m3-on-surface text-sm font-semibold">Add photo</Text>
+              </>
+            )}
+          </Pressable>
+        )}
+        {error && (
+          <Text className="text-m3-error text-xs font-medium" accessibilityLiveRegion="assertive">
+            {error}
+          </Text>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View className="gap-2">

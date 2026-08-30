@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp, useReducedMotion } from 'react-native-reanimated';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { MealType, insertFoodLog } from '../../db/database';
 import { DataType, FoodResult } from '../../services/foodSearch';
-import { todayISO } from '../../utils/calendar';
+import { isoFromDate, parseLocalISO } from '../../utils/calendar';
 import { defaultMealForNow } from '../../utils/calculations';
+import { useToday } from '../../hooks/useToday';
 import {
   buildFoodAmountOptions,
   initialPortionSelection,
@@ -22,7 +24,10 @@ import MealSelector from '../MealSelector';
 import MacroSummaryCard from '../MacroSummaryCard';
 import PortionStepper from '../PortionStepper';
 import PrimaryButton from '../PrimaryButton';
+import DateSelector from '../DateSelector';
 import SheetBackButton from './SheetBackButton';
+import { useDiscardGuardContext } from './useDiscardGuard';
+import { M3 } from '../../theme/tokens';
 
 function dataTypeLabel(dt: DataType): string {
   switch (dt) {
@@ -79,15 +84,43 @@ export default function SingleFoodReviewState({
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
+  const [dateSelectorVisible, setDateSelectorVisible] = useState(false);
+  const [logDateOverride, setLogDateOverride] = useState<string | null>(null);
+  const dirtyRef = useRef(false);
+  const loggedRef = useRef(false);
+  const discardGuard = useDiscardGuardContext();
 
   const reducedMotion = useReducedMotion();
+  const today = useToday();
+  const effectiveLogDate = logDateOverride ?? logDate ?? today;
+  const compactLogDateLabel =
+    effectiveLogDate === today
+      ? 'Today'
+      : parseLocalISO(effectiveLogDate).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        });
 
   useEffect(() => {
     if (!food) return;
     setSelection(initialPortionSelection(food));
     setPortionValid(true);
     setMeal(initialMeal ?? defaultMealForNow());
+    setLogDateOverride(null);
+    dirtyRef.current = false;
+    loggedRef.current = false;
   }, [food, initialMeal]);
+
+  useEffect(() => {
+    const unregister = discardGuard.register(
+      () => dirtyRef.current && !loggedRef.current,
+      () => {
+        dirtyRef.current = false;
+        loggedRef.current = false;
+      },
+    );
+    return unregister;
+  }, [discardGuard]);
 
   const macros = useMemo(() => {
     if (!food || gramsNum <= 0) return null;
@@ -114,6 +147,7 @@ export default function SingleFoodReviewState({
 
   const handleModeChange = useCallback(
     (mode: PortionMode) => {
+      dirtyRef.current = true;
       setSelection((current) => setPortionMode(current, mode, serving));
     },
     [serving],
@@ -121,12 +155,14 @@ export default function SingleFoodReviewState({
 
 
   const handleServingsSet = useCallback((value: number) => {
+    dirtyRef.current = true;
     setSelection((current) =>
       setServingAmount(current, value, food ? selectedServing(food, current) : null)
     );
   }, [food]);
 
   const handleGramsSet = useCallback((value: number) => {
+    dirtyRef.current = true;
     setSelection((current) => setGramsAmount(current, value));
   }, []);
 
@@ -135,7 +171,7 @@ export default function SingleFoodReviewState({
     setLogError(null);
     setLogging(true);
     try {
-      const targetLogDate = logDate ?? todayISO();
+      const targetLogDate = effectiveLogDate;
       const logId = await insertFoodLog({
         log_date: targetLogDate,
         name: food.name,
@@ -157,6 +193,7 @@ export default function SingleFoodReviewState({
         carbs_g: macros.carbs,
         fat_g: macros.fat,
       });
+      loggedRef.current = true;
       onLogComplete({ logId, meal, name: food.name, calories: macros.calories, logDate: targetLogDate });
     } catch (e) {
       console.error('[FoodReview] save failed', e);
@@ -164,7 +201,7 @@ export default function SingleFoodReviewState({
     } finally {
       setLogging(false);
     }
-  }, [food, macros, gramsNum, portionValid, meal, onLogComplete, logDate, serving]);
+  }, [food, macros, gramsNum, portionValid, meal, onLogComplete, effectiveLogDate, serving]);
 
   if (!food) return null;
 
@@ -215,6 +252,7 @@ export default function SingleFoodReviewState({
             amountOptions={amountOptions}
             selectedAmountId={selection.selectedAmountId}
             onAmountChange={(option) => {
+              dirtyRef.current = true;
               setSelection((current) => selectFoodAmount(current, option));
               setPortionValid(true);
             }}
@@ -239,7 +277,35 @@ export default function SingleFoodReviewState({
       <View
         className="px-5 pt-3 pb-3 gap-3 border-t border-m3-outline-variant/30"
       >
-        <MealSelector value={meal} onChange={setMeal} />
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            onPress={() => setDateSelectorVisible(true)}
+            disabled={logging}
+            accessibilityRole="button"
+            accessibilityLabel={`Log date, ${compactLogDateLabel}`}
+            accessibilityState={{ disabled: logging }}
+            className="min-w-[88px] min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-3 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50"
+          >
+            <MaterialIcons name="event" size={17} color={M3.onSurfaceVariant} />
+            <Text
+              numberOfLines={1}
+              className="text-m3-on-surface text-xs font-semibold"
+            >
+              {compactLogDateLabel}
+            </Text>
+          </Pressable>
+          <View className="flex-1 min-w-0">
+            <MealSelector
+              value={meal}
+              compact
+              disabled={logging}
+              onChange={(nextMeal) => {
+                dirtyRef.current = true;
+                setMeal(nextMeal);
+              }}
+            />
+          </View>
+        </View>
         <PrimaryButton
           title="Log Entry"
           icon="check"
@@ -254,6 +320,21 @@ export default function SingleFoodReviewState({
           </Text>
         )}
       </View>
+
+      <DateSelector
+        visible={dateSelectorVisible}
+        value={parseLocalISO(effectiveLogDate)}
+        minimumDate={new Date(1900, 0, 1)}
+        showTodayAction
+        onCancel={() => setDateSelectorVisible(false)}
+        onConfirm={(date) => {
+          setDateSelectorVisible(false);
+          const nextDate = isoFromDate(date);
+          if (nextDate === effectiveLogDate) return;
+          dirtyRef.current = true;
+          setLogDateOverride(nextDate);
+        }}
+      />
     </View>
   );
 }

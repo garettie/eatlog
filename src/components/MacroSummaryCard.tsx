@@ -47,6 +47,15 @@ const VARIANTS = {
 		calorieFit: true,
 		divider: "h-8 w-px bg-m3-outline-variant/50",
 	},
+	// "rail" is the review-sheet totals strip: same macro row as "summary" but the card
+	// chrome lives on an outer wrapper so a review-status line can sit beneath the numbers.
+	rail: {
+		outer: "min-h-[52px] flex-row items-center",
+		calorieCol: "w-20 items-center",
+		calorieText: "text-m3-on-surface text-2xl font-bold tabular-nums",
+		calorieFit: false,
+		divider: "h-10 w-px bg-m3-outline-variant/50",
+	},
 } as const;
 
 function MacroCell({
@@ -80,8 +89,13 @@ interface MacroSummaryCardProps {
 	protein: number;
 	carbs: number;
 	fat: number;
-	/** "summary" = totals card (larger); "row" = per-food card (compact, no border). */
+	/** "summary" = totals card (larger); "row" = per-food card (compact, no border); "rail" = review totals with a status line. */
 	variant?: keyof typeof VARIANTS;
+	/**
+	 * Review-status line shown beneath the numbers on the "rail" variant only
+	 * (e.g. "3 foods · 1 needs review"). `isError` renders it in error coral.
+	 */
+	status?: { label: string; isError: boolean } | null;
 }
 
 export default function MacroSummaryCard({
@@ -90,11 +104,12 @@ export default function MacroSummaryCard({
 	carbs,
 	fat,
 	variant = "summary",
+	status = null,
 }: MacroSummaryCardProps) {
 	const v = VARIANTS[variant];
 	const calorieStyle = usePulseStyle(calories);
 
-	return (
+	const strip = (
 		<View className={v.outer}>
 			<View className={v.calorieCol}>
 				<Animated.Text
@@ -114,6 +129,25 @@ export default function MacroSummaryCard({
 				<MacroCell label="Carbs" value={carbs} colorClassName="text-m3-carbs" />
 				<MacroCell label="Fat" value={fat} colorClassName="text-m3-fat" />
 			</View>
+		</View>
+	);
+
+	if (variant !== "rail") return strip;
+
+	return (
+		<View className="rounded-2xl bg-m3-surface-container px-4 py-3 border border-m3-outline-variant/40">
+			{strip}
+			{status ? (
+				<View className="mt-2 pt-2 border-t border-m3-outline-variant/40">
+					<Text
+						numberOfLines={1}
+						accessibilityLiveRegion="polite"
+						className={`text-compact font-semibold ${status.isError ? "text-m3-error" : "text-m3-on-surface-variant"}`}
+					>
+						{status.label}
+					</Text>
+				</View>
+			) : null}
 		</View>
 	);
 }

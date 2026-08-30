@@ -430,6 +430,7 @@ export default function TabNavigator() {
                     !!sheet.fromBar
                     && sheet.stateKey !== 'weight-input'
                     && sheet.stateKey !== 'review'
+                    && sheet.stateKey !== 'single-food-review'
                 }
             >
                 <FoodSheetContent

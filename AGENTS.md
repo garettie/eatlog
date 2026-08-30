@@ -1,3 +1,27 @@
+---
+ijfw_version: 1.3.2
+ijfw_schema: 1
+type: software
+primary_type: software
+secondary_types: []
+confidence: 0.943
+detected_at: 2026-08-01T06:44:21.319Z
+signals:
+  - kind: agents_md_frontmatter
+    weight: 0.9
+    value: software
+  - kind: manifest
+    weight: 0.9
+    manifests: [package.json]
+  - kind: dir_design
+    weight: 0.4
+    name: assets
+  - kind: file_extension_ratio
+    weight: 0.7
+    domain: software
+    ratio: 1
+    count: 87
+---
 # AGENTS.md
 
 Drop-in operating instructions for coding agents. Read this file before every task.
@@ -284,3 +308,77 @@ This boilerplate synthesizes:
 - The AGENTS.md open standard (cross-tool portability via symlinks).
 
 Read once. Edit sections 10 and 11 for your project. Prune the rest over time. This file gets better the more you use it.
+
+<!-- IJFW-MEMORY-START (managed -- do not edit manually) -->
+<ijfw-memory>
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+</ijfw-memory>
+
+<ijfw-profile>
+Your portable working profile (derived from what you've said/edited; style + expertise only):
+style.formality: casual
+style.energy: measured
+style.terseness: moderate
+style.emoji_use: rare
+</ijfw-profile>
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-AGENTS-START -->
+No project agents yet. Run `ijfw team` to set them up.
+<!-- IJFW-AGENTS-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->

@@ -25,6 +25,10 @@ const mealPhotoEditorSource = readFileSync(
   resolve(testDirectory, '../components/MealPhotoEditor.tsx'),
   'utf8',
 );
+const macroSummaryCardSource = readFileSync(
+  resolve(testDirectory, '../components/MacroSummaryCard.tsx'),
+  'utf8',
+);
 const mealSelectorSource = readFileSync(
   resolve(testDirectory, '../components/MealSelector.tsx'),
   'utf8',
@@ -33,53 +37,87 @@ const mealReviewSource = readFileSync(
   resolve(testDirectory, '../utils/mealReview.ts'),
   'utf8',
 );
+const singleFoodReviewSource = readFileSync(
+  resolve(testDirectory, '../components/sheet-states/SingleFoodReviewState.tsx'),
+  'utf8',
+);
 
-test('expanded meal components keep identity stable and defer nutrition editing', () => {
-  assert.match(reviewStateSource, /accessibilityState=\{\{ expanded: false \}\}/);
-  assert.match(reviewStateSource, /accessibilityState=\{\{ expanded: isExpanded \}\}/);
-  assert.match(reviewStateSource, /value=\{comp\.food\.name\}/);
-  assert.doesNotMatch(reviewStateSource, /isExpanded\s*\? portionSummary/);
-  assert.doesNotMatch(reviewStateSource, /Calculated live/);
+test('the review sheet corrects a food in a focused editor, not an inline expansion', () => {
+  // The editor is an internal view of ReviewState, not a sheet state or an in-row form.
+  assert.match(reviewStateSource, /const \[editingId, setEditingId\] = useState/);
+  assert.match(reviewStateSource, /function FoodEditorView/);
+  assert.match(reviewStateSource, /<FoodEditorView/);
+  assert.match(reviewStateSource, /const openEditor = useCallback/);
+  assert.match(reviewStateSource, /const closeEditor = useCallback/);
+  // The old inline-expansion machinery is gone.
+  assert.doesNotMatch(reviewStateSource, /expandedIds/);
+  assert.doesNotMatch(reviewStateSource, /nutritionExpandedIds/);
+  assert.doesNotMatch(reviewStateSource, /const isExpanded =/);
+});
+
+test('hardware Back closes the editor before it pops the sheet', () => {
+  assert.match(
+    reviewStateSource,
+    /BackHandler\.addEventListener\("hardwareBackPress"/,
+  );
+  // Registered only while a food is open so it wins over the sheet's own handler.
+  assert.match(reviewStateSource, /if \(editingId === null\) return;\n\t\tconst subscription = BackHandler/);
+  assert.match(reviewStateSource, /<SheetBackButton onPress=\{onGoBack\} \/>/);
+  assert.match(reviewStateSource, /<SheetBackButton onPress=\{onClose\} \/>/);
+});
+
+test('compact food rows open the editor and carry no per-row remove', () => {
+  assert.match(reviewStateSource, /onPress=\{\(\) => openEditor\(comp\)\}/);
+  assert.match(reviewStateSource, /name="chevron-right"/);
+  // The calorie figure shows once, in the collapsed row (not duplicated in the editor).
   assert.equal(reviewStateSource.match(/\{cal\} kcal/g)?.length, 1);
-  assert.match(reviewStateSource, /nutritionExpandedIds/);
+  // Remove lives only in the editor now.
+  assert.equal(reviewStateSource.match(/>\s*Remove food\s*<\/Text>/g)?.length, 1);
+  assert.match(reviewStateSource, />\s*Foods\s*<\/Text>/);
+});
+
+test('the photo band and combined totals rail replace the thumb card and plain summary', () => {
+  assert.match(reviewStateSource, /<MealPhotoEditor[\s\S]*?layout="band"/);
+  assert.match(reviewStateSource, /<MacroSummaryCard[\s\S]*?variant="rail"[\s\S]*?status=\{railStatus\}/);
+  assert.match(reviewStateSource, /const railStatus = summarizeReviewStatus\(components\)/);
+  assert.match(macroSummaryCardSource, /variant !== "rail"/);
+  assert.match(macroSummaryCardSource, /status\?: \{ label: string; isError: boolean \} \| null/);
+  assert.match(mealPhotoEditorSource, /layout\?: 'card' \| 'band'/);
+  assert.match(mealPhotoEditorSource, /if \(layout === 'band'\)/);
+});
+
+test('the editor keeps identity stable and defers editable nutrition behind one disclosure', () => {
+  assert.match(reviewStateSource, /value=\{component\.food\.name\}/);
+  assert.match(reviewStateSource, /kcal \/ 100 g/);
   assert.match(reviewStateSource, /accessibilityState=\{\{ expanded: nutritionExpanded \}\}/);
   assert.match(reviewStateSource, /<DisclosureChevron expanded=\{nutritionExpanded\} \/>/);
   assert.match(reviewStateSource, />\s*Nutrition values\s*<\/Text>/);
-  assert.doesNotMatch(reviewStateSource, /Advanced nutrition/);
-});
-
-test('expanded component layout uses one grouped list and responsive nutrition fields', () => {
-  assert.match(reviewStateSource, /overflow-hidden rounded-2xl bg-m3-surface-container border/);
-  assert.match(reviewStateSource, /\$\{isExpanded \? "bg-m3-surface-container-high" : ""\}/);
-  assert.match(reviewStateSource, /multiline/);
   assert.match(reviewStateSource, /min-w-\[132px\] flex-1/);
-  assert.match(reviewStateSource, />\s*Remove food\s*<\/Text>/);
-  assert.match(reviewStateSource, /border-t border-m3-outline-variant\/50 px-4 py-4 gap-3/);
-  assert.match(reviewStateSource, /border-t border-m3-outline-variant\/70/);
-  assert.doesNotMatch(reviewStateSource, /\{componentContext \? \(/);
-  assert.doesNotMatch(reviewStateSource, /<View className="px-4 pb-4">/);
 });
 
-test('meal review omits redundant summary and footer copy', () => {
-  assert.match(reviewStateSource, />\s*Foods\s*<\/Text>/);
-  assert.doesNotMatch(reviewStateSource, /Foods ·|1 needs review|kcal total/);
-  assert.doesNotMatch(
-    reviewStateSource,
-    /Review nutrition for grilled chicken|Change meal or log date/,
-  );
+test('renamed and low-confidence foods surface a persistent attention band with a nutrition decision', () => {
+  assert.match(reviewStateSource, /nutritionAcknowledged/);
+  assert.match(reviewStateSource, /Nutrition based on \{component\.originalName\.trim\(\)\}/);
+  assert.match(reviewStateSource, />\s*Keep values\s*<\/Text>/);
+  assert.match(reviewStateSource, /hasUnreviewedNutrition/);
+  assert.match(reviewStateSource, /const showAttentionBand = lowConfidence \|\| nameChanged/);
+});
+
+test('the log blocker points at the specific food that needs attention', () => {
+  assert.match(reviewStateSource, /const firstOffendingIdx = components\.findIndex/);
+  assert.match(reviewStateSource, /openEditor\(components\[firstOffendingIdx\]\)/);
   assert.match(reviewStateSource, /title=\{editMealId \? "Update meal" : "Log meal"\}/);
 });
 
-test('expanded component content is not clipped by animated height measurement', () => {
-  const componentRows = reviewStateSource.slice(
-    reviewStateSource.indexOf('components.map((comp, idx)'),
-
-    reviewStateSource.indexOf('<AddComponentSection'),
+test('editor content is laid out in normal flow, not clipped by measured animation', () => {
+  const editor = reviewStateSource.slice(
+    reviewStateSource.indexOf('function FoodEditorView'),
   );
-
-  assert.doesNotMatch(componentRows, /LinearTransition/);
-  assert.doesNotMatch(componentRows, /pendingScrollIdRef|scrollViewRef\.current\?\.scrollTo/);
+  assert.doesNotMatch(editor, /LinearTransition/);
+  assert.doesNotMatch(editor, /pendingScrollIdRef|scrollViewRef\.current\?\.scrollTo/);
+  assert.doesNotMatch(editor, /layout=\{/);
 });
+
 test('meal destination stays visible in one compact row', () => {
   assert.match(reviewStateSource, /const compactLogDateLabel/);
   assert.match(reviewStateSource, /effectiveLogDate === today/);
@@ -91,22 +129,10 @@ test('meal destination stays visible in one compact row', () => {
   assert.match(mealSelectorSource, /compact \? m\.compactLabel : m\.label/);
 });
 
-test('component disclosure motion is transform-only and reduced-motion safe', () => {
+test('the disclosure chevron animates transform-only and reduced-motion safe', () => {
   assert.match(reviewStateSource, /function DisclosureChevron/);
   assert.match(reviewStateSource, /duration: reducedMotion \? 0 : 250/);
   assert.match(reviewStateSource, /transform: \[\{ rotate: `\$\{rotation\.value\}deg` \}\]/);
-  assert.match(reviewStateSource, /<DisclosureChevron expanded=\{isExpanded\} \/>/);
-  assert.doesNotMatch(reviewStateSource, /<DisclosureChevron expanded \/>/);
-  assert.doesNotMatch(reviewStateSource, /<DisclosureChevron expanded=\{false\} \/>/);
-  assert.doesNotMatch(reviewStateSource, /layout=\{|scrollViewRef\.current\?\.scrollTo/);
-});
-
-test('renamed foods require an explicit nutrition decision', () => {
-  assert.match(reviewStateSource, /nutritionAcknowledged/);
-  assert.match(reviewStateSource, /Nutrition based on/);
-  assert.match(reviewStateSource, /\{comp\.originalName\.trim\(\)\}/);
-  assert.match(reviewStateSource, />\s*Keep values\s*<\/Text>/);
-  assert.match(reviewStateSource, /hasUnreviewedNutrition/);
 });
 
 test('review dismissal keeps discard protection for direct entry flows', () => {
@@ -124,12 +150,21 @@ test('tapping a diary meal opens its review sheet without an animation-frame han
   assert.doesNotMatch(openEditMealSource, /requestAnimationFrame/);
 });
 
-test('component disclosures announce state and Undo respects accessibility timing', () => {
+test('disclosures announce state and Undo respects accessibility timing', () => {
   assert.match(reviewStateSource, /announceForAccessibility/);
   assert.match(reviewStateSource, /getRecommendedTimeoutMillis\(UNDO_TIMEOUT_MS\)/);
-  assert.match(reviewStateSource, /<SheetBackButton onPress=\{onGoBack\} \/>/);
   assert.match(reviewStateSource, /accessibilityRole="header"/);
   assert.match(mealPhotoEditorSource, /accessibilityState=\{\{ disabled: busy \|\| disabled, busy \}\}/);
+});
+
+test('the portion amount editor lays value and unit as flex siblings, never overlapping', () => {
+  assert.match(portionStepperSource, /flex-1 min-w-0 h-full text-center/);
+  assert.match(portionStepperSource, /ml-1 shrink-0/);
+  assert.match(portionStepperSource, /\{servingIndicator\}/);
+  assert.match(portionStepperSource, />\s*g\s*<\/Text>/);
+  // The old absolute overlay that let long values slide under the unit is gone.
+  assert.doesNotMatch(portionStepperSource, /relative w-full h-full items-center justify-center/);
+  assert.doesNotMatch(portionStepperSource, /absolute right-2/);
 });
 
 test('portion mode and amount editor share one contrasting control row', () => {
@@ -142,19 +177,24 @@ test('portion mode and amount editor share one contrasting control row', () => {
   assert.match(portionStepperSource, /w-\[104px\] shrink-0/);
   assert.match(portionStepperSource, /h-\[52px\] bg-m3-surface-container rounded-xl/);
   assert.doesNotMatch(portionStepperSource, /onServingsDelta|formatServingSummary/);
-  assert.match(portionStepperSource, />\s*g\s*<\/Text>/);
-  assert.match(portionStepperSource, /\{servingIndicator\}/);
-  assert.match(reviewStateSource, /accessibilityLabel="Food name"/);
-  assert.match(reviewStateSource, /font-medium tabular-nums rounded-xl/);
-  // The portion summary moved out of the component into utils/mealReview; its behaviour is
-  // covered directly by utils/portionSummary.test.ts.
+});
+
+test('the review-status summary lives in utils and is exercised by the rail', () => {
+  assert.match(mealReviewSource, /export function summarizeReviewStatus/);
+  assert.match(mealReviewSource, /No foods yet/);
+  assert.match(mealReviewSource, /needs' : 'need'/);
+  // Collapsed-portion behaviour stays covered by utils/portionSummary.test.ts.
   assert.match(mealReviewSource, /Math\.abs\(servings - 1\) < 0\.001 \? serving\.grams : grams/);
 });
 
-test('grams editor centers the value independently of its suffix', () => {
-  assert.match(portionStepperSource, /className="relative w-full h-full items-center justify-center"/);
-  assert.match(portionStepperSource, /w-full h-full text-center bg-transparent/);
-  assert.match(portionStepperSource, /pointerEvents="none"/);
-  assert.match(portionStepperSource, /absolute right-2/);
-  assert.doesNotMatch(portionStepperSource, /w-28 min-h-\[48px\] text-right/);
+test('single-food review guards edits against dismissal and matches the meal footer', () => {
+  assert.match(singleFoodReviewSource, /discardGuard\.register/);
+  assert.match(singleFoodReviewSource, /dirtyRef\.current && !loggedRef\.current/);
+  assert.match(singleFoodReviewSource, /<DateSelector/);
+  assert.match(singleFoodReviewSource, /<MealSelector\s+value=\{meal\}\s+compact/);
+  // The direct-entry force-close path must not bypass the discard guard here.
+  assert.match(
+    tabNavigatorSource,
+    /sheet\.stateKey !== 'single-food-review'/,
+  );
 });

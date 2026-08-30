@@ -100,6 +100,38 @@ export function componentReviewStatus(
   return null;
 }
 
+/**
+ * One-line review status for the totals rail: "3 foods · 1 needs review".
+ * `isError` is true only when a food actually blocks a log (missing name,
+ * invalid portion, or an unacknowledged rename); a low-confidence estimate counts
+ * toward "needs review" but stays plain ink because it does not block logging.
+ * The empty state also stays plain ink: nothing has been attempted yet, so error
+ * coral is reserved for the footer's post-attempt failure copy.
+ */
+export function summarizeReviewStatus(
+  components: EditableComponent[],
+): { label: string; isError: boolean } {
+  const foods = components.length;
+  if (foods === 0) return { label: 'No foods yet', isError: false };
+
+  let attention = 0;
+  let blocking = 0;
+  for (const component of components) {
+    const status = componentReviewStatus(component);
+    if (!status) continue;
+    attention += 1;
+    if (status.isError) blocking += 1;
+  }
+
+  const foodWord = foods === 1 ? 'food' : 'foods';
+  if (attention === 0) return { label: `${foods} ${foodWord}`, isError: false };
+  const needsWord = attention === 1 ? 'needs' : 'need';
+  return {
+    label: `${foods} ${foodWord} · ${attention} ${needsWord} review`,
+    isError: blocking > 0,
+  };
+}
+
 export function computeMealTotals(components: EditableComponent[]): {
   calories: number;
   protein: number;

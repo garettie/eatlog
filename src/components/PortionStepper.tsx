@@ -152,7 +152,9 @@ export default function PortionStepper({
 
         <View className={`${hasServing ? 'w-[104px] shrink-0' : 'flex-1'} h-[52px] bg-m3-surface-container rounded-xl px-2 items-center justify-center border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/50'}`}>
           {unitMode === 'servings' && hasServing ? (
-            <View className="relative w-full h-full items-center justify-center">
+            // Value and unit are flex siblings, never overlapping layers: a long serving
+            // count keeps its own space and a long unit label ("piece") stays clear of it.
+            <View className="w-full h-full flex-row items-center justify-center">
               <BottomSheetTextInput
                 value={servingsText}
                 onChangeText={handleServingsChange}
@@ -164,25 +166,21 @@ export default function PortionStepper({
                 accessibilityHint={servingsInvalid ? 'Invalid amount. Enter at least 0.1 serving.' : 'Enter at least 0.1 serving'}
                 keyboardType="numeric"
                 returnKeyType="done"
-                className={`w-full h-full text-center bg-transparent px-0 text-xl font-bold tabular-nums ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
+                className={`flex-1 min-w-0 h-full text-center bg-transparent px-0 text-xl font-bold tabular-nums ${servingsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
               />
-              <View
+              <Text
                 pointerEvents="none"
-                className="absolute right-2 top-0 bottom-0 justify-center"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                className="ml-1 shrink-0 max-w-[44px] text-m3-on-surface-variant text-compact font-semibold"
               >
-                <Text
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.7}
-                  className="max-w-[36px] text-m3-on-surface-variant text-compact font-semibold"
-                >
-                  {servingIndicator}
-                </Text>
-              </View>
+                {servingIndicator}
+              </Text>
             </View>
           ) : (
-            <View className="relative w-full h-full items-center justify-center">
+            <View className="w-full h-full flex-row items-center justify-center">
               <BottomSheetTextInput
                 value={gramsText}
                 onChangeText={handleGramsChange}
@@ -194,16 +192,14 @@ export default function PortionStepper({
                 accessibilityHint={gramsInvalid ? 'Invalid amount. Enter a number greater than zero.' : 'Enter a number greater than zero'}
                 keyboardType="numeric"
                 returnKeyType="done"
-                className={`w-full h-full text-center bg-transparent px-0 text-xl font-bold tabular-nums ${gramsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
+                className={`flex-1 min-w-0 h-full text-center bg-transparent px-0 text-xl font-bold tabular-nums ${gramsInvalid ? 'text-m3-error' : 'text-m3-on-surface'}`}
               />
-              <View
+              <Text
                 pointerEvents="none"
-                className="absolute right-2 top-0 bottom-0 justify-center"
+                className="ml-1 shrink-0 text-m3-on-surface-variant text-base font-semibold"
               >
-                <Text className="text-m3-on-surface-variant text-base font-semibold">
-                  g
-                </Text>
-              </View>
+                g
+              </Text>
             </View>
           )}
         </View>
