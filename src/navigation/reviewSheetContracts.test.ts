@@ -91,10 +91,12 @@ test('compact food rows open the editor and carry no per-row remove', () => {
 
 test('the photo band and combined totals rail replace the thumb card and plain summary', () => {
   assert.match(reviewStateSource, /<MealPhotoEditor[\s\S]*?layout="band"/);
-  assert.match(reviewStateSource, /<MacroSummaryCard[\s\S]*?variant="rail"[\s\S]*?status=\{railStatus\}/);
-  assert.match(reviewStateSource, /const railStatus = summarizeReviewStatus\(components\)/);
+  assert.match(reviewStateSource, /<MacroSummaryCard[\s\S]*?variant="rail"/);
   assert.match(macroSummaryCardSource, /variant !== "rail"/);
-  assert.match(macroSummaryCardSource, /status\?: \{ label: string; isError: boolean \} \| null/);
+  // The rail carries the numbers only. A food-count line under them restated what the
+  // list already shows, and per-food problems are called out on their own rows.
+  assert.doesNotMatch(reviewStateSource, /summarizeReviewStatus|railStatus/);
+  assert.doesNotMatch(macroSummaryCardSource, /status/);
   assert.match(mealPhotoEditorSource, /layout\?: 'card' \| 'band'/);
   assert.match(mealPhotoEditorSource, /if \(layout === 'band'\)/);
 });
@@ -195,10 +197,9 @@ test('portion mode and amount editor share one contrasting control row', () => {
   assert.doesNotMatch(portionStepperSource, /onServingsDelta|formatServingSummary/);
 });
 
-test('the review-status summary lives in utils and is exercised by the rail', () => {
-  assert.match(mealReviewSource, /export function summarizeReviewStatus/);
-  assert.match(mealReviewSource, /No foods yet/);
-  assert.match(mealReviewSource, /needs' : 'need'/);
+test('per-food review status stays on the food rows, with no summary line', () => {
+  assert.match(mealReviewSource, /export function componentReviewStatus/);
+  assert.doesNotMatch(mealReviewSource, /summarizeReviewStatus|No foods yet/);
   // Collapsed-portion behaviour stays covered by utils/portionSummary.test.ts.
   assert.match(mealReviewSource, /Math\.abs\(servings - 1\) < 0\.001 \? serving\.grams : grams/);
 });

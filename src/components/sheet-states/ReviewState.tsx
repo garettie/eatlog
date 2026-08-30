@@ -97,7 +97,6 @@ import {
 	scaleComponentPortions,
 	scaleFromDivision,
 	setComponentPer100g,
-	summarizeReviewStatus,
 	toEditable,
 	toEstimateContext,
 	UNDO_TIMEOUT_MS,
@@ -1027,7 +1026,6 @@ export default function ReviewState({
 		return unregister;
 	}, [discardGuard, editorOpen]);
 
-	const railStatus = summarizeReviewStatus(components);
 	const firstOffendingIdx = components.findIndex((component) => {
 		const status = componentReviewStatus(component);
 		return status?.isError === true;
@@ -1160,7 +1158,6 @@ export default function ReviewState({
 						protein={totalMacros.protein}
 						carbs={totalMacros.carbs}
 						fat={totalMacros.fat}
-						status={railStatus}
 					/>
 
 					{portionScale ? (
