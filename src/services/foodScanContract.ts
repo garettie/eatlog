@@ -21,6 +21,14 @@ export interface FoodEstimateResponse {
   status: FoodRecognitionStatus;
   unrecognizedReason: string | null;
   mealName: string | null;
+  /**
+   * How many countable portions the whole depicted food divides into, when it is
+   * plainly more than one person eats (a whole pizza, a pot of sinigang, a fries
+   * basket for the table). Null means the estimate already describes one serving.
+   * Component grams always cover the whole food; the review sheet scales them.
+   */
+  servesTotal: number | null;
+  servingUnit: string | null;
   components: FoodEstimateComponent[];
 }
 
@@ -36,6 +44,13 @@ export function isValidFoodEstimateComponent(component: FoodEstimateComponent | 
     && [component.caloriesPer100g, component.proteinPer100g, component.carbsPer100g, component.fatPer100g].every((value) => value >= 0)
     && ['high', 'medium', 'low'].includes(component.confidence)
     && (component.confidence !== 'low' || !!component.confidenceReason?.trim());
+}
+
+export function mealDivisionOf(result: FoodEstimateResponse | undefined): { servesTotal: number; servingUnit: string } | null {
+  const servesTotal = result?.servesTotal;
+  const servingUnit = result?.servingUnit?.trim();
+  if (typeof servesTotal !== 'number' || !Number.isFinite(servesTotal) || servesTotal < 2 || !servingUnit) return null;
+  return { servesTotal: Math.round(servesTotal), servingUnit };
 }
 
 export function isRecognizedFoodEstimate(result: FoodEstimateResponse | undefined): result is RecognizedFoodEstimate {

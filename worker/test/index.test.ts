@@ -234,6 +234,38 @@ test('keeps a nutrition-label scan at one serving when the provider copies servi
   );
 });
 
+test('passes through a shareable meal division and degrades unusable ones to null', async () => {
+  const pizza = (servesTotal: unknown, servingUnit: unknown) => ({
+    ...recognized,
+    mealName: 'Pepperoni Pizza',
+    servesTotal,
+    servingUnit,
+  });
+  const divisionOf = async (value: unknown, operation = 'scan') => {
+    const { response, body } = await call(
+      request('/v1/estimate', 'POST', operation === 'scan'
+        ? { operation, imageBase64: JPEG }
+        : { operation, text: 'pepperoni pizza', context: { mealName: 'Pizza', components: [{ name: 'Dough', estimatedGrams: 400 }] } }),
+      { fetchImpl: (async () => geminiResponse(value)) as typeof fetch },
+    );
+    assert.equal(response.status, 200);
+    return { servesTotal: body.servesTotal, servingUnit: body.servingUnit };
+  };
+
+  assert.deepEqual(await divisionOf(pizza(8, 'slice')), { servesTotal: 8, servingUnit: 'slice' });
+  // A whole already the size of one serving gives the review sheet nothing to scale,
+  // and a count with no unit cannot be phrased. Neither may reject the estimate.
+  assert.deepEqual(await divisionOf(pizza(1, 'slice')), { servesTotal: null, servingUnit: null });
+  assert.deepEqual(await divisionOf(pizza(8, null)), { servesTotal: null, servingUnit: null });
+  assert.deepEqual(await divisionOf(pizza(1e9, 'slice')), { servesTotal: null, servingUnit: null });
+  assert.deepEqual(await divisionOf(recognized), { servesTotal: null, servingUnit: null });
+  // One re-estimated component never describes the whole meal.
+  assert.deepEqual(
+    await divisionOf(pizza(8, 'slice'), 'clarify-component'),
+    { servesTotal: null, servingUnit: null },
+  );
+});
+
 test('allows only documented routes and exact methods', async () => {
   const fetchImpl = (async () => jsonResponse({ foods: [usdaFood()] })) as typeof fetch;
   const cases: Array<[string, string, number, string | null]> = [
@@ -433,7 +465,10 @@ test('owns Gemini models, prompts, schema, fallback order, and bypasses cache', 
     contents: bodies[0].contents,
     generationConfig: bodies[0].generationConfig,
   }));
-  assert.ok(staticRequestBytes <= 4_500, `Gemini text request grew to ${staticRequestBytes} bytes`);
+  // Raised from 4_500 for the meal-division fields and the paragraph teaching them:
+  // component grams describe the whole shared dish, and the review sheet needs the
+  // portion count to scale it down to what one person ate.
+  assert.ok(staticRequestBytes <= 5_200, `Gemini text request grew to ${staticRequestBytes} bytes`);
   assert.deepEqual(cache.reads, []);
   assert.deepEqual(cache.writes, []);
 });
@@ -493,7 +528,7 @@ test('caps a maximum clarification request before calling Gemini', async () => {
 
   assert.equal(result.response.status, 200);
   const requestBytes = Buffer.byteLength(JSON.stringify(upstreamBody));
-  assert.ok(requestBytes <= 8_500, `Maximum Gemini clarification request grew to ${requestBytes} bytes`);
+  assert.ok(requestBytes <= 8_900, `Maximum Gemini clarification request grew to ${requestBytes} bytes`);
 });
 
 test('accepts a synthetic JPEG scan without calling a real provider', async () => {

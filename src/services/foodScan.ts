@@ -8,12 +8,24 @@ import {
     type FoodEstimateResponse,
     isRecognizedFoodEstimate,
     isUnrecognizedFoodEstimate,
+    mealDivisionOf,
 } from './foodScanContract';
+
+export interface MealDivision {
+    servesTotal: number;
+    servingUnit: string;
+}
 
 export interface DescribeResult {
     mealName: string;
     components: FoodResult[];
     originalDescription?: string;
+    /**
+     * Present when the estimate covers a food larger than one serving, so the
+     * review sheet can offer "3 of 8 slices" instead of making the user divide
+     * every component by hand.
+     */
+    division?: MealDivision;
 }
 
 export interface EstimateContextComponent {
@@ -244,6 +256,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             const result = await response.json() as FoodEstimateResponse;
             if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');
             if (!isRecognizedFoodEstimate(result)) return failure('invalid-response');
+            const division = mealDivisionOf(result);
             const source = operation === 'scan' || input.imageBase64 ? 'scan' : 'describe';
             const providedMealTitle = operation === 'scan' ? input.text?.trim() : undefined;
             const originalDescription = operation === 'describe' || operation === 'scan'
@@ -255,6 +268,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                     mealName: providedMealTitle || result.mealName.trim(),
                     components: mapComponents(result.components, source, now()),
                     ...(originalDescription ? { originalDescription } : {}),
+                    ...(division ? { division } : {}),
                 },
             };
         } catch (error) {

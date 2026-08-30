@@ -40,6 +40,7 @@ import type {
 	DescribeResult,
 	EstimateContextComponent,
 	MealClarificationInput,
+	MealDivision,
 } from "../../services/foodScan";
 import { defaultMealForNow } from "../../utils/calculations";
 import { useToday } from "../../hooks/useToday";
@@ -52,6 +53,7 @@ import PrimaryButton from "../PrimaryButton";
 import DateSelector from "../DateSelector";
 import MealPhotoEditor from "../MealPhotoEditor";
 import MacroSummaryCard from "../MacroSummaryCard";
+import MealPortionSelector from "../MealPortionSelector";
 import {
 	formatLogDateLabel,
 	isoFromDate,
@@ -64,7 +66,10 @@ import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentCon
 import { useEntitlement } from "../../context/EntitlementContext";
 import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
 import type { ClarificationOutcome } from "./FoodSheetContent";
-import { formatPortionLabel } from "../../utils/portionLabels";
+import {
+	formatPortionLabel,
+	formatServingUnitLabel,
+} from "../../utils/portionLabels";
 import {
 	buildFoodAmountOptions,
 	selectFoodAmount,
@@ -85,17 +90,31 @@ import {
 	describeLogBlocker,
 	formatCollapsedPortion,
 	isLoggingBlocked,
+	mealPortionCeiling,
 	removeComponentAt,
 	renameComponent,
 	replaceComponent,
+	scaleComponentPortions,
+	scaleFromDivision,
 	setComponentPer100g,
 	summarizeReviewStatus,
 	toEditable,
 	toEstimateContext,
 	UNDO_TIMEOUT_MS,
 	type EditableComponent,
+	type MealPortionScale,
 	type UndoAction,
 } from "../../utils/mealReview";
+
+/**
+ * The noun a single food is counted in: "3 empanadas", "2 cups".
+ * `formatServingUnitLabel` answers "srv" when a label names no unit, which is a
+ * dense-chart abbreviation and reads badly in a sentence.
+ */
+function servingCountUnit(label: string | null): string {
+	const unit = formatServingUnitLabel(label);
+	return unit === "srv" ? "serving" : unit;
+}
 
 function DisclosureChevron({ expanded }: { expanded: boolean }) {
 	const reducedMotion = useReducedMotion();
@@ -209,6 +228,15 @@ export default function ReviewState({
 	const [components, setComponents] = useState<EditableComponent[]>(() =>
 		(result?.components ?? []).map(toEditable),
 	);
+	// The estimate always covers the whole food that was photographed or described, so
+	// a shareable one arrives with the portions it divides into and `eatenPortions`
+	// starts at all of them: nothing is scaled until the user says they ate less.
+	const [division, setDivision] = useState<MealDivision | null>(
+		() => result?.division ?? null,
+	);
+	const [eatenPortions, setEatenPortions] = useState(
+		() => result?.division?.servesTotal ?? 1,
+	);
 	// The focused editor is an internal view of this component, not a sheet state. Edits
 	// buffer into `editDraft` and only reach the meal on Save; `editorOpen` is the
 	// transition target while `renderedEditorView` is the committed view, so open/close
@@ -306,6 +334,8 @@ export default function ReviewState({
 			originalMealNameRef.current = result.mealName;
 			setMealName(result.mealName);
 			setComponents(result.components.map(toEditable));
+			setDivision(result.division ?? null);
+			setEatenPortions(result.division?.servesTotal ?? 1);
 			setEditingId(null);
 			setEditDraft(null);
 			setEditingIndex(-1);
@@ -531,6 +561,8 @@ export default function ReviewState({
 		} else if (undoAction.kind === "meal-reestimate") {
 			setMealName(undoAction.mealName);
 			setComponents(undoAction.components);
+			setDivision(undoAction.division);
+			setEatenPortions(undoAction.eatenPortions ?? 1);
 		} else {
 			setComponents((previous) =>
 				previous.map((component) =>
@@ -551,6 +583,69 @@ export default function ReviewState({
 		dirtyRef.current = true;
 		setComponents((prev) => [...prev, ...foods.map(toEditable)]);
 	}, []);
+
+	// A meal of exactly one food is counted in that food's own serving: the estimate
+	// describes the one empanada in the picture, and the user may have had three. The
+	// count is derived from its grams rather than held separately, so editing the food
+	// directly and stepping the count here can never disagree.
+	const singleServing = useMemo(() => {
+		if (division || components.length !== 1) return null;
+		const serving = selectedServing(components[0].food, components[0].selection);
+		return serving && serving.grams > 0 ? serving : null;
+	}, [division, components]);
+
+	const portionScale = useMemo<MealPortionScale | null>(() => {
+		if (division) return scaleFromDivision(division);
+		if (!singleServing) return null;
+		return { unit: servingCountUnit(singleServing.label), servesTotal: null };
+	}, [division, singleServing]);
+
+	const portionCount = division
+		? eatenPortions
+		: singleServing
+			? Math.round((components[0].selection.grams / singleServing.grams) * 100) / 100
+			: 1;
+
+	// For a shared dish, scaling is relative to what is on screen rather than to the
+	// original estimate, so a food the user already corrected by hand keeps that
+	// correction in proportion, and a food added afterwards is an amount the user chose
+	// outright. A single food has one serving to multiply, so it is set exactly.
+	const handlePortionCountChange = useCallback(
+		(next: number) => {
+			if (!portionScale) return;
+			const clamped = Math.min(
+				Math.max(Math.round(next), 1),
+				mealPortionCeiling(portionScale),
+			);
+			if (division) {
+				if (clamped === eatenPortions) return;
+				setComponents((previous) =>
+					scaleComponentPortions(previous, clamped / eatenPortions),
+				);
+				setEatenPortions(clamped);
+			} else if (singleServing) {
+				const grams = Math.round(clamped * singleServing.grams * 10) / 10;
+				setComponents((previous) =>
+					previous.map((component, index) =>
+						index === 0
+							? {
+									...component,
+									selection: {
+										...component.selection,
+										grams,
+										mode: "servings",
+										selectedAmountId: "custom-serving",
+									},
+								}
+							: component,
+					),
+				);
+			}
+			setLogError(null);
+			dirtyRef.current = true;
+		},
+		[division, eatenPortions, portionScale, singleServing],
+	);
 
 	const handlePhotoChange = useCallback((nextUri: string | null) => {
 		setSelectedPhotoUri((currentUri) => {
@@ -692,8 +787,18 @@ export default function ReviewState({
 			}
 			originalMealNameRef.current = name;
 			dirtyRef.current = true;
-			showUndo({ kind: "meal-reestimate", components, mealName });
+			showUndo({
+				kind: "meal-reestimate",
+				components,
+				mealName,
+				division,
+				eatenPortions,
+			});
 			setComponents(newResult.components.map(toEditable));
+			// A redo returns a fresh whole-food estimate, so its division replaces the old
+			// one and the portion control starts from all of it again.
+			setDivision(newResult.division ?? null);
+			setEatenPortions(newResult.division?.servesTotal ?? 1);
 			setEditingId(null);
 			setNutritionExpanded(false);
 		} catch {
@@ -710,6 +815,8 @@ export default function ReviewState({
 		requestConsent,
 		result?.originalDescription,
 		components,
+		division,
+		eatenPortions,
 		showUndo,
 	]);
 
@@ -1055,6 +1162,15 @@ export default function ReviewState({
 						fat={totalMacros.fat}
 						status={railStatus}
 					/>
+
+					{portionScale ? (
+						<MealPortionSelector
+							scale={portionScale}
+							eaten={portionCount}
+							disabled={logging}
+							onChange={handlePortionCountChange}
+						/>
+					) : null}
 
 					<View className="gap-2">
 						<Text accessibilityRole="header" className="text-m3-on-surface text-base font-semibold">

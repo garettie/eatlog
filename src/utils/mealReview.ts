@@ -1,4 +1,4 @@
-import type { EstimateContextComponent } from '../services/foodScan';
+import type { EstimateContextComponent, MealDivision } from '../services/foodScan';
 import type { FoodResult } from '../services/foodSearch';
 import { formatPortionLabel } from './portionLabels';
 import {
@@ -22,6 +22,8 @@ export type UndoAction =
       kind: 'meal-reestimate';
       components: EditableComponent[];
       mealName: string;
+      division: MealDivision | null;
+      eatenPortions: number | null;
     }
   | {
       kind: 'component-reestimate';
@@ -45,6 +47,88 @@ export function toEditable(food: FoodResult): EditableComponent {
     originalName: food.name,
     nutritionAcknowledged: true,
   };
+}
+
+/**
+ * Scales every food in the meal by the same factor, for when the estimate covers
+ * more food than the user ate — a whole pizza they took three slices of, a bowl of
+ * soup meant for the table. Portion mode and the chosen serving survive so a
+ * "1 cup rice" row still reads in cups afterwards, and the amount chip drops to a
+ * custom selection because the scaled grams no longer match any preset.
+ *
+ * Scaling is relative to the current amounts rather than the original estimate, so
+ * a food the user already hand-corrected keeps that correction in proportion.
+ */
+export function scaleComponentPortions(
+  components: EditableComponent[],
+  factor: number,
+): EditableComponent[] {
+  if (!Number.isFinite(factor) || factor <= 0 || factor === 1) return components;
+  return components.map((component) => {
+    const grams = Math.round(component.selection.grams * factor * 10) / 10;
+    if (!Number.isFinite(grams) || grams <= 0) return component;
+    return {
+      ...component,
+      selection: {
+        ...component.selection,
+        grams,
+        selectedAmountId:
+          component.selection.mode === 'servings' ? 'custom-serving' : 'custom-grams',
+      },
+    };
+  });
+}
+
+function pluralize(singular: string): string {
+  if (/(s|ch|sh|x|z)$/i.test(singular)) return `${singular}es`;
+  if (/[^aeiou]y$/i.test(singular)) return `${singular.slice(0, -1)}ies`;
+  return `${singular}s`;
+}
+
+/**
+ * How the meal is counted, from either of two sources: a shared dish the estimate
+ * says divides into portions (`servesTotal` slices of one pizza), or a single food
+ * whose own serving is the unit (`servesTotal` null — there is no known whole, the
+ * user simply had some number of empanadas).
+ */
+export interface MealPortionScale {
+  unit: string;
+  servesTotal: number | null;
+}
+
+export function scaleFromDivision(division: MealDivision): MealPortionScale {
+  return { unit: division.servingUnit, servesTotal: division.servesTotal };
+}
+
+/**
+ * The estimate covers one whole food, so eating more than all of it means a second
+ * one that was never in the photo. That is a real thing to log — a second helping,
+ * one of the two pizzas on the table — so the ceiling sits above the whole rather
+ * than at it. With no known whole to double, a flat cap keeps a stuck stepper from
+ * running away.
+ */
+export const MEAL_PORTION_CEILING_MULTIPLE = 2;
+export const MEAL_PORTION_COUNT_CEILING = 20;
+
+export function mealPortionCeiling(scale: MealPortionScale): number {
+  return scale.servesTotal == null
+    ? MEAL_PORTION_COUNT_CEILING
+    : scale.servesTotal * MEAL_PORTION_CEILING_MULTIPLE;
+}
+
+/**
+ * "3 of 8 slices" / "1 of 4 bowls" / "10 slices" / "1 empanada". Past the whole,
+ * and when there is no whole, the label drops the total and just counts.
+ *
+ * The unit agrees with whichever number it follows: a total is always at least two
+ * so it stays plural even at "1 of 8 slices", while a bare count is singular at one.
+ */
+export function formatMealPortion(eaten: number, scale: MealPortionScale): string {
+  const count = Math.round(eaten * 100) / 100;
+  if (scale.servesTotal == null || count > scale.servesTotal) {
+    return `${count} ${count === 1 ? scale.unit : pluralize(scale.unit)}`;
+  }
+  return `${count} of ${scale.servesTotal} ${pluralize(scale.unit)}`;
 }
 
 export function componentNameChanged(component: EditableComponent): boolean {
