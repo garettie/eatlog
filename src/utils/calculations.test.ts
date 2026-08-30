@@ -68,6 +68,46 @@ test('the existing low-calorie path stops instead of returning negative or rewri
   }), /Calories|Carbohydrates|target/);
 });
 
+test('a 60 kg cut yields fat then protein so carbs stay at the 130 g floor', () => {
+  const extraHigh = calculateMacrosForCalories({
+    targetCalories: 1460,
+    goalType: 'cut',
+    proteinPreference: 'extra_high',
+    weightKg: 60,
+  });
+  assert.ok(extraHigh.targetCarbsG >= 130);
+  assert.ok(extraHigh.targetProteinG >= 149);
+  assert.ok(extraHigh.targetFatG >= 1460 * 0.2 / 9);
+
+  const tight = calculateMacrosForCalories({
+    targetCalories: 1000,
+    goalType: 'cut',
+    proteinPreference: 'extra_high',
+    weightKg: 60,
+  });
+  assert.ok(tight.targetCarbsG >= 130);
+  assert.ok(tight.targetProteinG >= 48);
+  assert.ok(tight.targetFatG >= 1000 * 0.2 / 9);
+});
+
+test('162 cm 60 kg female onboarding cut does not die on the protein screen', () => {
+  const bmr = calcBMR({ sex: 'female', weight_kg: 60, height_cm: 162, age: 31 });
+  for (const activityLevel of ['sedentary', 'light', 'moderate'] as ActivityLevel[]) {
+    const tdee = calcTDEE(bmr, activityLevel);
+    for (const proteinPreference of preferences) {
+      const result = calculateTargets({
+        tdeeKcal: tdee,
+        goalType: 'cut',
+        proteinPreference,
+        weightKg: 60,
+        goalRateKgPerWeek: -0.5,
+      });
+      assert.ok(result.targetCarbsG >= 130, `${activityLevel} ${proteinPreference}`);
+      assert.ok(result.targetProteinG >= 48, `${activityLevel} ${proteinPreference}`);
+    }
+  }
+});
+
 test('non-finite and unsupported calculation inputs are rejected', () => {
   assert.throws(() => calcBMR({ sex: 'male', weight_kg: Number.NaN, height_cm: 180, age: 35 }));
   assert.throws(() => calcBMR({ sex: 'male', weight_kg: 80, height_cm: 180, age: 17 }));

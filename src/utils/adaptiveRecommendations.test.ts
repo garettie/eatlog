@@ -306,7 +306,7 @@ test('macro allocation conflict produces a paused result', () => {
       proteinPreference: 'extra_high',
     },
     previousTdee: 1300,
-    previousTargetCalories: 1300,
+    previousTargetCalories: 1000,
   }));
   assert.equal(result.kind, 'paused');
   assert.equal(result.reason, 'target_out_of_policy');

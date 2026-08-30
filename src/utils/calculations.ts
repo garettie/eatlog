@@ -106,10 +106,34 @@ export function calculateMacrosForCalories(input: {
   const baseGPerKg = PROTEIN_BASE_G_PER_KG[input.goalType];
   const offset = PROTEIN_PREFERENCE_OFFSET[input.proteinPreference];
   const adjustedGPerKg = Math.max(baseGPerKg + offset, NUTRITION_SAFETY_POLICY.minimumProteinGPerKg);
-  const targetProteinG = Math.round(input.weightKg * adjustedGPerKg * 10) / 10;
-  const targetFatG = Math.round((targetCalories * 0.25) / 9 * 10) / 10;
-  const remainingKcal = targetCalories - targetProteinG * 4 - targetFatG * 9;
-  const targetCarbsG = Math.round(remainingKcal / 4 * 10) / 10;
+  const minProteinG = input.weightKg * NUTRITION_SAFETY_POLICY.minimumProteinGPerKg;
+  const minFatG = targetCalories * NUTRITION_SAFETY_POLICY.minimumFatEnergyFraction / 9;
+  const minCarbsG = NUTRITION_SAFETY_POLICY.minimumCarbsG;
+  const remainingCarbs = (proteinG: number, fatG: number) =>
+    Math.round((targetCalories - proteinG * 4 - fatG * 9) / 4 * 10) / 10;
+  const atLeastTenths = (value: number, floor: number) => {
+    let grams = Math.round(value * 10) / 10;
+    while (grams < floor) grams = Math.round((grams + 0.1) * 10) / 10;
+    return grams;
+  };
+
+  let targetProteinG = Math.round(input.weightKg * adjustedGPerKg * 10) / 10;
+  let targetFatG = Math.round((targetCalories * 0.25) / 9 * 10) / 10;
+  let targetCarbsG = remainingCarbs(targetProteinG, targetFatG);
+
+  if (targetCarbsG < minCarbsG) {
+    const fatForCarbFloor = (targetCalories - targetProteinG * 4 - minCarbsG * 4) / 9;
+    targetFatG = atLeastTenths(Math.max(minFatG, Math.min(targetFatG, fatForCarbFloor)), minFatG);
+    targetCarbsG = remainingCarbs(targetProteinG, targetFatG);
+  }
+  if (targetCarbsG < minCarbsG) {
+    const proteinForCarbFloor = (targetCalories - targetFatG * 9 - minCarbsG * 4) / 4;
+    targetProteinG = atLeastTenths(
+      Math.max(minProteinG, Math.min(targetProteinG, proteinForCarbFloor)),
+      minProteinG,
+    );
+    targetCarbsG = remainingCarbs(targetProteinG, targetFatG);
+  }
   const targets = {
     targetCalories,
     targetProteinG,
