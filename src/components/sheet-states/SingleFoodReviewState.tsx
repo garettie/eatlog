@@ -19,7 +19,7 @@ import {
   type PortionSelection,
 } from '../../utils/portionSelection';
 import MealSelector from '../MealSelector';
-import MacroChipGroup from '../MacroChipGroup';
+import MacroSummaryCard from '../MacroSummaryCard';
 import PortionStepper from '../PortionStepper';
 import PrimaryButton from '../PrimaryButton';
 import SheetBackButton from './SheetBackButton';
@@ -225,22 +225,13 @@ export default function SingleFoodReviewState({
           />
 
           {macros && (
-            <>
-              <Text className="text-m3-on-surface text-4xl font-bold tabular-nums text-center">
-                {macros.calories}
-                <Text className="text-m3-on-surface-variant text-sm font-medium">
-                  {' '}
-                  kcal
-                </Text>
-              </Text>
-              <View className="w-full">
-                <MacroChipGroup
-                  protein={macros.protein}
-                  carbs={macros.carbs}
-                  fat={macros.fat}
-                />
-              </View>
-            </>
+            <MacroSummaryCard
+              variant="summary"
+              calories={macros.calories}
+              protein={macros.protein}
+              carbs={macros.carbs}
+              fat={macros.fat}
+            />
           )}
         </Animated.View>
       </View>

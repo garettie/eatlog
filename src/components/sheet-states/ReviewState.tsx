@@ -47,6 +47,7 @@ import PortionStepper from "../PortionStepper";
 import PrimaryButton from "../PrimaryButton";
 import DateSelector from "../DateSelector";
 import MealPhotoEditor from "../MealPhotoEditor";
+import MacroSummaryCard from "../MacroSummaryCard";
 import {
 	formatLogDateLabel,
 	isoFromDate,
@@ -871,50 +872,13 @@ export default function ReviewState({
 						disabled={logging}
 					/>
 
-					<View className="min-h-[68px] flex-row items-center rounded-2xl bg-m3-surface-container px-4 py-3 border border-m3-outline-variant/40">
-						<View className="w-20 items-center">
-							<Text className="text-m3-on-surface text-2xl font-bold tabular-nums">
-								{totalMacros.calories}
-							</Text>
-							<Text className="text-m3-calories text-compact font-medium">
-								kcal
-							</Text>
-						</View>
-						<View className="h-10 w-px bg-m3-outline-variant/50" />
-						<View className="flex-1 flex-row">
-							{[
-								{
-									label: "Protein",
-									value: `${totalMacros.protein}g`,
-									color: "text-m3-protein",
-								},
-								{
-									label: "Carbs",
-									value: `${totalMacros.carbs}g`,
-									color: "text-m3-carbs",
-								},
-								{
-									label: "Fat",
-									value: `${totalMacros.fat}g`,
-									color: "text-m3-fat",
-								},
-							].map((macro) => (
-								<View key={macro.label} className="min-w-0 flex-1 items-center">
-									<Text
-										numberOfLines={1}
-										adjustsFontSizeToFit
-										minimumFontScale={0.85}
-										className="text-m3-on-surface text-sm font-bold tabular-nums"
-									>
-										{macro.value}
-									</Text>
-									<Text className={`text-compact font-medium ${macro.color}`}>
-										{macro.label}
-									</Text>
-								</View>
-							))}
-						</View>
-					</View>
+					<MacroSummaryCard
+						variant="summary"
+						calories={totalMacros.calories}
+						protein={totalMacros.protein}
+						carbs={totalMacros.carbs}
+						fat={totalMacros.fat}
+					/>
 
 					<View className="gap-2">
 						<Text accessibilityRole="header" className="text-m3-on-surface text-base font-semibold">
@@ -1077,6 +1041,9 @@ export default function ReviewState({
 													entering={
 														reducedMotion ? undefined : FadeInUp.duration(200)
 													}
+													exiting={
+														reducedMotion ? undefined : FadeOutDown.duration(150)
+													}
 												>
 													{(comp.food.confidence === "low" &&
 														comp.food.confidenceReason) ||
@@ -1179,60 +1146,13 @@ export default function ReviewState({
 																updatePortionValidity(idx, valid)
 															}
 														/>
-														<View className="flex-row items-center overflow-hidden rounded-xl bg-m3-surface-container px-4 py-3">
-															<View className="w-16 items-center">
-																<Text
-																	className="text-m3-on-surface text-lg font-bold tabular-nums"
-																	numberOfLines={1}
-																	adjustsFontSizeToFit
-																	minimumFontScale={0.85}
-																>
-																	{cal}
-																</Text>
-																<Text className="text-m3-calories text-compact font-medium">
-																	kcal
-																</Text>
-															</View>
-															<View className="h-8 w-px bg-m3-outline-variant/50" />
-															<View className="flex-1 flex-row">
-																{[
-																	{
-																		label: "Protein",
-																		value: `${protein}g`,
-																		color: "text-m3-protein",
-																	},
-																	{
-																		label: "Carbs",
-																		value: `${carbs}g`,
-																		color: "text-m3-carbs",
-																	},
-																	{
-																		label: "Fat",
-																		value: `${fat}g`,
-																		color: "text-m3-fat",
-																	},
-																].map((macro) => (
-																	<View
-																		key={macro.label}
-																		className="min-w-0 flex-1 items-center"
-																	>
-																		<Text
-																			className="text-m3-on-surface text-sm font-bold tabular-nums"
-																			numberOfLines={1}
-																			adjustsFontSizeToFit
-																			minimumFontScale={0.85}
-																		>
-																			{macro.value}
-																		</Text>
-																		<Text
-																			className={`text-compact font-medium ${macro.color}`}
-																		>
-																			{macro.label}
-																		</Text>
-																	</View>
-																))}
-															</View>
-														</View>
+														<MacroSummaryCard
+															variant="row"
+															calories={cal}
+															protein={protein}
+															carbs={carbs}
+															fat={fat}
+														/>
 													</View>
 
 													<View className="border-t border-m3-outline-variant/50">
