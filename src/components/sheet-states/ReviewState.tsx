@@ -1,6 +1,7 @@
 import React, {
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -8,6 +9,7 @@ import React, {
 import {
 	AccessibilityInfo,
 	ActivityIndicator,
+	Alert,
 	BackHandler,
 	Pressable,
 	Text,
@@ -22,6 +24,7 @@ import Animated, {
 	FadeIn,
 	FadeInUp,
 	FadeOutDown,
+	runOnJS,
 	useAnimatedStyle,
 	useReducedMotion,
 	useSharedValue,
@@ -206,11 +209,25 @@ export default function ReviewState({
 	const [components, setComponents] = useState<EditableComponent[]>(() =>
 		(result?.components ?? []).map(toEditable),
 	);
-	// The focused editor is an internal view of this component, not a sheet state: `editingId`
-	// is the food currently open full-height, and `nutritionExpanded` gates its second
-	// (editable-nutrition) disclosure. Both reset whenever we return to the review list.
+	// The focused editor is an internal view of this component, not a sheet state. Edits
+	// buffer into `editDraft` and only reach the meal on Save; `editorOpen` is the
+	// transition target while `renderedEditorView` is the committed view, so open/close
+	// can run the same exit/enter choreography every sheet state uses.
 	const [editingId, setEditingId] = useState<string | null>(null);
+	const [editingIndex, setEditingIndex] = useState(-1);
+	const [editDraft, setEditDraft] = useState<EditableComponent | null>(null);
+	const [editorOpen, setEditorOpen] = useState(false);
+	const [renderedEditorView, setRenderedEditorView] = useState<"list" | "editor">(
+		"list",
+	);
 	const [nutritionExpanded, setNutritionExpanded] = useState(false);
+	const editorDirtyRef = useRef(false);
+	const redoneInEditorRef = useRef(false);
+	const preRedoDraftRef = useRef<EditableComponent | null>(null);
+	const enteringEditorViewRef = useRef(false);
+	const editorTransitionRequestRef = useRef(0);
+	const editorOffset = useSharedValue(0);
+	const editorOpacity = useSharedValue(1);
 	const [meal, setMeal] = useState<MealType>(
 		() => initialMeal ?? defaultMealForNow(),
 	);
@@ -290,12 +307,22 @@ export default function ReviewState({
 			setMealName(result.mealName);
 			setComponents(result.components.map(toEditable));
 			setEditingId(null);
+			setEditDraft(null);
+			setEditingIndex(-1);
+			setEditorOpen(false);
+			setRenderedEditorView("list");
+			enteringEditorViewRef.current = false;
+			editorOffset.value = 0;
+			editorOpacity.value = 1;
 			setNutritionExpanded(false);
+			editorDirtyRef.current = false;
+			redoneInEditorRef.current = false;
+			preRedoDraftRef.current = null;
 			dirtyRef.current = false;
 			loggedRef.current = false;
 			setUndoAction(null);
 		}
-	}, [result]);
+	}, [result, editorOffset, editorOpacity]);
 
 	useEffect(() => {
 		setSelectedPhotoUri(photoUri ?? null);
@@ -364,132 +391,110 @@ export default function ReviewState({
 		};
 	}, [components]);
 
-	const updateGrams = useCallback((idx: number, grams: number) => {
-		dirtyRef.current = true;
-		setComponents((previous) =>
-			previous.map((component, index) =>
-				index === idx
-					? { ...component, selection: setGramsAmount(component.selection, grams) }
-					: component,
-			),
+	const updateGrams = useCallback((grams: number) => {
+		editorDirtyRef.current = true;
+		setEditDraft((draft) =>
+			draft ? { ...draft, selection: setGramsAmount(draft.selection, grams) } : draft,
 		);
 	}, []);
 
 
-	const updateServingsFromText = useCallback((idx: number, value: number) => {
-		dirtyRef.current = true;
-		setComponents((previous) =>
-			previous.map((component, index) =>
-				index === idx
-					? {
-							...component,
-							selection: setServingAmount(
-								component.selection,
-								value,
-								selectedServing(component.food, component.selection),
-							),
-						}
-					: component,
-			),
+	const updateServingsFromText = useCallback((value: number) => {
+		editorDirtyRef.current = true;
+		setEditDraft((draft) =>
+			draft
+				? {
+						...draft,
+						selection: setServingAmount(
+							draft.selection,
+							value,
+							selectedServing(draft.food, draft.selection),
+						),
+					}
+				: draft,
 		);
 	}, []);
 
-	const updateName = useCallback((idx: number, name: string) => {
-		dirtyRef.current = true;
+	const updateName = useCallback((name: string) => {
+		editorDirtyRef.current = true;
 		setLogError(null);
-		setComponents((prev) =>
-			prev.map((c, i) =>
-				i === idx
-					? {
-							...c,
-							food: { ...c.food, name, normalizedName: name.toLowerCase() },
-							nutritionAcknowledged:
-								name.trim().toLowerCase() === c.originalName.trim().toLowerCase(),
-						}
-					: c,
-			),
+		setComponentClarifyError(null);
+		setEditDraft((draft) =>
+			draft
+				? {
+						...draft,
+						food: { ...draft.food, name, normalizedName: name.toLowerCase() },
+						nutritionAcknowledged:
+							name.trim().toLowerCase() === draft.originalName.trim().toLowerCase(),
+					}
+				: draft,
 		);
 	}, []);
 
-	const acknowledgeNutrition = useCallback((idx: number) => {
-		dirtyRef.current = true;
-		setLogError(null);
-		setComponents((previous) =>
-			previous.map((component, index) =>
-				index === idx ? { ...component, nutritionAcknowledged: true } : component,
-			),
+	const acknowledgeNutrition = useCallback(() => {
+		editorDirtyRef.current = true;
+		setEditDraft((draft) =>
+			draft ? { ...draft, nutritionAcknowledged: true } : draft,
 		);
 	}, []);
 
-	const openEditor = useCallback((component: EditableComponent) => {
+	const openEditor = useCallback((component: EditableComponent, index: number) => {
+		setEditingIndex(index);
 		setEditingId(component.food.id);
+		setEditDraft(component);
+		editorDirtyRef.current = false;
+		redoneInEditorRef.current = false;
+		preRedoDraftRef.current = null;
 		setNutritionExpanded(false);
+		setEditorOpen(true);
 		AccessibilityInfo.announceForAccessibility(
 			`Editing ${component.food.name.trim() || "unnamed food"}`,
 		);
 	}, []);
 
-	const closeEditor = useCallback(() => {
-		setEditingId((current) => {
-			if (current === null) return current;
-			AccessibilityInfo.announceForAccessibility("Back to meal review");
-			return null;
-		});
-		setNutritionExpanded(false);
-	}, []);
-
-	const updateUnitMode = useCallback((idx: number, mode: PortionMode) => {
-		dirtyRef.current = true;
-		setComponents((previous) =>
-			previous.map((component, index) =>
-				index === idx
-					? {
-							...component,
-							selection: setPortionMode(
-								component.selection,
-								mode,
-								selectedServing(component.food, component.selection),
-							),
-						}
-					: component,
-			),
+	const updateUnitMode = useCallback((mode: PortionMode) => {
+		editorDirtyRef.current = true;
+		setEditDraft((draft) =>
+			draft
+				? {
+						...draft,
+						selection: setPortionMode(
+							draft.selection,
+							mode,
+							selectedServing(draft.food, draft.selection),
+						),
+					}
+				: draft,
 		);
 	}, []);
 
-	const updateAmount = useCallback((idx: number, option: FoodAmountOption) => {
-		dirtyRef.current = true;
-		setComponents((previous) =>
-			previous.map((component, index) =>
-				index === idx
-					? {
-							...component,
-							selection: selectFoodAmount(component.selection, option),
-							portionValid: true,
-						}
-					: component,
-			),
+	const updateAmount = useCallback((option: FoodAmountOption) => {
+		editorDirtyRef.current = true;
+		setEditDraft((draft) =>
+			draft
+				? {
+						...draft,
+						selection: selectFoodAmount(draft.selection, option),
+						portionValid: true,
+					}
+				: draft,
 		);
 	}, []);
 
-	const updatePortionValidity = useCallback((idx: number, valid: boolean) => {
-		setComponents((previous) => {
-			const component = previous[idx];
-			if (!component || component.portionValid === valid) return previous;
-			return previous.map((entry, index) =>
-				index === idx ? { ...entry, portionValid: valid } : entry,
-			);
+	const updatePortionValidity = useCallback((valid: boolean) => {
+		setEditDraft((draft) => {
+			if (!draft || draft.portionValid === valid) return draft;
+			return { ...draft, portionValid: valid };
 		});
 	}, []);
 
 	const updatePer100g = useCallback(
-		(idx: number, field: keyof EditableComponent["per100g"], value: number) => {
-			dirtyRef.current = true;
+		(field: keyof EditableComponent["per100g"], value: number) => {
+			editorDirtyRef.current = true;
 			const rounded =
 				field === "calories" ? Math.round(value) : Math.round(value * 10) / 10;
-			setComponents((prev) =>
-				prev.map((c, i) =>
-					i === idx ? { ...c, per100g: { ...c.per100g, [field]: rounded } } : c,
-				),
+			setEditDraft((draft) =>
+				draft ? { ...draft, per100g: { ...draft.per100g, [field]: rounded } } : draft,
 			);
 		},
 		[],
@@ -504,10 +509,9 @@ export default function ReviewState({
 			setComponents((previous) =>
 				previous.filter((_, currentIndex) => currentIndex !== idx),
 			);
-			// Removing is only reachable from the focused editor; drop back to the list so the
-			// undo affordance in the footer is visible.
-			setEditingId(null);
-			setNutritionExpanded(false);
+			// Removing is only reachable from the focused editor; run the editor exit
+			// animation so the undo affordance in the list footer is revealed smoothly.
+			setEditorOpen(false);
 		},
 		[components, showUndo],
 	);
@@ -744,24 +748,11 @@ export default function ReviewState({
 					});
 					return;
 				}
-				dirtyRef.current = true;
-				showUndo({
-					kind: "component-reestimate",
-					previous: component,
-					replacementId: clarified.id,
-				});
-				setComponents((previous) =>
-					previous.map((current) =>
-						current.food.id === component.food.id
-							? toEditable(clarified)
-							: current,
-					),
-				);
-				// Redo swaps in a new component id; keep the open editor pointed at it and
-				// collapse the nutrition disclosure so the fresh values read as the default.
-				setEditingId((current) =>
-					current === component.food.id ? clarified.id : current,
-				);
+				// Redo replaces the editor buffer, not the meal: the swap joins the meal (and
+				// the undo stack) only when the editor is saved.
+				preRedoDraftRef.current = component;
+				redoneInEditorRef.current = true;
+				setEditDraft(toEditable(clarified));
 				setNutritionExpanded(false);
 			} catch {
 				setComponentClarifyError({
@@ -785,30 +776,149 @@ export default function ReviewState({
 		],
 	);
 
-	const editingIndex = editingId
-		? components.findIndex((component) => component.food.id === editingId)
-		: -1;
-	const editingComponent = editingIndex >= 0 ? components[editingIndex] : null;
+	const clearEditorDrafts = useCallback(() => {
+		setEditingId(null);
+		setEditDraft(null);
+		setEditingIndex(-1);
+		editorDirtyRef.current = false;
+		redoneInEditorRef.current = false;
+		preRedoDraftRef.current = null;
+	}, []);
 
-	// If the edited food vanishes (removed, undone, re-estimated away), fall back to the list.
-	useEffect(() => {
-		if (editingId !== null && editingIndex === -1) {
-			setEditingId(null);
-			setNutritionExpanded(false);
+	const requestCloseEditor = useCallback(() => {
+		if (!editorOpen) return;
+		if (!editorDirtyRef.current) {
+			setEditorOpen(false);
+			return;
 		}
-	}, [editingId, editingIndex]);
+		Alert.alert("Discard changes?", "Your edits will be lost.", [
+			{ text: "Keep Editing" },
+			{ text: "Discard", style: "destructive", onPress: () => setEditorOpen(false) },
+		]);
+	}, [editorOpen]);
 
-	// While the editor is open, hardware Back returns to the review list instead of popping
-	// the sheet. Registered only when open, so it wins over the sheet's own handler
-	// (BackHandler invokes the most-recently-added listener first).
+	const saveEditor = useCallback(() => {
+		if (!editDraft || renderedEditorView !== "editor") return;
+		setComponents((previous) =>
+			previous.map((component, index) =>
+				index === editingIndex ? editDraft : component,
+			),
+		);
+		dirtyRef.current = true;
+		setLogError(null);
+		editorDirtyRef.current = false;
+		if (redoneInEditorRef.current && preRedoDraftRef.current) {
+			showUndo({
+				kind: "component-reestimate",
+				previous: preRedoDraftRef.current,
+				replacementId: editDraft.food.id,
+			});
+			redoneInEditorRef.current = false;
+			preRedoDraftRef.current = null;
+		}
+		AccessibilityInfo.announceForAccessibility("Food changes saved");
+		setEditorOpen(false);
+	}, [editDraft, editingIndex, renderedEditorView, showUndo]);
+
+	// Same choreography as FoodSheetContent's state transitions: exit slide/fade out
+	// (90ms, emphasizedAccelerate), swap, enter from the opposite side (150ms,
+	// emphasizedDecelerate). Reduced motion jumps straight to the committed view.
+	const editorView = editorOpen ? "editor" : "list";
+
+	const commitRenderedEditorView = useCallback(
+		(view: "list" | "editor", requestId: number) => {
+			if (requestId !== editorTransitionRequestRef.current) return;
+			enteringEditorViewRef.current = true;
+			setRenderedEditorView(view);
+			if (view === "list") {
+				clearEditorDrafts();
+				AccessibilityInfo.announceForAccessibility("Back to meal review");
+			}
+		},
+		[clearEditorDrafts],
+	);
+
 	useEffect(() => {
-		if (editingId === null) return;
+		const requestId = ++editorTransitionRequestRef.current;
+		if (editorView === renderedEditorView) {
+			editorOffset.value = withTiming(0, {
+				duration: reducedMotion ? 0 : 150,
+				easing: EASING.emphasizedDecelerate,
+			});
+			editorOpacity.value = withTiming(1, { duration: reducedMotion ? 0 : 150 });
+			return;
+		}
+		if (reducedMotion) {
+			enteringEditorViewRef.current = false;
+			editorOffset.value = 0;
+			editorOpacity.value = 1;
+			setRenderedEditorView(editorView);
+			if (editorView === "list") clearEditorDrafts();
+			return;
+		}
+		editorOffset.value = withTiming(-20, {
+			duration: reducedMotion ? 0 : 90,
+			easing: EASING.emphasizedAccelerate,
+		});
+		editorOpacity.value = withTiming(
+			0,
+			{ duration: reducedMotion ? 0 : 90 },
+			(finished) => {
+				if (finished) runOnJS(commitRenderedEditorView)(editorView, requestId);
+			},
+		);
+	}, [
+		editorView,
+		renderedEditorView,
+		reducedMotion,
+		commitRenderedEditorView,
+		clearEditorDrafts,
+		editorOffset,
+		editorOpacity,
+	]);
+
+	useLayoutEffect(() => {
+		if (!enteringEditorViewRef.current || reducedMotion) return;
+		enteringEditorViewRef.current = false;
+		editorOffset.value = 20;
+		editorOpacity.value = 0;
+		editorOffset.value = withTiming(0, {
+			duration: reducedMotion ? 0 : 150,
+			easing: EASING.emphasizedDecelerate,
+		});
+		editorOpacity.value = withTiming(1, { duration: reducedMotion ? 0 : 150 });
+	}, [reducedMotion, renderedEditorView, editorOffset, editorOpacity]);
+
+	const editorTransitionStyle = useAnimatedStyle(() => ({
+		opacity: editorOpacity.value,
+		transform: [{ translateX: editorOffset.value }],
+	}));
+
+	// While the editor is open, hardware Back goes through the same discard-aware close
+	// as the editor's back button instead of popping the sheet. Registered only when
+	// open, so it wins over the sheet's own handler (BackHandler invokes the
+	// most-recently-added listener first).
+	useEffect(() => {
+		if (!editorOpen) return;
 		const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-			closeEditor();
+			requestCloseEditor();
 			return true;
 		});
 		return () => subscription.remove();
-	}, [editingId, closeEditor]);
+	}, [editorOpen, requestCloseEditor]);
+
+	// The unsaved editor buffer counts as unsaved sheet work: pan-down and backdrop
+	// dismissal must warn before dropping it.
+	useEffect(() => {
+		if (!editorOpen) return;
+		const unregister = discardGuard.register(
+			() => editorDirtyRef.current && !loggedRef.current,
+			() => {
+				editorDirtyRef.current = false;
+			},
+		);
+		return unregister;
+	}, [discardGuard, editorOpen]);
 
 	const railStatus = summarizeReviewStatus(components);
 	const firstOffendingIdx = components.findIndex((component) => {
@@ -816,39 +926,37 @@ export default function ReviewState({
 		return status?.isError === true;
 	});
 
-	if (editingComponent) {
+	if (renderedEditorView === "editor" && editDraft && editingIndex >= 0) {
 		return (
-			<FoodEditorView
-				component={editingComponent}
-				logging={logging}
-				reducedMotion={reducedMotion}
-				insets={insets}
-				nutritionExpanded={nutritionExpanded}
-				onToggleNutrition={() => setNutritionExpanded((current) => !current)}
-				clarifyingComponentId={clarifyingComponentId}
-				componentClarifyError={componentClarifyError}
-				onClose={closeEditor}
-				onNameChange={(text) => {
-					updateName(editingIndex, text);
-					setComponentClarifyError((current) =>
-						current?.id === editingComponent.food.id ? null : current,
-					);
-				}}
-				onAmountChange={(option) => updateAmount(editingIndex, option)}
-				onModeChange={(mode) => updateUnitMode(editingIndex, mode)}
-				onServingsSet={(value) => updateServingsFromText(editingIndex, value)}
-				onGramsSet={(value) => updateGrams(editingIndex, value)}
-				onValidityChange={(valid) => updatePortionValidity(editingIndex, valid)}
-				onPer100gChange={(field, value) => updatePer100g(editingIndex, field, value)}
-				onAcknowledgeNutrition={() => acknowledgeNutrition(editingIndex)}
-				onRedo={() => void handleClarifyComponent(editingComponent)}
-				onRemove={() => removeComponent(editingIndex)}
-			/>
+			<Animated.View style={editorTransitionStyle} className="flex-1">
+				<FoodEditorView
+					component={editDraft}
+					logging={logging}
+					reducedMotion={reducedMotion}
+					insets={insets}
+					nutritionExpanded={nutritionExpanded}
+					onToggleNutrition={() => setNutritionExpanded((current) => !current)}
+					clarifyingComponentId={clarifyingComponentId}
+					componentClarifyError={componentClarifyError}
+					onClose={requestCloseEditor}
+					onSave={saveEditor}
+					onNameChange={updateName}
+					onAmountChange={updateAmount}
+					onModeChange={updateUnitMode}
+					onServingsSet={updateServingsFromText}
+					onGramsSet={updateGrams}
+					onValidityChange={updatePortionValidity}
+					onPer100gChange={updatePer100g}
+					onAcknowledgeNutrition={acknowledgeNutrition}
+					onRedo={() => void handleClarifyComponent(editDraft)}
+					onRemove={() => removeComponent(editingIndex)}
+				/>
+			</Animated.View>
 		);
 	}
 
 	return (
-		<View className="flex-1">
+		<Animated.View style={editorTransitionStyle} className="flex-1">
 			<View className="px-5 pt-2 pb-3 gap-2">
 				<View className="h-12 flex-row items-center">
 					<SheetBackButton onPress={onGoBack} />
@@ -972,7 +1080,7 @@ export default function ReviewState({
 									return (
 										<Pressable
 											key={comp.food.id}
-											onPress={() => openEditor(comp)}
+											onPress={() => openEditor(comp, idx)}
 											disabled={logging}
 											accessibilityRole="button"
 											accessibilityLabel={`${comp.food.name.trim() || "Unnamed food"}, ${portionSummary}, ${cal} calories`}
@@ -1110,7 +1218,7 @@ export default function ReviewState({
 				) : blockedReason ? (
 					mealName.trim() && firstOffendingIdx >= 0 ? (
 						<Pressable
-							onPress={() => openEditor(components[firstOffendingIdx])}
+							onPress={() => openEditor(components[firstOffendingIdx], firstOffendingIdx)}
 							disabled={logging}
 							accessibilityRole="button"
 							accessibilityLabel={`${blockedReason} Opens the food that needs attention.`}
@@ -1160,7 +1268,7 @@ export default function ReviewState({
 					setLogDate(nextDate);
 				}}
 			/>
-		</View>
+		</Animated.View>
 	);
 }
 
@@ -1187,12 +1295,14 @@ interface FoodEditorViewProps {
 	onAcknowledgeNutrition: () => void;
 	onRedo: () => void;
 	onRemove: () => void;
+	onSave: () => void;
 }
 
 /**
  * The focused, full-height editor for a single food. Rendered as an internal view of
- * ReviewState (not a sheet state), so all edits flow straight back into the meal draft and
- * Back simply returns to the review list.
+ * ReviewState (not a sheet state). Edits land in the caller's draft; Save applies them
+ * to the meal, Back discards them (with a prompt when the draft is dirty), and both
+ * run the shared state-transition choreography.
  */
 function FoodEditorView({
 	component,
@@ -1214,6 +1324,7 @@ function FoodEditorView({
 	onAcknowledgeNutrition,
 	onRedo,
 	onRemove,
+	onSave,
 }: FoodEditorViewProps) {
 	const serving = selectedServing(component.food, component.selection);
 	const servings = servingsForSelection(component.selection, serving);
@@ -1266,11 +1377,10 @@ function FoodEditorView({
 			<BottomSheetScrollView
 				className="flex-1"
 				contentContainerClassName="px-5"
-				contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+				contentContainerStyle={{ paddingBottom: 8 }}
 				keyboardShouldPersistTaps="handled"
 			>
-				<Animated.View
-					entering={reducedMotion ? undefined : FadeInUp.duration(180)}
+				<View
 					pointerEvents={logging ? "none" : "auto"}
 					className="overflow-hidden rounded-2xl bg-m3-surface-container border border-m3-outline-variant/40"
 				>
@@ -1518,8 +1628,22 @@ function FoodEditorView({
 							</Text>
 						</Pressable>
 					</View>
-				</Animated.View>
+				</View>
 			</BottomSheetScrollView>
+
+			<View
+				className="border-t border-m3-outline-variant/30 px-5 pt-3 gap-2"
+				style={{ paddingBottom: insets.bottom + 8 }}
+			>
+				<PrimaryButton
+					title="Save changes"
+					icon="check"
+					iconPosition="left"
+					onPress={onSave}
+					disabled={logging || redoing}
+					accessibilityHint="Applies the changes and returns to meal review"
+				/>
+			</View>
 		</View>
 	);
 }

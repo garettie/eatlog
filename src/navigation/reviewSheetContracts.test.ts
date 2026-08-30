@@ -48,11 +48,24 @@ test('the review sheet corrects a food in a focused editor, not an inline expans
   assert.match(reviewStateSource, /function FoodEditorView/);
   assert.match(reviewStateSource, /<FoodEditorView/);
   assert.match(reviewStateSource, /const openEditor = useCallback/);
-  assert.match(reviewStateSource, /const closeEditor = useCallback/);
+  assert.match(reviewStateSource, /const requestCloseEditor = useCallback/);
   // The old inline-expansion machinery is gone.
   assert.doesNotMatch(reviewStateSource, /expandedIds/);
   assert.doesNotMatch(reviewStateSource, /nutritionExpandedIds/);
   assert.doesNotMatch(reviewStateSource, /const isExpanded =/);
+});
+
+test('editor edits buffer until Save and Back asks before discarding', () => {
+  // Edits land in a draft; the meal only changes on Save.
+  assert.match(reviewStateSource, /const \[editDraft, setEditDraft\] = useState/);
+  assert.match(reviewStateSource, /const \[editorOpen, setEditorOpen\] = useState/);
+  assert.match(reviewStateSource, /const saveEditor = useCallback/);
+  assert.match(reviewStateSource, /title="Save changes"/);
+  // Back goes through the same discard prompt as pan-down dismissal.
+  assert.match(reviewStateSource, /Alert\.alert\("Discard changes\?", "Your edits will be lost\."/);
+  // Open/close reuse the sheet-state exit/enter choreography.
+  assert.match(reviewStateSource, /emphasizedAccelerate/);
+  assert.match(reviewStateSource, /emphasizedDecelerate/);
 });
 
 test('hardware Back closes the editor before it pops the sheet', () => {
@@ -61,13 +74,13 @@ test('hardware Back closes the editor before it pops the sheet', () => {
     /BackHandler\.addEventListener\("hardwareBackPress"/,
   );
   // Registered only while a food is open so it wins over the sheet's own handler.
-  assert.match(reviewStateSource, /if \(editingId === null\) return;\n\t\tconst subscription = BackHandler/);
+  assert.match(reviewStateSource, /if \(!editorOpen\) return;\n\t\tconst subscription = BackHandler/);
   assert.match(reviewStateSource, /<SheetBackButton onPress=\{onGoBack\} \/>/);
   assert.match(reviewStateSource, /<SheetBackButton onPress=\{onClose\} \/>/);
 });
 
 test('compact food rows open the editor and carry no per-row remove', () => {
-  assert.match(reviewStateSource, /onPress=\{\(\) => openEditor\(comp\)\}/);
+  assert.match(reviewStateSource, /onPress=\{\(\) => openEditor\(comp, idx\)\}/);
   assert.match(reviewStateSource, /name="chevron-right"/);
   // The calorie figure shows once, in the collapsed row (not duplicated in the editor).
   assert.equal(reviewStateSource.match(/\{cal\} kcal/g)?.length, 1);
@@ -105,7 +118,10 @@ test('renamed and low-confidence foods surface a persistent attention band with 
 
 test('the log blocker points at the specific food that needs attention', () => {
   assert.match(reviewStateSource, /const firstOffendingIdx = components\.findIndex/);
-  assert.match(reviewStateSource, /openEditor\(components\[firstOffendingIdx\]\)/);
+  assert.match(
+    reviewStateSource,
+    /openEditor\(components\[firstOffendingIdx\], firstOffendingIdx\)/,
+  );
   assert.match(reviewStateSource, /title=\{editMealId \? "Update meal" : "Log meal"\}/);
 });
 

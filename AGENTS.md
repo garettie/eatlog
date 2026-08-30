@@ -294,6 +294,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - Never nest `BottomSheetScrollView` inside `BottomSheetView`: BottomSheetView's mount effect overrides the scrollable type to VIEW, turning vertical pans into sheet drags and killing content scroll. Only use BottomSheetView when dynamic sizing needs measurement and no scroll view is inside it; otherwise wrap in plain `Animated.View`.
 - Play App access review demands free access behind any paywall: never answer "all functionality is available" or "reviewer can purchase" when paid features exist; ship a hidden reviewer-unlock gesture + code that grants a complimentary entitlement, and declare restricted functionality with exact mechanical steps.
 - Public Eatlog copy must sound like the founder and website: lead with the `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.` wordplay, use serious humor, and keep provider, infrastructure, policy, and form language out. The first-person `everything I need, nothing I don't` origin belongs in the README only; store copy must make narrow product claims and address the buyer directly.
+- FoodEditorView edits buffer into `editDraft` and reach the meal only via its Save button (Save also registers the re-estimate undo); Back/hardware-back prompt `Discard changes?` when the buffer is dirty, and editor open/close must reuse the sheet-state exit/enter choreography (90ms `emphasizedAccelerate` out, 150ms `emphasizedDecelerate` in, offset ±20 + opacity) — never swap the editor and list views without it.
 
 ---
 
