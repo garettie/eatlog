@@ -594,7 +594,7 @@ function WeightChart({
           <AnimatedPath
             animatedProps={trendPathProps}
             fill="none"
-            stroke={M3.expenditure}
+            stroke={M3.onSurface}
             strokeWidth={2.75}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -602,7 +602,7 @@ function WeightChart({
           />
           <AnimatedPath
             animatedProps={trendEndpointProps}
-            fill={M3.expenditure}
+            fill={M3.onSurface}
             stroke={M3.surfaceContainer}
             strokeWidth={1.5}
             clipPath={`url(#${clipId})`}
@@ -628,7 +628,7 @@ function WeightChart({
                 cy={selectedTrendY}
                 r={6}
                 fill={M3.surfaceContainer}
-                stroke={M3.expenditure}
+                stroke={M3.onSurface}
                 strokeWidth={2}
               />
             </>
@@ -654,7 +654,7 @@ function WeightChart({
             <Text className="text-m3-on-surface text-xs font-bold tabular-nums">
               Scale {fromKilograms(selectedLog.scale_weight_kg, unit).toFixed(1)} {unit}
             </Text>
-            <Text className="text-m3-expenditure text-compact font-semibold tabular-nums">
+            <Text className="text-m3-on-surface text-compact font-semibold tabular-nums">
               Trend {fromKilograms(selectedLog.trend_weight_kg, unit).toFixed(1)} {unit}
             </Text>
           </View>

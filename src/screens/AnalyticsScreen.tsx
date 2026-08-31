@@ -75,7 +75,8 @@ type ProgressKind =
   | 'moving-away'
   | 'faster'
   | 'slower'
-  | 'outside-maintenance';
+  | 'outside-maintenance'
+  | 'reached';
 
 type AdaptivePauseReason = Extract<AdaptiveReviewState, { kind: 'paused' }>['reason'];
 
@@ -134,38 +135,40 @@ function signedRate(valueKg: number, unit: Profile['weight_unit']): string {
   return `${signedWeight(valueKg, unit)}/wk`;
 }
 
-function goalDistanceCopy(profile: Profile, latestWeight: WeightLog | undefined) {
-  if (profile.target_weight_kg == null || !latestWeight) {
-    return { value: '—' };
-  }
-  const difference = latestWeight.trend_weight_kg - profile.target_weight_kg;
-  const distance = formatWeight(Math.abs(difference), profile.weight_unit);
-  return { value: `${distance} ${profile.weight_unit}` };
+interface GoalProgress {
+  reached: boolean;
+  distance: string | null;
+  expectedDate: string | null;
 }
 
-function expectedGoalDateCopy(profile: Profile, latestWeight: WeightLog | undefined) {
+function goalProgress(
+  profile: Profile,
+  latestWeight: WeightLog | undefined,
+): GoalProgress {
   if (profile.target_weight_kg == null || !latestWeight) {
-    return { value: '—' };
+    return { reached: false, distance: null, expectedDate: null };
   }
+  const difference = latestWeight.trend_weight_kg - profile.target_weight_kg;
+  const distance = `${formatWeight(Math.abs(difference), profile.weight_unit)} ${profile.weight_unit}`;
   if (profile.goal_type === 'maintain') {
-    return { value: '—' };
+    return { reached: false, distance, expectedDate: null };
   }
 
-  const remainingKg = profile.goal_type === 'cut'
-    ? latestWeight.trend_weight_kg - profile.target_weight_kg
-    : profile.target_weight_kg - latestWeight.trend_weight_kg;
+  const remainingKg = profile.goal_type === 'cut' ? difference : -difference;
   if (remainingKg <= 0) {
-    return { value: 'Reached' };
+    return { reached: true, distance: `0 ${profile.weight_unit}`, expectedDate: displayDate(latestWeight.log_date) };
   }
 
   const weeklyRate = Math.abs(profile.goal_rate_kg_per_week);
   if (weeklyRate === 0) {
-    return { value: '—' };
+    return { reached: false, distance, expectedDate: null };
   }
 
   const daysRemaining = Math.ceil(remainingKg / weeklyRate * 7);
   return {
-    value: displayDate(addCalendarDays(latestWeight.log_date, daysRemaining)),
+    reached: false,
+    distance,
+    expectedDate: displayDate(addCalendarDays(latestWeight.log_date, daysRemaining)),
   };
 }
 
@@ -220,6 +223,12 @@ function progressCopy(kind: ProgressKind) {
         title: 'Outside maintenance range',
         icon: 'swap-vert' as const,
         color: M3.goalRateCaution,
+      };
+    case 'reached':
+      return {
+        title: 'Goal reached',
+        icon: 'flag' as const,
+        color: M3.goalRateSafe,
       };
     default:
       return {
@@ -708,8 +717,10 @@ function AnalyticsScreen({
   } = analyticsDerived!;
   const foodLoggedDates = data.foodLoggedDates;
   const weightLoggedDates = chartWeights.map((log) => log.log_date);
-  const goalDistance = goalDistanceCopy(profile, latestWeight);
-  const expectedGoalDate = expectedGoalDateCopy(profile, latestWeight);
+  const goal = goalProgress(profile, latestWeight);
+  const progressDisplay = goal.reached
+    ? progressCopy('reached')
+    : progress;
   const averageTargetDelta = averageCalories == null
     ? null
     : Math.round(averageCalories - target.target_calories);
@@ -725,10 +736,17 @@ function AnalyticsScreen({
     && recommendation.reason === 'intake_confirmation_required'
     ? recommendation.confirmationDays[0]
     : undefined;
-  const isActionablePlan = !recommendationError && (
-    recommendation?.kind === 'ready'
-    || confirmationDay != null
-  );
+  const compactPlanLine = recommendationError
+    ? 'Plan update unavailable.'
+    : recommendation?.kind === 'holding'
+      ? recommendation.reason === 'insufficient_evidence'
+        ? 'Gathering evidence for your next plan update.'
+        : 'Checking recent intake before your next plan update.'
+      : recommendation?.kind === 'paused'
+        ? `${ADAPTIVE_PAUSE_COPY[recommendation.reason].title}.`
+        : recommendation?.kind === 'next-review'
+          ? `Next plan check ${displayDate(recommendation.nextReviewDate)}.`
+          : null;
   const recommendationCard = entitlementStatus === 'checking' ? (
     <Card className="min-h-[112px] items-center justify-center gap-3">
       <ActivityIndicator color={M3.onSurfaceVariant} />
@@ -775,104 +793,49 @@ function AnalyticsScreen({
             )}
           </Pressable>
         </View>
-      ) : recommendation?.kind === 'holding' ? (
+      ) : recommendation?.kind === 'holding' && confirmationDay ? (
         <View className="gap-4" accessibilityLiveRegion="polite">
-          {confirmationDay ? (
-            <>
-              <View className="flex-row items-start justify-between gap-3">
-                <View className="flex-1 min-w-0 gap-1">
-                  <Text className="text-m3-on-surface text-lg font-bold">Quick check</Text>
-                  <Text className="text-m3-on-surface-variant text-sm tabular-nums">
-                    {displayDate(confirmationDay.date)} · {Math.round(confirmationDay.calories).toLocaleString()} kcal
-                  </Text>
-                </View>
-                {recommendation.confirmationDays.length > 1 ? (
-                  <View className="rounded-full bg-m3-surface-container-high px-3 py-1.5">
-                    <Text className="text-m3-on-surface-variant text-xs font-semibold tabular-nums">
-                      {recommendation.confirmationDays.length} days left
-                    </Text>
-                  </View>
-                ) : null}
+          <View className="flex-row items-start justify-between gap-3">
+            <View className="flex-1 min-w-0 gap-1">
+              <Text className="text-m3-on-surface text-lg font-bold">Quick check</Text>
+              <Text className="text-m3-on-surface-variant text-sm tabular-nums">
+                {displayDate(confirmationDay.date)} · {Math.round(confirmationDay.calories).toLocaleString()} kcal
+              </Text>
+            </View>
+            {recommendation.confirmationDays.length > 1 ? (
+              <View className="rounded-full bg-m3-surface-container-high px-3 py-1.5">
+                <Text className="text-m3-on-surface-variant text-xs font-semibold tabular-nums">
+                  {recommendation.confirmationDays.length} days left
+                </Text>
               </View>
-              <Text className="text-m3-on-surface text-base font-semibold">Was this day fully logged?</Text>
-              <View className="gap-2">
-                {([
-                  ['complete', 'Yes, complete'],
-                  ['partial', 'Only partly'],
-                  ['intentional_fast', 'I fasted'],
-                ] as const).map(([status, label]) => {
-                  const busy = confirmingIntakeDate === confirmationDay.date;
-                  return (
-                    <Pressable
-                      key={status}
-                      onPress={() => void confirmIntakeDay(confirmationDay.date, status)}
-                      disabled={confirmingIntakeDate !== null}
-                      className={`min-h-[48px] rounded-full border border-m3-outline-variant/60 px-4 items-center justify-center ${confirmingIntakeDate !== null ? 'opacity-50' : 'bg-m3-surface-container-high active:opacity-70'}`}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${label} for ${displayDate(confirmationDay.date)}`}
-                      accessibilityState={{ disabled: confirmingIntakeDate !== null, busy }}
-                    >
-                      {busy ? (
-                        <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
-                      ) : (
-                        <Text className="text-m3-on-surface font-semibold text-sm">{label}</Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          ) : (
-            <>
-              <View className="flex-row items-center justify-between gap-3">
-                <Text className="text-m3-on-surface font-bold text-base">Plan update</Text>
-                <Text className="text-m3-on-surface-variant text-xs font-semibold">Not ready yet</Text>
-              </View>
-              <View className="gap-4">
-                <View className="flex-row gap-4">
-                  <EvidenceTile
-                    label="Food days"
-                    value={recommendation.eligibility.intakeDayCount}
-                    total={recommendation.eligibility.requiredIntakeDayCount}
-                  />
-                  <EvidenceTile
-                    label="Weigh-ins"
-                    value={recommendation.eligibility.weightLogCount}
-                    total={recommendation.eligibility.requiredWeightLogCount}
-                  />
-                </View>
-                <EvidenceTile
-                  label="Days covered"
-                  value={recommendation.eligibility.endpointSpanDays}
-                  total={recommendation.eligibility.requiredEndpointSpanDays}
-                />
-              </View>
-              {!recommendation.eligibility.hasRecentWeight ? (
-                <Pressable
-                  onPress={onOpenWeight}
-                  className="self-start min-h-[48px] rounded-full px-4 flex-row items-center gap-2 active:bg-m3-surface-container-high"
-                  accessibilityRole="button"
-                  accessibilityLabel="Add a recent weight check-in"
-                >
-                  <MaterialIcons name="add" size={18} color={M3.onSurface} />
-                  <Text className="text-m3-on-surface text-sm font-semibold">Add weigh-in</Text>
-                </Pressable>
-              ) : null}
-            </>
-          )}
-        </View>
-      ) : recommendation?.kind === 'paused' ? (
-        <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite">
-          <View className="w-9 h-9 rounded-full bg-m3-surface-container-high items-center justify-center">
-            <MaterialIcons name="info-outline" size={20} color={M3.onSurfaceVariant} />
+            ) : null}
           </View>
-          <View className="flex-1 min-w-0 gap-0.5">
-            <Text className="text-m3-on-surface font-bold text-sm">
-              {ADAPTIVE_PAUSE_COPY[recommendation.reason].title}
-            </Text>
-            <Text className="text-m3-on-surface-variant text-xs">
-              {ADAPTIVE_PAUSE_COPY[recommendation.reason].detail}
-            </Text>
+          <Text className="text-m3-on-surface text-base font-semibold">Was this day fully logged?</Text>
+          <View className="gap-2">
+            {([
+              ['complete', 'Yes, complete'],
+              ['partial', 'Only partly'],
+              ['intentional_fast', 'I fasted'],
+            ] as const).map(([status, label]) => {
+              const busy = confirmingIntakeDate === confirmationDay.date;
+              return (
+                <Pressable
+                  key={status}
+                  onPress={() => void confirmIntakeDay(confirmationDay.date, status)}
+                  disabled={confirmingIntakeDate !== null}
+                  className={`min-h-[48px] rounded-full border border-m3-outline-variant/60 px-4 items-center justify-center ${confirmingIntakeDate !== null ? 'opacity-50' : 'bg-m3-surface-container-high active:opacity-70'}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${label} for ${displayDate(confirmationDay.date)}`}
+                  accessibilityState={{ disabled: confirmingIntakeDate !== null, busy }}
+                >
+                  {busy ? (
+                    <ActivityIndicator size="small" color={M3.onSurfaceVariant} />
+                  ) : (
+                    <Text className="text-m3-on-surface font-semibold text-sm">{label}</Text>
+                  )}
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       ) : recommendation?.kind === 'ready' ? (
@@ -904,7 +867,7 @@ function AnalyticsScreen({
           <View className="h-px bg-m3-outline-variant/50" />
           <View className="flex-row flex-wrap gap-5">
             <InlineMetric
-              label="Current target"
+              label="Today’s target"
               value={`${Math.round(recommendation.review.previous_target_calories).toLocaleString()} kcal`}
             />
             <InlineMetric label="Starts" value="Today" detail="Past entries stay unchanged" />
@@ -991,7 +954,12 @@ function AnalyticsScreen({
             />
           </View>
 
-          {isActionablePlan ? recommendationCard : null}
+          {recommendationCard}
+          {compactPlanLine != null ? (
+            <Text className="text-m3-on-surface-variant text-sm -mt-3" accessibilityLiveRegion="polite">
+              {compactPlanLine}
+            </Text>
+          ) : null}
 
           <View className={isTwoPane ? 'flex-row items-start gap-4' : 'gap-4'}>
           <View className={isTwoPane ? 'flex-[3] min-w-0 gap-4' : 'gap-4'}>
@@ -1045,22 +1013,43 @@ function AnalyticsScreen({
                 {latestWeight ? (
                   <>
                     <View className="h-px bg-m3-outline-variant/50" />
-                    <View className="flex-row items-center gap-2">
-                      <MaterialIcons name={progress.icon} size={19} color={progress.color} />
-                      <Text className="font-semibold text-sm" style={{ color: progress.color }}>{progress.title}</Text>
+                    <View className="gap-1">
+                      <View className="flex-row items-center gap-2">
+                        <MaterialIcons name={progressDisplay.icon} size={19} color={progressDisplay.color} />
+                        <Text className="font-semibold text-sm" style={{ color: progressDisplay.color }}>{progressDisplay.title}</Text>
+                      </View>
+                      {goal.reached ? (
+                        <Text className="text-m3-on-surface-variant text-sm">
+                          Reached {goal.expectedDate}. Open your plan to set a new goal.
+                        </Text>
+                      ) : goal.distance != null ? (
+                        <Text className="text-m3-on-surface-variant text-sm tabular-nums">
+                          {goal.distance} to goal{goal.expectedDate != null ? ` · ${goal.expectedDate} at plan pace` : ''}
+                        </Text>
+                      ) : null}
                     </View>
-                    <View className="flex-row flex-wrap gap-5">
-                      <InlineMetric
-                        label="Actual"
-                        value={sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : '—'}
-                      />
-                      <InlineMetric
-                        label="Plan"
-                        value={signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
-                      />
-                      <InlineMetric label="To goal" value={goalDistance.value} />
-                      <InlineMetric label="Expected date" value={expectedGoalDate.value} />
-                    </View>
+                    {goal.reached ? (
+                      <Pressable
+                        onPress={() => navigation.navigate('Profile', { screen: 'GoalAndRate' })}
+                        className="self-start min-h-[48px] rounded-full px-4 flex-row items-center gap-2 active:bg-m3-surface-container-high"
+                        accessibilityRole="button"
+                        accessibilityLabel="Open goal and rate settings"
+                      >
+                        <MaterialIcons name="tune" size={18} color={M3.onSurface} />
+                        <Text className="text-m3-on-surface text-sm font-semibold">Open plan settings</Text>
+                      </Pressable>
+                    ) : (
+                      <View className="flex-row flex-wrap gap-5">
+                        <InlineMetric
+                          label="Actual"
+                          value={sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : 'Not enough data'}
+                        />
+                        <InlineMetric
+                          label="Plan"
+                          value={signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
+                        />
+                      </View>
+                    )}
                   </>
                 ) : (
                   <Text className="text-m3-on-surface-variant text-sm text-center">No weigh-ins in this range.</Text>
@@ -1100,9 +1089,9 @@ function AnalyticsScreen({
                 value={averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
                 detail="Logged days only"
               />
-              <InlineMetric label="Current target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
+              <InlineMetric label="Target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
               <InlineMetric
-                label="Total Daily Energy Expenditure (TDEE)"
+                label="TDEE"
                 value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`}
               />
             </View>
@@ -1110,7 +1099,7 @@ function AnalyticsScreen({
               <View className="py-6 items-center gap-2">
                 <MaterialIcons name="restaurant" size={28} color={M3.onSurfaceVariant} />
                 <Text className="text-m3-on-surface font-bold text-sm">No food logged in this range</Text>
-                <Text className="text-m3-on-surface-variant text-sm">Use Add to start your intake trend.</Text>
+                <Text className="text-m3-on-surface-variant text-sm">Log a meal to start your intake trend.</Text>
               </View>
             ) : (
               <EnergyChart
@@ -1140,7 +1129,6 @@ function AnalyticsScreen({
               <LoggingHeatmap kind="food" loggedDates={foodLoggedDates} endDate={data.endDate} />
             </View>
           </Card>
-          {!isActionablePlan ? recommendationCard : null}
         </Animated.View>
         </ResponsiveContent>
       </ScrollView>

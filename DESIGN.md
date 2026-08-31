@@ -139,7 +139,7 @@ Eatlog uses a near-black neutral stack for structure and reserves named macro co
 - **Protein Rose**: protein labels, pills, and progress.
 - **Carb Green**: carbohydrate labels, pills, and progress.
 - **Fat Gold**: fat labels, pills, and progress.
-- **Expenditure Lavender**: TDEE, trend weight, and adaptive-engine signals.
+- **Expenditure Lavender**: TDEE and adaptive-engine signals. Weight trend uses Ink (onSurface) so the two chart lines never share a hue across Analytics cards.
 
 ### Tertiary
 - **Error Coral**: destructive actions and recoverable error messaging.

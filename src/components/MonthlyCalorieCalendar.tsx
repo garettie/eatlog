@@ -123,7 +123,7 @@ function DayRing({
       accessibilityHint="Shows calorie details for this day"
       accessibilityState={{ selected }}
       className="w-full min-h-[40px] items-center justify-center rounded-full active:opacity-80"
-      hitSlop={{ top: 4, bottom: 4 }}
+      hitSlop={{ top: 4, bottom: 4, left: 7, right: 7 }}
     >
       <View
         className={`items-center justify-center rounded-full ${selected ? 'bg-m3-surface-container-highest' : ''} ${isToday ? 'border border-m3-primary' : ''}`}
