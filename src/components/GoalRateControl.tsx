@@ -22,6 +22,7 @@ interface GoalRateControlProps {
   onValueChange: (valueKgPerWeek: number) => void;
   weightUnit: WeightUnit;
   currentWeightKg?: number | null;
+  tdeeKcal?: number | null;
 }
 
 function mixColor(from: string, to: string, progress: number): string {
@@ -56,13 +57,15 @@ export default function GoalRateControl({
   onValueChange,
   weightUnit,
   currentWeightKg,
+  tdeeKcal,
 }: GoalRateControlProps) {
   const displayValue = fromKilograms(valueKgPerWeek, weightUnit);
   const formatDisplayValue = (value: number) => fromKilograms(value, weightUnit).toFixed(2);
   const [inputText, setInputText] = useState(() => displayValue.toFixed(2));
   const [editing, setEditing] = useState(false);
-  const range = goalRateBounds(goal, currentWeightKg);
-  const severity = goalRateSeverity(valueKgPerWeek, goal, currentWeightKg);
+  const range = goalRateBounds(goal, currentWeightKg, tdeeKcal);
+  const severity = goalRateSeverity(valueKgPerWeek, goal, currentWeightKg, tdeeKcal);
+  const withinRange = (rate: number) => rate >= range.min - 1e-9 && rate <= range.max + 1e-9;
   const color = useMemo(() => severityColor(severity), [severity]);
   const warning = severity >= GOAL_RATE_WARNING_THRESHOLD;
   const unitLabel = `${weightUnit} / week`;
@@ -75,7 +78,7 @@ export default function GoalRateControl({
   const applyDisplayRate = (displayRate: number) => {
     const rateKg = toKilograms(displayRate, weightUnit);
     const normalized = normalizeGoalRate(rateKg, goal);
-    if (isGoalRateValid(normalized, goal, currentWeightKg)) onValueChange(normalized);
+    if (isGoalRateValid(normalized, goal, currentWeightKg) && withinRange(normalized)) onValueChange(normalized);
   };
 
   const handleInputChange = (text: string) => {
@@ -93,7 +96,7 @@ export default function GoalRateControl({
       return;
     }
     const normalized = normalizeGoalRate(toKilograms(parsed, weightUnit), goal);
-    if (!isGoalRateValid(normalized, goal, currentWeightKg)) {
+    if (!isGoalRateValid(normalized, goal, currentWeightKg) || !withinRange(normalized)) {
       setInputText(displayValue.toFixed(2));
       return;
     }

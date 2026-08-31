@@ -8,6 +8,7 @@ import {
   calculateTargets,
   targetOverflowProgress,
 } from './calculations';
+import { goalRateBounds, minimumSafeCalories, NUTRITION_SAFETY_POLICY } from './nutritionSafety';
 
 const activities: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
 const preferences: ProteinPreference[] = ['low', 'moderate', 'high', 'extra_high'];
@@ -58,14 +59,17 @@ test('calculateTargets delegates safe goal-adjusted calories to the allocator', 
   }));
 });
 
-test('the existing low-calorie path stops instead of returning negative or rewritten macros', () => {
-  assert.throws(() => calculateTargets({
+test('an infeasibly low calorie target clamps to the safe floor instead of blocking', () => {
+  const result = calculateTargets({
     tdeeKcal: 500,
     goalType: 'cut',
     proteinPreference: 'high',
     weightKg: 200,
     goalRateKgPerWeek: -0.9,
-  }), /Calories|Carbohydrates|target/);
+  });
+  assert.equal(result.targetCalories, minimumSafeCalories(200));
+  assert.ok(result.targetCarbsG >= 130);
+  assert.ok(result.targetProteinG >= 200 * 0.8);
 });
 
 test('a 60 kg cut yields fat then protein so carbs stay at the 130 g floor', () => {
@@ -118,6 +122,60 @@ test('non-finite and unsupported calculation inputs are rejected', () => {
     proteinPreference: 'moderate',
     weightKg: 80,
   }));
+});
+
+test('no reachable onboarding input hard-blocks the plan calculation', () => {
+  const P = NUTRITION_SAFETY_POLICY;
+  const step = P.goalRateStepKgPerWeek;
+  const sexes: Sex[] = ['male', 'female'];
+  const ages = [18, 30, 45, 60, 78];
+  const heights = [P.minimumHeightCm, 150, 175, 200, P.maximumHeightCm];
+  const weights = [P.minimumWeightKg, 45, 60, 90, 130, 200, P.maximumWeightKg];
+  const goals: GoalType[] = ['cut', 'maintain', 'bulk'];
+
+  let checked = 0;
+  for (const sex of sexes)
+    for (const age of ages)
+      for (const height_cm of heights)
+        for (const weightKg of weights)
+          for (const activityLevel of activities) {
+            const tdee = calcTDEE(calcBMR({ sex, weight_kg: weightKg, height_cm, age }), activityLevel);
+            for (const goalType of goals)
+              for (const proteinPreference of preferences) {
+                const bounds = goalRateBounds(goalType, weightKg, tdee);
+                // slowest, default, and fastest rate the UI would offer for this body
+                const magnitudes = goalType === 'maintain'
+                  ? [0]
+                  : [Math.min(Math.abs(bounds.min), Math.abs(bounds.max)),
+                     Math.abs(bounds.defaultRate),
+                     Math.max(Math.abs(bounds.min), Math.abs(bounds.max))];
+                for (const mag of magnitudes) {
+                  const rate = goalType === 'cut' ? -mag : goalType === 'bulk' ? mag : 0;
+                  const snapped = Number((Math.round(rate / step) * step).toFixed(2));
+                  const result = calculateTargets({
+                    tdeeKcal: tdee, goalType, proteinPreference, weightKg, goalRateKgPerWeek: snapped,
+                  });
+                  assert.ok(result.targetCalories >= P.minimumCalories && result.targetCalories <= P.maximumCalories);
+                  assert.ok(result.targetCarbsG >= P.minimumCarbsG,
+                    `carbs floor ${sex} ${age} ${height_cm} ${weightKg} ${activityLevel} ${goalType} ${proteinPreference} @${snapped}`);
+                  assert.ok(result.targetProteinG >= weightKg * P.minimumProteinGPerKg - 1e-6);
+                  checked += 1;
+                }
+              }
+          }
+  assert.ok(checked > 5000, `expected a broad sweep, only checked ${checked}`);
+});
+
+test('a small light cutter is offered a feasible rate, not one the validator rejects', () => {
+  // 45 kg sedentary body: TDEE is low enough that the body-fraction cap alone
+  // would offer a rate whose target falls under 1000 kcal.
+  const tdee = calcTDEE(calcBMR({ sex: 'male', weight_kg: 45, height_cm: 150, age: 30 }), 'sedentary');
+  const bounds = goalRateBounds('cut', 45, tdee);
+  const fastest = calculateTargets({
+    tdeeKcal: tdee, goalType: 'cut', proteinPreference: 'moderate', weightKg: 45, goalRateKgPerWeek: bounds.max,
+  });
+  assert.ok(fastest.targetCalories >= NUTRITION_SAFETY_POLICY.minimumCalories);
+  assert.ok(fastest.targetCarbsG >= 130);
 });
 
 test('overflow progress starts after target and caps at one extra cycle', () => {

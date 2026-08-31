@@ -18,9 +18,9 @@ export function normalizeGoalRate(rateKgPerWeek: number, goal: GoalType): number
   return Number((Math.round(directedRate / GOAL_RATE_STEP_KG) * GOAL_RATE_STEP_KG).toFixed(2));
 }
 
-export function goalRateSeverity(rateKgPerWeek: number, goal: GoalType, currentWeightKg?: number | null): number {
+export function goalRateSeverity(rateKgPerWeek: number, goal: GoalType, currentWeightKg?: number | null, tdeeKcal?: number | null): number {
   if (goal === 'maintain') return 0;
-  const range = goalRateBounds(goal, currentWeightKg);
+  const range = goalRateBounds(goal, currentWeightKg, tdeeKcal);
   const slowest = Math.min(Math.abs(range.min), Math.abs(range.max));
   const fastest = Math.max(Math.abs(range.min), Math.abs(range.max));
   const speed = Math.abs(rateKgPerWeek);

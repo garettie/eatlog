@@ -1,6 +1,7 @@
 import type { ActivityLevel, GoalType, MealType, ProteinPreference, Sex } from '../db/database';
 import {
   ageFromLocalBirthDate,
+  minimumSafeCalories,
   NUTRITION_SAFETY_POLICY,
   validateGoalRate,
   validateHeightCm,
@@ -88,15 +89,15 @@ export function calculateMacrosForCalories(input: {
   weightKg: number;
 }): MacroTargets {
   if (!Number.isFinite(input.targetCalories)) throw new NutritionSafetyError('Calories must be finite.');
-  const targetCalories = Math.round(input.targetCalories);
-  if (targetCalories < NUTRITION_SAFETY_POLICY.minimumCalories
-    || targetCalories > NUTRITION_SAFETY_POLICY.maximumCalories) {
-    throw new NutritionSafetyError(
-      `Calories must be between ${NUTRITION_SAFETY_POLICY.minimumCalories} and ${NUTRITION_SAFETY_POLICY.maximumCalories} kcal.`,
-    );
-  }
   const weightIssue = validateWeightKg(input.weightKg, 'Current weight');
   if (weightIssue) throw new NutritionSafetyError(weightIssue);
+  // Clamp into the safe band: never below the macro-floor-feasible minimum, never
+  // above the 6000 kcal ceiling. Out-of-band bodies (tiny/huge) get the nearest
+  // safe plan instead of a hard onboarding block.
+  const targetCalories = Math.min(
+    NUTRITION_SAFETY_POLICY.maximumCalories,
+    Math.max(minimumSafeCalories(input.weightKg), Math.round(input.targetCalories)),
+  );
   if (!['cut', 'maintain', 'bulk'].includes(input.goalType)) {
     throw new NutritionSafetyError('Goal type is invalid.');
   }
@@ -132,6 +133,17 @@ export function calculateMacrosForCalories(input: {
       Math.max(minProteinG, Math.min(targetProteinG, proteinForCarbFloor)),
       minProteinG,
     );
+    targetCarbsG = remainingCarbs(targetProteinG, targetFatG);
+  }
+  // Rounding protein/fat to tenths can overshoot and leave carbs a tenth under the
+  // floor even when a feasible split exists; reclaim that tenth from whichever
+  // macro still has slack above its own floor.
+  while (targetCarbsG < minCarbsG && Math.round((targetProteinG - 0.1) * 10) / 10 >= minProteinG) {
+    targetProteinG = Math.round((targetProteinG - 0.1) * 10) / 10;
+    targetCarbsG = remainingCarbs(targetProteinG, targetFatG);
+  }
+  while (targetCarbsG < minCarbsG && Math.round((targetFatG - 0.1) * 10) / 10 >= minFatG) {
+    targetFatG = Math.round((targetFatG - 0.1) * 10) / 10;
     targetCarbsG = remainingCarbs(targetProteinG, targetFatG);
   }
   const targets = {

@@ -28,6 +28,22 @@ export const NUTRITION_SAFETY_POLICY = Object.freeze({
   maximumBulkRateKgPerWeek: 0.5,
 } as const);
 
+/**
+ * The lowest calorie target that can still satisfy every macro floor at once:
+ * protein (0.8 g/kg), fat (20% of energy), and carbohydrate (130 g). Below this,
+ * no valid protein/fat/carb split exists, so any plan would be rejected. Derived
+ * from `0.8 * cal = 3.2 * weight + 520`, plus 5 kcal of headroom so that rounding
+ * protein/fat to tenths at this boundary cannot push carbs under the 130 g floor,
+ * and never below the absolute 1000 kcal floor.
+ */
+export function minimumSafeCalories(weightKg: number): number {
+  const macroFloor = 4 * weightKg + 650 + 5;
+  return Math.max(NUTRITION_SAFETY_POLICY.minimumCalories, Math.ceil(macroFloor));
+}
+
+/** Kcal/day gained or lost per 1 kg/week of weight change (7700 kcal/kg ÷ 7). */
+const KCAL_PER_DAY_PER_KG_WEEK = 7700 / 7;
+
 export const WELLNESS_DISCLAIMER =
   'Eatlog estimates calorie and macro targets for adults\' general wellness. It is not medical advice. If you are pregnant or breastfeeding, have a medical condition or eating-disorder history, or need specialized nutrition, consult a qualified health professional before using targets.';
 
@@ -152,6 +168,7 @@ export function birthDateBounds(referenceDate: Date = new Date()): { earliest: D
 export function goalRateBounds(
   goal: GoalType,
   currentWeightKg?: number | null,
+  tdeeKcal?: number | null,
 ): { min: number; max: number; defaultRate: number } {
   if (goal === 'maintain') return { min: 0, max: 0, defaultRate: 0 };
 
@@ -163,9 +180,19 @@ export function goalRateBounds(
       ? NUTRITION_SAFETY_POLICY.maximumCutRateFractionPerWeek
       : NUTRITION_SAFETY_POLICY.maximumBulkRateFractionPerWeek)
     : absoluteMaximum;
+  // Calorie-feasibility clamp: a cut cannot push the target below the safe-calorie
+  // floor, and a bulk cannot push it above the ceiling. Without this the slider
+  // would offer rates whose resulting plan the safety validator then rejects.
+  let feasibleMaximum = Infinity;
+  if (Number.isFinite(tdeeKcal) && Number.isFinite(currentWeightKg)) {
+    const room = goal === 'cut'
+      ? tdeeKcal! - minimumSafeCalories(currentWeightKg!)
+      : NUTRITION_SAFETY_POLICY.maximumCalories - tdeeKcal!;
+    feasibleMaximum = room / KCAL_PER_DAY_PER_KG_WEEK;
+  }
   const maximum = Math.max(
     NUTRITION_SAFETY_POLICY.goalRateStepKgPerWeek,
-    roundDownToStep(Math.min(absoluteMaximum, relativeMaximum)),
+    roundDownToStep(Math.min(absoluteMaximum, relativeMaximum, feasibleMaximum)),
   );
   const defaultMagnitude = Math.min(
     goal === 'cut' ? 0.5 : 0.25,
@@ -353,13 +380,27 @@ export function targetSafetyIssues(
   }
 
   if (context.goalType && target.tdee_estimate != null && Number.isFinite(target.tdee_estimate)) {
-    if (context.goalType === 'cut' && target.target_calories >= target.tdee_estimate) {
+    // A target may be pinned to the safe-calorie floor (1000+) or the 6000 kcal
+    // ceiling when TDEE sits beyond that bound; the direction rule yields to the
+    // clamp so an out-of-range body never blocks onboarding.
+    const floor = context.referenceWeightKg != null && Number.isFinite(context.referenceWeightKg)
+      ? minimumSafeCalories(context.referenceWeightKg)
+      : NUTRITION_SAFETY_POLICY.minimumCalories;
+    const ceiling = NUTRITION_SAFETY_POLICY.maximumCalories;
+    if (context.goalType === 'cut'
+      && target.target_calories >= target.tdee_estimate
+      && target.target_calories > floor) {
       issues.push('A cut target must be below TDEE.');
     }
-    if (context.goalType === 'bulk' && target.target_calories <= target.tdee_estimate) {
+    if (context.goalType === 'bulk'
+      && target.target_calories <= target.tdee_estimate
+      && target.target_calories < ceiling) {
       issues.push('A bulk target must be above TDEE.');
     }
-    if (context.goalType === 'maintain' && target.target_calories !== Math.round(target.tdee_estimate)) {
+    if (context.goalType === 'maintain'
+      && target.target_calories !== Math.round(target.tdee_estimate)
+      && target.target_calories !== floor
+      && target.target_calories !== ceiling) {
       issues.push('A maintenance target must match rounded TDEE.');
     }
   }

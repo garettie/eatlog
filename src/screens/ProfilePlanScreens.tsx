@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MaterialIcons } from '@expo/vector-icons';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
@@ -358,6 +358,15 @@ export function GoalAndRateScreen() {
     const [saving, setSaving] = useState(false);
     const [hydrated, setHydrated] = useState(false);
 
+    const tdeeKcal = useMemo(() => {
+        if (!profile || currentWeightKg == null) return null;
+        try {
+            return calcTDEE(calcBMR({ sex: profile.sex, weight_kg: currentWeightKg, height_cm: profile.height_cm, age: ageOnDate(profile.birth_date, todayISO()) }), profile.activity_level);
+        } catch {
+            return null;
+        }
+    }, [profile, currentWeightKg]);
+
     useEffect(() => {
         if (!profile) return;
         let active = true;
@@ -400,18 +409,18 @@ export function GoalAndRateScreen() {
         const fallbackWeightKg = profile?.target_weight_kg ?? null;
         const baseWeightKg = currentWeightKg ?? fallbackWeightKg;
         if (nextGoal === 'cut') {
-            setRateKg(goalRateBounds('cut', baseWeightKg).defaultRate);
+            setRateKg(goalRateBounds('cut', baseWeightKg, tdeeKcal).defaultRate);
             if (baseWeightKg != null) {
                 setTargetWeight(fromKilograms(Math.max(30, baseWeightKg - 5), profile?.weight_unit ?? 'kg'));
             }
             return;
         }
 
-        setRateKg(goalRateBounds('bulk', baseWeightKg).defaultRate);
+        setRateKg(goalRateBounds('bulk', baseWeightKg, tdeeKcal).defaultRate);
         if (baseWeightKg != null) {
             setTargetWeight(fromKilograms(Math.min(300, baseWeightKg + 3), profile?.weight_unit ?? 'kg'));
         }
-    }, [currentWeightKg, profile]);
+    }, [currentWeightKg, profile, tdeeKcal]);
 
     const save = useCallback(async () => {
         if (!profile) return; const targetKg = toKilograms(targetWeight, profile.weight_unit);
@@ -466,6 +475,7 @@ export function GoalAndRateScreen() {
                                 onValueChange={setRateKg}
                                 weightUnit={profile.weight_unit}
                                 currentWeightKg={currentWeightKg}
+                                tdeeKcal={tdeeKcal}
                             />
                         </View>
                     </View>

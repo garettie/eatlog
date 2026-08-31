@@ -15,6 +15,8 @@ import {
 } from './calendar';
 import {
   ageOnDate,
+  minimumSafeCalories,
+  NUTRITION_SAFETY_POLICY,
   profileSafetyIssues,
   targetSafetyIssues,
   validateWeightKg,
@@ -764,6 +766,18 @@ export function calculateAdaptiveRecommendation(
       eligibility,
       requestedTargetCalories,
       message: error instanceof Error ? error.message : 'Target is outside safety policy.',
+    };
+  }
+  // The allocator clamps requested calories into the safe band rather than throwing.
+  // An adaptive auto-update should not silently push a clamped target; when the
+  // requested calories fall outside policy, pause and keep the current plan.
+  if (macros.targetCalories !== requestedTargetCalories) {
+    return {
+      kind: 'paused',
+      reason: 'target_out_of_policy',
+      eligibility,
+      requestedTargetCalories,
+      message: `Calories must stay between ${minimumSafeCalories(end.trendWeightKg).toLocaleString()} and ${NUTRITION_SAFETY_POLICY.maximumCalories.toLocaleString()} kcal for a safe plan.`,
     };
   }
   const targetIssue = targetSafetyIssues({

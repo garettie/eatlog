@@ -348,6 +348,21 @@ export default function OnboardingScreen({ navigation }: Props) {
     return ftInToCm(Number(heightFtText.trim()), Number(heightInText.trim()));
   }
 
+  /** TDEE from the entered profile, or null if any input is not yet valid. */
+  function resolveTdee(): number | null {
+    try {
+      const bmr = calcBMR({
+        sex,
+        weight_kg: resolveWeightKg(),
+        height_cm: resolveHeightInputCm(),
+        age: ageFromBirthDate(resolveBirthDateISO()),
+      });
+      return calcTDEE(bmr, activityLevel);
+    } catch {
+      return null;
+    }
+  }
+
   function resolveWeightInputKg(): number {
     const value = Number(weightText.trim());
     return units === 'metric' ? value : lbsToKg(value);
@@ -412,14 +427,14 @@ export default function OnboardingScreen({ navigation }: Props) {
       setTargetWeightText(units === 'metric' ? currentWeightKg.toFixed(1) : String(Math.round(kgToLbs(currentWeightKg) * 10) / 10));
     } else if (gt === 'cut') {
       const currentWeightKg = resolveWeightKg();
-      setGoalRate(goalRateBounds('cut', currentWeightKg).defaultRate);
+      setGoalRate(goalRateBounds('cut', currentWeightKg, resolveTdee()).defaultRate);
       const nextTargetKg = Math.max(NUTRITION_SAFETY_POLICY.minimumWeightKg, currentWeightKg - 5);
       setTargetWeightKg(nextTargetKg);
       setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
       setTargetWeightText(units === 'metric' ? nextTargetKg.toFixed(1) : String(Math.round(kgToLbs(nextTargetKg) * 10) / 10));
     } else {
       const currentWeightKg = resolveWeightKg();
-      setGoalRate(goalRateBounds('bulk', currentWeightKg).defaultRate);
+      setGoalRate(goalRateBounds('bulk', currentWeightKg, resolveTdee()).defaultRate);
       const nextTargetKg = Math.min(NUTRITION_SAFETY_POLICY.maximumWeightKg, currentWeightKg + 3);
       setTargetWeightKg(nextTargetKg);
       setTargetWeightLbs(Math.round(kgToLbs(nextTargetKg) * 10) / 10);
@@ -931,6 +946,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                           onValueChange={setGoalRate}
                           weightUnit={units === 'metric' ? 'kg' : 'lb'}
                           currentWeightKg={resolveWeightKg()}
+                          tdeeKcal={resolveTdee()}
                         />
                       </View>
                     </Reanimated.View>

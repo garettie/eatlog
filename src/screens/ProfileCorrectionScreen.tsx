@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -78,6 +78,15 @@ export default function ProfileCorrectionScreen({ navigation }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  const tdeeKcal = useMemo(() => {
+    if (!profile || currentWeightKg == null) return null;
+    try {
+      return calcTDEE(calcBMR({ sex: profile.sex, weight_kg: currentWeightKg, height_cm: Number(heightCm), age: ageFromBirthDate(birthDate) }), profile.activity_level);
+    } catch {
+      return null;
+    }
+  }, [profile, currentWeightKg, heightCm, birthDate]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -242,7 +251,7 @@ export default function ProfileCorrectionScreen({ navigation }: Props) {
             <Field label="Height (cm)" value={heightCm} onChangeText={setHeightCm} keyboardType="decimal-pad" />
             <GoalTypeSelector value={goal} onChange={setGoal} />
             {goal !== 'maintain' ? <Field label="Target weight (kg)" value={targetWeightKg} onChangeText={setTargetWeightKg} keyboardType="decimal-pad" /> : null}
-            {goal !== 'maintain' && currentWeightKg != null ? <GoalRateControl goal={goal} valueKgPerWeek={rateKgPerWeek} onValueChange={setRateKgPerWeek} weightUnit="kg" currentWeightKg={currentWeightKg} /> : null}
+            {goal !== 'maintain' && currentWeightKg != null ? <GoalRateControl goal={goal} valueKgPerWeek={rateKgPerWeek} onValueChange={setRateKgPerWeek} weightUnit="kg" currentWeightKg={currentWeightKg} tdeeKcal={tdeeKcal} /> : null}
             <PrimaryButton title="Review corrected plan" onPress={preparePlan} disabled={busy} />
           </Card>
         ) : null}
