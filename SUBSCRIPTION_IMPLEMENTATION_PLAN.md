@@ -89,7 +89,7 @@ This plan assumes Eatlog has no public listing or purchasers under the PHP 299 m
 | Weight entry, trend, history, and charts | Yes | Yes | Yes | Yes | Yes |
 | Health Connect on Android | Yes | Yes | Yes | Yes | Yes |
 | Backup, restore, CSV export, reset, and deletion | Yes | Yes | Yes | Yes | Yes |
-| AI Scan, Photo, and Describe | 5 per rolling 24 hours | Trial allowance | Fair use | Fair use | Fair use |
+| AI Scan, Photo, and Describe | 3 per rolling 24 hours | Trial allowance | Fair use | Fair use | Fair use |
 | AI meal and component clarification | No | Trial allowance | Fair use | Fair use | Fair use |
 | Adaptive recommendation calculation and review | No | Yes | Yes | Yes | Yes |
 | Trial counter display | No | Yes | No | No | No |
@@ -364,7 +364,7 @@ App access refresh -> Worker verifies RevenueCat -> signed AI grant for confirme
 App estimate request -> Worker validates grant or refreshes inline -> atomic quota -> access-class Gemini route
 ```
 
-Pugo continues to call USDA through the Worker and may call Gemini for five shared initial estimates per rolling 24 hours. Open Food Facts remains a direct public request. Meal and component clarification plus adaptive recommendations require an active Manok trial, Manok subscription, Itik purchase, or complimentary grant.
+Pugo continues to call USDA through the Worker and may call Gemini for three shared initial estimates per rolling 24 hours. Open Food Facts remains a direct public request. Meal and component clarification plus adaptive recommendations require an active Manok trial, Manok subscription, Itik purchase, or complimentary grant.
 
 ### Worker endpoints
 
@@ -760,7 +760,7 @@ Terms must define `lifetime` as a non-expiring Itik entitlement on the purchase 
 - Route Pugo through Gemini 2.5 Flash-Lite then 3.5 Flash-Lite; retain the paid 3.5/3.1 route.
 - Add aggregate token and model-specific cost metadata.
 
-**Exit check:** Worker tests prove five shared Pugo initial estimates, paid-only Pugo clarification, exact rolling boundaries, stable installation quota identity, model routing, and unchanged trial/paid limits.
+**Exit check:** Worker tests prove three shared Pugo initial estimates, paid-only Pugo clarification, exact rolling boundaries, stable installation quota identity, model routing, and unchanged trial/paid limits.
 
 ### Phase 4: Feature gates
 

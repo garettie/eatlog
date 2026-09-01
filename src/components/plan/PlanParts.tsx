@@ -195,7 +195,7 @@ export function ValueSummary() {
           <Text numberOfLines={1} className="w-20 text-right text-xs font-semibold text-m3-on-surface-variant">Free</Text>
           <Text numberOfLines={1} className="w-20 text-right text-xs font-semibold text-m3-on-surface">Paid</Text>
         </View>
-        <LimitRow label="Photos and descriptions" free="5 a day" paid="Unlimited" />
+        <LimitRow label="Photos and descriptions" free="3 a day" paid="Unlimited" />
         <LimitRow label="Redo after edits" free="—" paid="Unlimited" />
       </View>
       <Text className="px-1 text-xs text-m3-on-surface-variant">Unlimited use is subject to fair use.</Text>

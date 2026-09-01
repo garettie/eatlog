@@ -26,7 +26,7 @@ MacroFactor-class premium UX at public-release scale. The differentiator is a fa
 
 ## Access model
 
-- Eatlog Pugo is the free tier for local food logging, weight tracking, charts, Health Connect, backup, export, and five shared photo or description estimates per rolling 24 hours.
+- Eatlog Pugo is the free tier for local food logging, weight tracking, charts, Health Connect, backup, export, and three shared photo or description estimates per rolling 24 hours.
 - Eatlog Manok is PHP 79 monthly. Eatlog Itik is a PHP 799 one-time lifetime entitlement.
 - Manok, Itik, and complimentary access let you redo any meal or component with AI, add higher AI limits, and unlock local adaptive recommendations. The Worker remains authoritative for every AI grant, quota, and model route.
 - Expiry, refund, or revocation never deletes owned food, weight, target, or adaptive data. Entitlement state stays outside SQLite, backups, and CSV exports.
@@ -43,7 +43,7 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | --- | --- | --- |
 | Onboarding and initial targets | Implemented | Strong first-run flow; needs an edit path and physical-device verification. |
 | Today | Implemented | Coherent daily summary with useful empty, loading, and error states. |
-| Food entry | Implemented | Local past-meal reuse, search, manual logging, and five shared AI Scan, Photo, or Describe requests per rolling 24 hours remain in Pugo. Meal/component re-estimation requires Manok, Itik, or complimentary access. Every remote estimate also requires separate Gemini consent. |
+| Food entry | Implemented | Local past-meal reuse, search, manual logging, and three shared AI Scan, Photo, or Describe requests per rolling 24 hours remain in Pugo. Meal/component re-estimation requires Manok, Itik, or complimentary access. Every remote estimate also requires separate Gemini consent. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
 | Weight and Analytics | Implemented | Weight/chart metrics remain in Pugo; adaptive reads and mutations require Manok, Itik, or complimentary access. |
 | Profile and Settings | Implemented | Profile editing, privacy controls, backup/restore, CSV export, reset, Health Connect, help, and detail routes are available. |
@@ -74,7 +74,7 @@ The implemented core has a coherent visual language and daily loop. Source-level
 
 **Post-MVP:** cloud multi-device sync; barcode camera scanning; offline food search; HealthKit/Apple Health; auth/accounts; notifications; social features; coach messaging; light theme; localization.
 
-**Hard constraints:** Android-first cross-platform Expo managed workflow and EAS store distribution; local-first canonical app data with a Worker used only for remote search, AI, entitlements, and quotas; canonical food/weight data remains on-device unless the user exports a file; Onest remains bundled; scanner is the primary path; no silent system-font fallback; no per-screen visual restyling outside the shared component vocabulary. Users never enter, view, or manage API keys.
+**Hard constraints:** Android-first cross-platform Expo managed workflow and EAS store distribution; local-first canonical app data with a Worker used only for remote search, AI, entitlements, and quotas; canonical food/weight data remains on-device unless the user exports a file; Onest remains bundled; photo capture, import, and description lead while reuse, search, and manual entry remain complete; no silent system-font fallback; shared semantics stay consistent across purpose-built screen compositions. Users never enter, view, or manage API keys.
 
 ## MVP Completion Contract
 
@@ -168,7 +168,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 ## Product Principles
 
 1. **Form and function together.** Every surface and transition must make logging, reviewing, or understanding data easier.
-2. **Scanner-first, fallback-complete.** Camera/gallery scan and description lead; search and manual entry are credible recovery paths.
+2. **Photo-first, fallback-complete.** Camera capture, gallery import, and description lead; local reuse, search, and manual entry remain credible recovery paths.
 3. **Adaptive truth, explicitly controlled.** The initial formula remains useful; weekly evidence can propose new targets, but only Accept changes target history.
 4. **Local ownership.** The device owns the data. No login, account, backend, or forced network dependency outside food search/AI estimation.
 5. **One component vocabulary.** A selected state, card, button, numeric figure, macro color, and sheet should mean the same thing everywhere.

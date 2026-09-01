@@ -1,4 +1,5 @@
 import type React from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
@@ -104,6 +105,7 @@ export default function EntryMethodState({
   onContentHeightChange,
 }: EntryMethodStateProps) {
   const { isNarrow } = useResponsiveLayout();
+  const [moreWaysOpen, setMoreWaysOpen] = useState(false);
 
   return (
     <BottomSheetScrollView
@@ -184,8 +186,25 @@ export default function EntryMethodState({
           <Text accessibilityRole="header" className="px-1 text-sm font-semibold text-m3-on-surface-variant">Quick log</Text>
           <View>
             <CompactActionRow icon="history" label="Recent meals" hint="Search meals from your log" onPress={onRecentFoods} />
-            <View className="ml-[68px] mr-4 h-px bg-m3-outline-variant/50" />
-            <CompactActionRow icon="search" label="Search foods" badge="Beta" hint="Look up a food" onPress={onSearch} />
+            {moreWaysOpen || !reusableMealsAvailable ? (
+              <>
+                <View className="ml-[68px] mr-4 h-px bg-m3-outline-variant/50" />
+                <CompactActionRow icon="search" label="Search foods" badge="Beta" hint="Look up a food" onPress={onSearch} />
+              </>
+            ) : (
+              <Pressable
+                onPress={() => setMoreWaysOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="More ways to log"
+                accessibilityHint="Shows food search"
+                className="min-h-[48px] flex-row items-center gap-3 px-4 active:opacity-60"
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-m3-surface-container-high">
+                  <MaterialIcons name="more-horiz" size={20} color={M3.onSurfaceVariant} />
+                </View>
+                <Text className="flex-1 text-base font-semibold text-m3-on-surface">More ways to log</Text>
+              </Pressable>
+            )}
           </View>
         </View>
 

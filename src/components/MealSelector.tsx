@@ -9,6 +9,7 @@ import Animated, {
 
 import { MealType } from '../db/database';
 import { DURATION, EASING } from '../theme/motion';
+import { useResponsiveLayout } from '../theme/layout';
 
 const MEALS: { label: string; compactLabel: string; value: MealType }[] = [
   { label: 'Breakfast', compactLabel: 'Bfast', value: 'breakfast' },
@@ -26,6 +27,7 @@ interface MealSelectorProps {
 
 export default function MealSelector({ value, onChange, compact = false, disabled = false }: MealSelectorProps) {
   const reduced = useReducedMotion();
+  const { isNarrow } = useResponsiveLayout();
   const selectedIndex = Math.max(0, MEALS.findIndex((meal) => meal.value === value));
   const trackWidth = useSharedValue(0);
   const measuredRef = useRef(false);
@@ -58,8 +60,49 @@ export default function MealSelector({ value, onChange, compact = false, disable
     };
   });
 
+  if (isNarrow) {
+    return (
+      <View
+        accessibilityRole="radiogroup"
+        accessibilityLabel="Meal"
+        style={disabled ? { opacity: 0.38 } : undefined}
+        className="flex-row flex-wrap gap-2"
+      >
+        {MEALS.map((m) => {
+          const selected = m.value === value;
+          return (
+            <Pressable
+              key={m.value}
+              onPress={() => {
+                if (m.value === value) return;
+                startTransition(() => onChange(m.value));
+              }}
+              disabled={disabled}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected, disabled }}
+              className={`min-h-[48px] min-w-[47%] flex-1 px-3 rounded-full items-center justify-center border active:opacity-70 ${
+                selected
+                  ? 'bg-m3-primary border-m3-primary'
+                  : 'bg-m3-surface-container-high border-m3-outline-variant/30'
+              }`}
+            >
+              <Text
+                numberOfLines={2}
+                className={`text-xs font-semibold text-center ${selected ? 'text-m3-on-primary' : 'text-m3-on-surface-variant'}`}
+              >
+                {m.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    );
+  }
+
   return (
     <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel="Meal"
       style={disabled ? { opacity: 0.38 } : undefined}
       className="flex-row bg-m3-surface-container-high rounded-full p-0.5 border border-m3-outline-variant/30 relative overflow-hidden"
       onLayout={(event) => {
@@ -94,14 +137,12 @@ export default function MealSelector({ value, onChange, compact = false, disable
               startTransition(() => onChange(m.value));
             }}
             disabled={disabled}
-            accessibilityRole="button"
-            accessibilityState={{ selected, disabled }}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected, disabled }}
             className="flex-1 min-h-[48px] px-1 rounded-full items-center justify-center z-10 active:opacity-70"
           >
             <Text
               numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.85}
               className={`text-xs font-semibold ${selected ? 'text-m3-on-primary' : 'text-m3-on-surface-variant'}`}
             >
               {compact ? m.compactLabel : m.label}

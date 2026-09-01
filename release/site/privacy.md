@@ -44,7 +44,7 @@ Eatlog does not send your nutrition logs, weight history, profile, targets, save
 
 ## Purchase processing
 
-Eatlog is free to download. Pugo local logging and its five-estimate rolling allowance remain usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.
+Eatlog is free to download. Pugo local logging and its three-estimate rolling allowance remain usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.
 
 Short-lived signed AI grants and salted Pugo or paid quota records enforce access-specific limits. They contain no food, photo, weight, or profile content and remain outside SQLite, backups, and CSV exports. Expiry, refund, or revocation removes paid features and returns confirmed installations to Pugo without deleting local food, weight, target, or adaptive history.
 

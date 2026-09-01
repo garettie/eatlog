@@ -28,6 +28,7 @@ import DateSelector from '../DateSelector';
 import SheetBackButton from './SheetBackButton';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import { M3 } from '../../theme/tokens';
+import { useResponsiveLayout } from '../../theme/layout';
 
 function dataTypeLabel(dt: DataType): string {
   switch (dt) {
@@ -91,6 +92,7 @@ export default function SingleFoodReviewState({
   const discardGuard = useDiscardGuardContext();
 
   const reducedMotion = useReducedMotion();
+  const { isNarrow } = useResponsiveLayout();
   const today = useToday();
   const effectiveLogDate = logDateOverride ?? logDate ?? today;
   const compactLogDateLabel =
@@ -277,14 +279,14 @@ export default function SingleFoodReviewState({
       <View
         className="px-5 pt-3 pb-3 gap-3 border-t border-m3-outline-variant/30"
       >
-        <View className="flex-row items-center gap-2">
+        <View className={isNarrow ? 'gap-2' : 'flex-row items-center gap-2'}>
           <Pressable
             onPress={() => setDateSelectorVisible(true)}
             disabled={logging}
             accessibilityRole="button"
             accessibilityLabel={`Log date, ${compactLogDateLabel}`}
             accessibilityState={{ disabled: logging }}
-            className="min-w-[88px] min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-3 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50"
+            className={`${isNarrow ? 'self-start' : 'min-w-[88px]'} min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-3 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50`}
           >
             <MaterialIcons name="event" size={17} color={M3.onSurfaceVariant} />
             <Text
@@ -294,10 +296,10 @@ export default function SingleFoodReviewState({
               {compactLogDateLabel}
             </Text>
           </Pressable>
-          <View className="flex-1 min-w-0">
+          <View className={isNarrow ? 'w-full' : 'flex-1 min-w-0'}>
             <MealSelector
               value={meal}
-              compact
+              compact={!isNarrow}
               disabled={logging}
               onChange={(nextMeal) => {
                 dirtyRef.current = true;

@@ -753,7 +753,7 @@ function AnalyticsScreen({
       <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm">Checking your plan…</Text>
     </Card>
   ) : !hasPaidFeatures ? (
-    <Card className="gap-3">
+    <Card className="p-5 gap-3">
       <View className="flex-row items-center gap-3">
         <View className="w-10 h-10 rounded-full bg-m3-surface-container-highest items-center justify-center">
           <MaterialIcons name="lock-outline" size={20} color={M3.onSurfaceVariant} />

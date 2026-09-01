@@ -73,6 +73,7 @@ export default function SegmentedControl<T extends string>({
 
   return (
     <View
+      accessibilityRole="radiogroup"
       className={`${tone === 'inset' ? 'bg-m3-surface-container border-m3-outline-variant/50' : 'bg-m3-surface-container-high border-m3-outline-variant/30'} p-0.5 rounded-full border overflow-hidden`}
       style={disabled ? { opacity: 0.38 } : undefined}
     >
@@ -121,7 +122,7 @@ export default function SegmentedControl<T extends string>({
               disabled={disabled}
               accessibilityRole="radio"
               accessibilityLabel={opt.accessibilityLabel ?? opt.label}
-              accessibilityState={{ selected, disabled }}
+              accessibilityState={{ checked: selected, disabled }}
               className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
             >
               {opt.icon && (

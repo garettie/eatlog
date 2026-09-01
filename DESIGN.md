@@ -197,6 +197,15 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Background:** surface-container with an outline-variant hairline when independently actionable.
 - **Internal Padding:** 20px by default; 24px on high-importance onboarding and completion surfaces.
 - **Diary:** meal-period headers are plain rows; every actual food or meal group is its own clipped entry card. Scanned meal photos are flush left rails; icons are the fallback.
+- **Containment test:** use a card only when content forms an independent group or action. Do not wrap headings, supporting copy, or whole screen sections by default.
+
+### Composition types
+- **Today:** one dominant calorie instrument, direct macro rails, and a short recent-log path.
+- **Diary:** chronological ledger with meal-period structure and media-led entries.
+- **Analytics:** outcome first, required plan decision second, supporting evidence and history after it.
+- **Profile:** native grouped settings list with current values; public support and policy links live inside About.
+- **Onboarding and plan review:** one decision per step; target result appears immediately after calculation without simulated work.
+- Shared components preserve semantics. Screens may use purpose-built composition when their jobs differ; consistency must not collapse into repeated card stacks.
 
 ### Inputs / Fields
 - **Standard fields:** surface-container-high, input radius, outline-variant hairline, readable placeholder color.
@@ -208,6 +217,12 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Profile icon:** use the standard Material person/account icon with the text label `Profile`; do not label it Settings or Sync.
 - **Today shortcut:** the initials avatar may open Profile. The labeled bottom destination remains the primary discovery path.
 - **Sheets:** use `@gorhom/bottom-sheet` with M3 handle, tonal surface, Back handling, discard guard, and interactive keyboard behavior.
+
+### Accessibility and reflow
+- Opening a sheet hides background navigation from the accessibility tree and exposes the sheet as a modal reading context.
+- Step changes announce the new onboarding position. Radio-like controls use radio-group and checked semantics.
+- Interactive targets are at least 48dp on Android.
+- At narrow widths or enlarged text, goal choices stack, meal choices wrap, macro inputs reflow, and review date/meal controls separate vertically. Never shrink actionable labels to preserve a fixed row.
 
 ### Signature Components
 - **Calorie Ring and Toggle:** white ring on a tonal track, darker off-white overflow refill, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
@@ -268,7 +283,7 @@ Profile uses the same Operate mode as the rest of Eatlog. It should feel like an
 ## Current-State Design Findings
 
 - The core daily surfaces share a clear product language and use nutrient colors with discipline.
-- Profile now occupies the fourth tab with working plan-edit routes and a versioned plan preview; Data & Sync actions and help routes remain planned. The center Add FAB remains an action rather than a fifth tab.
+- Profile occupies the fourth tab with working plan-edit, Data & Sync, privacy, help, and about routes. The center Add FAB remains an action rather than a fifth tab.
 - Camera/gallery selection stays local through Identify meal; cancellation, consent decline, and estimate failure preserve the photo, title, and reuse options.
 - App typography resolves through one Onest family and one normalized scale. Former arbitrary 10px metadata now uses the semantic 11px compact role, including SVG chart labels.
 - Current PNG screenshots are historical references, not release evidence. Runtime visual QA requires screenshots from the signed Android build.
@@ -292,7 +307,7 @@ Profile uses the same Operate mode as the rest of Eatlog. It should feel like an
 - **Don't** add drop shadows, glassmorphism, gradient text, colored side-stripe borders, or hero-metric SaaS templates.
 - **Don't** hide complexity behind a mascot or casual coach-bot copy; Eatlog is precise and transparent.
 - **Don't** make barcode camera scanning the primary interaction.
-- **Don't** create per-screen component styles. Reuse Card, PrimaryButton, segmented controls, macro pills, and sheet vocabulary.
+- **Don't** invent new semantics for an existing action or state. Reuse shared controls, but give Today, Diary, Analytics, Profile, and onboarding compositions that fit their different jobs.
 - **Don't** expose API credentials or credential entry in the app.
 - **Don't** add empty settings for notifications, appearance, integrations, or cloud sync.
 - **Don't** use a bottom sheet for long profile forms, backup previews, restore review, or destructive data management; use full-screen routes and M3 dialogs.

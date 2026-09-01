@@ -99,9 +99,10 @@ interface DiaryScreenProps {
   dataVersion: number;
   showToast: (message: string, undo?: () => void) => void;
   onShare: (meal: MealShareData) => void;
+  onEditSheetVisibilityChange: (visible: boolean) => void;
 }
 
-function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast, onShare }: DiaryScreenProps) {
+function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateChange, onDataChanged, dataVersion, showToast, onShare, onEditSheetVisibilityChange }: DiaryScreenProps) {
   const reduced = useReducedMotion();
   const today = useToday();
   const initialDateRef = useRef(requestedDate?.date ?? todayISO());
@@ -116,6 +117,9 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
   const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
+  useEffect(() => () => {
+    onEditSheetVisibilityChange(false);
+  }, [onEditSheetVisibilityChange]);
   const [collapsedSections, setCollapsedSections] = useState<Set<MealType>>(new Set());
   const [refreshCount, setRefreshCount] = useState(0);
   const initialLoadDone = useRef(false);
@@ -548,8 +552,9 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   }, [collapsedSections, journalSections]);
 
   const handleEditFood = useCallback((food: FoodLog) => {
+    onEditSheetVisibilityChange(true);
     setEdit({ food, saving: false });
-  }, []);
+  }, [onEditSheetVisibilityChange]);
 
   const handleEditMeal = useCallback((meal: MealGroup) => {
     onEditMeal(meal);
@@ -752,10 +757,16 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
 
   const handleEditClosed = useCallback(() => {
     setEdit({ food: null, saving: false });
-  }, []);
+    onEditSheetVisibilityChange(false);
+  }, [onEditSheetVisibilityChange]);
 
   return (
     <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']}>
+      <View
+        className="flex-1"
+        accessibilityElementsHidden={edit.food != null}
+        importantForAccessibility={edit.food != null ? 'no-hide-descendants' : 'auto'}
+      >
       <ResponsiveContent className="flex-1" maxWidth={READING_MAX_WIDTH}>
       {/* Day strip */}
       <WeekStrip
@@ -832,6 +843,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       )}
       </Reanimated.View>
       </ResponsiveContent>
+      </View>
 
       {/* Portion edit sheet (shared Sheet vocabulary: BackHandler, discard guard, M3 handle) */}
       <DiaryEditSheet

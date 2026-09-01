@@ -8,6 +8,7 @@ import { loadFoodDetails, type FoodResult } from '../services/foodSearch';
 import { describeMeal } from '../services/foodScan';
 import { useFoodSearchController } from '../hooks/useFoodSearchController';
 import { M3 } from '../theme/tokens';
+import { useResponsiveLayout } from '../theme/layout';
 import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
 import { useEntitlement } from '../context/EntitlementContext';
 import PrimaryButton from './PrimaryButton';
@@ -30,6 +31,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
   const { requestConsent } = useRemoteEstimateConsent();
   const { warmEntitlement } = useEntitlement();
   const navigation = useNavigation<any>();
+  const { isNarrow } = useResponsiveLayout();
 
   const [manualName, setManualName] = useState('');
   const [manualCal, setManualCal] = useState('');
@@ -297,8 +299,8 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
             autoFocus
           />
           <Text className="text-m3-on-surface-variant text-xs font-medium">Nutrition per 100g</Text>
-          <View className="flex-row gap-2">
-            <View className="flex-1 gap-1">
+          <View className={isNarrow ? 'flex-row flex-wrap gap-2' : 'flex-row gap-2'}>
+            <View className={`${isNarrow ? 'min-w-[47%] flex-1' : 'flex-1'} gap-1`}>
               <Text className="text-compact text-m3-on-surface-variant font-semibold text-center">Calories</Text>
               <BottomSheetTextInput
                 value={manualCal}
@@ -310,7 +312,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-3 py-2.5 border border-m3-outline-variant/50 text-center"
               />
             </View>
-            <View className="flex-1 gap-1">
+            <View className={`${isNarrow ? 'min-w-[47%] flex-1' : 'flex-1'} gap-1`}>
               <Text className="text-compact text-m3-protein font-semibold text-center">Protein</Text>
               <BottomSheetTextInput
                 value={manualPro}
@@ -322,7 +324,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-3 py-2.5 border border-m3-outline-variant/50 text-center"
               />
             </View>
-            <View className="flex-1 gap-1">
+            <View className={`${isNarrow ? 'min-w-[47%] flex-1' : 'flex-1'} gap-1`}>
               <Text className="text-compact text-m3-carbs font-semibold text-center">Carbs</Text>
               <BottomSheetTextInput
                 value={manualCarb}
@@ -334,7 +336,7 @@ export default function AddComponentSection({ onAdd }: AddComponentSectionProps)
                 className="bg-m3-surface-container text-m3-on-surface text-sm font-medium rounded-xl px-3 py-2.5 border border-m3-outline-variant/50 text-center"
               />
             </View>
-            <View className="flex-1 gap-1">
+            <View className={`${isNarrow ? 'min-w-[47%] flex-1' : 'flex-1'} gap-1`}>
               <Text className="text-compact text-m3-fat font-semibold text-center">Fat</Text>
               <BottomSheetTextInput
                 value={manualFat}

@@ -17,9 +17,10 @@ const tabIcons = {
 
 interface EatlogTabBarProps extends BottomTabBarProps {
   onAddEntry: () => void;
+  accessibilityHidden?: boolean;
 }
 
-function EatlogTabBar({ state, descriptors, navigation, onAddEntry }: EatlogTabBarProps) {
+function EatlogTabBar({ state, descriptors, navigation, onAddEntry, accessibilityHidden = false }: EatlogTabBarProps) {
   const insets = useSafeAreaInsets();
   const { isMedium } = useResponsiveLayout();
   const bottomPadding = Math.max(insets.bottom, 12);
@@ -35,6 +36,8 @@ function EatlogTabBar({ state, descriptors, navigation, onAddEntry }: EatlogTabB
   if (isMedium) {
     return (
       <View
+        accessibilityElementsHidden={accessibilityHidden}
+        importantForAccessibility={accessibilityHidden ? 'no-hide-descendants' : 'auto'}
         className="items-center border-r border-m3-outline-variant bg-m3-surface-container px-2"
         style={{
           width: NAVIGATION_RAIL_WIDTH,
@@ -87,6 +90,8 @@ function EatlogTabBar({ state, descriptors, navigation, onAddEntry }: EatlogTabB
 
   return (
     <View
+      accessibilityElementsHidden={accessibilityHidden}
+      importantForAccessibility={accessibilityHidden ? 'no-hide-descendants' : 'auto'}
       className="flex-row items-center border-t border-m3-outline-variant bg-m3-surface-container px-1"
       style={{ paddingBottom: bottomPadding, minHeight: 80 + bottomPadding }}
     >
@@ -157,11 +162,9 @@ const TabControl = React.memo(function TabControl({ route, focused, descriptor, 
       <View className={`items-center justify-center gap-0.5 ${rail ? 'min-w-[72px] rounded-2xl px-2 py-2' : ''} ${rail && focused ? 'bg-m3-surface-container-highest' : ''}`}>
         <MaterialIcons name={tabIcons[name]} size={24} color={color} />
         <Text
-          className="font-medium text-xs"
+          className="font-medium text-xs text-center"
           style={{ color }}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.8}
+          numberOfLines={2}
         >
           {label}
         </Text>

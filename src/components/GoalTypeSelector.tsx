@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import type { GoalType } from '../db/database';
 import { useReducedMotion } from 'react-native-reanimated';
+import { useResponsiveLayout } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
 const GOALS: {
@@ -24,8 +25,9 @@ interface GoalTypeSelectorProps {
 
 function GoalTypeSelector({ value, onChange }: GoalTypeSelectorProps) {
   const reduced = useReducedMotion();
+  const { isNarrow } = useResponsiveLayout();
   return (
-    <View className="flex-row gap-3">
+    <View accessibilityRole="radiogroup" accessibilityLabel="Goal" className={isNarrow ? 'gap-3' : 'flex-row gap-3'}>
       {GOALS.map((goal) => {
         const selected = value === goal.type;
         return (
@@ -35,7 +37,7 @@ function GoalTypeSelector({ value, onChange }: GoalTypeSelectorProps) {
             accessibilityRole="radio"
             accessibilityLabel={`${goal.title}: ${goal.subtitle}`}
             accessibilityState={{ checked: selected }}
-            className={`flex-1 p-5 rounded-2xl items-center gap-1 ${reduced ? '' : 'active:scale-[0.97]'} ${
+            className={`${isNarrow ? 'w-full flex-row items-center gap-3' : 'flex-1 items-center'} p-5 rounded-2xl gap-1 ${reduced ? '' : 'active:scale-[0.97]'} ${
               selected
                 ? 'bg-m3-surface-container-high border-2 border-m3-primary'
                 : 'bg-m3-surface-container border border-m3-outline-variant/30'
@@ -46,10 +48,12 @@ function GoalTypeSelector({ value, onChange }: GoalTypeSelectorProps) {
               size={24}
               color={selected ? M3.primary : M3.onSurfaceVariant}
             />
-            <Text className={`font-bold text-base ${selected ? 'text-m3-primary' : 'text-m3-on-surface'}`}>
-              {goal.title}
-            </Text>
-            <Text className="text-xs text-m3-on-surface-variant">{goal.subtitle}</Text>
+            <View className={isNarrow ? 'flex-1 min-w-0 gap-0.5' : 'items-center gap-1'}>
+              <Text className={`font-bold text-base ${selected ? 'text-m3-primary' : 'text-m3-on-surface'}`}>
+                {goal.title}
+              </Text>
+              <Text className="text-xs text-m3-on-surface-variant">{goal.subtitle}</Text>
+            </View>
           </Pressable>
         );
       })}

@@ -380,6 +380,8 @@ export function PrivacyScreen() {
 
 export function AboutScreen() {
     const application = getApplicationInfo();
+    const privacyPolicyUrl = serviceConfig.publicLinks.privacyPolicyUrl;
+    const supportUrl = serviceConfig.publicLinks.supportUrl;
     const usdaDetail = serviceConfig.availability.usda
         ? 'Food search · Available'
         : 'Food search · Unavailable in this build';
@@ -437,6 +439,34 @@ export function AboutScreen() {
                     />
                 </Card>
             </View>
+
+            {privacyPolicyUrl || supportUrl ? (
+                <View className="gap-3">
+                    <SectionTitle title="Support and policies" />
+                    <Card className="overflow-hidden">
+                        {privacyPolicyUrl ? (
+                            <LinkRow
+                                icon="policy"
+                                title="Privacy policy"
+                                detail="Read the public policy"
+                                external
+                                last={!supportUrl}
+                                onPress={() => openExternalLink('the privacy policy', privacyPolicyUrl)}
+                            />
+                        ) : null}
+                        {supportUrl ? (
+                            <LinkRow
+                                icon="support-agent"
+                                title="Support"
+                                detail="Open Eatlog support"
+                                external
+                                last
+                                onPress={() => openExternalLink('Eatlog support', supportUrl)}
+                            />
+                        ) : null}
+                    </Card>
+                </View>
+            ) : null}
 
         </Screen>
     );

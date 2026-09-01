@@ -55,7 +55,7 @@ function CircularProgress({ progress, overflow }: { progress: number; overflow: 
   const overflowSv = useSharedValue(0);
 
   useEffect(() => {
-    const timing = { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) };
+    const timing = { duration: reduced ? 0 : 550, easing: Easing.bezier(0.33, 1, 0.68, 1) };
     progressSv.value = withTiming(Math.min(1, Math.max(0, progress)), timing);
     overflowSv.value = withTiming(Math.min(1, Math.max(0, overflow)), timing);
   }, [overflow, overflowSv, progress, progressSv, reduced]);

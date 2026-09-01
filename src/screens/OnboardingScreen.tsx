@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  AccessibilityInfo,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -112,6 +113,8 @@ function BackButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Back"
       className="bg-m3-surface-container border border-m3-outline-variant/40 rounded-full py-5 px-6 flex-row items-center justify-center gap-2 active:opacity-70"
     >
       <MaterialIcons name="arrow-back" size={18} color={M3.onSurface} />
@@ -131,18 +134,11 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <View className="gap-1.5">
-      <Text className="text-2xl font-bold text-m3-on-surface">{title}</Text>
+      <Text accessibilityRole="header" className="text-2xl font-bold text-m3-on-surface">{title}</Text>
       <Text className="text-sm text-m3-on-surface-variant">{subtitle}</Text>
     </View>
   );
 }
-
-const CALC_LINES = [
-  'Estimating BMR (Mifflin-St Jeor)',
-  'Projecting daily expenditure',
-  'Applying goal adjustment',
-  'Balancing protein, fat, carbs',
-];
 
 export default function OnboardingScreen({ navigation }: Props) {
   const reduced = useReducedMotion();
@@ -490,24 +486,21 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   // ── Step 6: calculation review ─────────────────────────────────────────
 
-  const [calcStage, setCalcStage] = useState(0);
   const savedRef = useRef(false);
+  const hasAnnouncedStepRef = useRef(false);
 
   useEffect(() => {
     if (step !== CALCULATION_STEP || !computedTargets) return;
     savedRef.current = false;
-    setCalcStage(0);
-    if (reduced) {
-      setCalcStage(CALC_LINES.length);
+  }, [step, computedTargets]);
+
+  useEffect(() => {
+    if (!hasAnnouncedStepRef.current) {
+      hasAnnouncedStepRef.current = true;
       return;
     }
-    const timers = CALC_LINES.map((_, i) =>
-      setTimeout(() => setCalcStage(i + 1), 400 * (i + 1))
-    );
-    return () => {
-      timers.forEach(clearTimeout);
-    };
-  }, [step, computedTargets]);
+    AccessibilityInfo.announceForAccessibility(`Step ${step} of ${TOTAL_STEPS}`);
+  }, [step]);
 
   async function handleConsentAccept() {
     if (consentBusy || isSubmitting) return;
@@ -1000,39 +993,16 @@ export default function OnboardingScreen({ navigation }: Props) {
 
               {/* ═══════════════ STEP 6 — Calculating ═════════════════════ */}
               {step === CALCULATION_STEP && (
-                <View className="items-center pt-14 gap-8">
-                  <View className="w-16 h-16 rounded-full bg-m3-surface-container-high border border-m3-outline-variant/40 items-center justify-center">
-                    <MaterialIcons name="auto-awesome" size={28} color={M3.primary} />
-                  </View>
-                  <View className="items-center gap-1.5">
-                    <Text className="text-2xl font-bold text-m3-on-surface text-center">
-                      Building your plan
-                    </Text>
-                    <Text className="text-sm text-m3-on-surface-variant text-center">
-                      Calculating your starting targets.
-                    </Text>
-                  </View>
-                  <View className="w-full gap-3">
-                    {CALC_LINES.map((line, i) =>
-                      calcStage > i ? (
-                        <Reanimated.View
-                          key={line}
-                          entering={reduced ? undefined : FadeIn.duration(250)}
-                          className="flex-row items-center gap-3 bg-m3-surface-container border border-m3-outline-variant/30 rounded-2xl px-5 py-4"
-                        >
-                          <View className="w-5 h-5 rounded-full bg-white items-center justify-center">
-                            <MaterialIcons name="check" size={13} color={M3.onPrimary} />
-                          </View>
-                        <Text className="text-sm font-medium text-m3-on-surface">{line}</Text>
-                        </Reanimated.View>
-                        ) : null
-                    )}
-                  </View>
-                  {computedTargets && calcStage >= CALC_LINES.length ? (
+                <View className="gap-6 pt-4">
+                  <StepHeader
+                    title="Your starting targets"
+                    subtitle="Calculated from your measurements, activity, and goal. You can change them later in Profile."
+                  />
+                  {computedTargets ? (
                     <View className="w-full gap-4 rounded-3xl bg-m3-surface-container p-6">
                       <View className="gap-1">
-                        <Text className="text-xs font-semibold uppercase tracking-wider text-m3-on-surface-variant">Review starting targets</Text>
-                        <Text className="text-3xl font-bold text-m3-on-surface tabular-nums">{computedTargets.targetCalories.toLocaleString()} kcal/day</Text>
+                        <Text className="text-xs font-semibold uppercase tracking-wider text-m3-on-surface-variant">Daily calories</Text>
+                        <Text className="text-3xl font-bold text-m3-on-surface tabular-nums">{computedTargets.targetCalories.toLocaleString()} kcal</Text>
                         <Text className="text-sm text-m3-on-surface-variant tabular-nums">
                           Protein {computedTargets.targetProteinG}g · Carbs {computedTargets.targetCarbsG}g · Fat {computedTargets.targetFatG}g
                         </Text>

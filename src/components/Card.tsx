@@ -6,11 +6,7 @@ interface CardProps {
   className?: string;
 }
 
-/**
- * Reusable M3 Card — bg-m3-surface-container, rounded-3xl, hairline border.
- * Never add drop shadows. Use className to extend (e.g. add padding).
- * All screens use this component so it stays visually consistent.
- */
+/** Tonal container for independently grouped content, not a default page wrapper. */
 export default function Card({ children, className = '' }: CardProps) {
   return (
     <View

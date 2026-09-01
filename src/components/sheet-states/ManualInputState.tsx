@@ -6,6 +6,7 @@ import { MealType, insertFoodLog } from '../../db/database';
 import { todayISO } from '../../utils/calendar';
 import { defaultMealForNow } from '../../utils/calculations';
 import { M3 } from '../../theme/tokens';
+import { useResponsiveLayout } from '../../theme/layout';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import MealSelector from '../MealSelector';
 import PrimaryButton from '../PrimaryButton';
@@ -26,6 +27,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate, 
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
+  const { isNarrow } = useResponsiveLayout();
   const [logging, setLogging] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
   const discardGuard = useDiscardGuardContext();
@@ -102,7 +104,7 @@ export default function ManualInputState({ onLogComplete, initialMeal, logDate, 
         />
       </View>
 
-      <View className="flex-row gap-3">
+      <View className={isNarrow ? 'gap-3' : 'flex-row gap-3'}>
         <View className="flex-1 gap-1">
           <Text className="text-xs text-m3-protein font-semibold uppercase tracking-wider">Protein (g)</Text>
           <BottomSheetTextInput

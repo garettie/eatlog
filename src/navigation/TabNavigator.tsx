@@ -2,6 +2,7 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps, type BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
@@ -19,6 +20,7 @@ import { formatDayHeader, normalizeLogDateInput, todayISO } from '../utils/calen
 import { foodResultFromLog } from '../services/foodSearchCore';
 import type { DescribeResult } from '../services/foodScan';
 import EatlogTabBar from './EatlogTabBar';
+import type { RootStackParamList } from './RootNavigator';
 import { syncHealthConnectWeights } from '../services/healthConnect';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { NAVIGATION_RAIL_WIDTH, useResponsiveLayout } from '../theme/layout';
@@ -29,7 +31,7 @@ function mealLabel(m: MealType): string {
     return m.charAt(0).toUpperCase() + m.slice(1);
 }
 
-type TabParamList = {
+export type TabParamList = {
     Today: undefined;
     Diary: { date: string; requestId: number } | undefined;
     Analytics: undefined;
@@ -52,11 +54,12 @@ const INITIAL: FoodSheetState = {
     logDate: null,
 };
 
-export default function TabNavigator() {
-    const [sheet, setSheet] = useState<FoodSheetState>(INITIAL);
+export default function TabNavigator({ route }: NativeStackScreenProps<RootStackParamList, 'Tabs'>) {
+    const [sheet, setSheet] = useState<FoodSheetState>(() => route.params?.openEntry ? { ...INITIAL, visible: true } : INITIAL);
     const [sheetContentHeights, setSheetContentHeights] = useState<Partial<Record<FoodSheetStateKey, number>>>({});
     const [toast, setToast] = useState<{ message: string; tone?: LogToastTone; undo?: () => void | Promise<void> } | null>(null);
     const [shareMeal, setShareMeal] = useState<MealShareData | null>(null);
+    const [diaryEditVisible, setDiaryEditVisible] = useState(false);
     const [dataVersion, setDataVersion] = useState(0);
     const insets = useSafeAreaInsets();
     const { isMedium } = useResponsiveLayout();
@@ -310,8 +313,8 @@ export default function TabNavigator() {
     }, []);
 
     const renderTabBar = useCallback(
-        (props: BottomTabBarProps) => <EatlogTabBar {...props} onAddEntry={handleAddEntry} />,
-        [handleAddEntry],
+        (props: BottomTabBarProps) => <EatlogTabBar {...props} onAddEntry={handleAddEntry} accessibilityHidden={diaryEditVisible} />,
+        [diaryEditVisible, handleAddEntry],
     );
 
     const renderToday = useCallback(
@@ -338,6 +341,7 @@ export default function TabNavigator() {
                 dataVersion={dataVersion}
                 showToast={showToast}
                 onShare={openShare}
+                onEditSheetVisibilityChange={setDiaryEditVisible}
             />
         ),
         [
@@ -386,6 +390,11 @@ export default function TabNavigator() {
 
     return (
         <DiscardGuardContext.Provider value={discardGuard}>
+            <View
+                className="flex-1"
+                accessibilityElementsHidden={sheet.visible || shareMeal != null || diaryEditVisible}
+                importantForAccessibility={sheet.visible || shareMeal != null || diaryEditVisible ? 'no-hide-descendants' : 'auto'}
+            >
             <Tab.Navigator
                 screenOptions={screenOptions}
                 tabBar={renderTabBar}
@@ -416,6 +425,7 @@ export default function TabNavigator() {
                     {renderProfile}
                 </Tab.Screen>
             </Tab.Navigator>
+            </View>
 
             <Sheet
                 visible={sheet.visible}

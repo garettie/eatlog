@@ -114,7 +114,7 @@ export default function MealPortionSelector({
         </View>
 
         {shortcuts.length > 0 ? (
-          <View className="flex-row gap-2">
+          <View accessibilityRole="radiogroup" accessibilityLabel="Portion shortcuts" className="flex-row flex-wrap gap-2">
             {shortcuts.map((shortcut) => {
               const selected = shortcut.value === eaten;
               return (
@@ -123,7 +123,7 @@ export default function MealPortionSelector({
                   onPress={() => onChange(shortcut.value)}
                   disabled={disabled}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected, disabled }}
+                  accessibilityState={{ checked: selected, disabled }}
                   accessibilityLabel={`${shortcut.label}, ${formatMealPortion(shortcut.value, scale)}`}
                   className={`min-h-[48px] flex-1 items-center justify-center rounded-full border px-3 active:opacity-60 disabled:opacity-40 ${selected ? 'border-m3-primary/50 bg-m3-primary-container' : 'border-m3-outline-variant/40 bg-m3-surface-container-high'}`}
                 >

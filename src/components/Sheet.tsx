@@ -231,7 +231,13 @@ export default function Sheet({
 			style={sheetStyle}
 			animationConfigs={animationConfigs}
 		>
-			<Animated.View style={styles.content}>{children}</Animated.View>
+			<Animated.View
+				style={styles.content}
+				accessibilityViewIsModal={visible}
+				importantForAccessibility={visible ? "yes" : "no-hide-descendants"}
+			>
+				{children}
+			</Animated.View>
 		</BottomSheet>
 	);
 }

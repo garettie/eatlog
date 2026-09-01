@@ -48,6 +48,7 @@ import { useDiscardGuardContext } from "./useDiscardGuard";
 import SheetBackButton from "./SheetBackButton";
 import AddComponentSection from "../AddComponentSection";
 import MealSelector from "../MealSelector";
+import { useResponsiveLayout } from "../../theme/layout";
 import PortionStepper from "../PortionStepper";
 import PrimaryButton from "../PrimaryButton";
 import DateSelector from "../DateSelector";
@@ -220,6 +221,7 @@ export default function ReviewState({
 	const { requestConsent } = useRemoteEstimateConsent();
 	const { ensurePaidAccess } = useEntitlement();
 	const navigation = useNavigation<any>();
+	const { isNarrow } = useResponsiveLayout();
 	const [mealName, setMealName] = useState(result?.mealName ?? "");
 	const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(
 		photoUri ?? null,
@@ -1291,14 +1293,14 @@ export default function ReviewState({
 						</Pressable>
 					</Animated.View>
 				) : null}
-				<View className="flex-row items-center gap-2">
+				<View className={isNarrow ? 'gap-2' : 'flex-row items-center gap-2'}>
 					<Pressable
 						onPress={() => setDateSelectorVisible(true)}
 						disabled={logging}
 						accessibilityRole="button"
 						accessibilityLabel={`Log date, ${formatLogDateLabel(effectiveLogDate)}`}
 						accessibilityState={{ disabled: logging }}
-						className="min-w-[88px] min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-3 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50"
+						className={`${isNarrow ? 'self-start' : 'min-w-[88px]'} min-h-[48px] flex-row items-center justify-center gap-2 rounded-full bg-m3-surface-container-high px-3 border border-m3-outline-variant/30 active:opacity-70 disabled:opacity-50`}
 					>
 						<MaterialIcons
 							name="event"
@@ -1312,10 +1314,10 @@ export default function ReviewState({
 							{compactLogDateLabel}
 						</Text>
 					</Pressable>
-					<View className="flex-1 min-w-0">
+					<View className={isNarrow ? 'w-full' : 'flex-1 min-w-0'}>
 						<MealSelector
 							value={meal}
-							compact
+							compact={!isNarrow}
 							disabled={logging}
 							onChange={handleMealChange}
 						/>
@@ -1335,7 +1337,7 @@ export default function ReviewState({
 							disabled={logging}
 							accessibilityRole="button"
 							accessibilityLabel={`${blockedReason} Opens the food that needs attention.`}
-							className="min-h-[44px] flex-row items-center gap-1.5 active:opacity-60"
+							className="min-h-[48px] flex-row items-center gap-1.5 active:opacity-60"
 						>
 							<Text
 								className="flex-1 text-m3-error text-xs font-medium"

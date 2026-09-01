@@ -161,7 +161,7 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
             <Pressable
               onPress={() => { baselineRef.current = grams; closeRef.current(); }}
               accessibilityRole="button"
-              className="flex-1 py-3 rounded-full items-center border border-m3-outline-variant/50 active:opacity-70"
+              className="flex-1 min-h-[48px] py-3 rounded-full items-center justify-center border border-m3-outline-variant/50 active:opacity-70"
             >
               <Text className="text-m3-on-surface-variant font-semibold text-sm">Cancel</Text>
             </Pressable>
@@ -170,7 +170,7 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
               disabled={saving || grams <= 0}
               accessibilityRole="button"
               accessibilityState={{ disabled: saving || grams <= 0, busy: saving }}
-              className={`flex-1 py-3 rounded-full items-center ${saving || grams <= 0 ? 'bg-m3-surface-container-high opacity-50' : 'bg-white active:opacity-80'}`}
+              className={`flex-1 min-h-[48px] py-3 rounded-full items-center justify-center ${saving || grams <= 0 ? 'bg-m3-surface-container-high opacity-50' : 'bg-white active:opacity-80'}`}
             >
               <Text className={`font-semibold text-sm ${saving || grams <= 0 ? 'text-m3-on-surface-variant' : 'text-m3-on-primary'}`}>
                 {saving ? 'Saving…' : 'Save'}
