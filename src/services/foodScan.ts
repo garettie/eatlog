@@ -115,9 +115,22 @@ function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
     return { ok: false, kind, message: messages[kind] };
 }
 
+function titleCaseWord(word: string): string {
+    // A word the model already capitalized inside itself is a real name ("McDonald's",
+    // "iPhone"); lowering it would be wrong. Shouted words carry no such intent.
+    const shouted = word === word.toUpperCase();
+    if (!shouted && /[A-Z]/.test(word.slice(1))) return word;
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
 function normalizeScanName(name: string): string {
-    const lowered = name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    return lowered.replace(/(^|\s)\S/g, (character) => character.toUpperCase());
+    return name
+        .replace(/[^A-Za-z0-9'\u2019\-\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(' ')
+        .map(titleCaseWord)
+        .join(' ');
 }
 
 function buildEstimateContext(input: {
@@ -258,7 +271,11 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             if (!isRecognizedFoodEstimate(result)) return failure('invalid-response');
             const division = mealDivisionOf(result);
             const source = operation === 'scan' || input.imageBase64 ? 'scan' : 'describe';
-            const providedMealTitle = operation === 'scan' ? input.text?.trim() : undefined;
+            // A scan title carrying a stated amount ("72g Bear Brand", "2 servings of adobo")
+            // is a portion instruction, not a label. The estimate applies the amount and
+            // returns a clean name, so echoing the raw title back would restate the quantity.
+            const scanTitle = operation === 'scan' ? input.text?.trim() : undefined;
+            const providedMealTitle = scanTitle && !/\d/.test(scanTitle) ? scanTitle : undefined;
             const originalDescription = operation === 'describe' || operation === 'scan'
                 ? input.text
                 : input.context?.originalDescription;

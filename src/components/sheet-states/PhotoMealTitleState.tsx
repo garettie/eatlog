@@ -164,7 +164,7 @@ export default function PhotoMealTitleState({
           onSubmitEditing={handleEstimate}
           accessibilityLabel="Meal title"
           accessibilityHint="Searches past meals and helps estimate a new meal"
-          placeholder="e.g. Chicken adobo with rice"
+          placeholder="e.g. 2 cups chicken adobo"
           placeholderTextColor={M3.placeholder}
           maxLength={120}
           returnKeyType="done"

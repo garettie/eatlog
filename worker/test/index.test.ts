@@ -562,6 +562,8 @@ test('uses a user-provided meal title as first-pass scan context', async () => {
 
   assert.equal(response.status, 200);
   assert.match(upstreamBody.contents[0].parts[0].text, /User-provided meal title: "Chicken adobo with rice"/);
+  assert.match(upstreamBody.contents[0].parts[0].text, /scale estimatedGrams to it and override the portion the photo suggests/);
+  assert.match(upstreamBody.systemInstruction.parts[0].text, /Amounts never belong in mealName or component names/);
 });
 
 test('enforces the Gemini component cap after provider normalization', async () => {
@@ -722,6 +724,52 @@ test('emits only allowlisted operational fields without inputs, identifiers, dig
   } finally {
     console.log = original;
   }
+});
+
+test('an unrecognized estimate refunds the quota it reserved', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let recognize = false;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
+    return geminiResponse(recognize ? recognized : {
+      status: 'unrecognized',
+      unrecognizedReason: 'No food is visible.',
+      mealName: null,
+      servesTotal: null,
+      servingUnit: null,
+      components: [],
+    });
+  }) as typeof fetch;
+
+  const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), {
+    env, fetchImpl, subscriptionStore: store,
+  });
+  const grant = { Authorization: `Bearer ${refreshed.body.grant.token}` };
+
+  // Three rejected photos in a row must leave the whole allowance intact.
+  for (let index = 1; index <= 3; index += 1) {
+    const rejected = await call(request('/v1/estimate', 'POST', { operation: 'scan', imageBase64: JPEG }, {
+      ...grant, 'X-Eatlog-Request-ID': `request-rejected-000${index}`,
+    }), { env, fetchImpl, subscriptionStore: store });
+    assert.equal(rejected.response.status, 200);
+    assert.equal(rejected.body.status, 'unrecognized');
+  }
+  const afterRejections = await call(request('/v1/usage', 'GET', undefined, grant), {
+    env, fetchImpl, subscriptionStore: store,
+  });
+  assert.equal(afterRejections.body.remaining24Hours, 5);
+
+  // A usable estimate still costs one.
+  recognize = true;
+  const accepted = await call(request('/v1/estimate', 'POST', { operation: 'scan', imageBase64: JPEG }, {
+    ...grant, 'X-Eatlog-Request-ID': 'request-accepted-0001',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(accepted.response.status, 200);
+  const afterAccepted = await call(request('/v1/usage', 'GET', undefined, grant), {
+    env, fetchImpl, subscriptionStore: store,
+  });
+  assert.equal(afterAccepted.body.remaining24Hours, 4);
 });
 
 test('Pugo refresh and inline estimates share one five-request installation allowance', async () => {

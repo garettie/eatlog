@@ -97,6 +97,49 @@ test('Scan sends a trimmed meal title and preserves it for review', async () => 
     assert.equal(result.ok && result.result.mealName, 'Chicken adobo with rice');
 });
 
+test('a scan title stating an amount sends the amount but keeps the estimated meal name', async () => {
+    let requestBody: Record<string, unknown> | null = null;
+    const client = createAcceptedClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async (_input, init) => {
+            requestBody = JSON.parse(String(init?.body));
+            return jsonResponse({ ...recognizedEstimate(), mealName: 'Bear Brand milk' });
+        }) as typeof fetch,
+    });
+
+    const result = await client.scanFood('c3ludGhldGlj', '72g bear brand');
+
+    assert.deepEqual(requestBody, {
+        operation: 'scan',
+        imageBase64: 'c3ludGhldGlj',
+        text: '72g bear brand',
+    });
+    assert.equal(result.ok && result.result.mealName, 'Bear Brand milk');
+});
+
+test('component names keep apostrophes, hyphens, and deliberate inner capitals', async () => {
+    const client = createAcceptedClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async () => jsonResponse({
+            ...recognizedEstimate(),
+            components: [
+                { ...recognizedEstimate().components[0], name: "McDonald's Big Mac" },
+                { ...recognizedEstimate().components[0], name: "shakey's stir-fried rice" },
+                { ...recognizedEstimate().components[0], name: 'GRILLED CHICKEN' },
+            ],
+        })) as typeof fetch,
+    });
+
+    const result = await client.describeMeal('mixed plate');
+
+    assert.deepEqual(
+        result.ok ? result.result.components.map((component) => component.name) : null,
+        ["McDonald's Big Mac", "Shakey's Stir-fried Rice", 'Grilled Chicken'],
+    );
+});
+
 test('clarification sends source description and current component context', async () => {
     const requests: Array<Record<string, unknown>> = [];
     const client = createAcceptedClient({

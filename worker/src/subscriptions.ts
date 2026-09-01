@@ -5,9 +5,12 @@ export const ENTITLEMENT_CACHE_TTL_MS = 60 * 60 * 1000;
 // request retries the upstream instead of serving free limits for a full cache lifetime.
 export const PROVISIONAL_PUGO_CACHE_TTL_MS = 60 * 1000;
 export const PUGO_DAILY_LIMIT = 5;
-const TRIAL_DAILY_LIMIT = 5;
-const TRIAL_TOTAL_LIMIT = 30;
 const PAID_DAILY_LIMIT = 30;
+// The trial is bounded by its whole-trial total, not by a tighter daily rate. A tighter one
+// walls a trial user off mid-day at a ceiling no paying user meets, which reads as a broken
+// app rather than a limit; the free Pugo tier is where a daily rate belongs.
+const TRIAL_DAILY_LIMIT = PAID_DAILY_LIMIT;
+const TRIAL_TOTAL_LIMIT = 30;
 const PAID_30_DAY_LIMIT = 250;
 
 export function aggregateAiUsage(
