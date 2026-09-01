@@ -16,7 +16,7 @@ This plan supersedes the one-time PHP 299 purchase model described in `PRODUCT.m
 
 Change Eatlog from a paid download to a free local-first app with three customer-facing tiers: Eatlog Pugo, Eatlog Manok, and Eatlog Itik.
 
-Eatlog Pugo keeps core logging and ownership features free and includes five initial photo or description estimates per rolling 24 hours. Eatlog Manok is a PHP 79 monthly subscription with a one-month store-managed introductory trial for eligible users. Eatlog Itik is a PHP 799 non-consumable lifetime purchase. Manok and Itik add meal and component re-estimates, adaptive recommendations, and higher server-enforced Gemini limits.
+Eatlog Pugo keeps core logging and ownership features free and includes three initial photo or description estimates per rolling 24 hours. Eatlog Manok is a PHP 79 monthly subscription with a one-month store-managed introductory trial for eligible users. Eatlog Itik is a PHP 799 non-consumable lifetime purchase. Manok and Itik add meal and component re-estimates, adaptive recommendations, and higher server-enforced Gemini limits.
 
 The implementation succeeds when:
 
@@ -160,7 +160,7 @@ Pugo shares one installation-scoped pool across `scan` and `describe`:
 - `remaining24Hours` counts requests still available. `nextEligibleAt` stays `null` until exhausted, then identifies when the oldest active request leaves the window.
 - Clearing app data or reinstalling can reset this allowance because Eatlog has no account or cross-install free identity.
 
-The Worker salts and hashes the canonical installation token for quota state. It returns `PUGO_DAILY_LIMIT` on the sixth active request and `PAID_ACCESS_REQUIRED` for `clarify-meal` or `clarify-component`. Pugo uses `gemini-2.5-flash-lite` first and `gemini-3.5-flash-lite` as fallback.
+The Worker salts and hashes the canonical installation token for quota state. It returns `PUGO_DAILY_LIMIT` on the fourth active request and `PAID_ACCESS_REQUIRED` for `clarify-meal` or `clarify-component`. Pugo uses `gemini-3.5-flash-lite` first and `gemini-3.1-flash-lite` as fallback, the same route as paid access.
 
 ### Paid and complimentary fair use
 
@@ -215,7 +215,7 @@ Include `retryAfter` or `nextEligibleAt` when time can resolve the error. Do not
 
 Eatlog Manok has recurring revenue for recurring AI cost. Eatlog Itik collects PHP 799 once while Gemini can create cost for as long as the buyer uses hosted AI. Keep the agreed quota, but make lifetime-cost evidence a production launch gate.
 
-The Pugo route uses `gemini-2.5-flash-lite` with `gemini-3.5-flash-lite` fallback. Paid, trial, and complimentary access use `gemini-3.5-flash-lite` with `gemini-3.1-flash-lite` fallback. Recalculate with both production routes, measured token use, current exchange rate, taxes, and store terms before launch.
+Pugo, paid, trial, and complimentary access all use `gemini-3.5-flash-lite` with `gemini-3.1-flash-lite` fallback. Recalculate with both production routes, measured token use, current exchange rate, taxes, and store terms before launch.
 
 | Scenario | Estimated Gemini cost per call | 60-call trial | 250-call paid ceiling |
 | --- | ---: | ---: | ---: |
@@ -466,7 +466,7 @@ Initial Scan, Photo, Describe, and food-search estimates call the operation-awar
 
 The paywall must show:
 
-- Eatlog Pugo as the current free tier when the user has no paid entitlement, including five initial estimates per rolling 24 hours and no follow-up re-estimates.
+- Eatlog Pugo as the current free tier when the user has no paid entitlement, including three initial estimates per rolling 24 hours and no follow-up re-estimates.
 - Eatlog Manok at its localized monthly price.
 - Eatlog Itik at its localized lifetime price.
 - Higher AI estimate limits plus meal and component re-estimates as paid benefits.
@@ -801,7 +801,7 @@ Terms must define `lifetime` as a non-expiring Itik entitlement on the purchase 
 Do not launch when any item remains unresolved:
 
 - An existing paid purchaser lacks a migration decision.
-- Pugo exceeds five initial estimates in a rolling 24-hour window, reaches a meal/component re-estimate, or uses a model outside the 2.5-to-3.5 route.
+- Pugo exceeds three initial estimates in a rolling 24-hour window, reaches a meal/component re-estimate, or uses a model outside the 3.5-to-3.1 route.
 - Manok expiry, Itik refund, or purchase restore deletes or hides owned Pugo data.
 - Reinstall resets trial or paid quota, or two paths on the same Pugo installation use different quota subjects.
 - Manok purchase, restore, cancellation, grace, or expiry lacks device evidence.

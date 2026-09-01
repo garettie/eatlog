@@ -758,7 +758,7 @@ test('an unrecognized estimate refunds the quota it reserved', async () => {
   const afterRejections = await call(request('/v1/usage', 'GET', undefined, grant), {
     env, fetchImpl, subscriptionStore: store,
   });
-  assert.equal(afterRejections.body.remaining24Hours, 5);
+  assert.equal(afterRejections.body.remaining24Hours, 3);
 
   // A usable estimate still costs one.
   recognize = true;
@@ -769,10 +769,47 @@ test('an unrecognized estimate refunds the quota it reserved', async () => {
   const afterAccepted = await call(request('/v1/usage', 'GET', undefined, grant), {
     env, fetchImpl, subscriptionStore: store,
   });
-  assert.equal(afterAccepted.body.remaining24Hours, 4);
+  assert.equal(afterAccepted.body.remaining24Hours, 2);
 });
 
-test('Pugo refresh and inline estimates share one five-request installation allowance', async () => {
+test('repeated refunds are capped even though they never touch the visible quota', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let geminiCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    geminiCalls += 1;
+    return geminiResponse({
+      status: 'unrecognized',
+      unrecognizedReason: 'No food is visible.',
+      mealName: null,
+      servesTotal: null,
+      servingUnit: null,
+      components: [],
+    });
+  }) as typeof fetch;
+
+  // Paid access has no daily allowance small enough to hit first; every one of these five
+  // calls is refunded and must leave the real 30/day fair-use quota untouched.
+  for (let index = 1; index <= 5; index += 1) {
+    const rejected = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+      'X-Eatlog-Request-ID': `request-refund-abuse-000${index}`,
+    }), { env, fetchImpl, subscriptionStore: store });
+    assert.equal(rejected.response.status, 200);
+    assert.equal(rejected.body.status, 'unrecognized');
+  }
+  assert.equal(geminiCalls, 5);
+
+  const sixth = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-refund-abuse-0006',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(sixth.response.status, 429);
+  assert.equal(sixth.body.error.code, 'REFUND_DAILY_LIMIT');
+  // The rejection must happen before ever calling Gemini again.
+  assert.equal(geminiCalls, 5);
+});
+
+test('Pugo refresh and inline estimates share one three-request installation allowance', async () => {
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
   const geminiUrls: string[] = [];
@@ -795,7 +832,7 @@ test('Pugo refresh and inline estimates share one five-request installation allo
   assert.equal(typeof refreshed.body.grant.token, 'string');
   assert.deepEqual(refreshed.body.usage, {
     kind: 'free',
-    remaining24Hours: 5,
+    remaining24Hours: 3,
     nextEligibleAt: null,
   });
 
@@ -810,11 +847,11 @@ test('Pugo refresh and inline estimates share one five-request installation allo
   }), { env, fetchImpl, subscriptionStore: store });
   assert.deepEqual(usage.body, {
     kind: 'free',
-    remaining24Hours: 4,
+    remaining24Hours: 2,
     nextEligibleAt: null,
   });
 
-  for (let index = 2; index <= 5; index += 1) {
+  for (let index = 2; index <= 3; index += 1) {
     const input = index % 2 === 0
       ? { operation: 'scan', imageBase64: JPEG }
       : { operation: 'describe', text: 'rice' };
@@ -827,12 +864,12 @@ test('Pugo refresh and inline estimates share one five-request installation allo
 
   const over = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
     Authorization: `Bearer ${refreshed.body.grant.token}`,
-    'X-Eatlog-Request-ID': 'request-pugo-0006',
+    'X-Eatlog-Request-ID': 'request-pugo-0004',
   }), { env, fetchImpl, subscriptionStore: store });
   assert.equal(over.response.status, 429);
   assert.equal(over.body.error.code, 'PUGO_DAILY_LIMIT');
   assert.equal(typeof over.body.error.nextEligibleAt, 'string');
-  assert.equal(geminiUrls.length, 5);
+  assert.equal(geminiUrls.length, 3);
   assert.equal(geminiUrls.every((url) => url.includes(`/models/${contract.PUGO_GEMINI_MODELS[0]}:generateContent`)), true);
   assert.equal(revenueCatCalls, 1);
 
@@ -848,10 +885,10 @@ test('Pugo refresh and inline estimates share one five-request installation allo
     assert.equal(result.response.status, 402);
     assert.equal(result.body.error.code, 'PAID_ACCESS_REQUIRED');
   }
-  assert.equal(geminiUrls.length, 5);
+  assert.equal(geminiUrls.length, 3);
 });
 
-test('Pugo falls back from Gemini 2.5 to 3.5 and uses only the successful model rate pair', async () => {
+test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and computes cost from one rate pair', async () => {
   const original = console.log;
   const logs: Array<Record<string, unknown>> = [];
   console.log = (value?: unknown) => {
@@ -862,8 +899,6 @@ test('Pugo falls back from Gemini 2.5 to 3.5 and uses only the successful model 
     const env = subscriptionEnv({
       GEMINI_INPUT_USD_PER_MILLION: '0.1',
       GEMINI_OUTPUT_USD_PER_MILLION: '0.4',
-      GEMINI_25_INPUT_USD_PER_MILLION: '1',
-      GEMINI_25_OUTPUT_USD_PER_MILLION: '2',
     });
     const fallbackFetch = (async (input: string | URL | Request) => {
       const url = String(input);
@@ -887,7 +922,7 @@ test('Pugo falls back from Gemini 2.5 to 3.5 and uses only the successful model 
     assert.ok(urls[0].includes(`/models/${contract.PUGO_GEMINI_MODELS[0]}:generateContent`));
     assert.ok(urls[1].includes(`/models/${contract.PUGO_GEMINI_MODELS[1]}:generateContent`));
     const fallbackUsage = logs.find((entry) => entry.event === 'ai_usage');
-    assert.equal(fallbackUsage?.model, 'gemini-3.5-flash-lite');
+    assert.equal(fallbackUsage?.model, contract.PUGO_GEMINI_MODELS[1]);
     assert.equal(fallbackUsage?.estimatedCostUsd, 0.0002);
 
     logs.length = 0;
@@ -895,10 +930,8 @@ test('Pugo falls back from Gemini 2.5 to 3.5 and uses only the successful model 
       'X-Eatlog-Request-ID': 'request-pugo-primary',
     }), {
       env: subscriptionEnv({
-        GEMINI_INPUT_USD_PER_MILLION: '0.1',
-        GEMINI_OUTPUT_USD_PER_MILLION: '0.4',
-        GEMINI_25_INPUT_USD_PER_MILLION: '',
-        GEMINI_25_OUTPUT_USD_PER_MILLION: '-1',
+        GEMINI_INPUT_USD_PER_MILLION: '',
+        GEMINI_OUTPUT_USD_PER_MILLION: '-1',
       }),
       fetchImpl: (async (input: string | URL | Request) => (
         String(input).startsWith('https://api.revenuecat.com/')
@@ -912,7 +945,7 @@ test('Pugo falls back from Gemini 2.5 to 3.5 and uses only the successful model 
     });
     assert.equal(primary.response.status, 200);
     const primaryUsage = logs.find((entry) => entry.event === 'ai_usage');
-    assert.equal(primaryUsage?.model, 'gemini-2.5-flash-lite');
+    assert.equal(primaryUsage?.model, contract.PUGO_GEMINI_MODELS[0]);
     assert.equal(primaryUsage?.estimatedCostUsd, null);
   } finally {
     console.log = original;
@@ -1002,7 +1035,7 @@ test('an unreachable RevenueCat grants Pugo quota instead of blocking a free est
   const usage = await call(request('/v1/usage', 'GET', undefined, {
     Authorization: `Bearer ${grant}`,
   }), { env, fetchImpl, subscriptionStore: store });
-  assert.deepEqual(usage.body, { kind: 'free', remaining24Hours: 4, nextEligibleAt: null });
+  assert.deepEqual(usage.body, { kind: 'free', remaining24Hours: 2, nextEligibleAt: null });
 
   const invalid = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
     'X-Eatlog-Request-ID': 'request-outage-0002',

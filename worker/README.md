@@ -11,9 +11,9 @@ The default `wrangler.jsonc` remains the legacy Worker contract. Subscription de
 
 ## AI routes and cost metadata
 
-Confirmed Pugo access routes `scan` and `describe` through `gemini-2.5-flash-lite`, then `gemini-3.5-flash-lite`. Manok trial, Manok, Itik, complimentary access, and the subscription-disabled legacy route use `gemini-3.5-flash-lite`, then `gemini-3.1-flash-lite`. Both routes keep the same prompt, request schema, structured response schema, 2,048-token output cap, and shared 20-second fallback budget. Pugo clarification is rejected before provider dispatch.
+Pugo access, Manok trial, Manok, Itik, complimentary access, and the subscription-disabled legacy route all route `scan` and `describe` through `gemini-3.5-flash-lite`, then `gemini-3.1-flash-lite`. `gemini-2.5-flash-lite` was dropped from the Pugo route: Google's API now returns `404 NOT_FOUND` for it ("no longer available to new users"), confirmed by a live staging probe on 2026-09-01, contradicting the "no shutdown date" status shown on `ai.google.dev`'s model card and deprecations page at the same time. Both routes keep the same prompt, request schema, structured response schema, 2,048-token output cap, and shared 20-second fallback budget. Pugo clarification is rejected before provider dispatch.
 
-Set `GEMINI_25_INPUT_USD_PER_MILLION` and `GEMINI_25_OUTPUT_USD_PER_MILLION` for Gemini 2.5 Flash-Lite aggregate cost estimates. `GEMINI_INPUT_USD_PER_MILLION` and `GEMINI_OUTPUT_USD_PER_MILLION` apply to the 3.5/3.1 route. These are non-secret deployment configuration, but values must come from the current provider price sheet; missing, empty, negative, or non-finite pairs omit `estimatedCostUsd` rather than falling back to another model's rate.
+Set `GEMINI_INPUT_USD_PER_MILLION` and `GEMINI_OUTPUT_USD_PER_MILLION` for aggregate cost estimates on the shared 3.5/3.1 route. These are non-secret deployment configuration, but values must come from the current provider price sheet; missing, empty, negative, or non-finite pairs omit `estimatedCostUsd` rather than falling back to another model's rate.
 
 ## Deploy
 

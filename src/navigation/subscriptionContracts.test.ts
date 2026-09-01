@@ -42,7 +42,7 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(planParts, /What you get/);
   assert.match(planPurchase, /offering\?\.manok\?\.trialEligible === true/);
   assert.match(planPurchase, /1 month free, then .* until canceled in Google Play[.]/);
-  assert.match(planCopy, /Free logging plus 5 AI estimates per rolling 24 hours[.]/);
+  assert.match(planCopy, /Free logging plus 3 AI estimates per rolling 24 hours[.]/);
   for (const source of [paywall, planScreen]) {
     assert.match(source, /Terms of Use/);
     assert.match(source, /We couldn't reach the store, so prices and checkout didn't load\. Your logbook still works\./);

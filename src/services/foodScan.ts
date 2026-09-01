@@ -53,6 +53,7 @@ export type FoodEstimationFailureKind =
     | 'trial-allowance-exhausted'
     | 'fair-use-daily-limit'
     | 'fair-use-30-day-limit'
+    | 'refund-daily-limit'
     | 'entitlement-unavailable'
     | 'network'
     | 'timeout'
@@ -100,11 +101,12 @@ function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
         unavailable: 'Estimates are unavailable in this build.',
         'consent-required': 'Enable online estimates to use this.',
         'paid-access-required': 'Eatlog Manok or Itik is required for AI estimates.',
-        'pugo-daily-limit': "You've used your 5 free estimates for this 24-hour window. Try again after it resets.",
+        'pugo-daily-limit': "You've used your 3 free estimates for this 24-hour window. Try again after it resets.",
         'trial-daily-limit': 'The estimate allowance for this 24-hour window is used. Try again when it resets.',
         'trial-allowance-exhausted': 'The estimate allowance is used. Manual logging still works.',
         'fair-use-daily-limit': 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when it resets.',
         'fair-use-30-day-limit': 'The 250-operation rolling 30-day fair-use limit is reached. Try again when it resets.',
+        'refund-daily-limit': 'Too many recent estimate attempts could not be completed. Try again when the window resets.',
         'entitlement-unavailable': 'Could not start the estimate. Check your connection and try again.',
         network: 'Could not reach the estimation service. Check your connection and try again.',
         timeout: 'The estimation service took too long. Try again.',
@@ -256,6 +258,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                         TRIAL_ALLOWANCE_EXHAUSTED: 'trial-allowance-exhausted',
                         FAIR_USE_DAILY_LIMIT: 'fair-use-daily-limit',
                         FAIR_USE_30_DAY_LIMIT: 'fair-use-30-day-limit',
+                        REFUND_DAILY_LIMIT: 'refund-daily-limit',
                         ENTITLEMENT_UNAVAILABLE: 'entitlement-unavailable',
                     };
                     if (typeof code === 'string' && mapping[code]) return failure(mapping[code]);

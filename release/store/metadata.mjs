@@ -62,7 +62,7 @@ There is no Eatlog account, no cloud copy of your food or weight history, no ads
 
 Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
 
-Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Pugo includes 5 photo or description estimates per rolling 24 hours. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. Current prices and terms appear in the store purchase sheet.
+Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Pugo includes 3 photo or description estimates per rolling 24 hours. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. Current prices and terms appear in the store purchase sheet.
 
 On Android, optional Health Connect support reads and writes Weight only after you choose to connect it.
 
@@ -97,7 +97,7 @@ There is no Eatlog account, no cloud copy of your food or weight history, no ads
 
 Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
 
-Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Pugo includes 5 photo or description estimates per rolling 24 hours. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. Current prices and terms appear in the store purchase sheet.
+Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Pugo includes 3 photo or description estimates per rolling 24 hours. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. Current prices and terms appear in the store purchase sheet.
 
 Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
     promotionalText:
@@ -109,14 +109,14 @@ Nutrition data, calculated targets, trends, and meal results are estimates. Revi
     firstVersionReleaseNotesFieldAvailable: false,
   },
   reviewerNotes: {
-    google: `Eatlog is free to download. Pugo includes five initial photo or description estimates per rolling 24 hours. Manok is a monthly subscription and Itik is a one-time lifetime purchase; both add meal/component re-estimates and adaptive plan recommendations. The build has no login.
+    google: `Eatlog is free to download. Pugo includes three initial photo or description estimates per rolling 24 hours. Manok is a monthly subscription and Itik is a one-time lifetime purchase; both add meal/component re-estimates and adaptive plan recommendations. The build has no login.
 
 Complete onboarding with synthetic adult data. Camera/gallery selection opens Identify meal locally. Reusing a listed past meal loads its editable foods and portions with the new photo without consent or network use. Choose Estimate as new or Describe to use a Pugo estimate and request AI consent when required; Not now returns to the same photo, title, and local suggestions without sending anything. After an estimate, use a meal/component re-estimate action to see the paid plan before consent or private-content construction. Only an invoked allowed estimate sends user-selected content to Google Gemini through the Eatlog Worker. Manual food entry works offline. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 
 Android only: Profile > Health Connect requests read and write access for Weight. Eatlog imports Weight into local history and exports only weights entered in Eatlog. No other Health Connect data type is requested.
 
 Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.`,
-    apple: `Eatlog is free to download. Pugo includes five initial photo or description estimates per rolling 24 hours. Manok is a monthly subscription and Itik is a one-time lifetime purchase; both add meal/component re-estimates and adaptive plan recommendations. The build has no login. Saved profiles, targets, logs, weights, and meal photos stay on device unless the user exports a file.
+    apple: `Eatlog is free to download. Pugo includes three initial photo or description estimates per rolling 24 hours. Manok is a monthly subscription and Itik is a one-time lifetime purchase; both add meal/component re-estimates and adaptive plan recommendations. The build has no login. Saved profiles, targets, logs, weights, and meal photos stay on device unless the user exports a file.
 
 Complete onboarding with synthetic adult data. Use the center Add control for manual entry, Scan a meal, Upload photo, or Describe. Scan opens the camera and Upload photo opens the photo library; selection opens Identify meal locally. Reusing a listed past meal loads its editable foods and portions with the new photo without consent or network use. Choose Estimate as new or Describe to use a Pugo estimate and request AI consent when required; Not now returns to the same photo, title, and suggestions without sending anything. After an estimate, use a meal/component re-estimate action to see the paid plan before consent or private-content construction. Only an invoked allowed estimate sends user-selected content to Google Gemini through the Eatlog Worker. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
 

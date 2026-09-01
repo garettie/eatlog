@@ -21,7 +21,7 @@ import { GEMINI_ORIGIN, geminiGenerateUrl } from './geminiEndpoint';
 const USDA_ORIGIN = 'https://api.nal.usda.gov';
 const USDA_SEARCH_PATH = '/fdc/v1/foods/search';
 const USDA_PAGE_SIZE = 25;
-const PUGO_GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite'] as const;
+const PUGO_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
 const PAID_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
 const USDA_TIMEOUT_MS = 8000;
 const GEMINI_TOTAL_TIMEOUT_MS = 20000;
@@ -69,8 +69,6 @@ export interface Env {
   GEMINI_RELAY?: DurableObjectNamespace;
   GEMINI_INPUT_USD_PER_MILLION?: string;
   GEMINI_OUTPUT_USD_PER_MILLION?: string;
-  GEMINI_25_INPUT_USD_PER_MILLION?: string;
-  GEMINI_25_OUTPUT_USD_PER_MILLION?: string;
 }
 
 interface CacheLike {
@@ -102,12 +100,8 @@ function logAiUsage(upstream: unknown, model: string, env: Env): void {
   const usage = (upstream as any)?.usageMetadata;
   const inputTokens = Number(usage?.promptTokenCount ?? 0);
   const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-  const inputRate = configuredRate(model === 'gemini-2.5-flash-lite'
-    ? env.GEMINI_25_INPUT_USD_PER_MILLION
-    : env.GEMINI_INPUT_USD_PER_MILLION);
-  const outputRate = configuredRate(model === 'gemini-2.5-flash-lite'
-    ? env.GEMINI_25_OUTPUT_USD_PER_MILLION
-    : env.GEMINI_OUTPUT_USD_PER_MILLION);
+  const inputRate = configuredRate(env.GEMINI_INPUT_USD_PER_MILLION);
+  const outputRate = configuredRate(env.GEMINI_OUTPUT_USD_PER_MILLION);
   console.log(JSON.stringify({
     event: 'ai_usage',
     model,
@@ -1254,11 +1248,12 @@ export async function handleRequest(
         throw new HttpError(402, reservation.code, 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
       }
       const messages = {
-        PUGO_DAILY_LIMIT: 'The 5-estimate rolling 24-hour Pugo allowance is used. Try again when the window resets.',
+        PUGO_DAILY_LIMIT: 'The 3-estimate rolling 24-hour Pugo allowance is used. Try again when the window resets.',
         TRIAL_DAILY_LIMIT: 'The trial rolling 24-hour allowance for this AI action is used. Try again when the window resets.',
         TRIAL_ALLOWANCE_EXHAUSTED: 'The trial allowance for this AI action is used. Manok or Itik keeps AI access available.',
         FAIR_USE_DAILY_LIMIT: 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when the window resets.',
         FAIR_USE_30_DAY_LIMIT: 'The 250-operation rolling 30-day fair-use limit is reached. Try again when the window resets.',
+        REFUND_DAILY_LIMIT: 'Too many recent estimate attempts could not be completed. Try again when the window resets.',
       } as const;
       throw new HttpError(
         429,

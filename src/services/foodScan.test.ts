@@ -335,6 +335,7 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
         ['TRIAL_ALLOWANCE_EXHAUSTED', 'trial-allowance-exhausted'],
         ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
         ['FAIR_USE_30_DAY_LIMIT', 'fair-use-30-day-limit'],
+        ['REFUND_DAILY_LIMIT', 'refund-daily-limit'],
         ['ENTITLEMENT_UNAVAILABLE', 'entitlement-unavailable'],
     ] as const;
     for (const [code, kind] of cases) {
@@ -349,7 +350,7 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
             assert.equal(result.kind, kind);
             assert.equal(result.message.includes('raw provider'), false);
             if (kind === 'pugo-daily-limit') {
-                assert.equal(result.message, "You've used your 5 free estimates for this 24-hour window. Try again after it resets.");
+                assert.equal(result.message, "You've used your 3 free estimates for this 24-hour window. Try again after it resets.");
             }
         }
     }

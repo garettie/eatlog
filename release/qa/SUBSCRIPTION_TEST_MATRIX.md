@@ -4,7 +4,7 @@ Use only the standalone `Eatlog Preview` APK (`com.sgaret.eatlog.preview`) on th
 
 ## Automated and Test Store coverage
 
-- Pugo: local logging, search, weight, charts, export, and backup remain usable; Scan, Photo, and Describe share five initial estimates per rolling 24 hours; meal/component re-estimates and adaptive actions open the plan screen before consent or private-content construction.
+- Pugo: local logging, search, weight, charts, export, and backup remain usable; Scan, Photo, and Describe share three initial estimates per rolling 24 hours; meal/component re-estimates and adaptive actions open the plan screen before consent or private-content construction.
 - Manok trial: localized offering and one-month trial disclosure; 5 initial estimates and 5 clarifications per rolling 24 hours, 30 of each for the trial.
 - Manok: purchase, cancel/pending/failure copy, delayed entitlement refresh, restore, grace period, and 30/24-hour plus 250/30-day combined fair-use counters.
 - Itik: localized lifetime package, repurchase prevention, preview-only direct transition from Test Store Manok, production Manok cancellation requirement, restore, refund, and revocation.

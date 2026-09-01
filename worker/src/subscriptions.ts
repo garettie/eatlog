@@ -4,8 +4,13 @@ export const ENTITLEMENT_CACHE_TTL_MS = 60 * 60 * 1000;
 // Applied only to the Pugo access synthesized when RevenueCat is unreachable, so the next
 // request retries the upstream instead of serving free limits for a full cache lifetime.
 export const PROVISIONAL_PUGO_CACHE_TTL_MS = 60 * 1000;
-export const PUGO_DAILY_LIMIT = 5;
+export const PUGO_DAILY_LIMIT = 3;
 const PAID_DAILY_LIMIT = 30;
+// A refunded reservation still cost a real Gemini call. Left uncapped, a device that keeps
+// submitting unrecognizable input can refund its way past the visible daily allowance while
+// this Worker keeps paying for every attempt. This limit is enforced on top of the normal
+// per-access quota, for every access kind, not only Pugo.
+const REFUND_DAILY_LIMIT = 5;
 // The trial is bounded by its whole-trial total, not by a tighter daily rate. A tighter one
 // walls a trial user off mid-day at a ceiling no paying user meets, which reads as a broken
 // app rather than a limit; the free Pugo tier is where a daily rate belongs.
@@ -83,7 +88,7 @@ export interface GrantClaims {
 export interface QuotaDecision {
   allowed: boolean;
   duplicate: boolean;
-  code?: 'PAID_ACCESS_REQUIRED' | 'PUGO_DAILY_LIMIT' | 'TRIAL_DAILY_LIMIT' | 'TRIAL_ALLOWANCE_EXHAUSTED' | 'FAIR_USE_DAILY_LIMIT' | 'FAIR_USE_30_DAY_LIMIT';
+  code?: 'PAID_ACCESS_REQUIRED' | 'PUGO_DAILY_LIMIT' | 'TRIAL_DAILY_LIMIT' | 'TRIAL_ALLOWANCE_EXHAUSTED' | 'FAIR_USE_DAILY_LIMIT' | 'FAIR_USE_30_DAY_LIMIT' | 'REFUND_DAILY_LIMIT';
   nextEligibleAt?: string;
   usage: Usage;
 }
@@ -99,7 +104,7 @@ export interface SubscriptionStore {
 }
 
 export interface QuotaEvent {
-  operationClass: 'initial' | 'clarification' | 'paid';
+  operationClass: 'initial' | 'clarification' | 'paid' | 'refunded';
   timestamp: number;
   requestId: string;
 }
@@ -146,8 +151,8 @@ export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: numb
       nextClarificationEligibleAt: clarificationDaily.length >= TRIAL_DAILY_LIMIT ? nextAt(clarificationDaily, since) : null,
     };
   }
-  const daily = events.filter((event) => event.timestamp > now - DAY_MS);
-  const monthly = events.filter((event) => event.timestamp > now - THIRTY_DAYS_MS);
+  const daily = events.filter((event) => event.operationClass !== 'refunded' && event.timestamp > now - DAY_MS);
+  const monthly = events.filter((event) => event.operationClass !== 'refunded' && event.timestamp > now - THIRTY_DAYS_MS);
   return {
     kind: 'paid',
     remaining24Hours: remaining(PAID_DAILY_LIMIT, daily.length),
@@ -158,6 +163,10 @@ export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: numb
 
 export function decideQuota(events: QuotaEvent[], access: AiAccessKind, operation: string, now: number): QuotaDecision {
   const usage = quotaUsage(events, access, now);
+  const refundedToday = events.filter((event) => event.operationClass === 'refunded' && event.timestamp > now - DAY_MS).length;
+  if (refundedToday >= REFUND_DAILY_LIMIT) {
+    return { allowed: false, duplicate: false, code: 'REFUND_DAILY_LIMIT', usage };
+  }
   if (usage.kind === 'free') {
     if (operationClass(access, operation) !== 'initial') {
       return { allowed: false, duplicate: false, code: 'PAID_ACCESS_REQUIRED', usage };
@@ -258,7 +267,9 @@ export class MemorySubscriptionStore implements SubscriptionStore {
     const key = `${subject}:${requestId}`;
     const request = this.requests.get(key);
     if (request?.state !== 'reserved') return;
-    this.events.set(subject, (this.events.get(subject) ?? []).filter((event) => event.requestId !== requestId));
+    this.events.set(subject, (this.events.get(subject) ?? []).map((event) => (
+      event.requestId === requestId ? { ...event, operationClass: 'refunded' } : event
+    )));
     this.requests.set(key, { ...request, state: 'refunded' });
   }
 

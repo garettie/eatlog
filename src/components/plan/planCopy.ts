@@ -42,7 +42,7 @@ export function accessDetail(access: Access): string {
   if (access.reason === 'malformed' || access.reason === 'unavailable') {
     return "We couldn't confirm a purchase. Free logging and estimates still work.";
   }
-  return 'Free logging plus 5 AI estimates per rolling 24 hours.';
+  return 'Free logging plus 3 AI estimates per rolling 24 hours.';
 }
 
 /**

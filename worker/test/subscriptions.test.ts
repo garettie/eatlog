@@ -124,22 +124,22 @@ test('signed AI grants accept every AI access class', async () => {
   }
 });
 
-test('Pugo shares five initial estimates per rolling 24 hours and rejects clarifications', async () => {
+test('Pugo shares three initial estimates per rolling 24 hours and rejects clarifications', async () => {
   const store = new MemorySubscriptionStore();
   assert.deepEqual(await store.usage('pugo', 'pugo', NOW), {
     kind: 'free',
-    remaining24Hours: 5,
+    remaining24Hours: 3,
     nextEligibleAt: null,
   });
 
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 3; index += 1) {
     const operation = index % 2 === 0 ? 'scan' : 'describe';
     const decision = await store.reserve('pugo', 'pugo', operation, `pugo-${index}`, NOW + index);
     assert.equal(decision.allowed, true);
     assert.deepEqual(decision.usage, {
       kind: 'free',
-      remaining24Hours: 4 - index,
-      nextEligibleAt: index === 4 ? new Date(NOW + 24 * 60 * 60 * 1000).toISOString() : null,
+      remaining24Hours: 2 - index,
+      nextEligibleAt: index === 2 ? new Date(NOW + 24 * 60 * 60 * 1000).toISOString() : null,
     });
   }
 
@@ -163,10 +163,30 @@ test('Pugo shares five initial estimates per rolling 24 hours and rejects clarif
   });
 
   const boundary = new MemorySubscriptionStore();
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 3; index += 1) {
     assert.equal((await boundary.reserve('boundary', 'pugo', 'scan', `boundary-${index}`, NOW)).allowed, true);
   }
   assert.equal((await boundary.reserve('boundary', 'pugo', 'describe', 'boundary-next', NOW + 24 * 60 * 60 * 1000)).allowed, true);
+});
+
+test('a subject that keeps refunding hits a separate abuse ceiling regardless of access kind', async () => {
+  const store = new MemorySubscriptionStore();
+  for (let index = 0; index < 5; index += 1) {
+    const decision = await store.reserve('abuser', 'manok', 'scan', `refund-${index}`, NOW + index);
+    assert.equal(decision.allowed, true);
+    await store.refund('abuser', `refund-${index}`);
+  }
+  // The refunded attempts must not count against the real paid quota.
+  assert.deepEqual(await store.usage('abuser', 'manok', NOW + 5), {
+    kind: 'paid',
+    remaining24Hours: 30,
+    remaining30Days: 250,
+    nextEligibleAt: null,
+  });
+
+  const blocked = await store.reserve('abuser', 'manok', 'scan', 'refund-over', NOW + 5);
+  assert.equal(blocked.allowed, false);
+  assert.equal(blocked.code, 'REFUND_DAILY_LIMIT');
 });
 
 test('the trial matches the paid daily rate and is bounded only by its whole-trial total', async () => {

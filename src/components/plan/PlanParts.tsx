@@ -151,7 +151,7 @@ export function QuotaCard({ usage }: { usage: EatlogUsage }) {
   return (
     <Card className="gap-3 p-4">
       <Text className="text-base font-bold text-m3-on-surface">Free estimates left</Text>
-      <QuotaRow label="Next 24 hours" value={`${usage.remaining24Hours}/5`} />
+      <QuotaRow label="Next 24 hours" value={`${usage.remaining24Hours}/3`} />
     </Card>
   );
 }

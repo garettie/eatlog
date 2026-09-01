@@ -98,7 +98,11 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       const prior = [...sql.exec<{ state: string }>('SELECT state FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
       if (prior?.state === 'reserved') {
         sql.exec("UPDATE quota_requests SET state = 'refunded' WHERE subject = ? AND request_id = ?", subject, requestId);
-        sql.exec('DELETE FROM quota_events WHERE subject = ? AND request_id = ?', subject, requestId);
+        // Relabel rather than delete: the reservation still cost a real Gemini call, so it
+        // must keep counting toward the refund-abuse ceiling even though it no longer counts
+        // toward the subject's normal quota (quotaUsage and decideQuota both exclude
+        // 'refunded' events from ordinary limits).
+        sql.exec("UPDATE quota_events SET operation_class = 'refunded' WHERE subject = ? AND request_id = ?", subject, requestId);
       }
       return Response.json({ ok: true });
     }

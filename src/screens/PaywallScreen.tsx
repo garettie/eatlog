@@ -68,7 +68,7 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
                 </Text>
               ) : (
                 <Text className="text-sm text-m3-on-surface-variant">
-                  Logging, your data, and 5 estimates a day stay free on Eatlog Pugo.
+                  Logging, your data, and 3 estimates a day stay free on Eatlog Pugo.
                 </Text>
               )}
             </View>
