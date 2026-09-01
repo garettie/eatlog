@@ -16,11 +16,11 @@ import {
   type VerifiedRevenueCatAccess,
 } from './subscriptions';
 import { DurableSubscriptionStore } from './subscriptionStore';
+import { GEMINI_ORIGIN, geminiGenerateUrl } from './geminiEndpoint';
 
 const USDA_ORIGIN = 'https://api.nal.usda.gov';
 const USDA_SEARCH_PATH = '/fdc/v1/foods/search';
 const USDA_PAGE_SIZE = 25;
-const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
 const PUGO_GEMINI_MODELS = ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite'] as const;
 const PAID_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
 const USDA_TIMEOUT_MS = 8000;
@@ -66,6 +66,7 @@ export interface Env {
   QUOTA_IDENTITY_SALT?: string;
   REVENUECAT_ENTITLEMENT_ID?: string;
   ACCESS_STATE?: DurableObjectNamespace;
+  GEMINI_RELAY?: DurableObjectNamespace;
   GEMINI_INPUT_USD_PER_MILLION?: string;
   GEMINI_OUTPUT_USD_PER_MILLION?: string;
   GEMINI_25_INPUT_USD_PER_MILLION?: string;
@@ -1016,6 +1017,49 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
   };
 }
 
+const GEMINI_RELAY_URL = 'https://gemini-relay.internal/generate';
+const GEMINI_RELAY_LOCATION_HINT: DurableObjectLocationHint = 'wnam';
+
+function geminiInit(body: string): RequestInit {
+  return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body };
+}
+
+/**
+ * Pinned at creation to a region Google serves, so its subrequest leaves from there
+ * instead of from the colo the user's request happened to reach.
+ */
+function geminiRelayStub(env: Env): DurableObjectStub | null {
+  const namespace = env.GEMINI_RELAY;
+  if (!namespace) return null;
+  return namespace.get(namespace.idFromName('gemini-relay-v1'), { locationHint: GEMINI_RELAY_LOCATION_HINT });
+}
+
+function relayFetchImpl(stub: DurableObjectStub, model: string): typeof fetch {
+  return ((_input: unknown, init: RequestInit = {}) => stub.fetch(GEMINI_RELAY_URL, {
+    ...init,
+    headers: { ...(init.headers as Record<string, string> | undefined), 'x-eatlog-gemini-model': model },
+  })) as typeof fetch;
+}
+
+/**
+ * Google's own status and message, truncated. Enough to name what it objected to without
+ * carrying the request content that provoked it. Read from a clone so the body survives.
+ */
+async function geminiRejectionReason(response: Response): Promise<string> {
+  try {
+    const body = await response.clone().json() as { error?: { message?: unknown; status?: unknown } };
+    return `${String(body.error?.status ?? '')} ${String(body.error?.message ?? '')}`.trim().slice(0, 300);
+  } catch {
+    return '';
+  }
+}
+
+function locationUnsupported(status: number, reason: string): boolean {
+  return status === 400
+    && reason.includes('FAILED_PRECONDITION')
+    && reason.toLowerCase().includes('location is not supported');
+}
+
 /**
  * `recognized` is false when the provider answered cleanly but found no defensible food.
  * That is a normal 200 the caller must not charge quota for: the estimate produced nothing
@@ -1031,48 +1075,63 @@ async function geminiEstimate(
   const started = Date.now();
   const parts: Array<Record<string, unknown>> = [{ text: promptFor(input) }];
   if (input.imageBase64) parts.push({ inlineData: { mimeType: 'image/jpeg', data: input.imageBase64 } });
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: FOOD_ESTIMATE_SYSTEM_INSTRUCTION }] },
+    contents: [{ parts }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: FOOD_ESTIMATE_SCHEMA,
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    },
+  });
+  const relay = geminiRelayStub(env);
+  let relayed = false;
   for (const model of models) {
     const remaining = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
     if (remaining <= 0) throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Estimation service timed out.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'timeout' });
     let response: Response;
     try {
-      response = await fetchWithTimeout(fetchImpl, `${GEMINI_ORIGIN}/v1beta/models/${model}:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: FOOD_ESTIMATE_SYSTEM_INSTRUCTION }] },
-          contents: [{ parts }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: FOOD_ESTIMATE_SCHEMA,
-            maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-          },
-        }),
-      }, remaining, 'gemini', 'bypass');
+      response = relayed
+        ? await fetchWithTimeout(relayFetchImpl(relay!, model), GEMINI_RELAY_URL, geminiInit(body), remaining, 'gemini', 'bypass')
+        : await fetchWithTimeout(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), remaining, 'gemini', 'bypass');
     } catch (error) {
       if (model === models[models.length - 1]) throw error;
       continue;
     }
     if (!response.ok) {
-      // Name the model and its status. Without this a chain that fails end to end is
-      // indistinguishable from any other upstream problem, and no response body is logged so
-      // no provider detail leaks.
-      let reason = '';
-      try {
-        const body = await response.clone().json() as { error?: { message?: unknown; status?: unknown } };
-        // Google's own validation text, truncated. Enough to name the malformed field without
-        // carrying the request content that provoked it.
-        reason = `${String(body.error?.status ?? '')} ${String(body.error?.message ?? '')}`.trim().slice(0, 300);
-      } catch { reason = ''; }
-      console.log(JSON.stringify({
-        event: 'ai_model_rejected',
-        model,
-        upstreamStatus: response.status,
-        imageBytes: input.imageBase64 ? Math.round(input.imageBase64.length * 0.75) : 0,
-        reason,
-      }));
-      if (model === models[models.length - 1]) throw new HttpError(502, 'UPSTREAM_ERROR', 'Estimation service rejected the request.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-status' });
-      continue;
+      let reason = await geminiRejectionReason(response);
+      // A location refusal is about where the call left from, not the model, so trying the
+      // next model changes nothing. Send the same one through the relay instead, and keep
+      // every later model on that path so the budget is not spent proving the point twice.
+      if (!relayed && relay && locationUnsupported(response.status, reason)) {
+        const budget = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
+        if (budget > 0) {
+          relayed = true;
+          console.log(JSON.stringify({ event: 'ai_relay_engaged', model, reason }));
+          try {
+            response = await fetchWithTimeout(relayFetchImpl(relay, model), GEMINI_RELAY_URL, geminiInit(body), budget, 'gemini', 'bypass');
+          } catch (error) {
+            if (model === models[models.length - 1]) throw error;
+            continue;
+          }
+          reason = response.ok ? '' : await geminiRejectionReason(response);
+        }
+      }
+      if (!response.ok) {
+        // Name the model and its status. Without this a chain that fails end to end is
+        // indistinguishable from any other upstream problem, and no response body is logged so
+        // no provider detail leaks.
+        console.log(JSON.stringify({
+          event: 'ai_model_rejected',
+          model,
+          upstreamStatus: response.status,
+          imageBytes: input.imageBase64 ? Math.round(input.imageBase64.length * 0.75) : 0,
+          relayed,
+          reason,
+        }));
+        if (model === models[models.length - 1]) throw new HttpError(502, 'UPSTREAM_ERROR', 'Estimation service rejected the request.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-status' });
+        continue;
+      }
     }
     let upstream: unknown;
     try {

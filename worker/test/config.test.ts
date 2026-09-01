@@ -50,9 +50,11 @@ test('production subscriptions use an isolated Worker and state namespace', () =
   });
   assert.deepEqual(production.durable_objects?.bindings, [
     { name: 'ACCESS_STATE', class_name: 'EntitlementQuotaState' },
+    { name: 'GEMINI_RELAY', class_name: 'GeminiRelay' },
   ]);
   assert.deepEqual(production.migrations, [
     { tag: 'subscription-production-state-v1', new_sqlite_classes: ['EntitlementQuotaState'] },
+    { tag: 'subscription-production-gemini-relay-v1', new_sqlite_classes: ['GeminiRelay'] },
   ]);
   assert.equal(production.limits, undefined);
 

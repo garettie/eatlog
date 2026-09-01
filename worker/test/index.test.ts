@@ -1151,3 +1151,56 @@ test('stable store identity preserves paid quota after restore to a new installa
   assert.equal(over.response.status, 429);
   assert.equal(over.body.error.code, 'FAIR_USE_DAILY_LIMIT');
 });
+
+test('a location-refused estimate retries the same model through the region-pinned relay', async () => {
+  const direct: string[] = [];
+  const relayedModels: string[] = [];
+  const locationHints: Array<string | undefined> = [];
+  const refusedFetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat('trial'));
+    direct.push(url);
+    return jsonResponse({
+      error: { status: 'FAILED_PRECONDITION', message: 'User location is not supported for the API use.' },
+    }, 400);
+  }) as typeof fetch;
+  const relay = {
+    idFromName: (name: string) => name,
+    get: (_id: unknown, options?: { locationHint?: string }) => {
+      locationHints.push(options?.locationHint);
+      return {
+        fetch: async (_url: string, init: RequestInit) => {
+          relayedModels.push(String((init.headers as Record<string, string>)['x-eatlog-gemini-model']));
+          return geminiResponse(recognized);
+        },
+      };
+    },
+  } as unknown as DurableObjectNamespace;
+
+  const relayedCall = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-relay-0001',
+  }), {
+    env: subscriptionEnv({ GEMINI_RELAY: relay }),
+    fetchImpl: refusedFetch,
+    subscriptionStore: new MemorySubscriptionStore(),
+  });
+  assert.equal(relayedCall.response.status, 200);
+  assert.equal(relayedCall.body.mealName, 'Rice bowl');
+  // The refusal is about where the call left from, so the second model is never reached.
+  assert.equal(direct.length, 1);
+  assert.ok(direct[0].includes(`/models/${contract.PAID_GEMINI_MODELS[0]}:generateContent`));
+  assert.deepEqual(relayedModels, [contract.PAID_GEMINI_MODELS[0]]);
+  assert.deepEqual(locationHints, ['wnam']);
+
+  direct.length = 0;
+  const unrelayed = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-relay-0002',
+  }), {
+    env: subscriptionEnv(),
+    fetchImpl: refusedFetch,
+    subscriptionStore: new MemorySubscriptionStore(),
+  });
+  assert.equal(unrelayed.response.status, 502);
+  assert.equal(unrelayed.body.error.code, 'UPSTREAM_ERROR');
+  assert.equal(direct.length, contract.PAID_GEMINI_MODELS.length);
+});

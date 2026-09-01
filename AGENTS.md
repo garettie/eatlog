@@ -297,6 +297,7 @@ When the user corrects your approach, append a one-line rule here before ending 
 - User-stated amounts in a meal title or description are portion instructions: they scale `estimatedGrams` and component portions and must never appear in `mealName` or a component name. Display normalization must preserve apostrophes, hyphens, and deliberate inner capitals (`McDonald's`, `Shakey's`); reserve lossy `[^a-z0-9]` stripping for matching keys, never for shown text.
 - FoodEditorView edits buffer into `editDraft` and reach the meal only via its Save button (Save also registers the re-estimate undo); Back/hardware-back prompt `Discard changes?` when the buffer is dirty, and editor open/close must reuse the sheet-state exit/enter choreography (90ms `emphasizedAccelerate` out, 150ms `emphasizedDecelerate` in, offset ±20 + opacity) — never swap the editor and list views without it.
 - SQLite `datetime('now')` values are UTC without a zone suffix; parse stored timestamps through `parseSqliteUtcTimestamp` before display or time arithmetic, while preserving timestamps that already carry `Z` or a numeric offset.
+- Gemini refuses calls that egress from a territory it does not serve, and the Cloudflare colo a user reaches is not their choice: a Manila phone routed to HKG gets 400 `FAILED_PRECONDITION` on every model. A location refusal must retry the same model through the `wnam`-pinned `GeminiRelay` Durable Object, never advance the model list, since the refusal is about the caller's location and not the model.
 
 ---
 
