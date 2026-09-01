@@ -28,7 +28,7 @@ No Pages Function is required. Cloudflare Pages reads `_headers` from the output
 
 ## Published legal pages
 
-Privacy Policy version 1.0 and the Terms of Use are effective August 28, 2026.
+Privacy Policy version 1.2 and the Terms of Use are effective September 1, 2026.
 
 - Privacy: `https://eatlog.pages.dev/privacy`
 - Terms: `https://eatlog.pages.dev/terms`

@@ -715,7 +715,7 @@ Add or publish Terms of Use and configure `EXPO_PUBLIC_TERMS_URL`. Keep the priv
 Store and in-app copy must state:
 
 - Eatlog is free to download.
-- Eatlog Pugo includes free logging and weight tracking plus five photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok or Itik.
+- Eatlog Pugo includes free logging and weight tracking plus three photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok or Itik.
 - Eatlog Manok costs the localized monthly price and renews until canceled.
 - Eligible Manok users receive a one-month introductory trial.
 - Eatlog Itik costs the localized one-time price, does not renew, and grants lifetime access to the paid tier.

@@ -1,14 +1,14 @@
 ---
 title: Eatlog Terms of Use
 publication_status: published
-policy_version: 1.1
-effective_date: 2026-08-28
-last_updated: 2026-08-28
+policy_version: 1.2
+effective_date: 2026-09-01
+last_updated: 2026-09-01
 ---
 
 # Eatlog Terms of Use
 
-These Terms of Use are effective August 28, 2026. They govern your use of Eatlog, provided by Sean Garette Gajitos. Contact: sggajitos@gmail.com.
+These Terms of Use are effective September 1, 2026. They govern your use of Eatlog, provided by Sean Garette Gajitos. Contact: sggajitos@gmail.com.
 
 Eatlog is an adult general-wellness food and weight log, not a medical device. Nutrition values, targets, trends, and AI estimates can be incomplete or wrong. Review entries and consult a qualified health professional for medical decisions.
 
@@ -22,7 +22,7 @@ Purchases and restores apply through the same platform and store account. Compli
 
 ## AI fair use
 
-Eatlog Pugo allows five initial photo or description estimates in any rolling 24-hour window. Meal and component re-estimates are not included in Pugo. Standard access through Manok, Itik, or a complimentary grant currently allows 30 combined AI operations per rolling 24 hours and 250 per rolling 30 days. Limits can prevent a request before provider dispatch. Eatlog may change future limits to protect service availability and cost, with updated terms and store disclosure where required.
+Eatlog Pugo allows three initial photo or description estimates in any rolling 24-hour window. Meal and component re-estimates are not included in Pugo. Standard access through Manok, Itik, or a complimentary grant currently allows 30 combined AI operations per rolling 24 hours and 250 per rolling 30 days. Limits can prevent a request before provider dispatch. Eatlog may change future limits to protect service availability and cost, with updated terms and store disclosure where required.
 
 AI access also requires separate consent to send the selected photo or description to the configured providers. Declining consent does not cancel a purchase and does not block local Eatlog features.
 

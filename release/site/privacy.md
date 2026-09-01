@@ -1,14 +1,14 @@
 ---
 title: Eatlog Privacy Policy
 publication_status: published
-policy_version: 1.1
-effective_date: 2026-08-28
-last_updated: 2026-08-28
+policy_version: 1.2
+effective_date: 2026-09-01
+last_updated: 2026-09-01
 ---
 
 # Eatlog Privacy Policy
 
-Eatlog is developed and operated by Sean Garette Gajitos. This Privacy Policy is effective August 28, 2026. Contact: sggajitos@gmail.com.
+Eatlog is developed and operated by Sean Garette Gajitos. This Privacy Policy is effective September 1, 2026. Contact: sggajitos@gmail.com.
 
 Eatlog is an account-free nutrition and weight log. It stores your profile, targets, food history, weight history, adaptive reviews, pins, estimate cache, and saved meal photos in app-private storage on your device. Eatlog has no account, authentication system, cloud database, advertising, or third-party analytics SDK.
 
@@ -28,7 +28,7 @@ Eatlog uses online services only for the actions described below.
 
 ### Scan, Describe, and re-estimation
 
-Before an allowed request, Eatlog shows a short choice: you can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA/Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. Pugo allows five initial photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok, Itik, or complimentary access and are denied before consent or private-content construction. Every allowed estimate still requires the current accepted consent version; Profile → Privacy lets you turn online estimates off.
+Before an allowed request, Eatlog shows a short choice: you can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA/Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. Pugo allows three initial photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok, Itik, or complimentary access and are denied before consent or private-content construction. Every allowed estimate still requires the current accepted consent version; Profile → Privacy lets you turn online estimates off.
 
 Taking or choosing a meal photo and reusing a past meal stays on the device. After access and consent checks, choosing Estimate as new sends the selected, resized photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini; Describe and allowed re-estimates send the meal text you enter. The request includes the app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply access-specific limits. Eatlog requires you to review the result before saving it.
 

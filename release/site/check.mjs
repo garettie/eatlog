@@ -20,8 +20,8 @@ const legalSources = new Map([
 ]);
 
 const legalFactPatterns = new Map([
-  ['privacy', [/Sean Garette Gajitos/, /sggajitos@gmail\.com/, /August 28, 2026|2026-08-28/, /(?:Version|policy_version:)\s*1\.1/i, /five initial photo or description estimates per rolling 24 hours/i, /meal and component re-estimates require Manok, Itik, or complimentary access/i, /Google Gemini/, /Cloudflare/, /RevenueCat/, /USDA FoodData Central/, /Open Food Facts/, /Health Connect/, /not a medical device/i]],
-  ['terms', [/Sean Garette Gajitos/, /sggajitos@gmail\.com/, /August 28, 2026|2026-08-28/, /(?:Version|policy_version:)\s*1\.1/i, /five initial photo or description estimates in any rolling 24-hour window/i, /Meal and component re-estimates are not included in Pugo/i, /30 combined AI operations/, /250 per rolling 30 days/, /Lifetime/i, /not a medical device/i, /dispute terms/i]],
+  ['privacy', [/Sean Garette Gajitos/, /sggajitos@gmail\.com/, /September 1, 2026|2026-09-01/, /(?:Version|policy_version:)\s*1\.2/i, /three initial photo or description estimates per rolling 24 hours/i, /meal and component re-estimates require Manok, Itik, or complimentary access/i, /Google Gemini/, /Cloudflare/, /RevenueCat/, /USDA FoodData Central/, /Open Food Facts/, /Health Connect/, /not a medical device/i]],
+  ['terms', [/Sean Garette Gajitos/, /sggajitos@gmail\.com/, /September 1, 2026|2026-09-01/, /(?:Version|policy_version:)\s*1\.2/i, /three initial photo or description estimates in any rolling 24-hour window/i, /Meal and component re-estimates are not included in Pugo/i, /30 combined AI operations/, /250 per rolling 30 days/, /Lifetime/i, /not a medical device/i, /dispute terms/i]],
 ]);
 
 for (const [route, html] of pages) {
