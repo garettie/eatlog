@@ -80,7 +80,7 @@ test('paid feature and Manok-to-Itik predicates preserve transition rules', () =
   const cancelledManok = access({ willRenew: false });
   const itik = access({ productIdentifier: 'eatlog_itik', expirationDate: null, willRenew: false });
   assert.equal(hasPaidFeatures(pugo), false);
-  assert.equal(hasPaidFeatures(renewingManok, NOW), true);
+  assert.equal(hasPaidFeatures(renewingManok), true);
   assert.equal(canBuyItik(renewingManok), false);
   assert.equal(canBuyItik(cancelledManok), true);
   assert.equal(canBuyItik(itik), false);
@@ -96,7 +96,7 @@ test('unresolved and transient access are checking rather than confirmed free', 
   assert.equal(entitlementStatus(unavailable), 'checking');
   assert.equal(entitlementStatus(malformed), 'checking');
   assert.equal(entitlementStatus(pugo), 'free');
-  assert.equal(entitlementStatus(trial, NOW), 'paid');
+  assert.equal(entitlementStatus(trial), 'paid');
 });
 
 test('access updates resolve authoritative startup states and reject transient or stale snapshots', () => {
