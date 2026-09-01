@@ -202,8 +202,8 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 ### Composition types
 - **Today:** one dominant calorie instrument, direct macro rails, and a short recent-log path.
 - **Diary:** chronological ledger with meal-period structure and media-led entries.
-- **Analytics:** outcome first, required plan decision second, supporting evidence and history after it.
-- **Profile:** native grouped settings list with current values; public support and policy links live inside About.
+- **Analytics:** outcome first, required plan decision second, supporting evidence and history after it. Weight and calorie trends share one canvas card with a hairline divider on compact width; never split correlated charts into separate boxes when they read together.
+- **Profile:** native grouped settings list with current values, `surface-container-high` inset groups (no outer hairline), public support and policy links live inside About; the plan/target summary is the one screen-level card.
 - **Onboarding and plan review:** one decision per step; target result appears immediately after calculation without simulated work.
 - Shared components preserve semantics. Screens may use purpose-built composition when their jobs differ; consistency must not collapse into repeated card stacks.
 

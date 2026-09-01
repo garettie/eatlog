@@ -748,14 +748,14 @@ function AnalyticsScreen({
           ? `Next plan check ${displayDate(recommendation.nextReviewDate)}.`
           : null;
   const recommendationCard = entitlementStatus === 'checking' ? (
-    <Card className="min-h-[112px] items-center justify-center gap-3">
+    <View className="min-h-[112px] items-center justify-center gap-3 rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5">
       <ActivityIndicator color={M3.onSurfaceVariant} />
       <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm">Checking your plan…</Text>
-    </Card>
+    </View>
   ) : !hasPaidFeatures ? (
-    <Card className="p-5 gap-3">
+    <View className="rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5 gap-3">
       <View className="flex-row items-center gap-3">
-        <View className="w-10 h-10 rounded-full bg-m3-surface-container-highest items-center justify-center">
+        <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
           <MaterialIcons name="lock-outline" size={20} color={M3.onSurfaceVariant} />
         </View>
         <View className="flex-1 gap-0.5">
@@ -771,9 +771,9 @@ function AnalyticsScreen({
       >
         <Text className="text-m3-on-primary text-sm font-semibold">View plans</Text>
       </Pressable>
-    </Card>
+    </View>
   ) : (
-    <Card className="p-5 gap-4">
+    <View className="rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5 gap-4">
       {recommendationError ? (
         <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite">
           <MaterialIcons name="error-outline" size={22} color={M3.error} />
@@ -914,9 +914,8 @@ function AnalyticsScreen({
       ) : (
         <ActivityIndicator color={M3.onSurfaceVariant} accessibilityLabel="Loading adaptive review" />
       )}
-    </Card>
+    </View>
   );
-
   const requestedCalorieMonthLabel = formatMonthLabel(parseLocalISO(selectedCalorieMonthStart));
   const displayedCalorieMonthLabel = calorieMonth
     ? formatMonthLabel(parseLocalISO(calorieMonth.monthStart))
@@ -933,6 +932,154 @@ function AnalyticsScreen({
       onNextMonth={() => shiftCalorieMonth(1)}
       onRetry={retryCalorieMonth}
     />
+  );
+  const weightSection = (
+    <>
+      <Text className="text-m3-on-surface font-bold text-base">Weight trend</Text>
+      {chartWeights.length === 0 ? (
+        <View className="py-5 items-center gap-3">
+          <MaterialIcons name="monitor-weight" size={30} color={M3.onSurfaceVariant} />
+          <Text className="text-m3-on-surface font-bold text-sm">No weigh-ins yet</Text>
+          <Pressable
+            onPress={onOpenWeight}
+            className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
+            accessibilityRole="button"
+            accessibilityLabel="Log weight"
+          >
+            <Text className="text-m3-on-primary font-bold text-sm">Log weight</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View className="gap-4">
+          {latestWeight ? (
+            <View className="flex-row flex-wrap gap-5">
+              <InlineMetric
+                label="Trend"
+                value={`${formatWeight(latestWeight.trend_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
+                detail={trendChange == null ? undefined : signedWeight(trendChange, profile.weight_unit)}
+              />
+              <InlineMetric
+                label="Scale"
+                value={`${formatWeight(latestWeight.scale_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
+                detail={displayDate(latestWeight.log_date)}
+              />
+            </View>
+          ) : null}
+          <WeightChart
+            logs={chartWeights}
+            startDate={chartDates.startDate}
+            endDate={chartDates.endDate}
+            height={176}
+            showXAxisLabels
+            targetWeightKg={profile.target_weight_kg}
+            plannedRateKgPerWeek={profile.goal_rate_kg_per_week}
+            planEffectiveDate={target.effective_date}
+            unit={profile.weight_unit}
+          />
+          <WeightChartLegend
+            showGoal={profile.target_weight_kg != null}
+            showPlan={target.effective_date < chartDates.endDate && latestWeight != null}
+          />
+          {latestWeight ? (
+            <>
+              <View className="h-px bg-m3-outline-variant/50" />
+              <View className="gap-1">
+                <View className="flex-row items-center gap-2">
+                  <MaterialIcons name={progressDisplay.icon} size={19} color={progressDisplay.color} />
+                  <Text className="font-semibold text-sm" style={{ color: progressDisplay.color }}>{progressDisplay.title}</Text>
+                </View>
+                {goal.reached ? (
+                  <Text className="text-m3-on-surface-variant text-sm">
+                    Reached {goal.expectedDate}. Open your plan to set a new goal.
+                  </Text>
+                ) : goal.distance != null ? (
+                  <Text className="text-m3-on-surface-variant text-sm tabular-nums">
+                    {goal.distance} to goal{goal.expectedDate != null ? ` · ${goal.expectedDate} at plan pace` : ''}
+                  </Text>
+                ) : null}
+              </View>
+              {goal.reached ? (
+                <Pressable
+                  onPress={() => navigation.navigate('Profile', { screen: 'GoalAndRate' })}
+                  className="self-start min-h-[48px] rounded-full px-4 flex-row items-center gap-2 active:bg-m3-surface-container-high"
+                  accessibilityRole="button"
+                  accessibilityLabel="Open goal and rate settings"
+                >
+                  <MaterialIcons name="tune" size={18} color={M3.onSurface} />
+                  <Text className="text-m3-on-surface text-sm font-semibold">Open plan settings</Text>
+                </Pressable>
+              ) : (
+                <View className="flex-row flex-wrap gap-5">
+                  <InlineMetric
+                    label="Actual"
+                    value={sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : 'Not enough data'}
+                  />
+                  <InlineMetric
+                    label="Plan"
+                    value={signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
+                  />
+                </View>
+              )}
+            </>
+          ) : (
+            <Text className="text-m3-on-surface-variant text-sm text-center">No weigh-ins in this range.</Text>
+          )}
+          <Pressable
+            onPress={onOpenWeight}
+            className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
+            accessibilityRole="button"
+            accessibilityLabel="Add weight check-in"
+          >
+            <Text className="text-m3-on-primary font-bold text-sm">Add weigh-in</Text>
+          </Pressable>
+        </View>
+      )}
+    </>
+  );
+  const caloriesSection = (
+    <>
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="flex-1 min-w-0 gap-0.5">
+          <Text className="text-m3-on-surface font-bold text-base">Calories</Text>
+          <Text className="text-m3-on-surface-variant text-xs">Trend period · {RANGE_LABELS[selectedRange]}</Text>
+        </View>
+        {averageTargetDeltaCopy ? (
+          <View className="rounded-full bg-m3-calories/10 px-3 py-1.5">
+            <Text className="text-m3-calories text-xs font-semibold tabular-nums" numberOfLines={1}>
+              {averageTargetDeltaCopy}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <View className="flex-row flex-wrap gap-5">
+        <InlineMetric
+          label="Average intake"
+          value={averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
+          detail="Logged days only"
+        />
+        <InlineMetric label="Target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
+        <InlineMetric
+          label="TDEE"
+          value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`}
+        />
+      </View>
+      {dailyCalories.length === 0 ? (
+        <View className="py-6 items-center gap-2">
+          <MaterialIcons name="restaurant" size={28} color={M3.onSurfaceVariant} />
+          <Text className="text-m3-on-surface font-bold text-sm">No food logged in this range</Text>
+          <Text className="text-m3-on-surface-variant text-sm">Log a meal to start your intake trend.</Text>
+        </View>
+      ) : (
+        <EnergyChart
+          range={selectedRange}
+          startDate={chartDates.startDate}
+          endDate={chartDates.endDate}
+          dailyCalories={data.dailyCalories}
+          targetHistory={data.targetHistory}
+          height={176}
+        />
+      )}
+    </>
   );
 
   return (
@@ -961,163 +1108,26 @@ function AnalyticsScreen({
             </Text>
           ) : null}
 
-          <View className={isTwoPane ? 'flex-row items-start gap-4' : 'gap-4'}>
-          <View className={isTwoPane ? 'flex-[3] min-w-0 gap-4' : 'gap-4'}>
-          <Card className="p-5 gap-4">
-            <Text className="text-m3-on-surface font-bold text-base">Weight trend</Text>
-
-            {chartWeights.length === 0 ? (
-              <View className="py-5 items-center gap-3">
-                <MaterialIcons name="monitor-weight" size={30} color={M3.onSurfaceVariant} />
-                <Text className="text-m3-on-surface font-bold text-sm">No weigh-ins yet</Text>
-                <Pressable
-                  onPress={onOpenWeight}
-                  className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
-                  accessibilityRole="button"
-                  accessibilityLabel="Log weight"
-                >
-                  <Text className="text-m3-on-primary font-bold text-sm">Log weight</Text>
-                </Pressable>
+          {isTwoPane ? (
+            <View className="flex-row items-start gap-4">
+              <View className="flex-[3] min-w-0">
+                <Card className="p-5 gap-4">{weightSection}</Card>
               </View>
-            ) : (
-              <View className="gap-4">
-                {latestWeight ? (
-                  <View className="flex-row flex-wrap gap-5">
-                    <InlineMetric
-                      label="Trend"
-                      value={`${formatWeight(latestWeight.trend_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                      detail={trendChange == null ? undefined : signedWeight(trendChange, profile.weight_unit)}
-                    />
-                    <InlineMetric
-                      label="Scale"
-                      value={`${formatWeight(latestWeight.scale_weight_kg, profile.weight_unit)} ${profile.weight_unit}`}
-                      detail={displayDate(latestWeight.log_date)}
-                    />
-                  </View>
-                ) : null}
-                <WeightChart
-                  logs={chartWeights}
-                  startDate={chartDates.startDate}
-                  endDate={chartDates.endDate}
-                  height={176}
-                  showXAxisLabels
-                  targetWeightKg={profile.target_weight_kg}
-                  plannedRateKgPerWeek={profile.goal_rate_kg_per_week}
-                  planEffectiveDate={target.effective_date}
-                  unit={profile.weight_unit}
-                />
-                <WeightChartLegend
-                  showGoal={profile.target_weight_kg != null}
-                  showPlan={target.effective_date < chartDates.endDate && latestWeight != null}
-                />
-                {latestWeight ? (
-                  <>
-                    <View className="h-px bg-m3-outline-variant/50" />
-                    <View className="gap-1">
-                      <View className="flex-row items-center gap-2">
-                        <MaterialIcons name={progressDisplay.icon} size={19} color={progressDisplay.color} />
-                        <Text className="font-semibold text-sm" style={{ color: progressDisplay.color }}>{progressDisplay.title}</Text>
-                      </View>
-                      {goal.reached ? (
-                        <Text className="text-m3-on-surface-variant text-sm">
-                          Reached {goal.expectedDate}. Open your plan to set a new goal.
-                        </Text>
-                      ) : goal.distance != null ? (
-                        <Text className="text-m3-on-surface-variant text-sm tabular-nums">
-                          {goal.distance} to goal{goal.expectedDate != null ? ` · ${goal.expectedDate} at plan pace` : ''}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {goal.reached ? (
-                      <Pressable
-                        onPress={() => navigation.navigate('Profile', { screen: 'GoalAndRate' })}
-                        className="self-start min-h-[48px] rounded-full px-4 flex-row items-center gap-2 active:bg-m3-surface-container-high"
-                        accessibilityRole="button"
-                        accessibilityLabel="Open goal and rate settings"
-                      >
-                        <MaterialIcons name="tune" size={18} color={M3.onSurface} />
-                        <Text className="text-m3-on-surface text-sm font-semibold">Open plan settings</Text>
-                      </Pressable>
-                    ) : (
-                      <View className="flex-row flex-wrap gap-5">
-                        <InlineMetric
-                          label="Actual"
-                          value={sufficientProgress && weeklyRate != null ? signedRate(weeklyRate, profile.weight_unit) : 'Not enough data'}
-                        />
-                        <InlineMetric
-                          label="Plan"
-                          value={signedRate(profile.goal_rate_kg_per_week, profile.weight_unit)}
-                        />
-                      </View>
-                    )}
-                  </>
-                ) : (
-                  <Text className="text-m3-on-surface-variant text-sm text-center">No weigh-ins in this range.</Text>
-                )}
-                <Pressable
-                  onPress={onOpenWeight}
-                  className="min-h-[48px] bg-white rounded-full px-6 items-center justify-center active:opacity-80"
-                  accessibilityRole="button"
-                  accessibilityLabel="Add weight check-in"
-                >
-                  <Text className="text-m3-on-primary font-bold text-sm">Add weigh-in</Text>
-                </Pressable>
+              <View className="flex-[2] min-w-0 gap-4">
+                <Card className="p-5 gap-4">{caloriesSection}</Card>
+                <Card className="p-5">{calorieCalendar}</Card>
               </View>
-            )}
-          </Card>
-
-          </View>
-          <View className={isTwoPane ? 'flex-[2] min-w-0 gap-4' : 'gap-4'}>
-
-          <Card className="p-5 gap-4">
-            <View className="flex-row items-start justify-between gap-3">
-              <View className="flex-1 min-w-0 gap-0.5">
-                <Text className="text-m3-on-surface font-bold text-base">Calories</Text>
-                <Text className="text-m3-on-surface-variant text-xs">Trend period · {RANGE_LABELS[selectedRange]}</Text>
-              </View>
-              {averageTargetDeltaCopy ? (
-                <View className="rounded-full bg-m3-calories/10 px-3 py-1.5">
-                  <Text className="text-m3-calories text-xs font-semibold tabular-nums" numberOfLines={1}>
-                    {averageTargetDeltaCopy}
-                  </Text>
-                </View>
-              ) : null}
             </View>
-            <View className="flex-row flex-wrap gap-5">
-              <InlineMetric
-                label="Average intake"
-                value={averageCalories == null ? '—' : `${Math.round(averageCalories).toLocaleString()} kcal`}
-                detail="Logged days only"
-              />
-              <InlineMetric label="Target" value={`${Math.round(target.target_calories).toLocaleString()} kcal`} />
-              <InlineMetric
-                label="TDEE"
-                value={`${Math.round(target.tdee_estimate).toLocaleString()} kcal`}
-              />
+          ) : (
+            <View className="gap-4">
+              <Card className="p-5 gap-4">
+                {weightSection}
+                <View className="h-px bg-m3-outline-variant/50" />
+                {caloriesSection}
+              </Card>
+              <Card className="p-5">{calorieCalendar}</Card>
             </View>
-            {dailyCalories.length === 0 ? (
-              <View className="py-6 items-center gap-2">
-                <MaterialIcons name="restaurant" size={28} color={M3.onSurfaceVariant} />
-                <Text className="text-m3-on-surface font-bold text-sm">No food logged in this range</Text>
-                <Text className="text-m3-on-surface-variant text-sm">Log a meal to start your intake trend.</Text>
-              </View>
-            ) : (
-              <EnergyChart
-                range={selectedRange}
-                startDate={chartDates.startDate}
-                endDate={chartDates.endDate}
-                dailyCalories={data.dailyCalories}
-                targetHistory={data.targetHistory}
-                height={176}
-              />
-            )}
-            </Card>
-            <Card className="p-5">
-              {calorieCalendar}
-            </Card>
-
-          </View>
-          </View>
+          )}
           <Card className="p-5 gap-3">
             <View>
               <Text className="text-m3-on-surface font-bold text-base">Logging consistency</Text>
