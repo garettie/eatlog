@@ -5,6 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { M3 } from '../../theme/tokens';
 import { parseLocalISO } from '../../utils/calendar';
+import { parseSqliteUtcTimestamp } from '../../utils/sqliteTimestamp';
 import { foodIcon } from '../../utils/foodIcons';
 import type { MealCardLayout, MealShareData } from '../../utils/shareCards';
 import {
@@ -17,10 +18,7 @@ import {
 } from './ShareCardPrimitives';
 
 function displayTimestamp(data: MealShareData): string {
-  const hasExplicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(data.loggedAt);
-  const timestampText = data.loggedAt.replace(' ', 'T');
-  const normalized = hasExplicitZone ? timestampText : `${timestampText}Z`;
-  const timestamp = new Date(normalized);
+  const timestamp = parseSqliteUtcTimestamp(data.loggedAt);
   const time = Number.isNaN(timestamp.getTime())
     ? ''
     : timestamp.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });

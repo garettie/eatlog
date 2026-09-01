@@ -30,6 +30,7 @@ import {
   type LastEntry,
 } from '../db/database';
 import { addCalendarDays, todayISO } from '../utils/calendar';
+import { parseSqliteUtcTimestamp } from '../utils/sqliteTimestamp';
 import { targetOverflowProgress } from '../utils/calculations';
 import { useToday } from '../hooks/useToday';
 import { foodIcon } from '../utils/foodIcons';
@@ -191,7 +192,7 @@ function MacroProgress({
 
 function getRelativeTime(loggedAtStr: string): string {
   try {
-    const loggedAt = new Date(loggedAtStr);
+    const loggedAt = parseSqliteUtcTimestamp(loggedAtStr);
     if (Number.isNaN(loggedAt.getTime())) return '';
     const now = new Date();
     const diffMs = now.getTime() - loggedAt.getTime();
