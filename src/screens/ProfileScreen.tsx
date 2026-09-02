@@ -64,7 +64,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     return (
         <View className="gap-3">
             <Text className="text-m3-on-surface-variant text-sm font-semibold px-1">{title}</Text>
-            <View className="rounded-2xl bg-m3-surface-container-high overflow-hidden">{children}</View>
+            <View className="rounded-2xl bg-m3-surface-container-low overflow-hidden">{children}</View>
         </View>
     );
 }

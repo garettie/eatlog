@@ -198,12 +198,19 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Internal Padding:** 20px by default; 24px on high-importance onboarding and completion surfaces.
 - **Diary:** meal-period headers are plain rows; every actual food or meal group is its own clipped entry card. Scanned meal photos are flush left rails; icons are the fallback.
 - **Containment test:** use a card only when content forms an independent group or action. Do not wrap headings, supporting copy, or whole screen sections by default.
+- **Tonal elevation ramp (dark theme):** passive grouping goes low on the ramp, emphasis goes high; never crowd the top two tones with passive containers.
+  - `surface` — screen background.
+  - `surface-container-low` — passive grouping containers (Profile settings groups).
+  - `surface-container` — evidence/content cards that are not the screen's primary decision (Analytics canvas, calendar, logging; Diary entries; Today). This is the `Card` component default.
+  - `surface-container-high` — the single primary emphasis element per screen, and icon chips nested inside low/`container` containers.
+  - `surface-container-highest` — small raised accents nested on a `high` surface (hero metadata footer), and the Analytics decision card (which sits above `container` evidence).
+  - A nested element (icon chip, inset footer) is at least one full step off its immediate parent. Reserve `highest` for accents and the one decision surface, never for a passive container.
 
 ### Composition types
 - **Today:** one dominant calorie instrument, direct macro rails, and a short recent-log path.
 - **Diary:** chronological ledger with meal-period structure and media-led entries.
 - **Analytics:** outcome first, required plan decision second, supporting evidence and history after it. Weight and calorie trends share one canvas card with a hairline divider on compact width; never split correlated charts into separate boxes when they read together.
-- **Profile:** native grouped settings list with current values, `surface-container-high` inset groups (no outer hairline), public support and policy links live inside About; the plan/target summary is the one screen-level card.
+- **Profile:** native grouped settings list with current values, `surface-container-low` inset groups (no outer hairline), public support and policy links live inside About; the plan/target summary is the one screen-level card.
 - **Onboarding and plan review:** one decision per step; target result appears immediately after calculation without simulated work.
 - Shared components preserve semantics. Screens may use purpose-built composition when their jobs differ; consistency must not collapse into repeated card stacks.
 

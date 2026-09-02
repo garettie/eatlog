@@ -51,7 +51,7 @@ export default function ProfileSettingRow({
   return (
     <Pressable
       onPress={onPress}
-      android_ripple={{ color: M3.surfaceContainerHighest }}
+      android_ripple={{ color: M3.surfaceContainer }}
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${detail}`}
       className="min-h-[72px] px-4 flex-row items-center gap-3 active:opacity-70"
