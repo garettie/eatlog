@@ -240,7 +240,11 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                 'X-Eatlog-Install-ID': installId,
                 'X-Eatlog-Request-ID': await createRequestId(payload),
             };
-            if (authorization.ok) headers.Authorization = `Bearer ${authorization.grant}`;
+            // Re-read: consent, the install token, and hashing the payload above can take long
+            // enough on a cold start for a grant that was pending at the top of estimate() to
+            // land during the wait.
+            const latestAuthorization = authorize();
+            if (latestAuthorization.ok) headers.Authorization = `Bearer ${latestAuthorization.grant}`;
             const response = await fetchImpl(`${options.workerUrl}/v1/estimate`, {
                 method: 'POST',
                 headers,

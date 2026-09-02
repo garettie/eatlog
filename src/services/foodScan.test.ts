@@ -327,6 +327,32 @@ test('unresolved access submits once and accepts the Worker grant from the estim
     assert.deepEqual(accepted, [{ token: returnedGrant, expiresAt }]);
 });
 
+test('a grant that lands while consent, install token, and request hashing await still authorizes the request', async () => {
+    let requestHeaders: Record<string, string> | null = null;
+    let authorizeCalls = 0;
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getAiAuthorization: () => {
+            authorizeCalls += 1;
+            return authorizeCalls === 1
+                ? { ok: false, kind: 'entitlement-unavailable' }
+                : { ok: true, grant: 'late-signed-grant' };
+        },
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        requestId: async () => 'request-00000001',
+        fetchImpl: (async (_input, init) => {
+            requestHeaders = init?.headers as Record<string, string>;
+            return jsonResponse(recognizedEstimate());
+        }) as typeof fetch,
+    });
+
+    const result = await client.describeMeal('rice');
+
+    assert.equal(result.ok, true);
+    assert.equal(requestHeaders?.['Authorization'], 'Bearer late-signed-grant');
+});
+
 test('maps each known Worker entitlement and quota code to specific redacted copy', async () => {
     const cases = [
         ['PAID_ACCESS_REQUIRED', 'paid-access-required'],
