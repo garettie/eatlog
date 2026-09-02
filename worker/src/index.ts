@@ -621,6 +621,11 @@ async function refreshRevenueCatAccess(
       headers: { Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`, Accept: 'application/json' },
     }, 8000, 'revenuecat', 'bypass');
     const normalized = normalizeRevenueCatSubscriber(await readUpstreamJson(response, 'revenuecat', 'bypass'), now);
+    // A response we could not parse is not a verdict. Caching it would overwrite the last good
+    // record with a non-answer and take the outage fallback down with it.
+    if (normalized.access.kind === 'pugo' && normalized.access.reason === 'malformed') {
+      throw new Error('unusable RevenueCat response');
+    }
     const paidSubjectIdentity = normalized.subjectIdentity
       ? await hashQuotaIdentity(normalized.subjectIdentity, env.QUOTA_IDENTITY_SALT)
       : null;

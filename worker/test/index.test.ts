@@ -1045,23 +1045,76 @@ test('estimate authorizes inline, reuses cached access, and returns a grant for 
   assert.equal(revenueCatCalls, 2);
 });
 
-test('malformed RevenueCat access fails before parsing private content or calling Gemini', async () => {
-  let geminiCalls = 0;
+test('malformed RevenueCat access with no cached record falls back to provisional Pugo, like an outage', async () => {
   const malformedFetch = (async (input: string | URL | Request) => {
     if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse({ nope: true });
-    geminiCalls += 1;
     return geminiResponse(recognized);
   }) as typeof fetch;
-  const malformed = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
+  const result = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
     'X-Eatlog-Request-ID': 'request-malformed-free',
   }), {
     env: subscriptionEnv(),
     fetchImpl: malformedFetch,
     subscriptionStore: new MemorySubscriptionStore(),
   });
-  assert.equal(malformed.response.status, 503);
-  assert.equal(malformed.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
-  assert.equal(geminiCalls, 0);
+  // A malformed response is not a verdict, so it is not a reason to withhold the free tier
+  // from an install RevenueCat has never confirmed anything about.
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.status, 'recognized');
+});
+
+test('a malformed RevenueCat response cannot overwrite or deny a good cached record', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const online = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => jsonResponse(paidRevenueCat())) as typeof fetch,
+    subscriptionStore: store,
+  });
+  assert.equal(online.response.status, 200);
+  assert.equal(online.body.access.kind, 'manok');
+
+  let geminiCalls = 0;
+  const malformedFetch = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse({ nope: true });
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const stillPaid = await call(request('/v1/access/refresh', 'POST', { force: true }), {
+    env, fetchImpl: malformedFetch, subscriptionStore: store,
+  });
+  assert.equal(stillPaid.response.status, 200);
+  assert.equal(stillPaid.body.access.kind, 'manok');
+
+  const estimate = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    Authorization: `Bearer ${stillPaid.body.grant.token}`,
+    'X-Eatlog-Request-ID': 'request-malformed-preserves-cache',
+  }), { env, fetchImpl: malformedFetch, subscriptionStore: store });
+  assert.equal(estimate.response.status, 200);
+  assert.equal(geminiCalls, 1);
+});
+
+test('a confirmed revoked or expired RevenueCat response still overwrites the cache and denies', async () => {
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const online = await call(request('/v1/access/refresh', 'POST', {}), {
+    env,
+    fetchImpl: (async () => jsonResponse(paidRevenueCat())) as typeof fetch,
+    subscriptionStore: store,
+  });
+  assert.equal(online.response.status, 200);
+  assert.equal(online.body.access.kind, 'manok');
+
+  const revokedFetch = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+  const revoked = await call(request('/v1/access/refresh', 'POST', { force: true }), {
+    env, fetchImpl: revokedFetch, subscriptionStore: store,
+  });
+  assert.equal(revoked.response.status, 200);
+  assert.equal(revoked.body.access.kind, 'pugo');
 });
 
 test('an unreachable RevenueCat grants Pugo quota instead of blocking a free estimate', async () => {
