@@ -1,10 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS, useSharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Animated, {
+  runOnJS,
+  useAnimatedProps,
+  useDerivedValue,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { DailyTarget } from '../db/database';
+import { DURATION, EASING } from '../theme/motion';
 import { M3, TYPE } from '../theme/tokens';
 import {
   DailyEnergy,
@@ -24,27 +32,54 @@ interface EnergyChartProps {
 }
 
 const DAY_MS = 86_400_000;
+const AnimatedLine = Animated.createAnimatedComponent(Line);
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
 
 function dayNumber(dateISO: string): number {
   const [year, month, day] = dateISO.split('-').map(Number);
   return Date.UTC(year, month - 1, day) / DAY_MS;
 }
 
+function chartX(
+  day: number,
+  startDay: number,
+  endDay: number,
+  left: number,
+  plotWidth: number,
+): number {
+  'worklet';
+  return left + (day - startDay) / Math.max(1, endDay - startDay) * plotWidth;
+}
+
+function chartY(value: number, yMax: number, top: number, plotHeight: number): number {
+  'worklet';
+  return top + (yMax - value) / Math.max(1, yMax) * plotHeight;
+}
+
 function linePath(
   points: readonly EnergyHistoryPoint[],
-  value: (point: EnergyHistoryPoint) => number | null,
-  x: (point: EnergyHistoryPoint) => number,
-  y: (value: number) => number,
+  pointDays: readonly number[],
+  startDay: number,
+  endDay: number,
+  yMax: number,
+  left: number,
+  top: number,
+  plotWidth: number,
+  plotHeight: number,
 ): string {
+  'worklet';
   let path = '';
   let drawing = false;
-  for (const point of points) {
-    const next = value(point);
+  for (let index = 0; index < points.length; index += 1) {
+    const next = points[index].intakeTrendCalories;
     if (next == null) {
       drawing = false;
       continue;
     }
-    path += `${drawing ? 'L' : 'M'} ${x(point)} ${y(next)} `;
+    const x = chartX(pointDays[index], startDay, endDay, left, plotWidth);
+    const y = chartY(next, yMax, top, plotHeight);
+    path += `${drawing ? 'L' : 'M'} ${x} ${y} `;
     drawing = true;
   }
   return path;
@@ -52,26 +87,64 @@ function linePath(
 
 function stepPath(
   points: readonly EnergyHistoryPoint[],
-  value: (point: EnergyHistoryPoint) => number | null,
-  x: (point: EnergyHistoryPoint) => number,
-  y: (value: number) => number,
+  pointDays: readonly number[],
+  valueKey: 'targetCalories' | 'expenditureCalories',
+  startDay: number,
+  endDay: number,
+  yMax: number,
+  left: number,
+  top: number,
+  plotWidth: number,
+  plotHeight: number,
 ): string {
+  'worklet';
   let path = '';
   let previousValue: number | null = null;
-  for (const point of points) {
-    const next = value(point);
+  for (let index = 0; index < points.length; index += 1) {
+    const next = points[index][valueKey];
     if (next == null) {
       previousValue = null;
       continue;
     }
-    const nextX = x(point);
-    const nextY = y(next);
+    const x = chartX(pointDays[index], startDay, endDay, left, plotWidth);
+    const y = chartY(next, yMax, top, plotHeight);
     if (previousValue == null) {
-      path += `M ${nextX} ${nextY} `;
+      path += `M ${x} ${y} `;
     } else {
-      path += `L ${nextX} ${y(previousValue)} L ${nextX} ${nextY} `;
+      path += `L ${x} ${chartY(previousValue, yMax, top, plotHeight)} L ${x} ${y} `;
     }
     previousValue = next;
+  }
+  return path;
+}
+
+function barsPath(
+  points: readonly EnergyHistoryPoint[],
+  pointDays: readonly number[],
+  startDay: number,
+  endDay: number,
+  yMax: number,
+  left: number,
+  top: number,
+  plotWidth: number,
+  plotHeight: number,
+): string {
+  'worklet';
+  let path = '';
+  const barSlot = plotWidth / Math.max(1, points.length);
+  const barWidth = Math.max(2, Math.min(10, barSlot * 0.62));
+  const radius = Math.min(2, barWidth / 2);
+  const chartBottom = top + plotHeight;
+  for (let index = 0; index < points.length; index += 1) {
+    const value = points[index].averageCalories;
+    if (value == null) continue;
+    const centerX = chartX(pointDays[index], startDay, endDay, left, plotWidth);
+    const x = centerX - barWidth / 2;
+    const y = chartY(value, yMax, top, plotHeight);
+    const barHeight = chartBottom - y;
+    if (barHeight <= 0) continue;
+    const r = Math.min(radius, barHeight / 2);
+    path += `M ${x + r} ${y} H ${x + barWidth - r} A ${r} ${r} 0 0 1 ${x + barWidth} ${y + r} V ${chartBottom - r} A ${r} ${r} 0 0 1 ${x + barWidth - r} ${chartBottom} H ${x + r} A ${r} ${r} 0 0 1 ${x} ${chartBottom - r} V ${y + r} A ${r} ${r} 0 0 1 ${x + r} ${y} Z `;
   }
   return path;
 }
@@ -120,6 +193,7 @@ function EnergyChart({
   targetHistory,
   height,
 }: EnergyChartProps) {
+  const reduced = useReducedMotion();
   const [width, setWidth] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const selectedIndexRef = useRef<number | null>(null);
@@ -147,26 +221,121 @@ function EnergyChart({
     () => model.points.map((point) => (dayNumber(point.startDate) + dayNumber(point.endDate)) / 2),
     [model.points],
   );
-  const xForDay = (day: number) => left
-    + (day - startDay) / Math.max(1, endDay - startDay) * plotWidth;
-  const xForPoint = (point: EnergyHistoryPoint) => (
-    xForDay((dayNumber(point.startDate) + dayNumber(point.endDate)) / 2)
-  );
-  const yForValue = (value: number) => top + (yMax - value) / yMax * plotHeight;
-  const barSlot = plotWidth / Math.max(1, model.points.length);
-  const barWidth = Math.max(2, Math.min(10, barSlot * 0.62));
-  const intakePath = linePath(model.points, (point) => point.intakeTrendCalories, xForPoint, yForValue);
-  const targetPath = stepPath(model.points, (point) => point.targetCalories, xForPoint, yForValue);
-  const expenditurePath = stepPath(model.points, (point) => point.expenditureCalories, xForPoint, yForValue);
-  const currentTarget = [...targetHistory]
-    .filter((target) => target.effective_date <= endDate)
-    .sort((a, b) => b.effective_date.localeCompare(a.effective_date) || b.id - a.id)[0];
+
+  const animatedStartDay = useSharedValue(startDay);
+  const animatedEndDay = useSharedValue(endDay);
+  const animatedYMax = useSharedValue(yMax);
 
   useEffect(() => {
     scrubbedIndex.value = -1;
     selectedIndexRef.current = null;
     setSelectedIndex(null);
   }, [endDate, range, scrubbedIndex, startDate]);
+
+  useEffect(() => {
+    const config = {
+      duration: reduced ? 0 : DURATION.medium,
+      easing: EASING.emphasized,
+    };
+    animatedStartDay.value = withTiming(startDay, config);
+    animatedEndDay.value = withTiming(endDay, config);
+    animatedYMax.value = withTiming(yMax, config);
+  }, [animatedEndDay, animatedStartDay, animatedYMax, endDay, reduced, startDay, yMax]);
+
+  const animatedPaths = useDerivedValue(() => ({
+    bars: barsPath(
+      model.points,
+      pointDays,
+      animatedStartDay.value,
+      animatedEndDay.value,
+      animatedYMax.value,
+      left,
+      top,
+      plotWidth,
+      plotHeight,
+    ),
+    intake: linePath(
+      model.points,
+      pointDays,
+      animatedStartDay.value,
+      animatedEndDay.value,
+      animatedYMax.value,
+      left,
+      top,
+      plotWidth,
+      plotHeight,
+    ),
+    target: stepPath(
+      model.points,
+      pointDays,
+      'targetCalories',
+      animatedStartDay.value,
+      animatedEndDay.value,
+      animatedYMax.value,
+      left,
+      top,
+      plotWidth,
+      plotHeight,
+    ),
+    expenditure: stepPath(
+      model.points,
+      pointDays,
+      'expenditureCalories',
+      animatedStartDay.value,
+      animatedEndDay.value,
+      animatedYMax.value,
+      left,
+      top,
+      plotWidth,
+      plotHeight,
+    ),
+  }));
+
+  const barsProps = useAnimatedProps(() => ({
+    d: animatedPaths.value.bars,
+  }));
+  const intakeProps = useAnimatedProps(() => ({
+    d: animatedPaths.value.intake,
+  }));
+  const targetProps = useAnimatedProps(() => ({
+    d: animatedPaths.value.target,
+  }));
+  const expenditureProps = useAnimatedProps(() => ({
+    d: animatedPaths.value.expenditure,
+  }));
+
+  const tickPositions = useDerivedValue(() => ({
+    top: chartY(yMax, animatedYMax.value, top, plotHeight),
+    middle: chartY(yMax / 2, animatedYMax.value, top, plotHeight),
+    bottom: chartY(0, animatedYMax.value, top, plotHeight),
+  }));
+  const gridTopProps = useAnimatedProps(() => ({
+    y1: tickPositions.value.top,
+    y2: tickPositions.value.top,
+  }));
+  const gridMidProps = useAnimatedProps(() => ({
+    y1: tickPositions.value.middle,
+    y2: tickPositions.value.middle,
+  }));
+  const gridBottomProps = useAnimatedProps(() => ({
+    y1: tickPositions.value.bottom,
+    y2: tickPositions.value.bottom,
+  }));
+  const tickTopProps = useAnimatedProps(() => ({
+    y: tickPositions.value.top + 3.5,
+  }));
+  const tickMidProps = useAnimatedProps(() => ({
+    y: tickPositions.value.middle + 3.5,
+  }));
+  const tickBottomProps = useAnimatedProps(() => ({
+    y: tickPositions.value.bottom + 3.5,
+  }));
+
+  const yForValueStatic = (value: number) => chartY(value, yMax, top, plotHeight);
+  const xForDay = (day: number) => chartX(day, startDay, endDay, left, plotWidth);
+  const currentTarget = [...targetHistory]
+    .filter((target) => target.effective_date <= endDate)
+    .sort((a, b) => b.effective_date.localeCompare(a.effective_date) || b.id - a.id)[0];
 
   const selectPoint = useCallback((index: number) => {
     const nextIndex = index < 0 || selectedIndexRef.current === index ? null : index;
@@ -212,7 +381,7 @@ function EnergyChart({
   const selectedX = selectedIndex == null ? 0 : xForDay(pointDays[selectedIndex]);
   const selectedY = selectedPoint?.averageCalories == null
     ? top + plotHeight
-    : yForValue(selectedPoint.averageCalories);
+    : yForValueStatic(selectedPoint.averageCalories);
   const tooltipWidth = 172;
   const tooltipLeft = Math.max(left, Math.min(selectedX - tooltipWidth / 2, width - right - tooltipWidth));
   const tooltipTop = selectedY > 82 ? selectedY - 76 : selectedY + 12;
@@ -249,44 +418,44 @@ function EnergyChart({
         >
           {width > 0 ? (
             <Svg width={width} height={height} accessible={false}>
-              {[yMax, yMax / 2, 0].map((tick, index) => {
-                const y = top + index * plotHeight / 2;
-                return (
-                  <React.Fragment key={index}>
-                    <Line x1={left} x2={width - right} y1={y} y2={y} stroke={M3.outlineVariant} strokeWidth={1} />
-                    <SvgText
-                      x={left - 7}
-                      y={y + 3.5}
-                      fill={M3.onSurfaceVariant}
-                      fontSize={TYPE.compact.fontSize}
-                      fontFamily={TYPE.family.regular}
-                      textAnchor="end"
-                    >
-                      {Math.round(tick).toLocaleString()}
-                    </SvgText>
-                  </React.Fragment>
-                );
-              })}
-              {model.points.map((point) => {
-                if (point.averageCalories == null) return null;
-                const x = xForPoint(point) - barWidth / 2;
-                const y = yForValue(point.averageCalories);
-                return (
-                  <Rect
-                    key={point.startDate}
-                    x={x}
-                    y={y}
-                    width={barWidth}
-                    height={top + plotHeight - y}
-                    rx={Math.min(2, barWidth / 2)}
-                    fill={M3.calories}
-                    opacity={0.68}
-                  />
-                );
-              })}
-              <Path d={targetPath} fill="none" stroke={M3.calories} strokeWidth={1.5} strokeDasharray="5 4" />
-              <Path d={expenditurePath} fill="none" stroke={M3.expenditure} strokeWidth={1.5} strokeDasharray="2 4" />
-              <Path d={intakePath} fill="none" stroke={M3.onSurface} strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round" />
+              <AnimatedLine x1={left} x2={width - right} animatedProps={gridTopProps} stroke={M3.outlineVariant} strokeWidth={1} />
+              <AnimatedSvgText
+                x={left - 7}
+                animatedProps={tickTopProps}
+                fill={M3.onSurfaceVariant}
+                fontSize={TYPE.compact.fontSize}
+                fontFamily={TYPE.family.regular}
+                textAnchor="end"
+              >
+                {Math.round(yMax).toLocaleString()}
+              </AnimatedSvgText>
+              <AnimatedLine x1={left} x2={width - right} animatedProps={gridMidProps} stroke={M3.outlineVariant} strokeWidth={1} />
+              <AnimatedSvgText
+                x={left - 7}
+                animatedProps={tickMidProps}
+                fill={M3.onSurfaceVariant}
+                fontSize={TYPE.compact.fontSize}
+                fontFamily={TYPE.family.regular}
+                textAnchor="end"
+              >
+                {Math.round(yMax / 2).toLocaleString()}
+              </AnimatedSvgText>
+              <AnimatedLine x1={left} x2={width - right} animatedProps={gridBottomProps} stroke={M3.outlineVariant} strokeWidth={1} />
+              <AnimatedSvgText
+                x={left - 7}
+                animatedProps={tickBottomProps}
+                fill={M3.onSurfaceVariant}
+                fontSize={TYPE.compact.fontSize}
+                fontFamily={TYPE.family.regular}
+                textAnchor="end"
+              >
+                0
+              </AnimatedSvgText>
+
+              <AnimatedPath animatedProps={barsProps} fill={M3.calories} opacity={0.68} />
+              <AnimatedPath animatedProps={targetProps} fill="none" stroke={M3.calories} strokeWidth={1.5} strokeDasharray="5 4" />
+              <AnimatedPath animatedProps={expenditureProps} fill="none" stroke={M3.expenditure} strokeWidth={1.5} strokeDasharray="2 4" />
+              <AnimatedPath animatedProps={intakeProps} fill="none" stroke={M3.onSurface} strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round" />
               {selectedPoint ? (
                 <>
                   <Line

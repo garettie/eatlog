@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Pressable, Text } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
-  Easing,
   FadeIn,
   runOnJS,
   useAnimatedStyle,
@@ -13,6 +12,8 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { M3 } from '../theme/tokens';
+import { DURATION, EASING } from '../theme/motion';
+import { haptics } from '../utils/haptics';
 
 export type LogToastTone = 'success' | 'neutral' | 'error';
 
@@ -44,7 +45,7 @@ function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: Log
     clearTimer();
     opacity.value = withTiming(
       0,
-      { duration: reduced ? 0 : 250, easing: Easing.bezier(0.33, 1, 0.68, 1) },
+      { duration: reduced ? 0 : DURATION.toast, easing: EASING.decelerate },
       () => runOnJS(hide)()
     );
   }, [clearTimer, hide, reduced]);
@@ -65,6 +66,10 @@ function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: Log
     };
   }, [message, resolvedDurationMs, dismiss]);
 
+  useEffect(() => {
+    if (tone === 'error') haptics.warn();
+  }, [message, tone]);
+
   const handleUndo = useCallback(async () => {
     if (dismissed.value || !onUndo) return;
     dismissed.value = true;
@@ -72,6 +77,7 @@ function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: Log
     try {
       await onUndo();
       onHide();
+      haptics.tap();
     } catch {
       dismissed.value = false;
     }
@@ -89,14 +95,14 @@ function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: Log
       if (Math.abs(e.translationX) > 80 && !dismissed.value) {
         dismissed.value = true;
         runOnJS(clearTimer)();
-        translateX.value = withTiming(e.translationX > 0 ? 500 : -500, { duration: reduced ? 0 : 200 });
-        opacity.value = withTiming(0, { duration: reduced ? 0 : 200 }, () => runOnJS(hide)());
+        translateX.value = withTiming(e.translationX > 0 ? 500 : -500, { duration: reduced ? 0 : DURATION.short });
+        opacity.value = withTiming(0, { duration: reduced ? 0 : DURATION.short }, () => runOnJS(hide)());
       } else if (!dismissed.value) {
         translateX.value = withTiming(
           0,
-          { duration: reduced ? 0 : 200, easing: Easing.bezier(0.33, 1, 0.68, 1) }
+          { duration: reduced ? 0 : DURATION.short, easing: EASING.decelerate }
         );
-        opacity.value = withTiming(1, { duration: reduced ? 0 : 200 });
+        opacity.value = withTiming(1, { duration: reduced ? 0 : DURATION.short });
       }
     });
 
@@ -111,7 +117,7 @@ function LogToast({ message, tone = 'neutral', onUndo, onHide, durationMs }: Log
     <GestureDetector gesture={pan}>
       <Animated.View
         style={animatedStyle}
-        entering={reduced ? undefined : FadeIn.duration(200)}
+        entering={reduced ? undefined : FadeIn.duration(DURATION.short)}
         accessibilityLiveRegion="polite"
         className="bg-m3-surface-container-highest rounded-2xl px-4 py-3.5 flex-row items-center border border-m3-outline-variant/30"
       >

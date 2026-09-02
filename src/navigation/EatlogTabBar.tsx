@@ -3,10 +3,10 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 
 import { M3 } from '../theme/tokens';
 import { NAVIGATION_RAIL_WIDTH, useResponsiveLayout } from '../theme/layout';
+import { haptics } from '../utils/haptics';
 
 const tabIcons = {
   Today: 'grid-view',
@@ -27,7 +27,7 @@ function EatlogTabBar({ state, descriptors, navigation, onAddEntry, accessibilit
 
   const handleAddEntry = useCallback(() => {
     onAddEntry();
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptics.tap();
   }, [onAddEntry]);
 
   const leadingRoutes = state.routes.slice(0, 2);

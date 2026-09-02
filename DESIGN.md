@@ -235,6 +235,13 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Calorie Ring and Toggle:** white ring on a tonal track, darker off-white overflow refill, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
 - **Ruler Slider:** horizontal-only gesture capture; height uses 8px per unit and tenths use 20px per unit; direct entry is always available; adjustable accessibility actions increment/decrement by the configured step.
 
+### Motion and haptics
+- **Tokens only.** Every Reanimated timing/entering uses `DURATION`/`EASING` from `src/theme/motion.ts`; no inline `Easing.bezier` or magic-number durations. Settle motions (calorie ring, macro bars, toast) use `EASING.decelerate`.
+- **Ranges.** Normal transitions 200–400ms; the calorie ring is the signature 550ms exception. All motion is reduced-motion gated (snaps to the end state).
+- **Charts morph.** Analytics charts morph their coordinate domain in place on range change; never fade, slide, or remount. Applies to both WeightChart and EnergyChart.
+- **Calorie ring.** White arc on a tonal track with animated dashoffset and a UI-thread count-up center number. No gradient, no celebration.
+- **Haptic vocabulary** (`src/utils/haptics.ts`, functional only, never celebratory): `select` (scrub/toggle/ruler), `tap` (navigation/open-sheet/FAB/undo), `confirm` (entry logged/saved — a Medium impact, not a notification fanfare), `warn` (recoverable error).
+
 ## Profile and Settings
 
 Profile uses the same Operate mode as the rest of Eatlog. It should feel like an instrument panel for the owner, not an account center. There is no account avatar upload, subscription card, gamification summary, or generic preference dump.
@@ -301,6 +308,7 @@ Profile uses the same Operate mode as the rest of Eatlog. It should feel like an
 - **Do** use `surface-container` for cards, `surface-container-high` for fields/tracks, and `surface-container-highest` for selected internal states.
 - **Do** use 12px inputs, 16px entry cards, 24px screen cards, and full pills for actions/segmented controls.
 - **Do** gate every Reanimated timing/entering motion through reduced-motion behavior; normal transitions stay in the 200–400ms range.
+- **Do** route every animation through motion tokens and every haptic through the haptic vocabulary; no inline easings or ad-hoc Haptics calls.
 - **Do** keep diary food names semantic: show a stored scan thumbnail when available, otherwise use the deterministic food icon map.
 - **Do** reserve a fixed right-side numeric column in diary entry rows; names wrap to two lines rather than colliding with kcal figures.
 - **Do** use the same photo-first entry vocabulary across Dashboard, Diary Entry Bar, and Food Sheet.

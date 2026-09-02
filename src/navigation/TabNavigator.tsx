@@ -4,7 +4,6 @@ import { AppState, Platform, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps, type BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import DiaryScreen from '../screens/DiaryScreen';
@@ -17,6 +16,7 @@ import type { MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
 import { deleteFoodLog, deleteMeal, restoreWeightSave, type MealType } from '../db/database';
 import { formatDayHeader, normalizeLogDateInput, todayISO } from '../utils/calendar';
+import { haptics } from '../utils/haptics';
 import { foodResultFromLog } from '../services/foodSearchCore';
 import type { DescribeResult } from '../services/foodScan';
 import EatlogTabBar from './EatlogTabBar';
@@ -234,7 +234,7 @@ export default function TabNavigator({ route }: NativeStackScreenProps<RootStack
     const handleMealLogged = useCallback(
         (info: LoggedEntryInfo) => {
             setDataVersion((v) => v + 1);
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            haptics.confirm();
             const dateSuffix = info.logDate && info.logDate !== todayISO()
                 ? ` · ${formatDayHeader(info.logDate)}`
                 : '';
@@ -260,7 +260,7 @@ export default function TabNavigator({ route }: NativeStackScreenProps<RootStack
 
     const handleWeightLogged = useCallback((info: WeightLoggedInfo) => {
         setDataVersion((version) => version + 1);
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        haptics.confirm();
         const dateSuffix = info.logDate === todayISO() ? 'Today' : formatDayHeader(info.logDate);
         setToast({
             message: `${info.wasUpdate ? 'Weight updated' : 'Weight logged'} · ${dateSuffix}`,

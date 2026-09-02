@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import Animated, {
-  Easing,
   FadeIn,
   useAnimatedProps,
   useAnimatedStyle,
@@ -17,7 +16,6 @@ import Svg, { Circle } from 'react-native-svg';
 import Card from '../components/Card';
 import LoggingHeatmap from '../components/LoggingHeatmap';
 import SegmentedControl from '../components/SegmentedControl';
-import * as Haptics from 'expo-haptics';
 import {
   getProfile,
   getDailyTargetForDate,
@@ -34,11 +32,77 @@ import { parseSqliteUtcTimestamp } from '../utils/sqliteTimestamp';
 import { targetOverflowProgress } from '../utils/calculations';
 import { useToday } from '../hooks/useToday';
 import { foodIcon } from '../utils/foodIcons';
-import { M3 } from '../theme/tokens';
+import { M3, TYPE } from '../theme/tokens';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
+import { DURATION, EASING } from '../theme/motion';
+import { haptics } from '../utils/haptics';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+function formatGrouped(n: number): string {
+  'worklet';
+  const value = Math.round(Math.max(0, n));
+  const source = String(value);
+  let result = '';
+  let count = 0;
+  for (let index = source.length - 1; index >= 0; index--) {
+    result = source.charAt(index) + result;
+    count += 1;
+    if (count % 3 === 0 && index > 0) result = ',' + result;
+  }
+  return result;
+}
+
+function CountUpNumber({ value }: { value: number }) {
+  const reduced = useReducedMotion();
+  const animatedValue = useSharedValue(value);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    if (!mounted.current || reduced) {
+      animatedValue.value = value;
+      mounted.current = true;
+      return;
+    }
+    animatedValue.value = withTiming(value, {
+      duration: DURATION.ring,
+      easing: EASING.decelerate,
+    });
+  }, [animatedValue, reduced, value]);
+
+  const animatedProps = useAnimatedProps(() => ({
+    text: formatGrouped(animatedValue.value),
+  }) as any);
+
+  return (
+    <AnimatedTextInput
+      editable={false}
+      caretHidden
+      underlineColorAndroid="transparent"
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      defaultValue={formatGrouped(value)}
+      animatedProps={animatedProps}
+      style={{
+        fontFamily: TYPE.family.bold,
+        fontWeight: '400',
+        fontSize: 36,
+        lineHeight: 40,
+        color: M3.onSurface,
+        letterSpacing: -0.5,
+        fontVariant: ['tabular-nums'],
+        padding: 0,
+        margin: 0,
+        textAlign: 'center',
+        ...(Platform.OS === 'android'
+          ? { includeFontPadding: false, textAlignVertical: 'center' as const }
+          : null),
+      }}
+    />
+  );
+}
 
 // ── Ring Constants ────────────────────────────────────────────────────────
 
@@ -55,7 +119,7 @@ function CircularProgress({ progress, overflow }: { progress: number; overflow: 
   const overflowSv = useSharedValue(0);
 
   useEffect(() => {
-    const timing = { duration: reduced ? 0 : 550, easing: Easing.bezier(0.33, 1, 0.68, 1) };
+    const timing = { duration: reduced ? 0 : DURATION.ring, easing: EASING.decelerate };
     progressSv.value = withTiming(Math.min(1, Math.max(0, progress)), timing);
     overflowSv.value = withTiming(Math.min(1, Math.max(0, overflow)), timing);
   }, [overflow, overflowSv, progress, progressSv, reduced]);
@@ -139,7 +203,7 @@ function MacroProgress({
   const overflowPctSV = useSharedValue(0);
 
   useEffect(() => {
-    const timing = { duration: reduced ? 0 : 350, easing: Easing.bezier(0.33, 1, 0.68, 1) };
+    const timing = { duration: reduced ? 0 : DURATION.bar, easing: EASING.decelerate };
     barPctSV.value = withTiming(pct, timing);
     overflowPctSV.value = withTiming(overflowPct, timing);
   }, [barPctSV, overflowPct, overflowPctSV, pct, reduced]);
@@ -271,13 +335,15 @@ function DashboardScreen({
     const queued = loadQueueRef.current.catch(() => {}).then(async () => {
       try {
         const today = todayISO();
-        const prof = await getProfile();
-        const targ = await getDailyTargetForDate(today);
-        const rFood = await getMostRecentEntry();
-        const tMacros = await getTodayMacros(today);
         const historyStart = addCalendarDays(today, -29);
-        const wLogs = await getWeightLogsByDateRange(historyStart, today);
-        const calorieDays = await getDailyCaloriesByDateRange(historyStart, today);
+        const [prof, targ, rFood, tMacros, wLogs, calorieDays] = await Promise.all([
+          getProfile(),
+          getDailyTargetForDate(today),
+          getMostRecentEntry(),
+          getTodayMacros(today),
+          getWeightLogsByDateRange(historyStart, today),
+          getDailyCaloriesByDateRange(historyStart, today),
+        ]);
 
         setProfile(prof);
         setTarget(targ);
@@ -443,7 +509,7 @@ function DashboardScreen({
       >
         <ResponsiveContent maxWidth={APP_MAX_WIDTH}>
         <Animated.View
-          entering={reduced ? undefined : FadeIn.duration(200)}
+          entering={reduced ? undefined : FadeIn.duration(DURATION.short)}
           className="gap-4"
         >
           {/* ── Header ── */}
@@ -523,9 +589,7 @@ function DashboardScreen({
                   accessibilityLabel={`${ringValue.toLocaleString()} kilocalories ${showRemaining ? 'remaining' : 'consumed'}`}
                 >
                   <View className="flex-row items-baseline gap-1">
-                    <Text className="text-m3-on-surface font-bold text-4xl tabular-nums tracking-tight">
-                      {ringValue.toLocaleString()}
-                    </Text>
+                    <CountUpNumber value={ringValue} />
                   </View>
                   <Text className="text-m3-on-surface-variant text-sm font-medium mt-0.5">
                     {showRemaining ? 'Remaining' : 'Consumed'}
@@ -626,7 +690,7 @@ function DashboardScreen({
                 value={showRemaining ? 'remaining' : 'consumed'}
                 onChange={(value) => {
                   setShowRemaining(value === 'remaining');
-                  void Haptics.selectionAsync();
+                  haptics.select();
                 }}
               />
             </View>

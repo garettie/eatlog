@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PanResponder, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
 
 import { M3 } from '../theme/tokens';
+import { haptics } from '../utils/haptics';
 
 interface RulerSliderProps {
   value: number;
@@ -85,7 +85,7 @@ export default function RulerSlider({
     const now = Date.now();
     if (now - lastHapticAtRef.current >= 35) {
       lastHapticAtRef.current = now;
-      void Haptics.selectionAsync();
+      haptics.select();
     }
   }
 
