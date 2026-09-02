@@ -96,7 +96,20 @@ export interface FoodEstimateClientOptions {
     requestId?: (payload: string) => string | Promise<string>;
 }
 
-function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
+const RESET_KINDS = new Set<FoodEstimationFailureKind>([
+    'pugo-daily-limit',
+    'trial-daily-limit',
+    'fair-use-daily-limit',
+]);
+
+function formatResetTime(nextEligibleAt: string | null | undefined): string | null {
+    if (!nextEligibleAt) return null;
+    const date = new Date(nextEligibleAt);
+    if (!Number.isFinite(date.getTime())) return null;
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null): FoodEstimationResult {
     const messages: Record<FoodEstimationFailureKind, string> = {
         unavailable: 'Estimates are unavailable in this build.',
         'consent-required': 'Enable online estimates to use this.',
@@ -114,7 +127,11 @@ function failure(kind: FoodEstimationFailureKind): FoodEstimationResult {
         'invalid-response': 'The estimation service returned an unusable result. Try again or enter it manually.',
         unrecognized: 'No usable food was recognized. Try a clearer photo or a more specific description.',
     };
-    return { ok: false, kind, message: messages[kind] };
+    const resetTime = RESET_KINDS.has(kind) ? formatResetTime(nextEligibleAt) : null;
+    const message = resetTime
+        ? messages[kind].replace(/Try again (?:after|when)[^.]*\./, `Try again after ${resetTime}.`)
+        : messages[kind];
+    return { ok: false, kind, message };
 }
 
 function titleCaseWord(word: string): string {
@@ -254,7 +271,12 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             if (!response.ok) {
                 if ((response.headers.get('content-type') ?? '').includes('application/json')) {
                     let code: unknown;
-                    try { code = ((await response.json()) as { error?: { code?: unknown } }).error?.code; } catch { code = null; }
+                    let nextEligibleAt: unknown;
+                    try {
+                        const body = (await response.json()) as { error?: { code?: unknown; nextEligibleAt?: unknown } };
+                        code = body.error?.code;
+                        nextEligibleAt = body.error?.nextEligibleAt;
+                    } catch { code = null; }
                     const mapping: Record<string, FoodEstimationFailureKind> = {
                         PAID_ACCESS_REQUIRED: 'paid-access-required',
                         PUGO_DAILY_LIMIT: 'pugo-daily-limit',
@@ -265,7 +287,9 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                         REFUND_DAILY_LIMIT: 'refund-daily-limit',
                         ENTITLEMENT_UNAVAILABLE: 'entitlement-unavailable',
                     };
-                    if (typeof code === 'string' && mapping[code]) return failure(mapping[code]);
+                    if (typeof code === 'string' && mapping[code]) {
+                        return failure(mapping[code], typeof nextEligibleAt === 'string' ? nextEligibleAt : null);
+                    }
                 }
                 return failure('provider');
             }

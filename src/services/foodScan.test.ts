@@ -382,6 +382,30 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
     }
 });
 
+test('a rolling daily limit surfaces the actual reset time from the Worker instead of a static string', async () => {
+    const cases = [
+        ['PUGO_DAILY_LIMIT', 'pugo-daily-limit'],
+        ['TRIAL_DAILY_LIMIT', 'trial-daily-limit'],
+        ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
+    ] as const;
+    const nextEligibleAt = new Date('2026-08-22T21:00:00.000Z').toISOString();
+    const expectedTime = new Date(nextEligibleAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    for (const [code, kind] of cases) {
+        const client = createAcceptedClient({
+            workerUrl: 'https://food.example.workers.dev',
+            getInstallationToken: () => TOKEN,
+            fetchImpl: (async () => jsonResponse({ error: { code, message: 'raw provider transaction', nextEligibleAt } }, 429)) as typeof fetch,
+        });
+        const result = await client.describeMeal('rice');
+        assert.equal(result.ok, false);
+        if (!result.ok) {
+            assert.equal(result.kind, kind);
+            assert.equal(result.message.includes(expectedTime), true);
+            assert.equal(result.message.includes('it resets') || result.message.includes('the window resets'), false);
+        }
+    }
+});
+
 test('identity failure and malformed injected tokens fail closed without upload or token leakage', async () => {
     const rawToken = 'fedcba9876543210fedcba9876543210';
     let fetches = 0;
