@@ -21,6 +21,7 @@ interface SubscriptionApiOptions {
   workerUrl: string;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  timeoutMs?: number;
 }
 
 export interface PaidAccessStore {
@@ -177,18 +178,32 @@ export function getAiAuthorization(now = Date.now()):
 export function createSubscriptionApi(options: SubscriptionApiOptions) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? Date.now;
+  const timeoutMs = options.timeoutMs ?? 15000;
 
   async function refresh(installId: string, force = false): Promise<AccessRefreshResult> {
     if (!options.workerUrl) throw new Error('Subscription service unavailable.');
-    const response = await fetchImpl(`${options.workerUrl}/v1/access/refresh`, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-Eatlog-Install-ID': installId,
-      },
-      body: JSON.stringify(force ? { force: true } : {}),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response: Response;
+    try {
+      response = await fetchImpl(`${options.workerUrl}/v1/access/refresh`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-Eatlog-Install-ID': installId,
+        },
+        body: JSON.stringify(force ? { force: true } : {}),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Subscription service unavailable.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) {
       throw new Error('Subscription service unavailable.');
     }
@@ -207,9 +222,22 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
   async function usage(): Promise<EatlogUsage> {
     const authorization = getAiAuthorization(now());
     if (!authorization.ok) return { kind: 'none' };
-    const response = await fetchImpl(`${options.workerUrl}/v1/usage`, {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${authorization.grant}` },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let response: Response;
+    try {
+      response = await fetchImpl(`${options.workerUrl}/v1/usage`, {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${authorization.grant}` },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Usage unavailable.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!response.ok || !(response.headers.get('content-type') ?? '').includes('application/json')) {
       throw new Error('Usage unavailable.');
     }

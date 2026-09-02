@@ -176,6 +176,30 @@ test('a contradictory Worker refresh cannot replace verified local paid access',
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
 });
 
+test('a hung refresh request times out instead of stalling forever, and does not demote a previously accepted grant', async () => {
+  setLocalAccessForAi(PAID);
+  const expiresAt = '2026-08-23T00:00:00.000Z';
+  const accept = acceptAiGrant('signed.header.payload-value', expiresAt, Date.parse('2026-08-22T00:00:00Z'));
+  assert.equal(accept, true);
+  const api = createSubscriptionApi({
+    workerUrl: 'https://staging.example',
+    timeoutMs: 20,
+    fetchImpl: ((_input, init) => new Promise((_resolve, reject) => {
+      (init?.signal as AbortSignal).addEventListener('abort', () => {
+        const error = new Error('Aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    })) as typeof fetch,
+  });
+
+  await assert.rejects(api.refresh('a'.repeat(32)), /Subscription service unavailable/);
+  assert.deepEqual(getAiAuthorization(Date.parse('2026-08-22T00:01:00Z')), {
+    ok: true,
+    grant: 'signed.header.payload-value',
+  });
+});
+
 function memoryAccessStore(initial: string | null = null) {
   let value = initial;
   return {
