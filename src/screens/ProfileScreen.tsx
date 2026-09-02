@@ -4,7 +4,6 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import ProfileSettingRow from '../components/ProfileSettingRow';
 import { DailyTarget, getDailyTargetForDate, getProfile, Profile } from '../db/database';
@@ -229,7 +228,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
                 <View className={isTwoPane ? 'flex-row items-start gap-6' : 'gap-6'}>
                 <View className={isTwoPane ? 'flex-[2] min-w-0' : 'w-full'}>
-                <Card className="overflow-hidden">
+                <View className="rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-high overflow-hidden">
                     <View className="p-5 gap-5">
                         <View className="flex-row items-center gap-3">
                             <View className="w-14 h-14 rounded-full bg-m3-primary items-center justify-center">
@@ -269,7 +268,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                         </View>
                     </View>
 
-                    <View className="bg-m3-surface-container-high px-5 py-4 gap-3">
+                    <View className="bg-m3-surface-container-highest px-5 py-4 gap-3">
                         <View className="flex-row justify-between gap-4">
                             <View className="flex-1 gap-0.5">
                                 <Text className="text-m3-on-surface-variant text-xs font-medium">Target source</Text>
@@ -282,7 +281,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                         </View>
                         {adaptiveState && <Text className="text-m3-expenditure text-xs font-semibold">{adaptiveLabel(adaptiveState)}</Text>}
                     </View>
-                </Card>
+                </View>
                 </View>
 
                 <View className={isTwoPane ? 'flex-[3] min-w-0 gap-6' : 'gap-6'}>
