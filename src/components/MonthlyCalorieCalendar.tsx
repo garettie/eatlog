@@ -96,13 +96,13 @@ function DayRing({
   size,
   currentDate,
   selected,
-  onPress,
+  onSelectDate,
 }: {
   day: CalorieCalendarDay;
   size: number;
   currentDate: string;
   selected: boolean;
-  onPress: () => void;
+  onSelectDate: (date: string) => void;
 }) {
   const overflowProgress = day.status === 'over' && day.calories != null && day.targetCalories != null
     ? targetOverflowProgress(day.calories, day.targetCalories)
@@ -117,7 +117,7 @@ function DayRing({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onSelectDate(day.date)}
       accessibilityRole="button"
       accessibilityLabel={`${dateLabel(day.date)}: ${statusLabel(day)}`}
       accessibilityHint="Shows calorie details for this day"
@@ -127,7 +127,7 @@ function DayRing({
     >
       <View
         className={`items-center justify-center rounded-full ${selected ? 'bg-m3-surface-container-highest' : ''} ${isToday ? 'border border-m3-primary' : ''}`}
-        style={{ width: size, height: size }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
       >
         <Svg
           width={size}
@@ -189,6 +189,8 @@ function DayRing({
   );
 }
 
+const MemoizedDayRing = React.memo(DayRing);
+
 function WeekRow({
   week,
   size,
@@ -214,12 +216,12 @@ function WeekRow({
       <View className="flex-1 flex-row items-center justify-center">
         {week.days.map((day) => (
           <View key={day.date} className="flex-1 min-w-0 items-center justify-center">
-            <DayRing
+            <MemoizedDayRing
               day={day}
               size={size}
               currentDate={currentDate}
               selected={selectedDate === day.date}
-              onPress={() => onSelectDate(day.date)}
+              onSelectDate={onSelectDate}
             />
           </View>
         ))}
@@ -248,7 +250,9 @@ function WeekRow({
   );
 }
 
-export default function MonthlyCalorieCalendar({
+const MemoizedWeekRow = React.memo(WeekRow);
+
+function MonthlyCalorieCalendar({
   month,
   monthLabel,
   requestedMonthLabel,
@@ -373,13 +377,13 @@ export default function MonthlyCalorieCalendar({
 
           <View className="gap-2">
             {month.weeks.map((week) => (
-              <WeekRow
+              <MemoizedWeekRow
                 key={week.startDate}
                 week={week}
                 size={ringSize}
                 summaryWidth={summaryWidth}
                 currentDate={currentDate}
-                selectedDate={selectedDate}
+                selectedDate={week.days.some((day) => day.date === selectedDate) ? selectedDate : null}
                 onSelectDate={setSelectedDate}
               />
             ))}
@@ -424,3 +428,5 @@ export default function MonthlyCalorieCalendar({
     </View>
   );
 }
+
+export default React.memo(MonthlyCalorieCalendar);

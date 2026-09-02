@@ -561,6 +561,13 @@ function AnalyticsScreen({
     void loadCalorieMonth(next);
   }, [loadCalorieMonth]);
 
+  const showPreviousCalorieMonth = useCallback(() => {
+    shiftCalorieMonth(-1);
+  }, [shiftCalorieMonth]);
+  const showNextCalorieMonth = useCallback(() => {
+    shiftCalorieMonth(1);
+  }, [shiftCalorieMonth]);
+
   const retryCalorieMonth = useCallback(() => {
     void loadCalorieMonth(selectedCalorieMonthRef.current);
   }, [loadCalorieMonth]);
@@ -928,8 +935,8 @@ function AnalyticsScreen({
       isCurrentMonth={selectedCalorieMonthStart === monthStartISO(today)}
       loading={calorieMonthLoading}
       error={calorieMonthError}
-      onPreviousMonth={() => shiftCalorieMonth(-1)}
-      onNextMonth={() => shiftCalorieMonth(1)}
+      onPreviousMonth={showPreviousCalorieMonth}
+      onNextMonth={showNextCalorieMonth}
       onRetry={retryCalorieMonth}
     />
   );
