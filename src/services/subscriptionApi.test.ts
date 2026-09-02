@@ -200,6 +200,49 @@ test('a hung refresh request times out instead of stalling forever, and does not
   });
 });
 
+test('any tier change clears the cached AI grant, including a trial converting to paid', async () => {
+  const now = Date.parse('2026-08-22T00:00:00Z');
+  const grantExpiresAt = '2026-08-23T00:00:00.000Z';
+  const TRIAL = {
+    kind: 'manok-trial' as const,
+    checkedAt: '2026-08-22T00:00:00Z',
+    expiresAt: '2026-09-05T00:00:00Z',
+    willRenew: true,
+    productId: 'eatlog_manok',
+    billingState: 'active' as const,
+  };
+  const ITIK = {
+    kind: 'itik' as const,
+    checkedAt: '2026-08-22T00:00:00Z',
+    productId: 'eatlog_itik',
+    purchasedAt: '2026-08-22T00:00:00Z',
+  };
+
+  // Trial converting to paid must not keep the trial's stale grant.
+  setLocalAccessForAi(TRIAL);
+  assert.equal(acceptAiGrant('signed.header.payload-value', grantExpiresAt, now), true);
+  setLocalAccessForAi(PAID);
+  assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
+
+  // manok -> itik crosses a tier boundary and must also clear.
+  setLocalAccessForAi(PAID);
+  assert.equal(acceptAiGrant('signed.header.payload-value', grantExpiresAt, now), true);
+  setLocalAccessForAi(ITIK);
+  assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
+
+  // manok -> manok-trial (downgrade path) must also clear.
+  setLocalAccessForAi(PAID);
+  assert.equal(acceptAiGrant('signed.header.payload-value', grantExpiresAt, now), true);
+  setLocalAccessForAi(TRIAL);
+  assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
+
+  // Settled behavior: staying on the same paid kind keeps the grant.
+  setLocalAccessForAi(PAID);
+  assert.equal(acceptAiGrant('signed.header.payload-value', grantExpiresAt, now), true);
+  setLocalAccessForAi({ ...PAID, checkedAt: '2026-08-22T00:01:00Z' });
+  assert.deepEqual(getAiAuthorization(now), { ok: true, grant: 'signed.header.payload-value' });
+});
+
 function memoryAccessStore(initial: string | null = null) {
   let value = initial;
   return {

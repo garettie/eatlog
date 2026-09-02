@@ -140,7 +140,7 @@ export function setLocalAccessForAi(access: EatlogAccess | null): void {
   activeAccess = access;
   if (access === null
     || access.kind === 'pugo' && !isResolvedPugo(access)
-    || (previous?.kind === 'pugo') !== (access.kind === 'pugo')) {
+    || previous?.kind !== access.kind) {
     activeGrant = null;
   }
   persistPaidAccess();
