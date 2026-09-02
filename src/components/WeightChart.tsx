@@ -76,6 +76,11 @@ function chartY(
   return top + (max - value) / Math.max(0.001, max - min) * height;
 }
 
+function chartPixel(value: number): number {
+  'worklet';
+  return Math.round(value * 10) / 10;
+}
+
 interface ChartPaths {
   trend: string;
   points: string;
@@ -101,25 +106,25 @@ function chartPaths(
   for (let index = 0; index < points.length; index += 1) {
     if (points[index].day >= startDay && points[index].day <= endDay) visibleCount += 1;
   }
-  const markerStep = Math.max(1, Math.ceil(visibleCount / 48));
+  const markerStep = Math.max(1, Math.ceil(visibleCount / 32));
   let visibleIndex = 0;
   for (let index = 0; index < points.length; index += 1) {
     const point = points[index];
-    const x = chartX(point.day, startDay, endDay, left, width);
-    const scaleY = chartY(point.scale, min, max, top, height);
-    const trendY = chartY(point.trend, min, max, top, height);
+    const x = chartPixel(chartX(point.day, startDay, endDay, left, width));
+    const scaleY = chartPixel(chartY(point.scale, min, max, top, height));
+    const trendY = chartPixel(chartY(point.trend, min, max, top, height));
     const command = index === 0 ? 'M' : 'L';
-    trend += `${command} ${x} ${trendY} `;
+    trend += `${command}${x} ${trendY} `;
     if (point.day < startDay || point.day > endDay) continue;
     if (visibleIndex % markerStep === 0 || visibleIndex === visibleCount - 1) {
-      pointMarkers += `M ${x - POINT_RADIUS} ${scaleY} `
-        + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
-        + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
+      pointMarkers += `M${chartPixel(x - POINT_RADIUS)} ${scaleY} `
+        + `a${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
+        + `a${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
     }
     visibleIndex += 1;
-    trendEndpoint = `M ${x - POINT_RADIUS} ${trendY} `
-      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
-      + `a ${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
+    trendEndpoint = `M${chartPixel(x - POINT_RADIUS)} ${trendY} `
+      + `a${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${POINT_RADIUS * 2} 0 `
+      + `a${POINT_RADIUS} ${POINT_RADIUS} 0 1 0 ${-POINT_RADIUS * 2} 0 `;
   }
   return { trend, points: pointMarkers, trendEndpoint };
 }

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, LayoutChangeEvent, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, G, Text as SvgText } from 'react-native-svg';
 
-import { M3 } from '../theme/tokens';
+import { M3, TYPE } from '../theme/tokens';
 import { todayISO, parseLocalISO } from '../utils/calendar';
 import { targetOverflowProgress } from '../utils/calculations';
 import {
@@ -15,7 +15,7 @@ import {
 const RING_R = 15;
 const RING_STROKE = 2;
 const RING_VIEWBOX_SIZE = 36;
-const CIRCUMFERENCE = 2 * Math.PI * RING_R;
+const CALENDAR_ROW_HEIGHT = 40;
 const WEEKDAYS = [
   { short: 'M', long: 'Monday' },
   { short: 'T', long: 'Tuesday' },
@@ -91,109 +91,10 @@ function selectedDateLabel(dateISO: string): string {
   });
 }
 
-function DayRing({
-  day,
-  size,
-  currentDate,
-  selected,
-  onSelectDate,
-}: {
-  day: CalorieCalendarDay;
-  size: number;
-  currentDate: string;
-  selected: boolean;
-  onSelectDate: (date: string) => void;
-}) {
-  const overflowProgress = day.status === 'over' && day.calories != null && day.targetCalories != null
-    ? targetOverflowProgress(day.calories, day.targetCalories)
-    : 0;
-  const offset = CIRCUMFERENCE * (1 - day.progress);
-  const overflowOffset = CIRCUMFERENCE * (1 - overflowProgress);
-  const dayNumber = parseLocalISO(day.date).getDate();
-  const isToday = day.date === currentDate;
-  const muted = !day.inMonth;
-  const future = day.status === 'future';
-  const targetUnavailable = day.status === 'target-unavailable';
-
-  return (
-    <Pressable
-      onPress={() => onSelectDate(day.date)}
-      accessibilityRole="button"
-      accessibilityLabel={`${dateLabel(day.date)}: ${statusLabel(day)}`}
-      accessibilityHint="Shows calorie details for this day"
-      accessibilityState={{ selected }}
-      className="w-full min-h-[40px] items-center justify-center rounded-full active:opacity-80"
-      hitSlop={{ top: 4, bottom: 4, left: 7, right: 7 }}
-    >
-      <View
-        className={`items-center justify-center rounded-full ${selected ? 'bg-m3-surface-container-highest' : ''} ${isToday ? 'border border-m3-primary' : ''}`}
-        style={{ width: size, height: size, borderRadius: size / 2 }}
-      >
-        <Svg
-          width={size}
-          height={size}
-          viewBox={`0 0 ${RING_VIEWBOX_SIZE} ${RING_VIEWBOX_SIZE}`}
-          style={{ position: 'absolute', opacity: muted ? 0.55 : future ? 0.45 : 1 }}
-        >
-          <Circle
-            cx={RING_VIEWBOX_SIZE / 2}
-            cy={RING_VIEWBOX_SIZE / 2}
-            r={RING_R}
-            fill="none"
-            stroke={targetUnavailable ? M3.onSurfaceVariant : M3.outline}
-            strokeWidth={RING_STROKE}
-            strokeDasharray={targetUnavailable ? '2 3' : undefined}
-            opacity={targetUnavailable ? 0.85 : 0.5}
-          />
-          {day.progress > 0 ? (
-            <Circle
-              cx={RING_VIEWBOX_SIZE / 2}
-              cy={RING_VIEWBOX_SIZE / 2}
-              r={RING_R}
-              fill="none"
-              stroke={M3.calories}
-              strokeWidth={RING_STROKE}
-              strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={offset}
-              rotation={-90}
-              originX={RING_VIEWBOX_SIZE / 2}
-              originY={RING_VIEWBOX_SIZE / 2}
-            />
-          ) : null}
-          {overflowProgress > 0 ? (
-            <Circle
-              cx={RING_VIEWBOX_SIZE / 2}
-              cy={RING_VIEWBOX_SIZE / 2}
-              r={RING_R}
-              fill="none"
-              stroke={M3.caloriesOverflow}
-              strokeWidth={RING_STROKE}
-              strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={overflowOffset}
-              rotation={-90}
-              originX={RING_VIEWBOX_SIZE / 2}
-              originY={RING_VIEWBOX_SIZE / 2}
-            />
-          ) : null}
-        </Svg>
-        <Text
-          className="text-xs font-bold tabular-nums"
-          style={{ color: isToday ? M3.primary : muted || future ? M3.onSurfaceVariant : M3.onSurface }}
-        >
-          {dayNumber}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-const MemoizedDayRing = React.memo(DayRing);
-
 function WeekRow({
   week,
   size,
+  dayAreaWidth,
   summaryWidth,
   currentDate,
   selectedDate,
@@ -201,6 +102,7 @@ function WeekRow({
 }: {
   week: CalorieCalendarWeek;
   size: number;
+  dayAreaWidth: number;
   summaryWidth: number;
   currentDate: string;
   selectedDate: string | null;
@@ -210,28 +112,136 @@ function WeekRow({
   const deviationColor = week.deltaCalories != null && week.deltaCalories > 0
     ? M3.caloriesOverflow
     : M3.calories;
+  const cellWidth = dayAreaWidth / 7;
+  const ringScale = size / RING_VIEWBOX_SIZE;
+  const ringRadius = RING_R * ringScale;
+  const ringStroke = RING_STROKE * ringScale;
+  const circumference = 2 * Math.PI * ringRadius;
+  const centerY = CALENDAR_ROW_HEIGHT / 2;
 
   return (
     <View className="flex-row items-center py-1">
-      <View className="flex-1 flex-row items-center justify-center">
-        {week.days.map((day) => (
-          <View key={day.date} className="flex-1 min-w-0 items-center justify-center">
-            <MemoizedDayRing
-              day={day}
-              size={size}
-              currentDate={currentDate}
-              selected={selectedDate === day.date}
-              onSelectDate={onSelectDate}
-            />
-          </View>
-        ))}
+      <View style={{ width: dayAreaWidth, height: CALENDAR_ROW_HEIGHT }}>
+        <Svg width={dayAreaWidth} height={CALENDAR_ROW_HEIGHT} accessible={false}>
+          {week.days.map((day, index) => {
+            const centerX = cellWidth * (index + 0.5);
+            const overflowProgress = day.status === 'over' && day.calories != null && day.targetCalories != null
+              ? targetOverflowProgress(day.calories, day.targetCalories)
+              : 0;
+            const isToday = day.date === currentDate;
+            const muted = !day.inMonth;
+            const future = day.status === 'future';
+            const targetUnavailable = day.status === 'target-unavailable';
+            const selected = selectedDate === day.date;
+            const ringOpacity = muted ? 0.55 : future ? 0.45 : 1;
+
+            return (
+              <React.Fragment key={day.date}>
+                {selected ? (
+                  <Circle
+                    cx={centerX}
+                    cy={centerY}
+                    r={size / 2}
+                    fill={M3.surfaceContainerHighest}
+                  />
+                ) : null}
+                {isToday ? (
+                  <Circle
+                    cx={centerX}
+                    cy={centerY}
+                    r={Math.max(0, (size - 1) / 2)}
+                    fill="none"
+                    stroke={M3.primary}
+                    strokeWidth={1}
+                  />
+                ) : null}
+                <G opacity={ringOpacity}>
+                  <Circle
+                    cx={centerX}
+                    cy={centerY}
+                    r={ringRadius}
+                    fill="none"
+                    stroke={targetUnavailable ? M3.onSurfaceVariant : M3.outline}
+                    strokeWidth={ringStroke}
+                    strokeDasharray={targetUnavailable ? `${2 * ringScale} ${3 * ringScale}` : undefined}
+                    opacity={targetUnavailable ? 0.85 : 0.5}
+                  />
+                  {day.progress > 0 ? (
+                    <Circle
+                      cx={centerX}
+                      cy={centerY}
+                      r={ringRadius}
+                      fill="none"
+                      stroke={M3.calories}
+                      strokeWidth={ringStroke}
+                      strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={circumference * (1 - day.progress)}
+                      rotation={-90}
+                      originX={centerX}
+                      originY={centerY}
+                    />
+                  ) : null}
+                  {overflowProgress > 0 ? (
+                    <Circle
+                      cx={centerX}
+                      cy={centerY}
+                      r={ringRadius}
+                      fill="none"
+                      stroke={M3.caloriesOverflow}
+                      strokeWidth={ringStroke}
+                      strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={circumference * (1 - overflowProgress)}
+                      rotation={-90}
+                      originX={centerX}
+                      originY={centerY}
+                    />
+                  ) : null}
+                </G>
+                <SvgText
+                  x={centerX}
+                  y={centerY + 4}
+                  fill={isToday ? M3.primary : muted || future ? M3.onSurfaceVariant : M3.onSurface}
+                  fontSize={12}
+                  fontFamily={TYPE.family.bold}
+                  fontWeight="400"
+                  textAnchor="middle"
+                >
+                  {parseLocalISO(day.date).getDate()}
+                </SvgText>
+              </React.Fragment>
+            );
+          })}
+        </Svg>
+        <View
+          className="absolute inset-0 flex-row"
+          importantForAccessibility="no"
+        >
+          {week.days.map((day) => {
+            const selected = selectedDate === day.date;
+            return (
+              <Pressable
+                key={day.date}
+                onPress={() => onSelectDate(day.date)}
+                accessibilityRole="button"
+                accessibilityLabel={`${dateLabel(day.date)}: ${statusLabel(day)}`}
+                accessibilityHint="Shows calorie details for this day"
+                accessibilityState={{ selected }}
+                className="items-center justify-center active:opacity-80"
+                style={{ width: cellWidth, height: CALENDAR_ROW_HEIGHT }}
+                hitSlop={{ top: 4, bottom: 4, left: 7, right: 7 }}
+              />
+            );
+          })}
+        </View>
       </View>
       <View
         accessible
         accessibilityRole="text"
         accessibilityLabel={accessibilityLabel}
         className="ml-2 items-end justify-center"
-        style={{ width: summaryWidth, minHeight: 40 }}
+        style={{ width: summaryWidth, minHeight: CALENDAR_ROW_HEIGHT }}
       >
         {week.loggedDays === 0 ? (
           <Text className="text-m3-on-surface-variant text-compact font-semibold text-right">No logs</Text>
@@ -279,7 +289,10 @@ function MonthlyCalorieCalendar({
   }, []);
   const baseSummaryWidth = contentWidth < 300 ? 92 : contentWidth < 380 ? 104 : 120;
   const summaryWidth = baseSummaryWidth + (fontScale > 1.2 ? 12 : 0);
-  const dayWidth = contentWidth > 0 ? (contentWidth - summaryWidth - 4) / 7 : 26;
+  const dayAreaWidth = contentWidth > 0
+    ? Math.max(7, contentWidth - summaryWidth - 8)
+    : 26 * 7;
+  const dayWidth = dayAreaWidth / 7;
   const ringSize = Math.max(22, Math.min(36, Math.floor(dayWidth - 2)));
   const previousDisabled = loading;
   const nextDisabled = loading || isCurrentMonth;
@@ -353,7 +366,7 @@ function MonthlyCalorieCalendar({
       {month ? (
         <>
           <View className="flex-row items-center justify-center">
-            <View className="flex-1 flex-row items-center justify-center">
+            <View className="flex-row items-center justify-center" style={{ width: dayAreaWidth }}>
               {WEEKDAYS.map((weekday) => (
                 <Text
                   key={weekday.long}
@@ -381,6 +394,7 @@ function MonthlyCalorieCalendar({
                 key={week.startDate}
                 week={week}
                 size={ringSize}
+                dayAreaWidth={dayAreaWidth}
                 summaryWidth={summaryWidth}
                 currentDate={currentDate}
                 selectedDate={week.days.some((day) => day.date === selectedDate) ? selectedDate : null}

@@ -194,48 +194,83 @@ export function buildEnergyHistory(
     throw new RangeError('Energy history end date must not precede its start date');
   }
 
+  const rangeEnergy = dailyEnergy
+    .filter((day) => day.log_date >= startDate && day.log_date <= endDate)
+    .sort((a, b) => a.log_date.localeCompare(b.log_date));
   const energyByDate = new Map(
-    dailyEnergy
-      .filter((day) => day.log_date >= startDate && day.log_date <= endDate)
-      .map((day) => [day.log_date, day.calories] as const),
+    rangeEnergy.map((day) => [day.log_date, day.calories] as const),
   );
   const targets = [...targetHistory].sort((a, b) => (
     a.effective_date.localeCompare(b.effective_date) || a.id - b.id
   ));
   const loggedValues = [...energyByDate.values()];
+  let targetIndex = 0;
+  let currentTarget: EnergyTarget | null = null;
+  const targetForDate = (date: string): EnergyTarget | null => {
+    while (targetIndex < targets.length && targets[targetIndex].effective_date <= date) {
+      currentTarget = targets[targetIndex];
+      targetIndex += 1;
+    }
+    return currentTarget;
+  };
   const points: EnergyHistoryPoint[] = [];
 
   if (range === '1M') {
+    const rollingStartDate = addCalendarDays(startDate, -6);
+    const rollingEnergy = dailyEnergy
+      .filter((day) => day.log_date >= rollingStartDate && day.log_date <= endDate)
+      .sort((a, b) => a.log_date.localeCompare(b.log_date));
+    let rollingStartIndex = 0;
+    let rollingEndIndex = 0;
+    let rollingSum = 0;
     for (let index = 0; index < totalDayCount; index += 1) {
       const date = addCalendarDays(startDate, index);
       const calories = energyByDate.get(date) ?? null;
       const rollingStart = addCalendarDays(date, -6);
-      const rollingValues = dailyEnergy
-        .filter((day) => day.log_date >= rollingStart && day.log_date <= date)
-        .map((day) => day.calories);
-      const target = activeTarget(targets, date);
+      while (
+        rollingEndIndex < rollingEnergy.length
+        && rollingEnergy[rollingEndIndex].log_date <= date
+      ) {
+        rollingSum += rollingEnergy[rollingEndIndex].calories;
+        rollingEndIndex += 1;
+      }
+      while (
+        rollingStartIndex < rollingEndIndex
+        && rollingEnergy[rollingStartIndex].log_date < rollingStart
+      ) {
+        rollingSum -= rollingEnergy[rollingStartIndex].calories;
+        rollingStartIndex += 1;
+      }
+      const rollingCount = rollingEndIndex - rollingStartIndex;
+      const target = targetForDate(date);
       points.push({
         startDate: date,
         endDate: date,
         dayCount: 1,
         loggedDayCount: calories == null ? 0 : 1,
         averageCalories: calories,
-        intakeTrendCalories: rollingValues.length >= 4 ? mean(rollingValues) : null,
+        intakeTrendCalories: rollingCount >= 4 ? rollingSum / rollingCount : null,
         targetCalories: target?.target_calories ?? null,
         expenditureCalories: target?.tdee_estimate ?? null,
       });
     }
   } else {
+    let energyIndex = 0;
     for (let bucketStart = startDate; bucketStart <= endDate; bucketStart = addCalendarDays(bucketStart, 7)) {
       const bucketEnd = addCalendarDays(
         bucketStart,
         Math.min(6, calendarDaysBetween(bucketStart, endDate)),
       );
-      const values = dailyEnergy
-        .filter((day) => day.log_date >= bucketStart && day.log_date <= bucketEnd)
-        .map((day) => day.calories);
+      const values: number[] = [];
+      while (
+        energyIndex < rangeEnergy.length
+        && rangeEnergy[energyIndex].log_date <= bucketEnd
+      ) {
+        values.push(rangeEnergy[energyIndex].calories);
+        energyIndex += 1;
+      }
       const average = mean(values);
-      const target = activeTarget(targets, bucketEnd);
+      const target = targetForDate(bucketEnd);
       points.push({
         startDate: bucketStart,
         endDate: bucketEnd,
