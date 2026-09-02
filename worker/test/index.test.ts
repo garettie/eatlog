@@ -809,6 +809,60 @@ test('repeated refunds are capped even though they never touch the visible quota
   assert.equal(geminiCalls, 5);
 });
 
+test('a successful estimate is still returned to the client when finalize fails', async () => {
+  const store = new MemorySubscriptionStore();
+  const finalizingStore: SubscriptionStore = {
+    getCached: store.getCached.bind(store),
+    putCached: store.putCached.bind(store),
+    recordWebhook: store.recordWebhook.bind(store),
+    reserve: store.reserve.bind(store),
+    usage: store.usage.bind(store),
+    finalize: async () => { throw new Error('Durable Object overloaded'); },
+    refund: store.refund.bind(store),
+  };
+  const env = subscriptionEnv();
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const result = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-finalize-fails-0001',
+  }), { env, fetchImpl, subscriptionStore: finalizingStore });
+
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.status, 'recognized');
+  assert.equal(typeof result.response.headers.get('x-eatlog-ai-grant'), 'string');
+});
+
+test('a Gemini failure surfaces its own status even when the refund also fails', async () => {
+  const store = new MemorySubscriptionStore();
+  const refundingStore: SubscriptionStore = {
+    getCached: store.getCached.bind(store),
+    putCached: store.putCached.bind(store),
+    recordWebhook: store.recordWebhook.bind(store),
+    reserve: store.reserve.bind(store),
+    usage: store.usage.bind(store),
+    finalize: store.finalize.bind(store),
+    refund: async () => { throw new Error('Durable Object overloaded'); },
+  };
+  const env = subscriptionEnv();
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    return geminiResponse({
+      ...recognized,
+      components: Array.from({ length: 21 }, () => recognized.components[0]),
+    });
+  }) as typeof fetch;
+
+  const result = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-refund-fails-0001',
+  }), { env, fetchImpl, subscriptionStore: refundingStore });
+
+  assert.equal(result.response.status, 502);
+  assert.equal(result.body.error.code, 'MALFORMED_UPSTREAM');
+});
+
 test('Pugo refresh and inline estimates share one three-request installation allowance', async () => {
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();

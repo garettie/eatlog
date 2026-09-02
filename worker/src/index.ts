@@ -1267,11 +1267,11 @@ export async function handleRequest(
     try {
       const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
       const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models);
-      if (recognized) await store.finalize(claims.sub, idempotencyKey);
-      else await store.refund(claims.sub, idempotencyKey);
+      if (recognized) await store.finalize(claims.sub, idempotencyKey).catch(() => {});
+      else await store.refund(claims.sub, idempotencyKey).catch(() => {});
       return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
     } catch (error) {
-      await store.refund(claims.sub, idempotencyKey);
+      await store.refund(claims.sub, idempotencyKey).catch(() => {});
       throw error;
     }
   } catch (error) {
