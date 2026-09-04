@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { contract, handleRequest, hashInstallId, type Env } from '../src/index.js';
+import { attemptBudget, contract, handleRequest, hashInstallId, resetModelCooldowns, routeModels, type Env } from '../src/index.js';
 import { MemorySubscriptionStore, type SubscriptionStore } from '../src/subscriptions.js';
 
 const INSTALL_ID = '0123456789abcdef0123456789abcdef';
@@ -1293,6 +1293,7 @@ test('stable store identity preserves paid quota after restore to a new installa
 });
 
 test('a location-refused estimate retries the same model through the region-pinned relay', async () => {
+  resetModelCooldowns();
   const direct: string[] = [];
   const relayedModels: string[] = [];
   const locationHints: Array<string | undefined> = [];
@@ -1343,4 +1344,92 @@ test('a location-refused estimate retries the same model through the region-pinn
   assert.equal(unrelayed.response.status, 502);
   assert.equal(unrelayed.body.error.code, 'UPSTREAM_ERROR');
   assert.equal(direct.length, contract.PAID_GEMINI_MODELS.length);
+});
+
+test('one slow model cannot spend the whole budget, so the fallback model stays reachable', () => {
+  // Two models with the full budget: the first is held to 17s so the second keeps its 9s floor.
+  assert.equal(attemptBudget(26000, 1), 17000);
+  assert.equal(attemptBudget(17000, 0), 17000);
+  // The last model may use everything left, however little that is.
+  assert.equal(attemptBudget(3000, 0), 3000);
+  // Too little left to split: the current model still gets to try rather than being given nothing.
+  assert.equal(attemptBudget(5000, 1), 5000);
+});
+
+test('a model that times out falls through to the next model instead of failing the request', async () => {
+  resetModelCooldowns();
+  const attempted: string[] = [];
+  const timingOutFetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat('trial'));
+    attempted.push(url);
+    if (url.includes(`/models/${contract.PAID_GEMINI_MODELS[0]}:`)) {
+      throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+    }
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const result = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-slow-model-0001',
+  }), {
+    env: subscriptionEnv(),
+    fetchImpl: timingOutFetch,
+    subscriptionStore: new MemorySubscriptionStore(),
+  });
+
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.mealName, 'Rice bowl');
+  assert.equal(attempted.length, 2);
+  assert.ok(attempted[1].includes(`/models/${contract.PAID_GEMINI_MODELS[1]}:generateContent`));
+});
+
+test('a model that just failed is demoted for a cooldown and promoted again once it lapses', () => {
+  const models = ['alpha', 'beta'] as const;
+  const now = 1_000_000;
+
+  // Nothing known: the configured order stands.
+  assert.deepEqual(routeModels(models, now, new Map()), ['alpha', 'beta']);
+
+  // alpha is cooling down, so beta is called first and alpha stays as the fallback rather
+  // than being dropped entirely.
+  assert.deepEqual(routeModels(models, now, new Map([['alpha', now + 60_000]])), ['beta', 'alpha']);
+
+  // The cooldown has lapsed, so alpha leads again with no deploy.
+  assert.deepEqual(routeModels(models, now, new Map([['alpha', now - 1]])), ['alpha', 'beta']);
+
+  // Everything is cooling down: still call them all rather than leaving nothing to try.
+  assert.deepEqual(
+    routeModels(models, now, new Map([['alpha', now + 60_000], ['beta', now + 60_000]])),
+    ['alpha', 'beta'],
+  );
+});
+
+test('an overloaded model is skipped on the next request instead of being retried every time', async () => {
+  resetModelCooldowns();
+  const attempts: string[] = [];
+  const overloadedFetch = (async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat('trial'));
+    attempts.push(url.includes(`/models/${contract.PAID_GEMINI_MODELS[0]}:`) ? 'first' : 'second');
+    if (url.includes(`/models/${contract.PAID_GEMINI_MODELS[0]}:`)) {
+      return jsonResponse({ error: { status: 'UNAVAILABLE', message: 'This model is currently experiencing high demand.' } }, 503);
+    }
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const store = new MemorySubscriptionStore();
+  const send = (id: string) => call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': id,
+  }), { env: subscriptionEnv(), fetchImpl: overloadedFetch, subscriptionStore: store });
+
+  const first = await send('request-overload-0001');
+  assert.equal(first.response.status, 200);
+  // The 503 is discovered, then the healthy model answers.
+  assert.deepEqual(attempts, ['first', 'second']);
+
+  attempts.length = 0;
+  const second = await send('request-overload-0002');
+  assert.equal(second.response.status, 200);
+  // The overloaded model is not called again while it is cooling down.
+  assert.deepEqual(attempts, ['second']);
 });

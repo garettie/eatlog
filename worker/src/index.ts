@@ -21,10 +21,17 @@ import { GEMINI_ORIGIN, geminiGenerateUrl } from './geminiEndpoint';
 const USDA_ORIGIN = 'https://api.nal.usda.gov';
 const USDA_SEARCH_PATH = '/fdc/v1/foods/search';
 const USDA_PAGE_SIZE = 25;
-const PUGO_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
-const PAID_GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
+// gemini-3.5-flash-lite is returning 503 "experiencing high demand" and, when it does answer,
+// takes 30-60s for a request its sibling serves in 3-7s. It leads the list again once Google's
+// capacity recovers; until then it is the fallback rather than the first call.
+const PUGO_GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'] as const;
+const PAID_GEMINI_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'] as const;
 const USDA_TIMEOUT_MS = 8000;
-const GEMINI_TOTAL_TIMEOUT_MS = 20000;
+// Measured against the live provider: a healthy flash-lite answers a described meal in 3-12s,
+// so 20s total left the second model too little to finish. The client gives up at 35s and a
+// RevenueCat verification can take 8s ahead of this, so the ceiling here is 26s.
+const GEMINI_TOTAL_TIMEOUT_MS = 26000;
+const GEMINI_MODEL_FLOOR_MS = 9000;
 const GEMINI_MAX_OUTPUT_TOKENS = 2048;
 const MAX_USDA_BODY_BYTES = 4096;
 const MAX_ESTIMATE_BODY_BYTES = 6 * 1024 * 1024;
@@ -1024,6 +1031,50 @@ function geminiInit(body: string): RequestInit {
 }
 
 /**
+ * How long one model may take. A model that hangs rather than erroring would otherwise spend
+ * the entire budget by itself and leave the fallbacks unreachable, so hold back a floor for
+ * each model still to try.
+ */
+export function attemptBudget(remaining: number, modelsLeft: number): number {
+  return Math.min(remaining, Math.max(GEMINI_MODEL_FLOOR_MS, remaining - modelsLeft * GEMINI_MODEL_FLOOR_MS));
+}
+
+/**
+ * A provider brownout is the ordinary failure here, not a bug of ours: a model starts timing
+ * out or answering 503 and recovers on its own hours later. Remember which ones just failed so
+ * the next request is not spent rediscovering it, and forget after a few minutes so recovery
+ * needs no deploy. This lives in isolate memory on purpose — it is a hint that saves a wasted
+ * call, not a fact worth a storage round trip on every estimate, and a cold isolate simply
+ * learns it again at the cost of one attempt.
+ */
+const MODEL_COOLDOWN_MS = 180000;
+const OVERLOADED_STATUSES = new Set([429, 500, 502, 503, 504]);
+const modelCooldownUntil = new Map<string, number>();
+
+function noteModelHealthy(model: string): void {
+  modelCooldownUntil.delete(model);
+}
+
+/** The cooldown outlives a single request by design, so a test that asserts routing clears it. */
+export function resetModelCooldowns(): void {
+  modelCooldownUntil.clear();
+}
+
+function noteModelFailed(model: string, now: number): void {
+  modelCooldownUntil.set(model, now + MODEL_COOLDOWN_MS);
+}
+
+/**
+ * Models that are not cooling down, in their configured order, followed by the ones that are.
+ * Demoted rather than dropped: if the healthy model fails too, a cooling one is still a better
+ * answer than no estimate, and an all-cooling list must not leave nothing to call.
+ */
+export function routeModels(models: readonly string[], now: number, cooldown = modelCooldownUntil): string[] {
+  const cooling = (model: string): boolean => (cooldown.get(model) ?? 0) > now;
+  return [...models.filter((model) => !cooling(model)), ...models.filter(cooling)];
+}
+
+/**
  * Pinned at creation to a region Google serves, so its subrequest leaves from there
  * instead of from the colo the user's request happened to reach.
  */
@@ -1085,16 +1136,21 @@ async function geminiEstimate(
   });
   const relay = geminiRelayStub(env);
   let relayed = false;
-  for (const model of models) {
+  const ordered = routeModels(models, started);
+  for (const [index, model] of ordered.entries()) {
+    const isLast = index === ordered.length - 1;
     const remaining = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
     if (remaining <= 0) throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Estimation service timed out.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'timeout' });
+    const attempt = attemptBudget(remaining, ordered.length - 1 - index);
     let response: Response;
     try {
       response = relayed
-        ? await fetchWithTimeout(relayFetchImpl(relay!, model), GEMINI_RELAY_URL, geminiInit(body), remaining, 'gemini', 'bypass')
-        : await fetchWithTimeout(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), remaining, 'gemini', 'bypass');
+        ? await fetchWithTimeout(relayFetchImpl(relay!, model), GEMINI_RELAY_URL, geminiInit(body), attempt, 'gemini', 'bypass')
+        : await fetchWithTimeout(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), attempt, 'gemini', 'bypass');
     } catch (error) {
-      if (model === models[models.length - 1]) throw error;
+      // Timed out or unreachable: the brownout signal this cooldown exists for.
+      noteModelFailed(model, Date.now());
+      if (isLast) throw error;
       continue;
     }
     if (!response.ok) {
@@ -1108,9 +1164,10 @@ async function geminiEstimate(
           relayed = true;
           console.log(JSON.stringify({ event: 'ai_relay_engaged', model, reason }));
           try {
-            response = await fetchWithTimeout(relayFetchImpl(relay, model), GEMINI_RELAY_URL, geminiInit(body), budget, 'gemini', 'bypass');
+            response = await fetchWithTimeout(relayFetchImpl(relay, model), GEMINI_RELAY_URL, geminiInit(body), attemptBudget(budget, ordered.length - 1 - index), 'gemini', 'bypass');
           } catch (error) {
-            if (model === models[models.length - 1]) throw error;
+            noteModelFailed(model, Date.now());
+            if (isLast) throw error;
             continue;
           }
           reason = response.ok ? '' : await geminiRejectionReason(response);
@@ -1128,7 +1185,11 @@ async function geminiEstimate(
           relayed,
           reason,
         }));
-        if (model === models[models.length - 1]) throw new HttpError(502, 'UPSTREAM_ERROR', 'Estimation service rejected the request.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-status' });
+        // Overload and server faults mean the model is unwell and will be again in a moment. A
+        // 400 is our own malformed request, and cooling every model over it would only make the
+        // chain try them all in a worse order.
+        if (OVERLOADED_STATUSES.has(response.status)) noteModelFailed(model, Date.now());
+        if (isLast) throw new HttpError(502, 'UPSTREAM_ERROR', 'Estimation service rejected the request.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-status' });
         continue;
       }
     }
@@ -1136,22 +1197,23 @@ async function geminiEstimate(
     try {
       upstream = await readUpstreamJson(response, 'gemini', 'bypass');
     } catch (error) {
-      if (model === models[models.length - 1]) throw error;
+      if (isLast) throw error;
       continue;
     }
     const text = (upstream as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof text !== 'string') {
-      if (model === models[models.length - 1]) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
+      if (isLast) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
       continue;
     }
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { parsed = null; }
     const normalized = normalizeGeminiResponse(parsed, input.operation);
     if (normalized) {
+      noteModelHealthy(model);
       logAiUsage(upstream, model, env);
       return { response: json(normalized), recognized: normalized.status === 'recognized' };
     }
-    if (model === models[models.length - 1]) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
+    if (isLast) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
   }
   throw new HttpError(502, 'UPSTREAM_UNAVAILABLE', 'Estimation service is unavailable.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream' });
 }
