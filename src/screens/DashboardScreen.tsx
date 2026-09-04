@@ -34,6 +34,7 @@ import { useToday } from '../hooks/useToday';
 import { foodIcon } from '../utils/foodIcons';
 import { M3, TYPE } from '../theme/tokens';
 import ResponsiveContent from '../components/ResponsiveContent';
+import UpdateBanner from '../components/UpdateBanner';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { DURATION, EASING } from '../theme/motion';
 import { haptics } from '../utils/haptics';
@@ -532,6 +533,8 @@ function DashboardScreen({
               </Pressable>
             </View>
           </View>
+
+          <UpdateBanner />
 
           {error && (
             <View
