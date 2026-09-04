@@ -382,6 +382,27 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
     }
 });
 
+test('an upstream timeout or malformed provider reply is named rather than shown as a generic failure', async () => {
+    const cases = [
+        ['UPSTREAM_TIMEOUT', 504, 'timeout', 'The estimation service took too long. Try again.'],
+        ['MALFORMED_UPSTREAM', 502, 'invalid-response', 'The estimation service returned an unusable result. Try again or enter it manually.'],
+    ] as const;
+    for (const [code, status, kind, message] of cases) {
+        const client = createAcceptedClient({
+            workerUrl: 'https://food.example.workers.dev',
+            getInstallationToken: () => TOKEN,
+            fetchImpl: (async () => jsonResponse({ error: { code, message: 'raw provider transaction' } }, status)) as typeof fetch,
+        });
+        const result = await client.describeMeal('rice');
+        assert.equal(result.ok, false);
+        if (!result.ok) {
+            assert.equal(result.kind, kind);
+            assert.equal(result.message, message);
+            assert.equal(result.message.includes('raw provider'), false);
+        }
+    }
+});
+
 test('a rolling daily limit surfaces the actual reset time from the Worker instead of a static string', async () => {
     const cases = [
         ['PUGO_DAILY_LIMIT', 'pugo-daily-limit'],

@@ -286,6 +286,12 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                         FAIR_USE_30_DAY_LIMIT: 'fair-use-30-day-limit',
                         REFUND_DAILY_LIMIT: 'refund-daily-limit',
                         ENTITLEMENT_UNAVAILABLE: 'entitlement-unavailable',
+                        // The Worker gives up on the provider before the client's own timeout
+                        // fires, so without these a slow or malformed upstream reached the user
+                        // as the generic "couldn't complete" copy and looked like every other
+                        // failure.
+                        UPSTREAM_TIMEOUT: 'timeout',
+                        MALFORMED_UPSTREAM: 'invalid-response',
                     };
                     if (typeof code === 'string' && mapping[code]) {
                         return failure(mapping[code], typeof nextEligibleAt === 'string' ? nextEligibleAt : null);
