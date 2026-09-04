@@ -98,6 +98,7 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     'fair-use-30-day-limit': "You've reached the 30-day fair-use limit. Try again after it resets.",
     'refund-daily-limit': 'Too many recent estimate attempts could not be completed. Try again after it resets.',
     'entitlement-unavailable': 'Could not start the estimate. Check your connection and try again.',
+    'rate-limited': 'Too many estimates in a short time. Wait a minute, then try again.',
     network: 'Check your connection, then try again.',
     timeout: 'The estimate took too long. Try again.',
     provider: "Couldn't complete the estimate. Try again.",

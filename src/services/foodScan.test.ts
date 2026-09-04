@@ -386,6 +386,7 @@ test('an upstream timeout or malformed provider reply is named rather than shown
     const cases = [
         ['UPSTREAM_TIMEOUT', 504, 'timeout', 'The estimation service took too long. Try again.'],
         ['MALFORMED_UPSTREAM', 502, 'invalid-response', 'The estimation service returned an unusable result. Try again or enter it manually.'],
+        ['RATE_LIMITED', 429, 'rate-limited', 'Too many estimates in a short time. Wait a minute, then try again.'],
     ] as const;
     for (const [code, status, kind, message] of cases) {
         const client = createAcceptedClient({

@@ -55,6 +55,7 @@ export type FoodEstimationFailureKind =
     | 'fair-use-30-day-limit'
     | 'refund-daily-limit'
     | 'entitlement-unavailable'
+    | 'rate-limited'
     | 'network'
     | 'timeout'
     | 'provider'
@@ -121,6 +122,7 @@ function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null
         'fair-use-30-day-limit': 'The 250-operation rolling 30-day fair-use limit is reached. Try again when it resets.',
         'refund-daily-limit': 'Too many recent estimate attempts could not be completed. Try again when the window resets.',
         'entitlement-unavailable': 'Could not start the estimate. Check your connection and try again.',
+        'rate-limited': 'Too many estimates in a short time. Wait a minute, then try again.',
         network: 'Could not reach the estimation service. Check your connection and try again.',
         timeout: 'The estimation service took too long. Try again.',
         provider: 'The estimation service could not complete this request. Try again.',
@@ -292,6 +294,9 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                         // failure.
                         UPSTREAM_TIMEOUT: 'timeout',
                         MALFORMED_UPSTREAM: 'invalid-response',
+                        // Throttling is a wait, not a failure, and the Worker asks for 60s
+                        // back. Saying so beats the catch-all telling the user to retry now.
+                        RATE_LIMITED: 'rate-limited',
                     };
                     if (typeof code === 'string' && mapping[code]) {
                         return failure(mapping[code], typeof nextEligibleAt === 'string' ? nextEligibleAt : null);
