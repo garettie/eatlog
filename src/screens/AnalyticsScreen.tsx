@@ -749,11 +749,9 @@ function AnalyticsScreen({
       ? recommendation.reason === 'insufficient_evidence'
         ? 'Gathering evidence for your next plan update.'
         : 'Checking recent intake before your next plan update.'
-      : recommendation?.kind === 'paused'
-        ? `${ADAPTIVE_PAUSE_COPY[recommendation.reason].title}.`
-        : recommendation?.kind === 'next-review'
-          ? `Next plan check ${displayDate(recommendation.nextReviewDate)}.`
-          : null;
+      : recommendation?.kind === 'next-review'
+        ? `Next plan check ${displayDate(recommendation.nextReviewDate)}.`
+        : null;
   const recommendationCard = entitlementStatus === 'checking' ? (
     <View className="min-h-[112px] items-center justify-center gap-3 rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5">
       <ActivityIndicator color={M3.onSurfaceVariant} />
@@ -844,6 +842,44 @@ function AnalyticsScreen({
               );
             })}
           </View>
+        </View>
+      ) : recommendation?.kind === 'holding' ? (
+        <View className="gap-4" accessibilityLiveRegion="polite">
+          <Text className="text-m3-on-surface text-lg font-bold">More data needed</Text>
+          <View className="flex-row gap-5">
+            <EvidenceTile label="Food days" value={recommendation.eligibility.intakeDayCount} total={recommendation.eligibility.requiredIntakeDayCount} />
+            <EvidenceTile label="Weigh-ins" value={recommendation.eligibility.weightLogCount} total={recommendation.eligibility.requiredWeightLogCount} />
+          </View>
+          <EvidenceTile label="Days covered" value={recommendation.eligibility.endpointSpanDays} total={recommendation.eligibility.requiredEndpointSpanDays} />
+          {!recommendation.eligibility.hasRecentWeight ? (
+            <View className="gap-3">
+              <Text className="text-m3-on-surface-variant text-sm">
+                {recommendation.eligibility.daysSinceLastWeight == null
+                  ? 'No weigh-ins yet'
+                  : `Last weigh-in ${recommendation.eligibility.daysSinceLastWeight} days ago`}
+              </Text>
+              <Pressable
+                onPress={onOpenWeight}
+                className="min-h-[48px] rounded-full bg-white px-4 items-center justify-center active:opacity-80"
+                accessibilityRole="button"
+                accessibilityLabel="Add weigh-in for plan update"
+              >
+                <Text className="text-m3-on-primary text-sm font-semibold">Add weigh-in</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : recommendation?.kind === 'paused' ? (
+        <View className="gap-3" accessibilityLiveRegion="polite">
+          <Text className="text-m3-on-surface text-lg font-bold">{ADAPTIVE_PAUSE_COPY[recommendation.reason].title}</Text>
+          <Pressable
+            onPress={() => navigation.navigate('Profile', { screen: 'GoalAndRate' })}
+            className="min-h-[48px] rounded-full bg-white px-4 items-center justify-center active:opacity-80"
+            accessibilityRole="button"
+            accessibilityLabel="Review plan settings"
+          >
+            <Text className="text-m3-on-primary text-sm font-semibold">Review plan settings</Text>
+          </Pressable>
         </View>
       ) : recommendation?.kind === 'ready' ? (
         <View className="gap-4">
