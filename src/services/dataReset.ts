@@ -8,6 +8,7 @@ import {
   LEGACY_DATABASE_NAME,
   resetDatabaseConnection,
 } from '../db/database';
+import { clearFoodEstimateActions } from './foodScan';
 import { deleteAllMealPhotos } from '../utils/mealPhotos';
 import type { OwnershipProgressListener, OwnershipResult } from './dataOwnership.types';
 import { waitForHealthConnectIdle } from './healthConnect';
@@ -23,6 +24,9 @@ export async function resetLocalData(onProgress?: OwnershipProgressListener): Pr
   onProgress?.({ operation: 'reset', phase: 'photos', completed: 0, total: 3, message: 'Removing meal photos', cancellable: false });
   await deleteAllMealPhotos();
   await clearRemoteEstimateConsent();
+  // Estimate identities are memory only, so nothing is stored to erase — but one left behind
+  // would outlive the data it belonged to.
+  clearFoodEstimateActions();
 
   const cache = new Directory(Paths.cache);
   for (const entry of cache.list()) {

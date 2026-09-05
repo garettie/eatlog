@@ -60,6 +60,8 @@ export type FoodEstimationFailureKind =
     | 'timeout'
     | 'provider'
     | 'invalid-response'
+    | 'description-too-long'
+    | 'cancelled'
     | 'unrecognized';
 export type FoodEstimationResult =
     | { ok: true; result: DescribeResult }
@@ -72,6 +74,14 @@ const MAX_CONTEXT_NAME_LENGTH = 120;
 const MAX_CONTEXT_GRAMS = 10_000;
 const MAX_CLARIFICATION_NAME_LENGTH = 200;
 const MAX_SCAN_MEAL_TITLE_LENGTH = 120;
+/** The Worker's own limit for a description. Checked here so the upload is not wasted. */
+const MAX_DESCRIPTION_LENGTH = 2000;
+/**
+ * How long a failed action keeps its identity so an explicit Retry is recognised as the same
+ * submission rather than a second one. It matches the Worker's replay window: past it the
+ * server has forgotten the action too, and a retry is honestly a new request.
+ */
+const ACTION_RETRY_WINDOW_MS = 120_000;
 
 interface EstimateContext {
     originalDescription?: string;
@@ -126,6 +136,8 @@ function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null
         network: 'Could not reach the estimation service. Check your connection and try again.',
         timeout: 'The estimation service took too long. Try again.',
         provider: 'The estimation service could not complete this request. Try again.',
+        'description-too-long': `Descriptions are limited to ${MAX_DESCRIPTION_LENGTH} characters. Shorten it and try again.`,
+        cancelled: 'Estimate cancelled.',
         'invalid-response': 'The estimation service returned an unusable result. Try again or enter it manually.',
         unrecognized: 'No usable food was recognized. Try a clearer photo or a more specific description.',
     };
@@ -217,6 +229,35 @@ function mapComponents(
     });
 }
 
+/** Passed to any estimate call so leaving a screen or an explicit cancel can detach the caller. */
+export interface EstimateCallOptions {
+    signal?: AbortSignal;
+}
+
+/**
+ * One intentional estimate, tracked by the payload that defines it.
+ *
+ * The identifier used to be a hash of that payload, which made a genuine transport retry and a
+ * genuine second submission of the same meal look identical: logging yesterday's rice again sent
+ * an identifier the Worker still had on file. Here the identifier is random and belongs to the
+ * action, not the food. It survives an explicit Retry of an unchanged draft, and it is retired
+ * the moment the action delivers a result, so logging the same meal again is a new action.
+ */
+interface EstimateAction {
+    id: string;
+    startedAt: number;
+    inFlight: Promise<FoodEstimationResult> | null;
+}
+
+function randomActionId(): string {
+    // 32 hex characters, inside the Worker's /^[A-Za-z0-9-]{16,128}$/ identifier contract.
+    let id = '';
+    for (let index = 0; index < 4; index += 1) {
+        id += Math.floor(Math.random() * 0x1_0000_0000).toString(16).padStart(8, '0');
+    }
+    return id;
+}
+
 export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const fetchImpl = options.fetchImpl ?? fetch;
     const loadInstallationToken = options.getInstallationToken ?? getInstallationToken;
@@ -225,14 +266,76 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const checkConsent = options.hasConsent ?? hasRemoteEstimateConsent;
     const authorize = options.getAiAuthorization ?? getAiAuthorization;
     const acceptGrant = options.acceptAiGrant ?? acceptAiGrant;
-    const createRequestId = options.requestId ?? (async (payload: string) => {
-        const Crypto = await import('expo-crypto');
-        return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, payload);
-    });
 
-    async function estimate(
+    /**
+     * Live and recently failed actions, keyed by the payload that defines them. Memory only, and
+     * bounded: an action is dropped as soon as it succeeds, and a failed one is forgotten once
+     * the Worker has forgotten it too.
+     */
+    const actions = new Map<string, EstimateAction>();
+
+    /** Consent withdrawal, a change of entitlement or identity, and Delete all data all land here. */
+    function clearActions(): void {
+        actions.clear();
+    }
+
+    function actionFor(payload: string): EstimateAction {
+        const existing = actions.get(payload);
+        if (existing && (existing.inFlight !== null || existing.startedAt > now() - ACTION_RETRY_WINDOW_MS)) {
+            return existing;
+        }
+        for (const [key, action] of actions) {
+            if (action.inFlight === null && action.startedAt <= now() - ACTION_RETRY_WINDOW_MS) actions.delete(key);
+        }
+        const created: EstimateAction = { id: randomActionId(), startedAt: now(), inFlight: null };
+        actions.set(payload, created);
+        return created;
+    }
+
+    /**
+     * A caller that gives up stops waiting; it does not stop the work. Another subscriber may
+     * still be waiting for the same estimate, and the provider tokens are spent either way —
+     * abandoning the request would not hand them back.
+     */
+    function detachable(work: Promise<FoodEstimationResult>, signal?: AbortSignal): Promise<FoodEstimationResult> {
+        if (!signal) return work;
+        if (signal.aborted) return Promise.resolve(failure('cancelled'));
+        return new Promise((resolve) => {
+            const onAbort = (): void => resolve(failure('cancelled'));
+            signal.addEventListener('abort', onAbort, { once: true });
+            work.then(
+                (result) => { signal.removeEventListener('abort', onAbort); resolve(result); },
+                () => { signal.removeEventListener('abort', onAbort); resolve(failure('network')); },
+            );
+        });
+    }
+
+    function estimate(
         operation: EstimateOperation,
         input: EstimateInput,
+        call: EstimateCallOptions = {},
+    ): Promise<FoodEstimationResult> {
+        const payload = JSON.stringify({ operation, ...input });
+        const action = actionFor(payload);
+        // Duplicate taps on one button share the estimate already running rather than starting
+        // a second one behind it.
+        if (!action.inFlight) {
+            action.inFlight = run(operation, input, payload, action).then((result) => {
+                action.inFlight = null;
+                // A delivered estimate ends its action. Submitting the same meal again is a new
+                // intention, and the next one gets an identifier of its own.
+                if (result.ok || result.kind === 'unrecognized') actions.delete(payload);
+                return result;
+            });
+        }
+        return detachable(action.inFlight, call.signal);
+    }
+
+    async function run(
+        operation: EstimateOperation,
+        input: EstimateInput,
+        payload: string,
+        action: EstimateAction,
     ): Promise<FoodEstimationResult> {
         if (!options.workerUrl) return failure('unavailable');
         const authorization = authorize();
@@ -252,12 +355,14 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
         try {
-            const payload = JSON.stringify({ operation, ...input });
             const headers: Record<string, string> = {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 'X-Eatlog-Install-ID': installId,
-                'X-Eatlog-Request-ID': await createRequestId(payload),
+                'X-Eatlog-Request-ID': options.requestId ? await options.requestId(payload) : action.id,
+                // The Worker advertises which coordination protocol it speaks; the body contract
+                // is unchanged, so an older Worker simply ignores this.
+                'X-Eatlog-Request-Version': '2',
             };
             // Re-read: consent, the install token, and hashing the payload above can take long
             // enough on a cold start for a grant that was pending at the top of estimate() to
@@ -353,40 +458,43 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         }
     }
 
-    async function scanFood(imageBase64: string, mealTitle?: string): Promise<FoodEstimationResult> {
+    async function scanFood(imageBase64: string, mealTitle?: string, call?: EstimateCallOptions): Promise<FoodEstimationResult> {
         if (!imageBase64.trim()) return failure('unrecognized');
         const title = mealTitle?.trim().slice(0, MAX_SCAN_MEAL_TITLE_LENGTH);
         return estimate('scan', {
             imageBase64,
             ...(title ? { text: title } : {}),
-        });
+        }, call);
     }
 
-    async function describeMeal(text: string): Promise<FoodEstimationResult> {
+    async function describeMeal(text: string, call?: EstimateCallOptions): Promise<FoodEstimationResult> {
         const trimmed = text.trim();
         if (!trimmed) return failure('unrecognized');
-        return estimate('describe', { text: trimmed });
+        // Checked before the upload rather than after it, so an over-long description costs the
+        // user a message instead of a round trip that was always going to be rejected.
+        if ([...trimmed].length > MAX_DESCRIPTION_LENGTH) return failure('description-too-long');
+        return estimate('describe', { text: trimmed }, call);
     }
 
-    async function clarifyMeal(options: MealClarificationInput): Promise<DescribeResult | null> {
+    async function clarifyMeal(options: MealClarificationInput, call?: EstimateCallOptions): Promise<DescribeResult | null> {
         const result = await estimate('clarify-meal', {
             text: options.name.trim().slice(0, MAX_CLARIFICATION_NAME_LENGTH),
             imageBase64: options.imageBase64,
             context: buildEstimateContext(options),
-        });
+        }, call);
         return result.ok ? result.result : null;
     }
 
-    async function clarifyComponent(options: ComponentClarificationInput): Promise<FoodResult | null> {
+    async function clarifyComponent(options: ComponentClarificationInput, call?: EstimateCallOptions): Promise<FoodResult | null> {
         const result = await estimate('clarify-component', {
             text: options.name.trim().slice(0, MAX_CLARIFICATION_NAME_LENGTH),
             imageBase64: options.imageBase64,
             context: buildEstimateContext(options),
-        });
+        }, call);
         return result.ok ? result.result.components[0] ?? null : null;
     }
 
-    return { scanFood, describeMeal, clarifyMeal, clarifyComponent };
+    return { scanFood, describeMeal, clarifyMeal, clarifyComponent, clearActions };
 }
 
 const defaultClient = createFoodEstimateClient({ workerUrl: serviceConfig.foodWorkerUrl });
@@ -395,3 +503,9 @@ export const scanFood = defaultClient.scanFood;
 export const describeMeal = defaultClient.describeMeal;
 export const clarifyMeal = defaultClient.clarifyMeal;
 export const clarifyComponent = defaultClient.clarifyComponent;
+/**
+ * Drops every remembered action identity. Consent withdrawal, a change of entitlement or
+ * identity, and Delete all data must each call this: an identifier that outlived the account it
+ * belonged to would attach one person's retry to another's allowance.
+ */
+export const clearFoodEstimateActions = defaultClient.clearActions;

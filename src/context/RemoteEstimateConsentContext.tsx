@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useEffect, useMemo, useRef, useState
 import { AppState, Modal, SafeAreaView } from 'react-native';
 
 import RemoteEstimateConsentContent from '../components/RemoteEstimateConsentContent';
+import { clearFoodEstimateActions } from '../services/foodScan';
 import {
   acceptRemoteEstimateConsent,
   declineRemoteEstimateConsent,
@@ -42,7 +43,12 @@ export function RemoteEstimateConsentProvider({ children }: { children: React.Re
   const coordinator = useMemo(() => createRemoteEstimateConsentCoordinator({
     getDecision: getRemoteEstimateConsentDecision,
     accept: acceptRemoteEstimateConsent,
-    decline: declineRemoteEstimateConsent,
+    decline: async () => {
+      await declineRemoteEstimateConsent();
+      // A withdrawn consent must not leave an estimate identity behind that a later request
+      // could still be attached to.
+      clearFoodEstimateActions();
+    },
     onDecision: setDecision,
     onPresent: showModal,
     onClose: hideModal,

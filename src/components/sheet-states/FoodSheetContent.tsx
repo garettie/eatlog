@@ -103,6 +103,8 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     timeout: 'The estimate took too long. Try again.',
     provider: "Couldn't complete the estimate. Try again.",
     'invalid-response': "This photo didn't produce a usable estimate.",
+    'description-too-long': 'That description is too long. Shorten it and try again.',
+    cancelled: 'Estimate cancelled.',
     unrecognized: 'No usable food was recognized. Try a clearer food photo or another logging method.',
     'camera-unavailable': "Couldn't open the camera. Try again or choose another logging method.",
     'gallery-unavailable': "Couldn't open your photos. Try again or choose another logging method.",

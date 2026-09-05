@@ -484,63 +484,120 @@ test('provider and malformed response failures remain sanitized', async () => {
     });
 });
 
-test('retrying the same photo reuses one request identifier so the retry is not charged twice', async () => {
-    const payloads: string[] = [];
+test('an explicit retry of the same photo keeps one action identifier so it is not charged twice', async () => {
     const requestIds: string[] = [];
+    let failNext = true;
     const client = createFoodEstimateClient({
         workerUrl: 'https://worker.example',
         hasConsent: async () => true,
         getInstallationToken: () => TOKEN,
         getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
-        requestId: (payload) => {
-            payloads.push(payload);
-            let hash = 0;
-            for (let index = 0; index < payload.length; index += 1) {
-                hash = (hash * 31 + payload.charCodeAt(index)) | 0;
-            }
-            return `request-${(hash >>> 0).toString(16).padStart(16, '0')}`;
-        },
         fetchImpl: (async (_url: string, init: RequestInit) => {
             requestIds.push((init.headers as Record<string, string>)['X-Eatlog-Request-ID']);
+            if (failNext) {
+                failNext = false;
+                return jsonResponse({ error: { code: 'UPSTREAM_TIMEOUT' } }, 504);
+            }
             return jsonResponse(recognizedEstimate());
         }) as unknown as typeof fetch,
     });
 
-    await client.scanFood('photo-bytes', 'Lunch');
-    await client.scanFood('photo-bytes', 'Lunch');
-    await client.scanFood('a-different-photo', 'Lunch');
+    const first = await client.scanFood('photo-bytes', 'Lunch');
+    assert.equal(first.ok, false);
+    // The user presses Retry on the same unchanged photo: one submission, one identifier.
+    const retried = await client.scanFood('photo-bytes', 'Lunch');
+    assert.equal(retried.ok, true);
 
-    assert.equal(payloads[0], payloads[1]);
-    assert.notEqual(payloads[0], payloads[2]);
     assert.match(requestIds[0], /^[A-Za-z0-9-]{16,128}$/);
     assert.equal(requestIds[1], requestIds[0]);
+
+    // A different photo is a different action.
+    await client.scanFood('a-different-photo', 'Lunch');
     assert.notEqual(requestIds[2], requestIds[0]);
+});
+
+test('duplicate taps while an estimate is running share it instead of starting a second', async () => {
+    const requestIds: string[] = [];
+    let release = (): void => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://worker.example',
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
+        fetchImpl: (async (_url: string, init: RequestInit) => {
+            requestIds.push((init.headers as Record<string, string>)['X-Eatlog-Request-ID']);
+            await gate;
+            return jsonResponse(recognizedEstimate());
+        }) as unknown as typeof fetch,
+    });
+
+    const both = Promise.all([client.describeMeal('one cup of rice'), client.describeMeal('one cup of rice')]);
+    release();
+    const [first, second] = await both;
+
+    assert.equal(requestIds.length, 1);
+    assert.equal(first.ok, true);
+    assert.deepEqual(second, first);
+});
+
+test('cancelling one caller leaves the shared estimate running for the other', async () => {
+    let calls = 0;
+    let release = (): void => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://worker.example',
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
+        fetchImpl: (async () => {
+            calls += 1;
+            await gate;
+            return jsonResponse(recognizedEstimate());
+        }) as unknown as typeof fetch,
+    });
+
+    const controller = new AbortController();
+    const leaving = client.describeMeal('one cup of rice', { signal: controller.signal });
+    const staying = client.describeMeal('one cup of rice');
+    controller.abort();
+
+    // The screen that left stops waiting; it does not cancel work someone else is waiting for,
+    // and it never claims the provider handed the tokens back.
+    assert.deepEqual(await leaving, { ok: false, kind: 'cancelled', message: 'Estimate cancelled.' });
+    release();
+    assert.equal((await staying).ok, true);
+    assert.equal(calls, 1);
+});
+
+test('a description longer than the service accepts is refused before it is uploaded', async () => {
+    let calls = 0;
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://worker.example',
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
+        fetchImpl: (async () => { calls += 1; return jsonResponse(recognizedEstimate()); }) as unknown as typeof fetch,
+    });
+
+    const result = await client.describeMeal('a'.repeat(2001));
+    assert.equal(result.ok === false && result.kind, 'description-too-long');
+    assert.equal(calls, 0);
 });
 
 /*
  * Milestone 1 regression case for the food-estimation plan (service review, finding 1). The
- * identifier is derived from the payload alone, so it identifies the content rather than the
- * action: logging the same meal again on another day sends an identifier the Worker still has
- * on file, while a genuine transport retry and a genuine second submission look identical.
- * Task 6 gives each intentional action its own identity and keeps that identity across its
- * retries; this case turns green there.
+ * identifier used to be derived from the payload alone, so it identified the content rather than
+ * the action: logging the same meal again on another day sent an identifier the Worker still had
+ * on file, while a genuine transport retry and a genuine second submission looked identical.
  */
-test('a second deliberate estimate of the same food is a new action, not a retry of the first', {
-    todo: 'Task 6 — give app actions stable retry identity and useful recovery',
-}, async () => {
+test('a second deliberate estimate of the same food is a new action, not a retry of the first', async () => {
     const requestIds: string[] = [];
     const client = createFoodEstimateClient({
         workerUrl: 'https://worker.example',
         hasConsent: async () => true,
         getInstallationToken: () => TOKEN,
         getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
-        requestId: (payload) => {
-            let hash = 0;
-            for (let index = 0; index < payload.length; index += 1) {
-                hash = (hash * 31 + payload.charCodeAt(index)) | 0;
-            }
-            return `request-${(hash >>> 0).toString(16).padStart(16, '0')}`;
-        },
         fetchImpl: (async (_url: string, init: RequestInit) => {
             requestIds.push((init.headers as Record<string, string>)['X-Eatlog-Request-ID']);
             return jsonResponse(recognizedEstimate());
@@ -548,6 +605,28 @@ test('a second deliberate estimate of the same food is a new action, not a retry
     });
 
     await client.describeMeal('one cup of rice');
+    await client.describeMeal('one cup of rice');
+
+    assert.notEqual(requestIds[1], requestIds[0]);
+});
+
+test('clearing remembered actions retires their identifiers', async () => {
+    const requestIds: string[] = [];
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://worker.example',
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
+        fetchImpl: (async (_url: string, init: RequestInit) => {
+            requestIds.push((init.headers as Record<string, string>)['X-Eatlog-Request-ID']);
+            return jsonResponse({ error: { code: 'UPSTREAM_TIMEOUT' } }, 504);
+        }) as unknown as typeof fetch,
+    });
+
+    await client.describeMeal('one cup of rice');
+    // Consent withdrawal, a change of identity, and Delete all data each land here. An action
+    // must not outlive the account it belonged to.
+    client.clearActions();
     await client.describeMeal('one cup of rice');
 
     assert.notEqual(requestIds[1], requestIds[0]);
