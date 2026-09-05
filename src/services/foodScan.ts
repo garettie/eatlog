@@ -293,6 +293,12 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                         // as the generic "couldn't complete" copy and looked like every other
                         // failure.
                         UPSTREAM_TIMEOUT: 'timeout',
+                        // The Worker now stops before the client's own 35s deadline, so a
+                        // request that ran out of time comes back named rather than as the
+                        // app's generic abort. Both mean the same thing to the user: it took
+                        // too long, and trying again is worth it.
+                        REQUEST_TIMEOUT: 'timeout',
+                        STATE_TIMEOUT: 'timeout',
                         MALFORMED_UPSTREAM: 'invalid-response',
                         // Throttling is a wait, not a failure, and the Worker asks for 60s
                         // back. Saying so beats the catch-all telling the user to retry now.

@@ -43,6 +43,23 @@ const MAX_CLARIFICATION_TEXT_LENGTH = 200;
 const MAX_CONTEXT_DESCRIPTION_LENGTH = 500;
 const MAX_CONTEXT_NAME_LENGTH = 120;
 const MAX_REVENUECAT_BODY_BYTES = 256 * 1024;
+/** A JSON estimate or a provider error envelope; anything larger is corruption, not an answer. */
+const MAX_GEMINI_BODY_BYTES = 256 * 1024;
+/** Well above a full 25-food USDA page, so only a runaway response is refused. */
+const MAX_USDA_RESPONSE_BYTES = 4 * 1024 * 1024;
+/**
+ * The client gives up at 35 seconds. The Worker stops first, so a request that cannot finish
+ * comes back as a named failure the app can act on rather than as the app's own timeout, with
+ * the remainder left for upload and return transit. Six seconds of transit is a hypothesis to
+ * confirm on a phone, not a measured bound for a slow mobile upload.
+ */
+const WORKER_DEADLINE_MS = 29000;
+/** Held back so a finished estimate can still be serialized, signed, and returned. */
+const RESULT_DELIVERY_RESERVE_MS = 1000;
+/** A quota round trip is a local Durable Object call; past this it is not going to answer. */
+const STATE_CALL_TIMEOUT_MS = 3000;
+/** RevenueCat's own ceiling, still bounded by whatever the request has left. */
+const REVENUECAT_TIMEOUT_MS = 8000;
 const REVENUECAT_ORIGIN = 'https://api.revenuecat.com';
 const AI_GRANT_HEADER = 'X-Eatlog-AI-Grant';
 const AI_GRANT_EXPIRES_HEADER = 'X-Eatlog-AI-Grant-Expires-At';
@@ -114,6 +131,43 @@ function logAiUsage(upstream: unknown, model: string, env: Env): void {
     model,
     ...aggregateAiUsage(inputTokens, outputTokens, inputRate, outputRate),
   }));
+}
+
+/**
+ * The single clock every stage of one request answers to. Stages ask what is left rather than
+ * each starting a fresh timer of its own, so authorization that ran long shortens the provider
+ * budget instead of pushing the total past the point where the client has stopped listening.
+ */
+interface Deadline {
+  remaining(): number;
+}
+
+function createDeadline(startedAt: number, clock: () => number, totalMs = WORKER_DEADLINE_MS): Deadline {
+  return { remaining: () => startedAt + totalMs - clock() };
+}
+
+/**
+ * Bounds work that has no deadline of its own — reading the client's upload, a quota round
+ * trip. `onTimeout` decides what a caller does with the loss; the underlying work is left to
+ * settle on its own rather than being cancelled, because nothing here is retried.
+ */
+async function withinDeadline<T>(
+  work: Promise<T>,
+  budgetMs: number,
+  onTimeout: () => HttpError,
+): Promise<T> {
+  if (budgetMs <= 0) throw onTimeout();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(onTimeout()), budgetMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 class HttpError extends Error {
@@ -230,7 +284,7 @@ function requireJsonContentType(request: Request): void {
   }
 }
 
-async function readJsonObject(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
+async function readJsonObject(request: Request, maxBytes: number, deadline: Deadline): Promise<Record<string, unknown>> {
   const lengthHeader = request.headers.get('content-length');
   if (lengthHeader != null) {
     const length = Number(lengthHeader);
@@ -239,7 +293,13 @@ async function readJsonObject(request: Request, maxBytes: number): Promise<Recor
     }
     if (length > maxBytes) throw new HttpError(413, 'PAYLOAD_TOO_LARGE', 'Request body is too large.', { rejection: 'body-size' });
   }
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  // A client that opened a request and then stalled mid-upload holds the whole budget open,
+  // and the estimate it is uploading for could no longer finish anyway.
+  const bytes = new Uint8Array(await withinDeadline(
+    request.arrayBuffer(),
+    deadline.remaining(),
+    () => new HttpError(408, 'REQUEST_TIMEOUT', 'Request body was not received in time.', { rejection: 'request-body-timeout' }),
+  ));
   if (bytes.byteLength > maxBytes) throw new HttpError(413, 'PAYLOAD_TOO_LARGE', 'Request body is too large.', { rejection: 'body-size' });
   let value: unknown;
   try {
@@ -448,20 +508,75 @@ async function applyRateLimits(env: Env, group: RouteGroup, installId: string, r
   }
 }
 
-async function fetchWithTimeout(
+interface UpstreamResponse {
+  status: number;
+  ok: boolean;
+  contentType: string;
+  text: string;
+}
+
+/**
+ * One deadline over the whole exchange, headers and body alike.
+ *
+ * The previous split — a timer around `fetch`, cleared the moment headers arrived, and the body
+ * read afterwards with nothing watching it — meant a connection that answered fast and then
+ * stalled could spend the entire budget without ever tripping the abort it was given. The
+ * fallback model was unreachable by the time anyone noticed. The body is also bounded as it
+ * streams rather than after it is buffered, so an upstream cannot make us hold what it sends.
+ */
+async function fetchUpstream(
   fetchImpl: typeof fetch,
   input: string,
   init: RequestInit,
   timeoutMs: number,
   upstream: 'usda' | 'gemini' | 'revenuecat',
   cacheOutcome: 'miss' | 'bypass',
-): Promise<Response> {
+  maxBytes: number,
+): Promise<UpstreamResponse> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), Math.max(0, timeoutMs));
+  let overflowed = false;
   try {
-    return await fetchImpl(input, { ...init, signal: controller.signal });
+    const response = await fetchImpl(input, { ...init, signal: controller.signal });
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    const reader = response.body?.getReader();
+    if (reader) {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          size += value.byteLength;
+          if (size > maxBytes) {
+            overflowed = true;
+            controller.abort();
+            throw new Error('upstream body exceeded its limit');
+          }
+          chunks.push(value);
+        }
+      } finally {
+        // Releases the connection whether the read finished, timed out, or overflowed.
+        await reader.cancel().catch(() => {});
+      }
+    }
+    const body = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      body.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return {
+      status: response.status,
+      ok: response.ok,
+      contentType: response.headers.get('content-type') ?? '',
+      text: new TextDecoder().decode(body),
+    };
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (overflowed) {
+      throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream, cacheOutcome, rejection: 'upstream-body-size' });
+    }
+    if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
       throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Upstream service timed out.', { upstream, cacheOutcome, rejection: 'timeout' });
     }
     throw new HttpError(502, 'UPSTREAM_UNAVAILABLE', 'Upstream service is unavailable.', { upstream, cacheOutcome, rejection: 'network' });
@@ -535,17 +650,17 @@ function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
   };
 }
 
-async function readUpstreamJson(
-  response: Response,
+function parseUpstreamJson(
+  response: UpstreamResponse,
   upstream: 'usda' | 'gemini' | 'revenuecat',
   cacheOutcome: 'miss' | 'bypass',
-): Promise<unknown> {
+): unknown {
   if (!response.ok) throw new HttpError(502, 'UPSTREAM_ERROR', 'Upstream service rejected the request.', { upstream, cacheOutcome, rejection: 'upstream-status' });
-  if (!(response.headers.get('content-type') ?? '').includes('application/json')) {
+  if (!response.contentType.includes('application/json')) {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream, cacheOutcome, rejection: 'upstream-content-type' });
   }
   try {
-    return await response.json();
+    return JSON.parse(response.text);
   } catch {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream, cacheOutcome, rejection: 'upstream-json' });
   }
@@ -629,6 +744,7 @@ async function refreshRevenueCatAccess(
   fetchImpl: typeof fetch,
   now: number,
   force: boolean,
+  deadline: Deadline,
 ): Promise<{ verified: VerifiedRevenueCatAccess; customerKey: string; provisional: boolean }> {
   requireSubscriptionConfiguration(env);
   const customerKey = await hashQuotaIdentity(`customer:${installId}`, env.RATE_LIMIT_SALT);
@@ -643,10 +759,14 @@ async function refreshRevenueCatAccess(
     }
   }
   try {
-    const response = await fetchWithTimeout(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
+    // Too little time left to both ask RevenueCat and still produce an estimate: fall through
+    // to the cached or provisional answer rather than spending what remains on a call whose
+    // result would arrive after the client has gone.
+    if (deadline.remaining() <= REVENUECAT_TIMEOUT_MS / 2) throw new Error('insufficient time to verify access');
+    const response = await fetchUpstream(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`, Accept: 'application/json' },
-    }, 8000, 'revenuecat', 'bypass');
-    const normalized = normalizeRevenueCatSubscriber(await readUpstreamJson(response, 'revenuecat', 'bypass'), now);
+    }, Math.min(REVENUECAT_TIMEOUT_MS, deadline.remaining()), 'revenuecat', 'bypass', MAX_REVENUECAT_BODY_BYTES);
+    const normalized = normalizeRevenueCatSubscriber(parseUpstreamJson(response, 'revenuecat', 'bypass'), now);
     // A response we could not parse is not a verdict. Caching it would overwrite the last good
     // record with a non-answer and take the outage fallback down with it.
     if (normalized.access.kind === 'pugo' && normalized.access.reason === 'malformed') {
@@ -736,8 +856,9 @@ async function accessRefresh(
   fetchImpl: typeof fetch,
   now: number,
   force: boolean,
+  deadline: Deadline,
 ): Promise<Response> {
-  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force);
+  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force, deadline);
   const grant = await issueAiGrant(verified, env, now, provisional);
   if (!grant) return json({ access: verified.access, usage: { kind: 'none' } });
   const usage = await store.usage(grant.claims.sub, grant.claims.access, now);
@@ -755,6 +876,7 @@ async function authorizeEstimate(
   store: SubscriptionStore,
   fetchImpl: typeof fetch,
   now: number,
+  deadline: Deadline,
 ): Promise<{ claims: GrantClaims; refreshedGrant: IssuedAiGrant | null }> {
   requireSubscriptionConfiguration(env);
   const token = bearerToken(request);
@@ -762,7 +884,7 @@ async function authorizeEstimate(
     const claims = await verifyAiGrant(token, env.AI_GRANT_SIGNING_KEY, now);
     if (claims) return { claims, refreshedGrant: null };
   }
-  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false);
+  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false, deadline);
   const refreshedGrant = await issueAiGrant(verified, env, now, provisional);
   if (!refreshedGrant) {
     throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Refresh your plan and try again.', { rejection: 'entitlement-refresh' });
@@ -790,6 +912,7 @@ async function handleRevenueCatWebhook(
   request: Request,
   env: Env,
   store: SubscriptionStore,
+  deadline: Deadline,
 ): Promise<Response> {
   requireSubscriptionConfiguration(env);
   const authorization = request.headers.get('authorization')?.trim() ?? '';
@@ -797,7 +920,7 @@ async function handleRevenueCatWebhook(
     throw new HttpError(401, 'UNAUTHORIZED', 'Webhook authorization failed.', { rejection: 'webhook-auth' });
   }
   requireJsonContentType(request);
-  const body = await readJsonObject(request, MAX_REVENUECAT_BODY_BYTES);
+  const body = await readJsonObject(request, MAX_REVENUECAT_BODY_BYTES, deadline);
   const event = body.event;
   if (!event || typeof event !== 'object') throw new HttpError(400, 'INVALID_WEBHOOK', 'Webhook payload is invalid.', { rejection: 'webhook-shape' });
   const value = event as Record<string, unknown>;
@@ -834,6 +957,7 @@ async function usdaSearch(
   context: ExecutionContext,
   fetchImpl: typeof fetch,
   cache: CacheLike | null,
+  deadline: Deadline,
 ): Promise<Response> {
   const queryDigest = await digestText(`${input.mode}\0${input.query}`);
   const key = new Request(`https://cache.eatlog.invalid/usda/search/${input.mode}/${queryDigest}`);
@@ -842,12 +966,12 @@ async function usdaSearch(
   const dataType = input.mode === 'common'
     ? ['Survey (FNDDS)', 'Foundation', 'SR Legacy']
     : ['Survey (FNDDS)', 'Foundation', 'SR Legacy', 'Branded'];
-  const response = await fetchWithTimeout(fetchImpl, `${USDA_ORIGIN}${USDA_SEARCH_PATH}?api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
+  const response = await fetchUpstream(fetchImpl, `${USDA_ORIGIN}${USDA_SEARCH_PATH}?api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: input.query, pageSize: USDA_PAGE_SIZE, pageNumber: 1, dataType }),
-  }, USDA_TIMEOUT_MS, 'usda', 'miss');
-  const upstream = await readUpstreamJson(response, 'usda', 'miss');
+  }, Math.min(USDA_TIMEOUT_MS, deadline.remaining()), 'usda', 'miss', MAX_USDA_RESPONSE_BYTES);
+  const upstream = parseUpstreamJson(response, 'usda', 'miss');
   if (!upstream || typeof upstream !== 'object' || !Array.isArray((upstream as Record<string, unknown>).foods)) {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream: 'usda', cacheOutcome: 'miss', rejection: 'upstream-shape' });
   }
@@ -867,14 +991,15 @@ async function usdaDetail(
   context: ExecutionContext,
   fetchImpl: typeof fetch,
   cache: CacheLike | null,
+  deadline: Deadline,
 ): Promise<Response> {
   const key = new Request(`https://cache.eatlog.invalid/usda/food/${fdcId}`);
   const cached = await cacheMatch(cache, key);
   if (cached) return json(cached);
-  const response = await fetchWithTimeout(fetchImpl, `${USDA_ORIGIN}/fdc/v1/food/${fdcId}?format=full&api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
+  const response = await fetchUpstream(fetchImpl, `${USDA_ORIGIN}/fdc/v1/food/${fdcId}?format=full&api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
     method: 'GET', headers: { Accept: 'application/json' },
-  }, USDA_TIMEOUT_MS, 'usda', 'miss');
-  const normalized = normalizeUsdaFood(await readUpstreamJson(response, 'usda', 'miss'));
+  }, Math.min(USDA_TIMEOUT_MS, deadline.remaining()), 'usda', 'miss', MAX_USDA_RESPONSE_BYTES);
+  const normalized = normalizeUsdaFood(parseUpstreamJson(response, 'usda', 'miss'));
   if (!normalized) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid food.', { upstream: 'usda', cacheOutcome: 'miss', rejection: 'upstream-food' });
   const body = { food: normalized };
   cacheStore(cache, context, key, body, 86400);
@@ -1102,20 +1227,29 @@ function geminiRelayStub(env: Env): DurableObjectStub | null {
   return namespace.get(namespace.idFromName('gemini-relay-v1'), { locationHint: GEMINI_RELAY_LOCATION_HINT });
 }
 
-function relayFetchImpl(stub: DurableObjectStub, model: string): typeof fetch {
+/**
+ * The relay is told how long it may take, not left to invent its own budget. Its inner call to
+ * Google is a second network hop that the caller's abort does not reach, so without this a
+ * stalled relay could outlive the request that started it.
+ */
+function relayFetchImpl(stub: DurableObjectStub, model: string, budgetMs: number): typeof fetch {
   return ((_input: unknown, init: RequestInit = {}) => stub.fetch(GEMINI_RELAY_URL, {
     ...init,
-    headers: { ...(init.headers as Record<string, string> | undefined), 'x-eatlog-gemini-model': model },
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      'x-eatlog-gemini-model': model,
+      'x-eatlog-deadline-ms': String(Math.max(0, Math.round(budgetMs))),
+    },
   })) as typeof fetch;
 }
 
 /**
  * Google's own status and message, truncated. Enough to name what it objected to without
- * carrying the request content that provoked it. Read from a clone so the body survives.
+ * carrying the request content that provoked it.
  */
-async function geminiRejectionReason(response: Response): Promise<string> {
+function geminiRejectionReason(response: UpstreamResponse): string {
   try {
-    const body = await response.clone().json() as { error?: { message?: unknown; status?: unknown } };
+    const body = JSON.parse(response.text) as { error?: { message?: unknown; status?: unknown } };
     return `${String(body.error?.status ?? '')} ${String(body.error?.message ?? '')}`.trim().slice(0, 300);
   } catch {
     return '';
@@ -1139,8 +1273,14 @@ async function geminiEstimate(
   env: Env,
   fetchImpl: typeof fetch,
   models: readonly string[],
+  deadline: Deadline,
 ): Promise<{ response: Response; recognized: boolean }> {
   const started = Date.now();
+  /** Never more than the provider ceiling, and never more than the request actually has left. */
+  const providerRemaining = (): number => Math.min(
+    GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started),
+    deadline.remaining() - RESULT_DELIVERY_RESERVE_MS,
+  );
   const parts: Array<Record<string, unknown>> = [{ text: promptFor(input) }];
   if (input.imageBase64) parts.push({ inlineData: { mimeType: 'image/jpeg', data: input.imageBase64 } });
   const body = JSON.stringify({
@@ -1154,17 +1294,21 @@ async function geminiEstimate(
   });
   const relay = geminiRelayStub(env);
   let relayed = false;
-  const ordered = routeModels(models, started);
+  // Authorization may already have eaten the budget. Two attempts that each get less than the
+  // floor are two calls neither of which can finish, so take however many the remaining time
+  // can actually fund and give the first one a workable share.
+  const ordered = routeModels(models, started)
+    .slice(0, Math.max(1, Math.floor(providerRemaining() / GEMINI_MODEL_FLOOR_MS)));
   for (const [index, model] of ordered.entries()) {
     const isLast = index === ordered.length - 1;
-    const remaining = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
+    const remaining = providerRemaining();
     if (remaining <= 0) throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Estimation service timed out.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'timeout' });
     const attempt = attemptBudget(remaining, ordered.length - 1 - index);
-    let response: Response;
+    let response: UpstreamResponse;
     try {
       response = relayed
-        ? await fetchWithTimeout(relayFetchImpl(relay!, model), GEMINI_RELAY_URL, geminiInit(body), attempt, 'gemini', 'bypass')
-        : await fetchWithTimeout(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), attempt, 'gemini', 'bypass');
+        ? await fetchUpstream(relayFetchImpl(relay!, model, attempt), GEMINI_RELAY_URL, geminiInit(body), attempt, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES)
+        : await fetchUpstream(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), attempt, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES);
     } catch (error) {
       // Timed out or unreachable: the brownout signal this cooldown exists for.
       noteModelFailed(model, Date.now());
@@ -1172,23 +1316,24 @@ async function geminiEstimate(
       continue;
     }
     if (!response.ok) {
-      let reason = await geminiRejectionReason(response);
+      let reason = geminiRejectionReason(response);
       // A location refusal is about where the call left from, not the model, so trying the
       // next model changes nothing. Send the same one through the relay instead, and keep
       // every later model on that path so the budget is not spent proving the point twice.
       if (!relayed && relay && locationUnsupported(response.status, reason)) {
-        const budget = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
+        const budget = providerRemaining();
         if (budget > 0) {
           relayed = true;
           console.log(JSON.stringify({ event: 'ai_relay_engaged', model, reason }));
+          const relayBudget = attemptBudget(budget, ordered.length - 1 - index);
           try {
-            response = await fetchWithTimeout(relayFetchImpl(relay, model), GEMINI_RELAY_URL, geminiInit(body), attemptBudget(budget, ordered.length - 1 - index), 'gemini', 'bypass');
+            response = await fetchUpstream(relayFetchImpl(relay, model, relayBudget), GEMINI_RELAY_URL, geminiInit(body), relayBudget, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES);
           } catch (error) {
             noteModelFailed(model, Date.now());
             if (isLast) throw error;
             continue;
           }
-          reason = response.ok ? '' : await geminiRejectionReason(response);
+          reason = response.ok ? '' : geminiRejectionReason(response);
         }
       }
       if (!response.ok) {
@@ -1213,7 +1358,7 @@ async function geminiEstimate(
     }
     let upstream: unknown;
     try {
-      upstream = await readUpstreamJson(response, 'gemini', 'bypass');
+      upstream = parseUpstreamJson(response, 'gemini', 'bypass');
     } catch (error) {
       if (isLast) throw error;
       continue;
@@ -1258,10 +1403,21 @@ export async function handleRequest(
   context: ExecutionContext,
   dependencies: Dependencies = {},
 ): Promise<Response> {
-  const started = (dependencies.now ?? Date.now)();
+  const clock = dependencies.now ?? Date.now;
+  const started = clock();
+  const deadline = createDeadline(started, clock);
   const requestId = dependencies.requestId?.() ?? crypto.randomUUID();
   const url = new URL(request.url);
   const route = routeName(url.pathname);
+  /**
+   * Quota bookkeeping still has to happen when the estimate itself ran long, but it must not be
+   * what finally pushes the request past the client's patience.
+   */
+  const bookkeeping = (work: Promise<void>): Promise<void> => withinDeadline(
+    work,
+    Math.max(STATE_CALL_TIMEOUT_MS, deadline.remaining()),
+    () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
+  ).catch(() => {});
   try {
     if (route === 'unknown') throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route' });
     const method = allowedMethod(route);
@@ -1271,7 +1427,7 @@ export async function handleRequest(
     const fetchImpl = dependencies.fetchImpl ?? fetch;
     if (route === 'revenuecat-webhook') {
       if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
-      return await handleRevenueCatWebhook(request, env, resolveSubscriptionStore(env, dependencies.subscriptionStore));
+      return await handleRevenueCatWebhook(request, env, resolveSubscriptionStore(env, dependencies.subscriptionStore), deadline);
     }
     if (route === 'usage') {
       if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
@@ -1284,7 +1440,7 @@ export async function handleRequest(
     if (route === 'access-refresh') {
       if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
       requireJsonContentType(request);
-      const body = await readJsonObject(request, 1024);
+      const body = await readJsonObject(request, 1024, deadline);
       rejectUnknownProperties(body, ['force']);
       if (body.force !== undefined && typeof body.force !== 'boolean') {
         throw new HttpError(400, 'INVALID_BODY', 'Force must be boolean.', { rejection: 'force' });
@@ -1294,8 +1450,9 @@ export async function handleRequest(
         env,
         resolveSubscriptionStore(env, dependencies.subscriptionStore),
         fetchImpl,
-        (dependencies.now ?? Date.now)(),
+        clock(),
         body.force === true,
+        deadline,
       );
     }
 
@@ -1307,15 +1464,15 @@ export async function handleRequest(
 
     if (route === 'usda-search') {
       requireJsonContentType(request);
-      return await usdaSearch(parseUsdaSearch(await readJsonObject(request, MAX_USDA_BODY_BYTES)), env, context, fetchImpl, defaultCache);
+      return await usdaSearch(parseUsdaSearch(await readJsonObject(request, MAX_USDA_BODY_BYTES, deadline)), env, context, fetchImpl, defaultCache, deadline);
     }
     if (route === 'usda-detail') {
-      return await usdaDetail(parseFdcId(url.pathname), env, context, fetchImpl, defaultCache);
+      return await usdaDetail(parseFdcId(url.pathname), env, context, fetchImpl, defaultCache, deadline);
     }
     requireJsonContentType(request);
     if (!subscriptionsEnabled(env)) {
-      const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
-      return (await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS)).response;
+      const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
+      return (await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS, deadline)).response;
     }
 
     const idempotencyKey = request.headers.get('x-eatlog-request-id')?.trim() ?? '';
@@ -1324,10 +1481,14 @@ export async function handleRequest(
     }
     const now = (dependencies.now ?? Date.now)();
     const store = resolveSubscriptionStore(env, dependencies.subscriptionStore);
-    const authorization = await authorizeEstimate(request, installId, env, store, fetchImpl, now);
-    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
+    const authorization = await authorizeEstimate(request, installId, env, store, fetchImpl, now, deadline);
+    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
     const claims = authorization.claims;
-    const reservation = await store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now);
+    const reservation = await withinDeadline(
+      store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now),
+      Math.min(STATE_CALL_TIMEOUT_MS, Math.max(0, deadline.remaining())),
+      () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
+    );
     if (!reservation.allowed) {
       if (reservation.code === 'PAID_ACCESS_REQUIRED') {
         throw new HttpError(402, reservation.code, 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
@@ -1351,12 +1512,12 @@ export async function handleRequest(
     }
     try {
       const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
-      const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models);
-      if (recognized) await store.finalize(claims.sub, idempotencyKey).catch(() => {});
-      else await store.refund(claims.sub, idempotencyKey).catch(() => {});
+      const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models, deadline);
+      if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
+      else await bookkeeping(store.refund(claims.sub, idempotencyKey));
       return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
     } catch (error) {
-      await store.refund(claims.sub, idempotencyKey).catch(() => {});
+      await bookkeeping(store.refund(claims.sub, idempotencyKey));
       throw error;
     }
   } catch (error) {

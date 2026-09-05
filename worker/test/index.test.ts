@@ -1655,15 +1655,16 @@ test('a provider outage does not lock a customer out once the provider recovers'
   assert.equal(recovered.body.status, 'recognized');
 });
 
-test('the upstream deadline covers a stalled response body, not only its headers', {
-  todo: 'Task 3 — apply deadlines through body consumption and regional retry',
-}, async (t) => {
+test('the upstream deadline covers a stalled response body, not only its headers', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let signal: AbortSignal | undefined;
   let releaseBody = (): void => {};
+  let announceFetch = (): void => {};
   const stalled = new Promise<void>((resolve) => { releaseBody = resolve; });
+  const fetchStarted = new Promise<void>((resolve) => { announceFetch = resolve; });
   const fetchImpl = (async (_input: unknown, init: RequestInit = {}) => {
     signal = init.signal ?? undefined;
+    announceFetch();
     // Headers now, body later: the shape a stalled connection actually has.
     return new Response(new ReadableStream({
       async pull(controller) {
@@ -1675,9 +1676,9 @@ test('the upstream deadline covers a stalled response body, not only its headers
   }) as typeof fetch;
 
   const pending = call(request('/v1/usda/foods/1'), { fetchImpl });
-  for (let tick = 0; tick < 20; tick += 1) await Promise.resolve();
+  await fetchStarted;
   // Well past the eight-second USDA budget, with the body still unread. The same
-  // `fetchWithTimeout`/`readUpstreamJson` pair carries every Gemini and RevenueCat call.
+  // fetch-and-read pair carries every Gemini and RevenueCat call.
   t.mock.timers.tick(9000);
   const abortedInTime = signal?.aborted === true;
   releaseBody();
@@ -1789,4 +1790,170 @@ test('every generated attempt is priced, including its thinking tokens', {
   } finally {
     console.log = original;
   }
+});
+
+/*
+ * Task 3 of the food-estimation plan. Every stage of one request answers to a single deadline,
+ * so these drive each stage past its budget with mocked timers rather than by waiting.
+ */
+
+/** Resolves once the worker has actually reached the stage under test, so ticking is not a race. */
+function arrival(): { reached: Promise<void>; announce: () => void } {
+  let announce = (): void => {};
+  const reached = new Promise<void>((resolve) => { announce = resolve; });
+  return { reached, announce: () => announce() };
+}
+
+test('an upstream that never sends headers is abandoned rather than waited out', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { reached, announce } = arrival();
+  const fetchImpl = (async (_input: unknown, init: RequestInit = {}) => {
+    announce();
+    return await new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    });
+  }) as typeof fetch;
+
+  const pending = call(request('/v1/usda/foods/1'), { fetchImpl });
+  await reached;
+  t.mock.timers.tick(9000);
+  const { response, body } = await pending;
+  assert.equal(response.status, 504);
+  assert.equal(body.error.code, 'UPSTREAM_TIMEOUT');
+});
+
+test('a response body that stops mid-JSON is an invalid response, not a partial estimate', async () => {
+  const truncated = new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"foods":[{"fdcId":1,'));
+        controller.close();
+      },
+    }),
+    { headers: { 'Content-Type': 'application/json' } },
+  );
+  const { response, body } = await call(
+    request('/v1/usda/search', 'POST', { query: 'rice', mode: 'common' }),
+    { fetchImpl: (async () => truncated) as typeof fetch },
+  );
+  assert.equal(response.status, 502);
+  assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
+});
+
+test('an upstream body past its cap is refused while it streams, not after it is held', async () => {
+  let delivered = 0;
+  const flood = () => new Response(
+    new ReadableStream({
+      pull(controller) {
+        delivered += 64 * 1024;
+        controller.enqueue(new Uint8Array(64 * 1024));
+      },
+    }),
+    { headers: { 'Content-Type': 'application/json' } },
+  );
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+    { fetchImpl: (async () => flood()) as typeof fetch },
+  );
+  assert.equal(response.status, 502);
+  assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
+  // The stream is endless, so a finite total is the whole point: the cap stopped it, and the
+  // Worker never buffered more than the two attempts' caps plus the runtime's read-ahead.
+  assert.equal(Number.isFinite(delivered) && delivered > 0, true);
+  assert.equal(delivered < 8 * 1024 * 1024, true);
+});
+
+test('an unreachable RevenueCat gives up in time for the estimate it was authorizing', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  resetModelCooldowns();
+  const { reached, announce } = arrival();
+  const fetchImpl = (async (input: string | URL | Request, init: RequestInit = {}) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) {
+      announce();
+      return await new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+      });
+    }
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const pending = call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-hung-authorization',
+  }), { env: subscriptionEnv(), fetchImpl, subscriptionStore: new MemorySubscriptionStore() });
+  await reached;
+  t.mock.timers.tick(9000);
+  const { response, body } = await pending;
+  // The outage falls back to Pugo rather than failing, and the estimate still runs.
+  assert.equal(response.status, 200);
+  assert.equal(body.status, 'recognized');
+});
+
+test('a quota store that never answers fails the request instead of holding it open', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const memory = new MemorySubscriptionStore();
+  const { reached, announce } = arrival();
+  const hungStore: SubscriptionStore = {
+    getCached: memory.getCached.bind(memory),
+    putCached: memory.putCached.bind(memory),
+    recordWebhook: memory.recordWebhook.bind(memory),
+    usage: memory.usage.bind(memory),
+    finalize: memory.finalize.bind(memory),
+    refund: memory.refund.bind(memory),
+    reserve: () => { announce(); return new Promise(() => {}); },
+  };
+  const fetchImpl = (async (input: string | URL | Request) => (
+    String(input).startsWith('https://api.revenuecat.com/')
+      ? jsonResponse(paidRevenueCat())
+      : geminiResponse(recognized)
+  )) as typeof fetch;
+
+  const pending = call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-hung-state',
+  }), { env: subscriptionEnv(), fetchImpl, subscriptionStore: hungStore });
+  await reached;
+  t.mock.timers.tick(4000);
+  const { response, body } = await pending;
+  assert.equal(response.status, 504);
+  assert.equal(body.error.code, 'STATE_TIMEOUT');
+});
+
+test('the region relay is given the budget it must finish inside', async () => {
+  resetModelCooldowns();
+  const relayHeaders: Array<Record<string, string>> = [];
+  const relayStub = {
+    fetch: async (_url: string, init: RequestInit = {}) => {
+      relayHeaders.push(init.headers as Record<string, string>);
+      return geminiResponse(recognized);
+    },
+  };
+  const env = subscriptionEnv({
+    GEMINI_RELAY: {
+      idFromName: () => 'relay-id',
+      get: () => relayStub,
+    } as unknown as DurableObjectNamespace,
+  });
+  const refusal = jsonResponse({
+    error: { status: 'FAILED_PRECONDITION', message: 'User location is not supported for the API use.' },
+  }, 400);
+  const fetchImpl = (async (input: string | URL | Request) => (
+    String(input).startsWith('https://api.revenuecat.com/') ? jsonResponse(paidRevenueCat()) : refusal
+  )) as typeof fetch;
+
+  const { response } = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-relay-budget',
+  }), { env, fetchImpl, subscriptionStore: new MemorySubscriptionStore() });
+
+  assert.equal(response.status, 200);
+  assert.equal(relayHeaders.length, 1);
+  const budget = Number(relayHeaders[0]['x-eatlog-deadline-ms']);
+  // The relay's own hop is invisible to our abort, so it has to be told how long it may take.
+  assert.equal(Number.isFinite(budget) && budget > 0 && budget <= 26000, true);
+});
+
+test('a model with too little time left is not called twice for the sake of the list', () => {
+  // Nine seconds is one model's floor. Authorization that leaves less than two of them must
+  // buy one attempt that can finish rather than two that cannot.
+  assert.equal(attemptBudget(9000, 0), 9000);
+  assert.equal(attemptBudget(26000, 1), 17000);
+  assert.equal(attemptBudget(12000, 1), 9000);
 });
