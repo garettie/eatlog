@@ -475,6 +475,25 @@ function finiteNonNegative(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+/**
+ * The same question asked of a generated estimate rather than of USDA's published data.
+ * `Number()` is deliberately not used here: it turns `null`, `false`, and `""` into zero, and a
+ * zero calorie count is a confident claim about food the model actually declined to answer for.
+ * USDA keeps the lenient coercion above, because its fields are numeric strings by design.
+ */
+function generatedNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/**
+ * Corruption bounds, not nutrition truth. Nothing edible is a thousand calories per hundred
+ * grams (pure fat is about 900) and no macronutrient can exceed the mass containing it, so a
+ * value past these did not come from a working estimate. Anything inside them is passed through
+ * untouched, including legitimate zeros: a boiled egg white really does have no carbohydrate.
+ */
+const MAX_CALORIES_PER_100G = 1000;
+const MAX_MACRO_PER_100G = 100;
+
 function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const food = value as Record<string, unknown>;
@@ -907,15 +926,22 @@ function normalizeMealDivision(
   const empty = { servesTotal: null, servingUnit: null };
   if (operation === 'clarify-component') return empty;
   const servingUnit = nullableText(value.servingUnit);
-  const servesTotal = finiteNonNegative(value.servesTotal);
+  const servesTotal = generatedNumber(value.servesTotal);
   if (!servingUnit || servesTotal == null) return empty;
   const whole = Math.round(servesTotal);
   if (whole < 2 || whole > MAX_SERVES_TOTAL) return empty;
   return { servesTotal: whole, servingUnit: servingUnit.slice(0, 40) };
 }
 
+/**
+ * A counted label ("3 cookies") is rewritten to the single unit the review sheet scales from.
+ * The consumed total is never recomputed from it. "3 cookies" alongside a 30g serving mass can
+ * mean three cookies weighing 30g altogether or three weighing 30g each, and the payload says
+ * which only if the model happened to make its own two fields agree — so multiplying the count
+ * by the serving mass silently tripled amounts a user had already weighed and stated.
+ * `estimatedGrams` is what was eaten; this function only renames the unit beside it.
+ */
 function normalizeCountedServing(
-  operation: EstimateOperation,
   estimatedGrams: number,
   servingSizeGrams: number | null,
   servingLabel: string | null,
@@ -946,14 +972,8 @@ function normalizeCountedServing(
     break;
   }
 
-  const consumedGrams = operation === 'scan'
-    ? estimatedGrams
-    : quantity * servingSizeGrams;
-  if (!Number.isFinite(consumedGrams) || consumedGrams <= 0) {
-    return { estimatedGrams, servingLabel };
-  }
   return {
-    estimatedGrams: consumedGrams,
+    estimatedGrams,
     servingLabel: `1 ${words.join(' ')}`,
   };
 }
@@ -974,29 +994,27 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
   const components = result.components.map((entry) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
     const component = entry as Record<string, unknown>;
-    const estimatedGrams = finiteNonNegative(component.estimatedGrams);
-    const servingSizeGrams = component.servingSizeGrams === null ? null : finiteNonNegative(component.servingSizeGrams);
-    const caloriesPer100g = finiteNonNegative(component.caloriesPer100g);
-    const proteinPer100g = finiteNonNegative(component.proteinPer100g);
-    const carbsPer100g = finiteNonNegative(component.carbsPer100g);
-    const fatPer100g = finiteNonNegative(component.fatPer100g);
+    const estimatedGrams = generatedNumber(component.estimatedGrams);
+    const servingSizeGrams = component.servingSizeGrams === null ? null : generatedNumber(component.servingSizeGrams);
+    const caloriesPer100g = generatedNumber(component.caloriesPer100g);
+    const proteinPer100g = generatedNumber(component.proteinPer100g);
+    const carbsPer100g = generatedNumber(component.carbsPer100g);
+    const fatPer100g = generatedNumber(component.fatPer100g);
     const confidence = component.confidence;
     const confidenceReason = nullableText(component.confidenceReason);
-    if (typeof component.name !== 'string' || !component.name.trim() || estimatedGrams == null || estimatedGrams <= 0
+    if (typeof component.name !== 'string' || !component.name.trim()
+      || estimatedGrams == null || estimatedGrams <= 0 || estimatedGrams > MAX_COMPONENT_GRAMS
       || caloriesPer100g == null || proteinPer100g == null || carbsPer100g == null || fatPer100g == null
-      || (servingSizeGrams != null && servingSizeGrams <= 0)
+      || caloriesPer100g > MAX_CALORIES_PER_100G
+      || proteinPer100g > MAX_MACRO_PER_100G || carbsPer100g > MAX_MACRO_PER_100G || fatPer100g > MAX_MACRO_PER_100G
+      || (servingSizeGrams != null && (servingSizeGrams <= 0 || servingSizeGrams > MAX_COMPONENT_GRAMS))
       || (confidence !== 'high' && confidence !== 'medium' && confidence !== 'low')
       || (confidence === 'low' && !confidenceReason)) return null;
     const brand = nullableText(component.brand);
     const preparation = nullableText(component.preparation);
     const servingLabel = nullableText(component.servingLabel);
     if (brand === undefined || preparation === undefined || servingLabel === undefined || confidenceReason === undefined) return null;
-    const normalizedServing = normalizeCountedServing(
-      operation,
-      estimatedGrams,
-      servingSizeGrams,
-      servingLabel,
-    );
+    const normalizedServing = normalizeCountedServing(estimatedGrams, servingSizeGrams, servingLabel);
     return {
       name: component.name.trim().slice(0, 200),
       estimatedGrams: normalizedServing.estimatedGrams,

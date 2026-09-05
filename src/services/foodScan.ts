@@ -308,7 +308,16 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             const refreshedGrantExpiry = response.headers.get('x-eatlog-ai-grant-expires-at');
             if (refreshedGrant && refreshedGrantExpiry) acceptGrant(refreshedGrant, refreshedGrantExpiry);
             if (!(response.headers.get('content-type') ?? '').includes('application/json')) return failure('invalid-response');
-            const result = await response.json() as FoodEstimateResponse;
+            // A body that claims to be JSON and is not is a bad answer, not a bad connection.
+            // Letting it reach the outer catch told the user their network had failed and
+            // offered a retry that could only produce the same reply.
+            let result: FoodEstimateResponse;
+            try {
+                result = await response.json() as FoodEstimateResponse;
+            } catch {
+                return failure('invalid-response');
+            }
+            if (!result || typeof result !== 'object') return failure('invalid-response');
             if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');
             if (!isRecognizedFoodEstimate(result)) return failure('invalid-response');
             const division = mealDivisionOf(result);

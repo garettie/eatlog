@@ -552,3 +552,34 @@ test('a second deliberate estimate of the same food is a new action, not a retry
 
     assert.notEqual(requestIds[1], requestIds[0]);
 });
+
+test('a malformed success body is named as an invalid response, not as a network failure', async () => {
+    const client = createAcceptedClient({
+        workerUrl: 'https://worker.example',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async () => new Response('{"status":"recog', {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        })) as typeof fetch,
+    });
+
+    const result = await client.describeMeal('rice');
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.kind, 'invalid-response');
+});
+
+test('a JSON body that is not an estimate object is rejected rather than mapped', async () => {
+    for (const body of ['null', '"rice"', '[]', '42']) {
+        const client = createAcceptedClient({
+            workerUrl: 'https://worker.example',
+            getInstallationToken: () => TOKEN,
+            fetchImpl: (async () => new Response(body, {
+                status: 200,
+                headers: { 'content-type': 'application/json' },
+            })) as typeof fetch,
+        });
+        const result = await client.describeMeal('rice');
+        assert.equal(result.ok, false);
+        if (!result.ok) assert.equal(result.kind, 'invalid-response');
+    }
+});

@@ -178,32 +178,144 @@ function freeRevenueCat(): unknown {
   } };
 }
 
-test('normalizes a counted serving label to one unit and the consumed total', async () => {
-  const countedEggs = {
-    ...recognized,
-    mealName: 'Eggs',
-    components: [{
-      ...recognized.components[0],
-      name: 'Eggs',
-      estimatedGrams: 50,
-      servingSizeGrams: 50,
-      servingLabel: '2 eggs',
-    }],
-  };
-  const { response, body } = await call(
-    request('/v1/estimate', 'POST', { operation: 'describe', text: '2 eggs' }),
-    { fetchImpl: (async () => geminiResponse(countedEggs)) as typeof fetch },
-  );
-
-  assert.equal(response.status, 200);
-  assert.deepEqual(
-    {
+test('normalizes a counted serving label to one unit without recomputing what was eaten', async () => {
+  const counted = async (component: Record<string, unknown>, operation = 'describe', text = '2 eggs') => {
+    const { response, body } = await call(
+      request('/v1/estimate', 'POST', operation === 'scan'
+        ? { operation, imageBase64: JPEG }
+        : { operation, text }),
+      {
+        fetchImpl: (async () => geminiResponse({
+          ...recognized,
+          mealName: 'Eggs',
+          components: [{ ...recognized.components[0], ...component }],
+        })) as typeof fetch,
+      },
+    );
+    assert.equal(response.status, 200);
+    return {
       estimatedGrams: body.components[0].estimatedGrams,
       servingSizeGrams: body.components[0].servingSizeGrams,
       servingLabel: body.components[0].servingLabel,
-    },
+    };
+  };
+
+  // The label names the unit the review sheet scales from, so a count becomes one of them.
+  assert.deepEqual(
+    await counted({ name: 'Eggs', estimatedGrams: 100, servingSizeGrams: 50, servingLabel: '2 eggs' }),
     { estimatedGrams: 100, servingSizeGrams: 50, servingLabel: '1 egg' },
   );
+  // The same payload shape with a total that happens to equal one unit. Multiplying the count
+  // by the serving mass here is a guess, and it is the guess that tripled weighed amounts, so
+  // the stated total stands and only the unit is renamed.
+  assert.deepEqual(
+    await counted({ name: 'Eggs', estimatedGrams: 50, servingSizeGrams: 50, servingLabel: '2 eggs' }),
+    { estimatedGrams: 50, servingSizeGrams: 50, servingLabel: '1 egg' },
+  );
+  // A fractional or single count is already one unit and is left exactly as it arrived.
+  assert.deepEqual(
+    await counted({ name: 'Rice', estimatedGrams: 79, servingSizeGrams: 158, servingLabel: '0.5 cup' }, 'describe', 'half a cup of rice'),
+    { estimatedGrams: 79, servingSizeGrams: 158, servingLabel: '0.5 cup' },
+  );
+});
+
+test('three cookies weighing 30g in total and three weighing 30g each are both preserved as sent', async () => {
+  const cookies = async (estimatedGrams: number, text: string) => {
+    const { response, body } = await call(
+      request('/v1/estimate', 'POST', { operation: 'describe', text }),
+      {
+        fetchImpl: (async () => geminiResponse({
+          ...recognized,
+          mealName: 'Cookies',
+          components: [{
+            ...recognized.components[0],
+            name: 'Cookies',
+            estimatedGrams,
+            servingSizeGrams: 30,
+            servingLabel: '3 cookies',
+            caloriesPer100g: 480,
+          }],
+        })) as typeof fetch,
+      },
+    );
+    assert.equal(response.status, 200);
+    return body.components[0].estimatedGrams;
+  };
+
+  // Nothing in the payload distinguishes these two, which is exactly why normalization must
+  // not choose between them: it keeps the total the estimate reported either way.
+  assert.equal(await cookies(30, '30g cookies'), 30);
+  assert.equal(await cookies(90, '3 cookies'), 90);
+});
+
+test('a zero nutrient is a real measurement and survives, but an unknown one is not invented', async () => {
+  const withNutrients = async (nutrients: Record<string, unknown>) => {
+    const { response, body } = await call(
+      request('/v1/estimate', 'POST', { operation: 'describe', text: 'egg white' }),
+      {
+        fetchImpl: (async () => geminiResponse({
+          ...recognized,
+          mealName: 'Egg white',
+          components: [{ ...recognized.components[0], name: 'Egg white', ...nutrients }],
+        })) as typeof fetch,
+      },
+    );
+    return { status: response.status, body };
+  };
+
+  // Egg white really does contain no fat and no carbohydrate.
+  const measured = await withNutrients({ caloriesPer100g: 52, proteinPer100g: 11, carbsPer100g: 0, fatPer100g: 0 });
+  assert.equal(measured.status, 200);
+  assert.deepEqual(
+    [measured.body.components[0].carbsPer100g, measured.body.components[0].fatPer100g],
+    [0, 0],
+  );
+
+  // These are not measurements. `Number()` would turn every one of them into the same zero.
+  for (const unknown of [null, false, '', '11', Number.NaN]) {
+    const rejected = await withNutrients({ fatPer100g: unknown });
+    assert.equal(rejected.status, 502);
+    assert.equal(rejected.body.error.code, 'MALFORMED_UPSTREAM');
+  }
+});
+
+test('a re-estimated component is held to the same amount and density bounds', async () => {
+  const redo = async (component: Record<string, unknown>) => {
+    const { response, body } = await call(
+      request('/v1/estimate', 'POST', {
+        operation: 'clarify-component',
+        text: 'lechon kawali',
+        context: { mealName: 'Lunch', components: [{ name: 'Pork', estimatedGrams: 150 }] },
+      }),
+      {
+        fetchImpl: (async () => geminiResponse({
+          ...recognized,
+          mealName: 'Lunch',
+          components: [{ ...recognized.components[0], name: 'Lechon kawali', ...component }],
+        })) as typeof fetch,
+      },
+    );
+    return { status: response.status, body };
+  };
+
+  const accepted = await redo({ estimatedGrams: 150, servingSizeGrams: 150, caloriesPer100g: 380, fatPer100g: 32 });
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.body.components[0].estimatedGrams, 150);
+
+  // Redo runs the same normalization, so it cannot be the way an impossible value gets in.
+  for (const impossible of [
+    { estimatedGrams: 10_001 },
+    { servingSizeGrams: 10_001 },
+    { caloriesPer100g: 1_001 },
+    { fatPer100g: 101 },
+  ]) {
+    const rejected = await redo(impossible);
+    assert.equal(rejected.status, 502);
+    assert.equal(rejected.body.error.code, 'MALFORMED_UPSTREAM');
+  }
+  // The boundaries themselves are legitimate: a pure oil is 100g of fat per 100g.
+  const oil = await redo({ estimatedGrams: 10_000, servingSizeGrams: 10_000, caloriesPer100g: 900, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100 });
+  assert.equal(oil.status, 200);
 });
 
 test('keeps a nutrition-label scan at one serving when the provider copies servings per container', async () => {
@@ -1573,9 +1685,7 @@ test('the upstream deadline covers a stalled response body, not only its headers
   assert.equal(abortedInTime, true);
 });
 
-test('unknown nutrient values are never presented as zero', {
-  todo: 'Task 2 — make nutrient and portion normalization trustworthy',
-}, async () => {
+test('unknown nutrient values are never presented as zero', async () => {
   resetModelCooldowns();
   const unknownNutrients = {
     ...recognized,
@@ -1597,9 +1707,7 @@ test('unknown nutrient values are never presented as zero', {
   assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
 });
 
-test('physically impossible masses and densities are rejected instead of logged', {
-  todo: 'Task 2 — make nutrient and portion normalization trustworthy',
-}, async () => {
+test('physically impossible masses and densities are rejected instead of logged', async () => {
   resetModelCooldowns();
   const impossible = {
     ...recognized,
@@ -1622,9 +1730,7 @@ test('physically impossible masses and densities are rejected instead of logged'
   assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
 });
 
-test('an amount the user stated survives an ambiguous counted serving label', {
-  todo: 'Task 2 — make nutrient and portion normalization trustworthy',
-}, async () => {
+test('an amount the user stated survives an ambiguous counted serving label', async () => {
   resetModelCooldowns();
   const { response, body } = await call(
     request('/v1/estimate', 'POST', { operation: 'describe', text: '30g cookies' }),
