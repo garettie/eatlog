@@ -1,6 +1,6 @@
 # Food-estimation implementation plan
 
-Date: 2026-09-05. Status: planned; no implementation or release performed.
+Date: 2026-09-05. Status: tasks 1–4 implemented on branch `food-estimation-reliability`; tasks 5–12 not started. Nothing deployed, and no paid provider call has been made.
 
 Inputs: [service assessment](../../docs/research/2026-09-05-food-estimation-service-review.md), [provider research](../../docs/research/2026-09-05-food-estimation-provider-review.md), and the user's goals of minimal friction, very low failure, and cost efficiency. This is the Quick planning path for an already established brief; 12 implementation tasks, grouped into five milestones.
 
@@ -19,6 +19,68 @@ Proposed initial service objective: at least 99.5% usable results for valid, onl
 
 For model promotion, require all deterministic amount/label/contract checks to pass, no newly introduced severe errors on held-out examples, no worsened aggregate nutrition error or valid-result rate, and p95 latency no worse than the baseline. A cost increase requires a demonstrated reduction in material errors or user corrections. Freeze exact dataset tolerances before viewing candidate results; report uncertainty and category-specific results rather than treating a small set as an availability guarantee.
 
+## Progress
+
+| Task | State | Commit |
+| --- | --- | --- |
+| 1. Regression coverage and baseline | Done | `bb632d5` |
+| 2. Nutrient and portion normalization | Done | `a2407e5` |
+| 3. Deadlines through body consumption and relay | Done | `3656ad1` |
+| 4. Provider recovery separated from abuse limits | Done | `b024e73` |
+| 5–12 | Not started | — |
+
+Baseline state, compatibility surface, and the reproduced defects are recorded in
+[BASELINE.md](BASELINE.md). Current suites: Worker 104 tests, 101 pass, 0 fail, 3 todo; app 519
+tests, 515 pass, 0 fail, 4 todo. Both typecheck clean. The remaining todo cases are the
+still-open defects for tasks 5, 6, and 7, each named with the task that turns it green.
+
+### Decisions taken during implementation
+
+These resolve ambiguities the plan left open. They are recorded here so later tasks build on the
+same choices rather than rediscovering them.
+
+- Reproduced defects are written as `todo` cases in their owning suites rather than as red
+  failures. They still run and still report the defect, but a suite left permanently failing
+  makes every later task's verification unreadable. Each task removes its own markers.
+- Removing the counted-label multiplication changed a shipped behaviour. A provider returning
+  50g with a `2 eggs` label previously produced 100g; it now produces 50g. That multiplication
+  was the same guess that tripled a weighed 30g of cookies, and the payload never distinguishes
+  the two cases, so the existing test's expectation was changed rather than the code preserved.
+  Getting `2 eggs` to report a correct total belongs to the prompt precedence work in task 9.
+- Calorie-versus-macro disagreement is still only a quality signal; no summed-macro bound was
+  added, as planned. The corruption bounds actually enforced are 0–1,000 kcal and 0–100g per
+  macro per 100g, plus the existing 10,000g mass limit on generated total and serving masses.
+- The Worker deadline is 29 seconds from handler entry, with `RESULT_DELIVERY_RESERVE_MS` of one
+  second held back and quota round trips capped at three seconds. Body caps are 256 KiB for
+  Gemini and RevenueCat and 4 MiB for USDA, which the plan did not specify.
+- Two new error codes reach installed clients: `REQUEST_TIMEOUT` (408) when the client's upload
+  does not arrive in time and `STATE_TIMEOUT` (504) when quota state does not answer. The app
+  maps both to its existing `timeout` failure. Task 11 must confirm an older installed app
+  degrades acceptably on codes it does not recognize.
+- The memory store now replaces a quota event per request ID instead of appending, matching the
+  Durable Object's `(subject, request_id)` primary key. The consequence is a product decision:
+  resubmitting one rejected photo is a single piece of unrecognizable content however many times
+  it is retried, while five different rejected submissions still reach the ceiling. Task 5's
+  execution claims should make those retries stop reaching the provider at all.
+- Refund reasons are `unrecognized` and `service-failure`. The historical `refunded` class stays
+  readable, keeps its history, and counts toward nothing. No schema migration was needed:
+  `quota_events.operation_class` already held free text. Task 11 still owns the upgrade,
+  rerun, and rollback tests over a populated database.
+- The Durable Object runtime harness bundles the real class with `wrangler deploy --dry-run` and
+  boots it on the `workerd` binary Miniflare already ships with, so no dependency was added. It
+  is pinned to compatibility date `2026-08-08` because the installed `workerd` refuses anything
+  newer, while staging deploys `2026-08-22`. Nothing exercised is date-gated, but a runtime
+  behaviour proven locally still deserves confirmation on staging.
+
+### Carried forward to later tasks
+
+- Task 3's six-second transit allowance is unverified. Slow-upload and cold-start behaviour on
+  the physical preview phone remains outstanding before any release.
+- Task 5 should confirm that a retried request ID no longer reaches Gemini at all, which is what
+  makes the single-submission counting rule above correct rather than merely consistent.
+- Task 7 will need the attempt classification task 4 introduced; the failure reason is currently
+  recorded in quota state but not in the usage log.
+
 ## Decisions and tradeoffs
 
 - Keep `gemini-3.1-flash-lite` first and `gemini-3.5-flash-lite` second initially, for all current tiers. Immediate replacement could change accuracy and latency without addressing the confirmed defects. Do not restore 2.5 Lite without reconfirming project access; the runbook records 404 responses.
@@ -30,7 +92,7 @@ For model promotion, require all deterministic amount/label/contract checks to p
 
 ## Milestone 1 — Establish reliable regression coverage
 
-### 1. Preserve the baseline and reproduce the known defects
+### 1. Preserve the baseline and reproduce the known defects — done (`bb632d5`)
 
 Criteria: C1–C6. Dependencies: none.
 
@@ -45,7 +107,7 @@ Verification: reproduce each reported defect independently; existing tests remai
 
 ## Milestone 2 — Correct estimates and bound complete requests
 
-### 2. Make nutrient and portion normalization trustworthy
+### 2. Make nutrient and portion normalization trustworthy — done (`a2407e5`)
 
 Criteria: C1. Dependency: 1.
 
@@ -59,7 +121,7 @@ Files: `worker/src/index.ts` (`normalizeGeminiResponse`, `normalizeCountedServin
 
 Verification: the null-nutrient, impossible-density, 30g-cookie, scan-label, fractional count, zero-fat, shared-meal, and Redo tests pass. Test both 3 cookies totaling 30g and 3 cookies at 30g each as distinct cases; normalization must not pretend they are distinguishable from ambiguous metadata alone.
 
-### 3. Apply deadlines through body consumption and regional retry
+### 3. Apply deadlines through body consumption and regional retry — done (`3656ad1`)
 
 Criteria: C3, C6. Dependency: 1.
 
@@ -73,7 +135,7 @@ Files: `worker/src/index.ts` (`handleRequest`, `fetchWithTimeout`, `readUpstream
 
 Verification: deterministic delayed-header, delayed-body, partial-JSON, oversized-body, hung-authorization, hung-state, and relay-timeout tests complete inside their budgets. At least one default-runtime handler test remains. Validate slow-upload and cold-start behavior on the physical preview phone before release.
 
-### 4. Separate provider recovery from abuse limits
+### 4. Separate provider recovery from abuse limits — done (`b024e73`)
 
 Criteria: C3, C4, C6. Dependencies: 1, 3.
 
@@ -223,7 +285,7 @@ Verification: recorded deployed versions, approved finite-run receipts, phone ch
 
 - Worker: `env TMPDIR=/tmp npm test` and `npm run typecheck` from `worker/`.
 - App: focused service/contract tests during implementation; `env TMPDIR=/tmp npm test` and `npx tsc --noEmit` before integrated handoff. Classify unrelated pre-existing failures without changing their tests.
-- Runtime: wire the new actual Durable Object suite into a documented local command and the Worker gate; mock all paid providers.
+- Runtime: the Durable Object suite runs as part of `npm test` in `worker/` (`test/subscriptionDurableObject.test.ts`), bundling the real class offline and booting it on the installed `workerd`. All paid providers stay mocked; no network or Cloudflare account is used.
 - UI/app bundle when client changes: `npx expo export --platform android --dev`, followed by physical preview-phone checks. This does not build or deploy a new preview APK by itself.
 - Config: existing `npm run dry-run` plus production-config dry run after loading Wrangler guidance; neither deploys.
 - Documentation: `git diff --check`; run `release/site/check.mjs` if release-site files are deliberately changed. No linter is currently configured.
@@ -243,3 +305,9 @@ Paid staging generation and deployment are not authorized by this planning reque
 - Risks addressed: runtime/mock differences, uncertain serving metadata, response-body deadlines, lease fencing, old clients, legacy request IDs, eviction/restart, quota migration, privacy, retry multiplication, and paid evaluation cost.
 - Dependency order: correct. Release checks apply per delivery; local fixes do not wait for a live benchmark.
 - Verdict: PASS for implementation planning. Execution, paid evaluation, and rollout are not represented as completed or authorized.
+
+Audit re-checked after tasks 1–4: the delivered work matches the tasks as written, apart from
+the counted-label and repeated-failure-ID decisions recorded under Progress, both of which
+resolve conflicts the plan itself named rather than departing from it. No release boundary was
+crossed — no deployment, no paid generation, no new dependency, and no change to durable food
+retention.
