@@ -1433,3 +1433,254 @@ test('an overloaded model is skipped on the next request instead of being retrie
   // The overloaded model is not called again while it is cooling down.
   assert.deepEqual(attempts, ['second']);
 });
+
+/*
+ * Milestone 1 regression cases for the food-estimation plan. Each one reproduces a defect the
+ * 2026-09-05 service review confirmed, and each asserts the behaviour the service is meant to
+ * have rather than the behaviour it has today. They are marked `todo` with the task that owns
+ * the repair, so the suite stays usable while the milestones land and each case turns green in
+ * its own task instead of being quietly rewritten.
+ */
+
+const REGRESSION_COOKIE = {
+  ...recognized,
+  mealName: 'Cookies',
+  components: [{
+    ...recognized.components[0],
+    name: 'Cookies',
+    estimatedGrams: 30,
+    servingSizeGrams: 30,
+    servingLabel: '3 cookies',
+    caloriesPer100g: 480,
+  }],
+};
+
+test('one request ID means one inference, not one charge and three provider calls', {
+  todo: 'Task 5 — coordinated execution and short result replay',
+}, async () => {
+  resetModelCooldowns();
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let geminiCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  // The transport retry of one intentional estimate: identical payload, identical ID.
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const result = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+      'X-Eatlog-Request-ID': 'request-duplicate-transport',
+    }), { env, fetchImpl, subscriptionStore: store });
+    assert.equal(result.response.status, 200);
+    assert.equal(result.body.status, 'recognized');
+  }
+
+  // Confirmed: three upstream generations were billed against one reserved allowance unit.
+  assert.equal(geminiCalls, 1);
+});
+
+test('a request ID bound to one payload cannot be reused for different content', {
+  todo: 'Task 5 — coordinated execution and short result replay',
+}, async () => {
+  resetModelCooldowns();
+  const env = subscriptionEnv();
+  let geminiCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+  const store = new MemorySubscriptionStore();
+
+  const first = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-rebound-payload',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(first.response.status, 200);
+
+  // A different meal under an already-spent identifier is a new generation, and the server has
+  // no fingerprint to notice it: the estimate runs free of the allowance it should cost.
+  const reused = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'lechon kawali' }, {
+    'X-Eatlog-Request-ID': 'request-rebound-payload',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.notEqual(reused.response.status, 200);
+  assert.equal(geminiCalls, 1);
+});
+
+test('a provider outage does not lock a customer out once the provider recovers', {
+  todo: 'Task 4 — separate provider recovery from abuse limits',
+}, async () => {
+  resetModelCooldowns();
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let healthy = false;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    if (healthy) return geminiResponse(recognized);
+    return new Response(JSON.stringify({ error: { status: 'UNAVAILABLE', message: 'overloaded' } }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  for (let index = 1; index <= 5; index += 1) {
+    const failed = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+      'X-Eatlog-Request-ID': `request-provider-outage-000${index}`,
+    }), { env, fetchImpl, subscriptionStore: store });
+    assert.equal(failed.response.status, 502);
+  }
+
+  // The provider is well again. Five of its own failures are not five abusive submissions, so
+  // the next real attempt has to reach it rather than being refused for the rest of the day.
+  healthy = true;
+  resetModelCooldowns();
+  const recovered = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-provider-outage-0006',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(recovered.response.status, 200);
+  assert.equal(recovered.body.status, 'recognized');
+});
+
+test('the upstream deadline covers a stalled response body, not only its headers', {
+  todo: 'Task 3 — apply deadlines through body consumption and regional retry',
+}, async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let signal: AbortSignal | undefined;
+  let releaseBody = (): void => {};
+  const stalled = new Promise<void>((resolve) => { releaseBody = resolve; });
+  const fetchImpl = (async (_input: unknown, init: RequestInit = {}) => {
+    signal = init.signal ?? undefined;
+    // Headers now, body later: the shape a stalled connection actually has.
+    return new Response(new ReadableStream({
+      async pull(controller) {
+        await stalled;
+        controller.enqueue(new TextEncoder().encode(JSON.stringify(usdaFood())));
+        controller.close();
+      },
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }) as typeof fetch;
+
+  const pending = call(request('/v1/usda/foods/1'), { fetchImpl });
+  for (let tick = 0; tick < 20; tick += 1) await Promise.resolve();
+  // Well past the eight-second USDA budget, with the body still unread. The same
+  // `fetchWithTimeout`/`readUpstreamJson` pair carries every Gemini and RevenueCat call.
+  t.mock.timers.tick(9000);
+  const abortedInTime = signal?.aborted === true;
+  releaseBody();
+  await pending;
+  assert.equal(abortedInTime, true);
+});
+
+test('unknown nutrient values are never presented as zero', {
+  todo: 'Task 2 — make nutrient and portion normalization trustworthy',
+}, async () => {
+  resetModelCooldowns();
+  const unknownNutrients = {
+    ...recognized,
+    components: [{
+      ...recognized.components[0],
+      caloriesPer100g: null,
+      proteinPer100g: null,
+      carbsPer100g: null,
+      fatPer100g: null,
+    }],
+  };
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+    { fetchImpl: (async () => geminiResponse(unknownNutrients)) as typeof fetch },
+  );
+
+  // `Number(null)` is 0, so today this is a confident 200 reporting a zero-calorie meal.
+  assert.equal(response.status, 502);
+  assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
+});
+
+test('physically impossible masses and densities are rejected instead of logged', {
+  todo: 'Task 2 — make nutrient and portion normalization trustworthy',
+}, async () => {
+  resetModelCooldowns();
+  const impossible = {
+    ...recognized,
+    components: [{
+      ...recognized.components[0],
+      estimatedGrams: 1_000_000_000,
+      servingSizeGrams: 1_000_000_000,
+      caloriesPer100g: 5_000,
+      proteinPer100g: 200,
+      carbsPer100g: 200,
+      fatPer100g: 200,
+    }],
+  };
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+    { fetchImpl: (async () => geminiResponse(impossible)) as typeof fetch },
+  );
+
+  assert.equal(response.status, 502);
+  assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
+});
+
+test('an amount the user stated survives an ambiguous counted serving label', {
+  todo: 'Task 2 — make nutrient and portion normalization trustworthy',
+}, async () => {
+  resetModelCooldowns();
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: '30g cookies' }),
+    { fetchImpl: (async () => geminiResponse(REGRESSION_COOKIE)) as typeof fetch },
+  );
+
+  assert.equal(response.status, 200);
+  // "3 cookies" weighing 30g in total and "3 cookies" weighing 30g each are indistinguishable
+  // from this metadata, so multiplying the label count by the serving mass tripled an amount
+  // the user had already weighed.
+  assert.equal(body.components[0].estimatedGrams, 30);
+});
+
+test('every generated attempt is priced, including its thinking tokens', {
+  todo: 'Task 7 — measure every attempt and final outcome accurately',
+}, async () => {
+  resetModelCooldowns();
+  const original = console.log;
+  const logs: Array<Record<string, unknown>> = [];
+  console.log = (value?: unknown) => {
+    if (typeof value === 'string') { try { logs.push(JSON.parse(value)); } catch {} }
+  };
+  try {
+    let attempt = 0;
+    const fetchImpl = (async () => {
+      attempt += 1;
+      // A truncated first generation still consumed — and is still billed for — every token it
+      // produced, thinking included.
+      return jsonResponse({
+        candidates: [{
+          content: { parts: [{ text: attempt === 1 ? '{"status":"recog' : JSON.stringify(recognized) }] },
+          finishReason: attempt === 1 ? 'MAX_TOKENS' : 'STOP',
+        }],
+        usageMetadata: {
+          promptTokenCount: 1_000,
+          candidatesTokenCount: 250,
+          thoughtsTokenCount: 750,
+        },
+      });
+    }) as typeof fetch;
+
+    const { response } = await call(
+      request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+      {
+        env: makeEnv({ GEMINI_INPUT_USD_PER_MILLION: '0.1', GEMINI_OUTPUT_USD_PER_MILLION: '0.4' }),
+        fetchImpl,
+      },
+    );
+    assert.equal(response.status, 200);
+    assert.equal(attempt, 2);
+
+    const usage = logs.filter((entry) => entry.event === 'ai_usage');
+    // One record per generated attempt, each counting the thoughts it was billed for.
+    assert.equal(usage.length, 2);
+    assert.deepEqual(usage.map((entry) => entry.outputTokens), [1_000, 1_000]);
+  } finally {
+    console.log = original;
+  }
+});

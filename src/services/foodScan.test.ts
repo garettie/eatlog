@@ -516,3 +516,39 @@ test('retrying the same photo reuses one request identifier so the retry is not 
     assert.equal(requestIds[1], requestIds[0]);
     assert.notEqual(requestIds[2], requestIds[0]);
 });
+
+/*
+ * Milestone 1 regression case for the food-estimation plan (service review, finding 1). The
+ * identifier is derived from the payload alone, so it identifies the content rather than the
+ * action: logging the same meal again on another day sends an identifier the Worker still has
+ * on file, while a genuine transport retry and a genuine second submission look identical.
+ * Task 6 gives each intentional action its own identity and keeps that identity across its
+ * retries; this case turns green there.
+ */
+test('a second deliberate estimate of the same food is a new action, not a retry of the first', {
+    todo: 'Task 6 — give app actions stable retry identity and useful recovery',
+}, async () => {
+    const requestIds: string[] = [];
+    const client = createFoodEstimateClient({
+        workerUrl: 'https://worker.example',
+        hasConsent: async () => true,
+        getInstallationToken: () => TOKEN,
+        getAiAuthorization: () => ({ ok: true, grant: 'signed-grant' }),
+        requestId: (payload) => {
+            let hash = 0;
+            for (let index = 0; index < payload.length; index += 1) {
+                hash = (hash * 31 + payload.charCodeAt(index)) | 0;
+            }
+            return `request-${(hash >>> 0).toString(16).padStart(16, '0')}`;
+        },
+        fetchImpl: (async (_url: string, init: RequestInit) => {
+            requestIds.push((init.headers as Record<string, string>)['X-Eatlog-Request-ID']);
+            return jsonResponse(recognizedEstimate());
+        }) as unknown as typeof fetch,
+    });
+
+    await client.describeMeal('one cup of rice');
+    await client.describeMeal('one cup of rice');
+
+    assert.notEqual(requestIds[1], requestIds[0]);
+});

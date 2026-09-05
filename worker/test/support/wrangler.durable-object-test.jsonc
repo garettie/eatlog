@@ -1,0 +1,16 @@
+// Test-only Wrangler configuration. It exists to bundle the real Durable Object class for a
+// local runtime harness; it is never deployed. Milestone 1 of the food-estimation plan.
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "eatlog-durable-object-test",
+  "main": "./durableObjectEntry.ts",
+  "compatibility_date": "2026-08-08",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "durable_objects": {
+    "bindings": [{ "name": "ACCESS_STATE", "class_name": "EntitlementQuotaState" }]
+  },
+  "migrations": [
+    { "tag": "subscription-state-v1", "new_sqlite_classes": ["EntitlementQuotaState"] }
+  ]
+}
