@@ -931,6 +931,8 @@ test('a successful estimate is still returned to the client when finalize fails'
     usage: store.usage.bind(store),
     finalize: async () => { throw new Error('Durable Object overloaded'); },
     refund: store.refund.bind(store),
+    claimExecution: store.claimExecution.bind(store),
+    completeExecution: store.completeExecution.bind(store),
   };
   const env = subscriptionEnv();
   const fetchImpl = (async (input: string | URL | Request) => {
@@ -957,6 +959,8 @@ test('a Gemini failure surfaces its own status even when the refund also fails',
     usage: store.usage.bind(store),
     finalize: store.finalize.bind(store),
     refund: async () => { throw new Error('Durable Object overloaded'); },
+    claimExecution: store.claimExecution.bind(store),
+    completeExecution: store.completeExecution.bind(store),
   };
   const env = subscriptionEnv();
   const fetchImpl = (async (input: string | URL | Request) => {
@@ -1567,9 +1571,7 @@ const REGRESSION_COOKIE = {
   }],
 };
 
-test('one request ID means one inference, not one charge and three provider calls', {
-  todo: 'Task 5 — coordinated execution and short result replay',
-}, async () => {
+test('one request ID means one inference, not one charge and three provider calls', async () => {
   resetModelCooldowns();
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
@@ -1590,13 +1592,10 @@ test('one request ID means one inference, not one charge and three provider call
     assert.equal(result.body.status, 'recognized');
   }
 
-  // Confirmed: three upstream generations were billed against one reserved allowance unit.
   assert.equal(geminiCalls, 1);
 });
 
-test('a request ID bound to one payload cannot be reused for different content', {
-  todo: 'Task 5 — coordinated execution and short result replay',
-}, async () => {
+test('a request ID bound to one payload cannot be reused for different content', async () => {
   resetModelCooldowns();
   const env = subscriptionEnv();
   let geminiCalls = 0;
@@ -1612,8 +1611,8 @@ test('a request ID bound to one payload cannot be reused for different content',
   }), { env, fetchImpl, subscriptionStore: store });
   assert.equal(first.response.status, 200);
 
-  // A different meal under an already-spent identifier is a new generation, and the server has
-  // no fingerprint to notice it: the estimate runs free of the allowance it should cost.
+  // A different meal under an already-spent identifier is a new generation. The server keeps a
+  // keyed fingerprint of the first payload, so the reuse is refused before Gemini is reached.
   const reused = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'lechon kawali' }, {
     'X-Eatlog-Request-ID': 'request-rebound-payload',
   }), { env, fetchImpl, subscriptionStore: store });
@@ -1897,6 +1896,8 @@ test('a quota store that never answers fails the request instead of holding it o
     usage: memory.usage.bind(memory),
     finalize: memory.finalize.bind(memory),
     refund: memory.refund.bind(memory),
+    claimExecution: memory.claimExecution.bind(memory),
+    completeExecution: memory.completeExecution.bind(memory),
     reserve: () => { announce(); return new Promise(() => {}); },
   };
   const fetchImpl = (async (input: string | URL | Request) => (

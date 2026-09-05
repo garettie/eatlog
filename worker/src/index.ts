@@ -7,6 +7,7 @@ import {
   accessExpired,
   accessExpiresAt,
   hashQuotaIdentity,
+  type ExecutionClaim,
   normalizeRevenueCatSubscriber,
   signAiGrant,
   verifyAiGrant,
@@ -56,6 +57,8 @@ const MAX_USDA_RESPONSE_BYTES = 4 * 1024 * 1024;
 const WORKER_DEADLINE_MS = 29000;
 /** Held back so a finished estimate can still be serialized, signed, and returned. */
 const RESULT_DELIVERY_RESERVE_MS = 1000;
+/** How often a duplicate re-asks whether the live execution it is sharing has finished. */
+const EXECUTION_POLL_MS = 150;
 /** A quota round trip is a local Durable Object call; past this it is not going to answer. */
 const STATE_CALL_TIMEOUT_MS = 3000;
 /** RevenueCat's own ceiling, still bounded by whatever the request has left. */
@@ -1397,6 +1400,43 @@ function logOperational(
   }));
 }
 
+/**
+ * The content half of an action's identity. Canonical field order so an identical submission
+ * always hashes the same, and the whole validated payload so a reused identifier carrying
+ * different food is recognised as a different action rather than a retry. It is hashed with the
+ * quota identity salt before it leaves this function's caller — the raw text never travels.
+ */
+function estimateFingerprint(input: EstimateInput): string {
+  return JSON.stringify([input.operation, input.text ?? null, input.imageBase64 ?? null, input.context ?? null]);
+}
+
+/**
+ * A duplicate that arrives while the first execution is still running waits for it rather than
+ * starting a second generation. The wait is bounded by the same request deadline as everything
+ * else, and gives up in time for the caller to still receive an answer.
+ */
+async function claimExecution(
+  store: SubscriptionStore,
+  subject: string,
+  requestId: string,
+  fingerprint: string,
+  operation: string,
+  deadline: Deadline,
+  clock: () => number,
+): Promise<ExecutionClaim> {
+  const call = (): Promise<ExecutionClaim> => withinDeadline(
+    store.claimExecution(subject, requestId, fingerprint, operation, clock()),
+    Math.min(STATE_CALL_TIMEOUT_MS, Math.max(0, deadline.remaining())),
+    () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
+  );
+  let claim = await call();
+  while (claim.state === 'pending' && deadline.remaining() > RESULT_DELIVERY_RESERVE_MS + EXECUTION_POLL_MS) {
+    await new Promise((resolve) => setTimeout(resolve, EXECUTION_POLL_MS));
+    claim = await call();
+  }
+  return claim;
+}
+
 export async function handleRequest(
   request: Request,
   env: Env,
@@ -1510,9 +1550,31 @@ export async function handleRequest(
         reservation.nextEligibleAt ? { nextEligibleAt: reservation.nextEligibleAt } : {},
       );
     }
+    /**
+     * The reservation says the subject may spend an estimate. The execution claim says whether
+     * *this* request is the one that calls Gemini: a duplicate transport retry of the same
+     * action must reuse the first execution's answer rather than generate a second one.
+     */
+    const fingerprint = await hashQuotaIdentity(estimateFingerprint(input), env.QUOTA_IDENTITY_SALT ?? env.RATE_LIMIT_SALT);
+    const claim = await claimExecution(store, claims.sub, idempotencyKey, fingerprint, input.operation, deadline, clock);
+    if (claim.state === 'conflict') {
+      throw new HttpError(409, 'REQUEST_ID_CONFLICT', 'Request identifier is already in use for different content.', { rejection: 'request-conflict' });
+    }
+    if (claim.state === 'exhausted' || claim.state === 'pending') {
+      // Either the two permitted executions are spent, or a live duplicate is still running and
+      // this request ran out of time waiting for it. Both are retryable, and neither starts a
+      // third generation behind the user's back.
+      throw new HttpError(503, 'EXECUTION_UNAVAILABLE', 'Food service could not complete the request. Try again.', { rejection: claim.state });
+    }
+    if (claim.state === 'replay') {
+      const replayed = json(JSON.parse(claim.result));
+      return authorization.refreshedGrant ? attachGrant(replayed, authorization.refreshedGrant) : replayed;
+    }
     try {
       const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
       const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models, deadline);
+      const body = await response.clone().text();
+      await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, 'succeeded', body, clock()));
       // The provider answered. Either it found food, or it looked and found none — the second
       // is a real generation this Worker paid for and the one worth discouraging if repeated.
       if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
@@ -1521,6 +1583,10 @@ export async function handleRequest(
     } catch (error) {
       // A timeout, an outage, a blocked or malformed reply. None of it is something the
       // customer did, so it is refunded without counting toward the content-abuse ceiling.
+      // A rejected request is terminal: repeating it verbatim would fail the same way.
+      const status = error instanceof HttpError ? error.status : 500;
+      const outcome = status >= 500 || status === 408 || status === 429 ? 'failed-retryable' : 'failed-terminal';
+      await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, outcome, null, clock()));
       await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
       throw error;
     }

@@ -106,6 +106,10 @@ export interface SubscriptionStore {
   finalize(subject: string, requestId: string): Promise<void>;
   refund(subject: string, requestId: string, reason: RefundReason): Promise<void>;
   usage(subject: string, access: AiAccessKind, now: number): Promise<Usage>;
+  /** Claims the single provider execution for one logical action. See `ExecutionLedger`. */
+  claimExecution(subject: string, requestId: string, fingerprint: string, operation: string, now: number): Promise<ExecutionClaim>;
+  /** Reports how a claimed execution ended, holding its result briefly for duplicate retries. */
+  completeExecution(subject: string, requestId: string, token: string, outcome: ExecutionOutcome, result: string | null, now: number): Promise<void>;
 }
 
 /**
@@ -225,6 +229,7 @@ export class MemorySubscriptionStore implements SubscriptionStore {
   private readonly webhookIds = new Set<string>();
   private readonly webhookTimestamps = new Map<string, number>();
   private readonly webhookEventTimestamps = new Map<string, number>();
+  private readonly executions = new ExecutionLedger();
   private queue = Promise.resolve();
 
   private synchronized<T>(task: () => T | Promise<T>): Promise<T> {
@@ -311,6 +316,14 @@ export class MemorySubscriptionStore implements SubscriptionStore {
 
   async usage(subject: string, access: AiAccessKind, now: number): Promise<Usage> {
     return quotaUsage(this.events.get(subject) ?? [], access, now);
+  }
+
+  claimExecution(subject: string, requestId: string, fingerprint: string, operation: string, now: number): Promise<ExecutionClaim> {
+    return this.synchronized(() => this.executions.claim(subject, requestId, fingerprint, operation, now));
+  }
+
+  completeExecution(subject: string, requestId: string, token: string, outcome: ExecutionOutcome, result: string | null, now: number): Promise<void> {
+    return this.synchronized(() => this.executions.complete(subject, requestId, token, outcome, result, now));
   }
 }
 
@@ -475,4 +488,140 @@ export function accessExpired(access: WorkerAccess, now: number): boolean {
 export async function hashQuotaIdentity(identity: string, salt: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${identity}`));
   return base64UrlEncode(new Uint8Array(digest));
+}
+
+/*
+ * Task 5 of the food-estimation plan: one intentional action gets one provider execution.
+ *
+ * The quota ledger above answers "what may this subject spend"; this one answers "who is
+ * allowed to call Gemini right now, and does an answer already exist". They are deliberately
+ * separate — a duplicate transport retry must not be charged twice *and* must not generate
+ * twice, and those are two different guarantees.
+ *
+ * Everything here is memory-only and short-lived. Nothing derived from food text, an image, or
+ * a result is ever written to durable storage, which is what the privacy policy commits to.
+ */
+
+/** How long one execution may hold its claim before another attempt is allowed to take over. */
+export const EXECUTION_LEASE_MS = 30_000;
+/** How long a completed action stays replayable, and how long its record survives at all. */
+export const EXECUTION_TTL_MS = 120_000;
+/** Two, so an explicit retryable failure gets a second chance and a loop cannot get a third. */
+export const MAX_EXECUTIONS_PER_ACTION = 2;
+export const MAX_REPLAY_BYTES = 64 * 1024;
+export const MAX_REPLAY_TOTAL_BYTES = 4 * 1024 * 1024;
+
+export type ExecutionClaim =
+  /** This caller owns the execution and must run the provider, then report the outcome. */
+  | { state: 'claimed'; token: string }
+  /** The action already completed and its result is still held; no provider call is needed. */
+  | { state: 'replay'; result: string }
+  /** Another live execution owns this action. Wait for it rather than starting a second one. */
+  | { state: 'pending' }
+  /** The identifier is already bound to different content or a different operation. */
+  | { state: 'conflict' }
+  /** No further execution is permitted for this action; the client needs a new one. */
+  | { state: 'exhausted' };
+
+export type ExecutionOutcome = 'succeeded' | 'failed-retryable' | 'failed-terminal';
+
+interface ExecutionRecord {
+  fingerprint: string;
+  operation: string;
+  attempts: number;
+  touchedAt: number;
+  lease: { token: string; expiresAt: number } | null;
+  outcome: ExecutionOutcome | null;
+  result: string | null;
+  resultBytes: number;
+}
+
+/**
+ * Shared by the memory store and the Durable Object so the two cannot drift apart. The review
+ * that produced this plan found a rule that held in tests and not in production precisely
+ * because each store implemented it separately.
+ */
+export class ExecutionLedger {
+  private readonly records = new Map<string, ExecutionRecord>();
+  private replayBytes = 0;
+
+  claim(subject: string, requestId: string, fingerprint: string, operation: string, now: number): ExecutionClaim {
+    this.prune(now);
+    const key = `${subject}:${requestId}`;
+    const record = this.records.get(key);
+    if (!record) {
+      const token = crypto.randomUUID();
+      this.records.set(key, {
+        fingerprint,
+        operation,
+        attempts: 1,
+        touchedAt: now,
+        lease: { token, expiresAt: now + EXECUTION_LEASE_MS },
+        outcome: null,
+        result: null,
+        resultBytes: 0,
+      });
+      return { state: 'claimed', token };
+    }
+    // A reused identifier carrying different content is not a retry, and a paid Redo must not
+    // be able to collect the result of an earlier free initial estimate.
+    if (record.fingerprint !== fingerprint || record.operation !== operation) return { state: 'conflict' };
+    record.touchedAt = now;
+    if (record.result !== null) return { state: 'replay', result: record.result };
+    if (record.lease !== null && record.lease.expiresAt > now) return { state: 'pending' };
+    // A completed action whose result is gone must not silently pay for a second generation.
+    if (record.outcome === 'succeeded' || record.outcome === 'failed-terminal') return { state: 'exhausted' };
+    if (record.attempts >= MAX_EXECUTIONS_PER_ACTION) return { state: 'exhausted' };
+    const token = crypto.randomUUID();
+    record.attempts += 1;
+    record.lease = { token, expiresAt: now + EXECUTION_LEASE_MS };
+    record.outcome = null;
+    return { state: 'claimed', token };
+  }
+
+  complete(
+    subject: string,
+    requestId: string,
+    token: string,
+    outcome: ExecutionOutcome,
+    result: string | null,
+    now: number,
+  ): void {
+    const record = this.records.get(`${subject}:${requestId}`);
+    // A completion from an execution that already lost its lease belongs to a replaced attempt.
+    if (!record || record.lease?.token !== token) return;
+    record.lease = null;
+    record.outcome = outcome;
+    record.touchedAt = now;
+    if (outcome === 'succeeded' && result !== null) this.remember(record, result, now);
+  }
+
+  private remember(record: ExecutionRecord, result: string, now: number): void {
+    const bytes = new TextEncoder().encode(result).length;
+    if (bytes > MAX_REPLAY_BYTES) return;
+    for (const [key, candidate] of [...this.records].sort((a, b) => a[1].touchedAt - b[1].touchedAt)) {
+      if (this.replayBytes + bytes <= MAX_REPLAY_TOTAL_BYTES) break;
+      if (candidate === record || candidate.result === null) continue;
+      this.forget(candidate);
+      if (candidate.touchedAt <= now - EXECUTION_TTL_MS) this.records.delete(key);
+    }
+    if (this.replayBytes + bytes > MAX_REPLAY_TOTAL_BYTES) return;
+    record.result = result;
+    record.resultBytes = bytes;
+    this.replayBytes += bytes;
+  }
+
+  private forget(record: ExecutionRecord): void {
+    this.replayBytes -= record.resultBytes;
+    record.result = null;
+    record.resultBytes = 0;
+  }
+
+  private prune(now: number): void {
+    for (const [key, record] of this.records) {
+      if (record.touchedAt > now - EXECUTION_TTL_MS) continue;
+      this.forget(record);
+      this.records.delete(key);
+    }
+  }
 }

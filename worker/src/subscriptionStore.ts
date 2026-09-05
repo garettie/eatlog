@@ -1,6 +1,8 @@
 import type {
   CachedAccess,
   AiAccessKind,
+  ExecutionClaim,
+  ExecutionOutcome,
   QuotaDecision,
   RefundReason,
   SubscriptionStore,
@@ -37,4 +39,6 @@ export class DurableSubscriptionStore implements SubscriptionStore {
   finalize(subject: string, requestId: string): Promise<void> { return this.call('/quota/finalize', { subject, requestId }); }
   refund(subject: string, requestId: string, reason: RefundReason): Promise<void> { return this.call('/quota/refund', { subject, requestId, reason }); }
   usage(subject: string, access: AiAccessKind, now: number): Promise<Usage> { return this.call('/quota/usage', { subject, access, now }); }
+  claimExecution(subject: string, requestId: string, fingerprint: string, operation: string, now: number): Promise<ExecutionClaim> { return this.call('/execution/claim', { subject, requestId, fingerprint, operation, now }); }
+  async completeExecution(subject: string, requestId: string, token: string, outcome: ExecutionOutcome, result: string | null, now: number): Promise<void> { await this.call('/execution/complete', { subject, requestId, token, outcome, result, now }); }
 }

@@ -2,10 +2,12 @@ import { DurableObject } from 'cloudflare:workers';
 
 import {
   THIRTY_DAYS_MS,
+  ExecutionLedger,
   decideQuota,
   operationClass,
   quotaUsage,
   type AiAccessKind,
+  type ExecutionOutcome,
   type QuotaEvent,
   type RefundReason,
 } from './subscriptions';
@@ -15,6 +17,13 @@ interface CacheRow { [key: string]: SqlStorageValue; access_json: string; subjec
 interface EventRow { [key: string]: SqlStorageValue; operation_class: QuotaEvent['operationClass']; timestamp: number; request_id: string }
 
 export class EntitlementQuotaState extends DurableObject<DurableEnv> {
+  /**
+   * Execution claims and replayable results live in memory only, never in SQLite. They are
+   * transient coordination state, and a result is normalized food data the durable store is
+   * committed not to hold. Losing them to a restart costs a regeneration, not correctness.
+   */
+  private readonly executions = new ExecutionLedger();
+
   constructor(ctx: DurableObjectState, env: DurableEnv) {
     super(ctx, env);
     this.ctx.storage.sql.exec(`
@@ -88,6 +97,26 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       sql.exec('INSERT OR REPLACE INTO quota_requests (subject, request_id, state, created_at) VALUES (?, ?, ?, ?)', subject, requestId, 'reserved', now);
       sql.exec('INSERT OR REPLACE INTO quota_events (subject, operation_class, timestamp, request_id) VALUES (?, ?, ?, ?)', subject, operationClass(access, operation), now, requestId);
       return Response.json({ ...decision, usage: quotaUsage([...events, { operationClass: operationClass(access, operation), timestamp: now, requestId }], access, now) });
+    }
+    if (path === '/execution/claim') {
+      return Response.json(this.executions.claim(
+        String(body.subject ?? ''),
+        String(body.requestId ?? ''),
+        String(body.fingerprint ?? ''),
+        String(body.operation ?? ''),
+        Number(body.now),
+      ));
+    }
+    if (path === '/execution/complete') {
+      this.executions.complete(
+        String(body.subject ?? ''),
+        String(body.requestId ?? ''),
+        String(body.token ?? ''),
+        String(body.outcome) as ExecutionOutcome,
+        typeof body.result === 'string' ? body.result : null,
+        Number(body.now),
+      );
+      return Response.json({ ok: true });
     }
     if (path === '/quota/finalize') {
       sql.exec("UPDATE quota_requests SET state = 'finalized' WHERE subject = ? AND request_id = ? AND state = 'reserved'", String(body.subject), String(body.requestId));

@@ -175,6 +175,114 @@ for (const [label, make] of stores()) {
   });
 }
 
+/*
+ * Task 5: the execution ledger. These run against both stores for the same reason the quota
+ * cases do — the rule that matters is the one the deployed object actually enforces.
+ */
+for (const [label, make] of stores()) {
+  test(`${label}: ten concurrent duplicates of one action produce one execution`, async () => {
+    const store = make();
+    const who = subject('one-execution');
+
+    const claims = await Promise.all(Array.from({ length: 10 }, () => (
+      store.claimExecution(who, 'one-action', 'fingerprint-a', 'describe', NOW)
+    )));
+
+    assert.equal(claims.filter((claim) => claim.state === 'claimed').length, 1);
+    assert.equal(claims.filter((claim) => claim.state === 'pending').length, 9);
+  });
+
+  test(`${label}: a completed action replays its result instead of generating again`, async () => {
+    const store = make();
+    const who = subject('replay');
+    const claim = await store.claimExecution(who, 'completed-action', 'fingerprint-a', 'describe', NOW);
+    assert.equal(claim.state, 'claimed');
+    if (claim.state !== 'claimed') return;
+    await store.completeExecution(who, 'completed-action', claim.token, 'succeeded', '{"status":"recognized"}', NOW);
+
+    const replayed = await store.claimExecution(who, 'completed-action', 'fingerprint-a', 'describe', NOW + 1);
+    assert.equal(replayed.state, 'replay');
+    assert.equal(replayed.state === 'replay' && replayed.result, '{"status":"recognized"}');
+  });
+
+  test(`${label}: a reused identifier carrying different content or a paid operation is refused`, async () => {
+    const store = make();
+    const who = subject('conflict');
+    const claim = await store.claimExecution(who, 'bound-action', 'fingerprint-a', 'describe', NOW);
+    assert.equal(claim.state, 'claimed');
+    if (claim.state !== 'claimed') return;
+    await store.completeExecution(who, 'bound-action', claim.token, 'succeeded', '{"status":"recognized"}', NOW);
+
+    // Different food under a spent identifier.
+    assert.equal((await store.claimExecution(who, 'bound-action', 'fingerprint-b', 'describe', NOW + 1)).state, 'conflict');
+    // And a paid Redo trying to collect a free initial estimate's answer.
+    assert.equal((await store.claimExecution(who, 'bound-action', 'fingerprint-a', 'clarify-meal', NOW + 1)).state, 'conflict');
+  });
+
+  test(`${label}: a retryable failure earns one more execution and no more than one`, async () => {
+    const store = make();
+    const who = subject('retryable');
+
+    const first = await store.claimExecution(who, 'retried-action', 'fingerprint-a', 'describe', NOW);
+    assert.equal(first.state, 'claimed');
+    if (first.state !== 'claimed') return;
+    await store.completeExecution(who, 'retried-action', first.token, 'failed-retryable', null, NOW);
+
+    const second = await store.claimExecution(who, 'retried-action', 'fingerprint-a', 'describe', NOW + 1);
+    assert.equal(second.state, 'claimed');
+    if (second.state !== 'claimed') return;
+    await store.completeExecution(who, 'retried-action', second.token, 'failed-retryable', null, NOW + 2);
+
+    // The third attempt is where an endless client retry loop would start paying for itself.
+    assert.equal((await store.claimExecution(who, 'retried-action', 'fingerprint-a', 'describe', NOW + 3)).state, 'exhausted');
+  });
+
+  test(`${label}: a late completion cannot overwrite the execution that replaced it`, async () => {
+    const store = make();
+    const who = subject('late-completion');
+    const abandoned = await store.claimExecution(who, 'leased-action', 'fingerprint-a', 'describe', NOW);
+    assert.equal(abandoned.state, 'claimed');
+    if (abandoned.state !== 'claimed') return;
+
+    // Its lease expires and a retry takes the action over.
+    const successor = await store.claimExecution(who, 'leased-action', 'fingerprint-a', 'describe', NOW + 31_000);
+    assert.equal(successor.state, 'claimed');
+
+    // The abandoned execution finally answers. It no longer owns the action, so its result is
+    // not what a duplicate will be handed.
+    await store.completeExecution(who, 'leased-action', abandoned.token, 'succeeded', '{"status":"stale"}', NOW + 32_000);
+    assert.equal((await store.claimExecution(who, 'leased-action', 'fingerprint-a', 'describe', NOW + 33_000)).state, 'pending');
+  });
+
+  test(`${label}: an action forgotten after its window is not free to run again`, async () => {
+    const store = make();
+    const who = subject('expired');
+    const claim = await store.claimExecution(who, 'old-action', 'fingerprint-a', 'describe', NOW);
+    assert.equal(claim.state, 'claimed');
+    if (claim.state !== 'claimed') return;
+    await store.completeExecution(who, 'old-action', claim.token, 'succeeded', '{"status":"recognized"}', NOW);
+
+    // Past the replay window the record is gone entirely, so this is a fresh action rather
+    // than a free repeat of the old one — and the quota ledger charges it as such.
+    const later = await store.claimExecution(who, 'old-action', 'fingerprint-a', 'describe', NOW + 121_000);
+    assert.equal(later.state, 'claimed');
+  });
+}
+
+test('durable object: a completed result does not survive a restart of the object', async () => {
+  const who = subject('replay-restart');
+  const claim = await runtime.store.claimExecution(who, 'restart-action', 'fingerprint-a', 'describe', NOW);
+  assert.equal(claim.state, 'claimed');
+  if (claim.state !== 'claimed') return;
+  await runtime.store.completeExecution(who, 'restart-action', claim.token, 'succeeded', '{"status":"recognized"}', NOW);
+
+  await runtime.restart();
+
+  // Replay is memory-only by design: nothing derived from food is written to durable storage.
+  // Losing it costs a regeneration, which the quota ledger still accounts for.
+  assert.equal((await runtime.store.claimExecution(who, 'restart-action', 'fingerprint-a', 'describe', NOW + 1)).state, 'claimed');
+});
+
 test('durable object: a reservation and its charge survive a restart of the object', async () => {
   const who = subject('restart');
   const reserved = await runtime.store.reserve(who, 'manok', 'describe', 'survives-restart', NOW);
