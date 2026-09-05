@@ -41,6 +41,14 @@ const singleFoodReviewSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/SingleFoodReviewState.tsx'),
   'utf8',
 );
+const addComponentViewSource = readFileSync(
+  resolve(testDirectory, '../components/sheet-states/AddComponentView.tsx'),
+  'utf8',
+);
+const viewTransitionSource = readFileSync(
+  resolve(testDirectory, '../components/sheet-states/useViewTransition.ts'),
+  'utf8',
+);
 
 test('the review sheet corrects a food in a focused editor, not an inline expansion', () => {
   // The editor is an internal view of ReviewState, not a sheet state or an in-row form.
@@ -64,8 +72,46 @@ test('editor edits buffer until Save and Back asks before discarding', () => {
   // Back goes through the same discard prompt as pan-down dismissal.
   assert.match(reviewStateSource, /Alert\.alert\("Discard changes\?", "Your edits will be lost\."/);
   // Open/close reuse the sheet-state exit/enter choreography.
-  assert.match(reviewStateSource, /emphasizedAccelerate/);
-  assert.match(reviewStateSource, /emphasizedDecelerate/);
+  assert.match(reviewStateSource, /useViewTransition<ReviewView>/);
+  assert.match(viewTransitionSource, /emphasizedAccelerate/);
+  assert.match(viewTransitionSource, /emphasizedDecelerate/);
+  assert.match(viewTransitionSource, /const EXIT_MS = 90/);
+  assert.match(viewTransitionSource, /const ENTER_MS = 150/);
+});
+
+test('one transition drives every internal view, and it knows its direction', () => {
+  // Forward views leave left and arrive from the right; going back reverses both.
+  assert.match(viewTransitionSource, /isForward\?: \(from: T, to: T\) => boolean/);
+  assert.match(viewTransitionSource, /enterOffsetRef\.current = forward \? OFFSET : -OFFSET/);
+  assert.match(viewTransitionSource, /forward \? -OFFSET : OFFSET/);
+  // Reduced motion commits immediately, with no offset to animate.
+  assert.match(viewTransitionSource, /if \(reducedMotion\) \{[\s\S]*?setRendered\(target\);/);
+  assert.match(reviewStateSource, /const reviewViewIsForward = \(_from: ReviewView, to: ReviewView\) => to !== "list"/);
+  assert.match(addComponentViewSource, /const addPageIsForward = \(_from: AddPage, to: AddPage\) => to !== "search"/);
+});
+
+test('adding a food is a page of its own, not an inline menu in the review sheet', () => {
+  // The row opens the add view; the old in-place mode switcher is gone.
+  assert.match(reviewStateSource, /const openAddFood = useCallback/);
+  assert.match(reviewStateSource, /<AddComponentView/);
+  assert.doesNotMatch(reviewStateSource, /AddComponentSection/);
+  assert.match(reviewStateSource, /accessibilityLabel="Add food"/);
+  // Search is the root page; describing and manual entry are pages, not tabs.
+  assert.match(addComponentViewSource, /type AddPage = "search" \| "describe" \| "manual"/);
+  assert.match(addComponentViewSource, /useViewTransition<AddPage>/);
+  assert.match(addComponentViewSource, /title="Add food"/);
+  assert.match(addComponentViewSource, /title="Estimate"/);
+});
+
+test('the add flow guards typed drafts on Back, hardware Back, and sheet dismissal', () => {
+  assert.match(addComponentViewSource, /const requestBack = useCallback/);
+  assert.match(
+    addComponentViewSource,
+    /Alert\.alert\("Discard changes\?", "Your edits will be lost\."/,
+  );
+  assert.match(addComponentViewSource, /BackHandler\.addEventListener\(\s*"hardwareBackPress"/);
+  assert.match(addComponentViewSource, /discardGuard\.register\(/);
+  assert.match(addComponentViewSource, /<SheetBackButton onPress=\{requestBack\} \/>/);
 });
 
 test('hardware Back closes the editor before it pops the sheet', () => {

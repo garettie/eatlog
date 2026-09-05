@@ -1,7 +1,6 @@
 import React, {
 	useCallback,
 	useEffect,
-	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -24,7 +23,6 @@ import Animated, {
 	FadeIn,
 	FadeInUp,
 	FadeOutDown,
-	runOnJS,
 	useAnimatedStyle,
 	useReducedMotion,
 	useSharedValue,
@@ -46,7 +44,8 @@ import { defaultMealForNow } from "../../utils/calculations";
 import { useToday } from "../../hooks/useToday";
 import { useDiscardGuardContext } from "./useDiscardGuard";
 import SheetBackButton from "./SheetBackButton";
-import AddComponentSection from "../AddComponentSection";
+import AddComponentView from "./AddComponentView";
+import { useViewTransition } from "./useViewTransition";
 import MealSelector from "../MealSelector";
 import { useResponsiveLayout } from "../../theme/layout";
 import PortionStepper from "../PortionStepper";
@@ -115,6 +114,12 @@ function servingCountUnit(label: string | null): string {
 	const unit = formatServingUnitLabel(label);
 	return unit === "srv" ? "serving" : unit;
 }
+
+/** The internal views of the review sheet: the meal, one food's editor, add food. */
+type ReviewView = "list" | "editor" | "add";
+
+/** The meal is the root; the editor and the add flow are one step deeper. */
+const reviewViewIsForward = (_from: ReviewView, to: ReviewView) => to !== "list";
 
 function DisclosureChevron({ expanded }: { expanded: boolean }) {
 	const reducedMotion = useReducedMotion();
@@ -238,25 +243,19 @@ export default function ReviewState({
 	const [eatenPortions, setEatenPortions] = useState(
 		() => result?.division?.servesTotal ?? 1,
 	);
-	// The focused editor is an internal view of this component, not a sheet state. Edits
-	// buffer into `editDraft` and only reach the meal on Save; `editorOpen` is the
-	// transition target while `renderedEditorView` is the committed view, so open/close
-	// can run the same exit/enter choreography every sheet state uses.
+	// The focused editor and the add-food flow are internal views of this component, not
+	// sheet states. Editor edits buffer into `editDraft` and only reach the meal on Save;
+	// `editorOpen`/`addOpen` are the transition targets while `renderedView` is the
+	// committed view, so both run the same exit/enter choreography as every sheet state.
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editingIndex, setEditingIndex] = useState(-1);
 	const [editDraft, setEditDraft] = useState<EditableComponent | null>(null);
 	const [editorOpen, setEditorOpen] = useState(false);
-	const [renderedEditorView, setRenderedEditorView] = useState<"list" | "editor">(
-		"list",
-	);
+	const [addOpen, setAddOpen] = useState(false);
 	const [nutritionExpanded, setNutritionExpanded] = useState(false);
 	const editorDirtyRef = useRef(false);
 	const redoneInEditorRef = useRef(false);
 	const preRedoDraftRef = useRef<EditableComponent | null>(null);
-	const enteringEditorViewRef = useRef(false);
-	const editorTransitionRequestRef = useRef(0);
-	const editorOffset = useSharedValue(0);
-	const editorOpacity = useSharedValue(1);
 	const [meal, setMeal] = useState<MealType>(
 		() => initialMeal ?? defaultMealForNow(),
 	);
@@ -285,6 +284,36 @@ export default function ReviewState({
 	const reducedMotion = useReducedMotion();
 	const insets = useSafeAreaInsets();
 	const today = useToday();
+
+	const clearEditorDrafts = useCallback(() => {
+		setEditingId(null);
+		setEditDraft(null);
+		setEditingIndex(-1);
+		editorDirtyRef.current = false;
+		redoneInEditorRef.current = false;
+		preRedoDraftRef.current = null;
+	}, []);
+
+	const handleViewCommit = useCallback(
+		(view: ReviewView) => {
+			if (view !== "list") return;
+			clearEditorDrafts();
+			AccessibilityInfo.announceForAccessibility("Back to meal review");
+		},
+		[clearEditorDrafts],
+	);
+
+	const {
+		rendered: renderedView,
+		style: viewTransitionStyle,
+		jumpTo: jumpToView,
+	} = useViewTransition<ReviewView>({
+		target: editorOpen ? "editor" : addOpen ? "add" : "list",
+		reducedMotion,
+		isForward: reviewViewIsForward,
+		onCommit: handleViewCommit,
+	});
+
 	const logDateOverrideRef = useRef(false);
 	const effectiveLogDate = logDateOverrideRef.current
 		? logDate
@@ -337,23 +366,16 @@ export default function ReviewState({
 			setComponents(result.components.map(toEditable));
 			setDivision(result.division ?? null);
 			setEatenPortions(result.division?.servesTotal ?? 1);
-			setEditingId(null);
-			setEditDraft(null);
-			setEditingIndex(-1);
+			clearEditorDrafts();
 			setEditorOpen(false);
-			setRenderedEditorView("list");
-			enteringEditorViewRef.current = false;
-			editorOffset.value = 0;
-			editorOpacity.value = 1;
+			setAddOpen(false);
+			jumpToView("list");
 			setNutritionExpanded(false);
-			editorDirtyRef.current = false;
-			redoneInEditorRef.current = false;
-			preRedoDraftRef.current = null;
 			dirtyRef.current = false;
 			loggedRef.current = false;
 			setUndoAction(null);
 		}
-	}, [result, editorOffset, editorOpacity]);
+	}, [result, clearEditorDrafts, jumpToView]);
 
 	useEffect(() => {
 		setSelectedPhotoUri(photoUri ?? null);
@@ -884,15 +906,6 @@ export default function ReviewState({
 		],
 	);
 
-	const clearEditorDrafts = useCallback(() => {
-		setEditingId(null);
-		setEditDraft(null);
-		setEditingIndex(-1);
-		editorDirtyRef.current = false;
-		redoneInEditorRef.current = false;
-		preRedoDraftRef.current = null;
-	}, []);
-
 	const requestCloseEditor = useCallback(() => {
 		if (!editorOpen) return;
 		if (!editorDirtyRef.current) {
@@ -906,7 +919,7 @@ export default function ReviewState({
 	}, [editorOpen]);
 
 	const saveEditor = useCallback(() => {
-		if (!editDraft || renderedEditorView !== "editor") return;
+		if (!editDraft || renderedView !== "editor") return;
 		setComponents((previous) =>
 			previous.map((component, index) =>
 				index === editingIndex ? editDraft : component,
@@ -926,81 +939,28 @@ export default function ReviewState({
 		}
 		AccessibilityInfo.announceForAccessibility("Food changes saved");
 		setEditorOpen(false);
-	}, [editDraft, editingIndex, renderedEditorView, showUndo]);
+	}, [editDraft, editingIndex, renderedView, showUndo]);
 
-	// Same choreography as FoodSheetContent's state transitions: exit slide/fade out
-	// (90ms, emphasizedAccelerate), swap, enter from the opposite side (150ms,
-	// emphasizedDecelerate). Reduced motion jumps straight to the committed view.
-	const editorView = editorOpen ? "editor" : "list";
+	const openAddFood = useCallback(() => {
+		setAddOpen(true);
+	}, []);
 
-	const commitRenderedEditorView = useCallback(
-		(view: "list" | "editor", requestId: number) => {
-			if (requestId !== editorTransitionRequestRef.current) return;
-			enteringEditorViewRef.current = true;
-			setRenderedEditorView(view);
-			if (view === "list") {
-				clearEditorDrafts();
-				AccessibilityInfo.announceForAccessibility("Back to meal review");
-			}
+	const requestCloseAdd = useCallback(() => {
+		setAddOpen(false);
+	}, []);
+
+	const handleAddFromView = useCallback(
+		(foods: FoodResult[]) => {
+			handleAddFoods(foods);
+			setAddOpen(false);
+			AccessibilityInfo.announceForAccessibility(
+				foods.length === 1
+					? `${foods[0].name} added to the meal`
+					: `${foods.length} foods added to the meal`,
+			);
 		},
-		[clearEditorDrafts],
+		[handleAddFoods],
 	);
-
-	useEffect(() => {
-		const requestId = ++editorTransitionRequestRef.current;
-		if (editorView === renderedEditorView) {
-			editorOffset.value = withTiming(0, {
-				duration: reducedMotion ? 0 : 150,
-				easing: EASING.emphasizedDecelerate,
-			});
-			editorOpacity.value = withTiming(1, { duration: reducedMotion ? 0 : 150 });
-			return;
-		}
-		if (reducedMotion) {
-			enteringEditorViewRef.current = false;
-			editorOffset.value = 0;
-			editorOpacity.value = 1;
-			setRenderedEditorView(editorView);
-			if (editorView === "list") clearEditorDrafts();
-			return;
-		}
-		editorOffset.value = withTiming(-20, {
-			duration: reducedMotion ? 0 : 90,
-			easing: EASING.emphasizedAccelerate,
-		});
-		editorOpacity.value = withTiming(
-			0,
-			{ duration: reducedMotion ? 0 : 90 },
-			(finished) => {
-				if (finished) runOnJS(commitRenderedEditorView)(editorView, requestId);
-			},
-		);
-	}, [
-		editorView,
-		renderedEditorView,
-		reducedMotion,
-		commitRenderedEditorView,
-		clearEditorDrafts,
-		editorOffset,
-		editorOpacity,
-	]);
-
-	useLayoutEffect(() => {
-		if (!enteringEditorViewRef.current || reducedMotion) return;
-		enteringEditorViewRef.current = false;
-		editorOffset.value = 20;
-		editorOpacity.value = 0;
-		editorOffset.value = withTiming(0, {
-			duration: reducedMotion ? 0 : 150,
-			easing: EASING.emphasizedDecelerate,
-		});
-		editorOpacity.value = withTiming(1, { duration: reducedMotion ? 0 : 150 });
-	}, [reducedMotion, renderedEditorView, editorOffset, editorOpacity]);
-
-	const editorTransitionStyle = useAnimatedStyle(() => ({
-		opacity: editorOpacity.value,
-		transform: [{ translateX: editorOffset.value }],
-	}));
 
 	// While the editor is open, hardware Back goes through the same discard-aware close
 	// as the editor's back button instead of popping the sheet. Registered only when
@@ -1033,9 +993,9 @@ export default function ReviewState({
 		return status?.isError === true;
 	});
 
-	if (renderedEditorView === "editor" && editDraft && editingIndex >= 0) {
+	if (renderedView === "editor" && editDraft && editingIndex >= 0) {
 		return (
-			<Animated.View style={editorTransitionStyle} className="flex-1">
+			<Animated.View style={viewTransitionStyle} className="flex-1">
 				<FoodEditorView
 					component={editDraft}
 					logging={logging}
@@ -1062,8 +1022,20 @@ export default function ReviewState({
 		);
 	}
 
+	if (renderedView === "add") {
+		return (
+			<Animated.View style={viewTransitionStyle} className="flex-1">
+				<AddComponentView
+					insets={insets}
+					onAdd={handleAddFromView}
+					onClose={requestCloseAdd}
+				/>
+			</Animated.View>
+		);
+	}
+
 	return (
-		<Animated.View style={editorTransitionStyle} className="flex-1">
+		<Animated.View style={viewTransitionStyle} className="flex-1">
 			<View className="px-5 pt-2 pb-3 gap-2">
 				<View className="h-12 flex-row items-center">
 					<SheetBackButton onPress={onGoBack} />
@@ -1175,9 +1147,9 @@ export default function ReviewState({
 						<Text accessibilityRole="header" className="text-m3-on-surface text-base font-semibold">
 							Foods
 						</Text>
-						{components.length > 0 ? (
-							<View className="overflow-hidden rounded-2xl bg-m3-surface-container border border-m3-outline-variant/40">
-								{components.map((comp, idx) => {
+						<View className="overflow-hidden rounded-2xl bg-m3-surface-container border border-m3-outline-variant/40">
+							{components.length > 0 ? (
+								components.map((comp, idx) => {
 									const serving = selectedServing(comp.food, comp.selection);
 									const ratio = comp.selection.grams / 100;
 									const cal = Math.round(comp.per100g.calories * ratio);
@@ -1238,17 +1210,36 @@ export default function ReviewState({
 											<MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
 										</Pressable>
 									);
-								})}
-							</View>
-						) : (
-							<Text
-								className="text-m3-on-surface-variant text-sm text-center py-4"
-								accessibilityLiveRegion="polite"
+								})
+							) : (
+								<Text
+									className="px-4 py-4 text-m3-on-surface-variant text-sm"
+									accessibilityLiveRegion="polite"
+								>
+									This meal has no foods. Add a food before logging.
+								</Text>
+							)}
+							<Pressable
+								onPress={openAddFood}
+								disabled={logging}
+								accessibilityRole="button"
+								accessibilityLabel="Add food"
+								accessibilityHint="Opens search, description, and manual entry"
+								className="border-t border-m3-outline-variant/70 min-h-[64px] flex-row items-center gap-3 px-4 py-3 active:bg-m3-surface-container-high active:opacity-70"
 							>
-								This meal has no foods. Add a food before logging.
-							</Text>
-						)}
-						<AddComponentSection onAdd={handleAddFoods} />
+								<View className="w-9 h-9 rounded-full bg-m3-surface-container-high items-center justify-center">
+									<MaterialIcons name="add" size={20} color={M3.onSurface} />
+								</View>
+								<Text className="flex-1 text-m3-on-surface text-base font-medium">
+									Add food
+								</Text>
+								<MaterialIcons
+									name="chevron-right"
+									size={20}
+									color={M3.onSurfaceVariant}
+								/>
+							</Pressable>
+						</View>
 					</View>
 				</View>
 			</BottomSheetScrollView>
