@@ -308,8 +308,9 @@ export class MemorySubscriptionStore implements SubscriptionStore {
       for (const [key, request] of this.requests) {
         if (request.createdAt <= now - THIRTY_DAYS_MS) this.requests.delete(key);
       }
-      const prior = this.requests.get(requestKey)?.state;
-      if (prior === 'reserved' || prior === 'finalized') {
+      const prior = this.requests.get(requestKey);
+      if ((prior?.state === 'reserved' || prior?.state === 'finalized')
+        && prior.createdAt > now - DUPLICATE_WINDOW_MS) {
         return { allowed: true, duplicate: true, usage: quotaUsage(this.events.get(subject) ?? [], access, now) };
       }
       const events = (this.events.get(subject) ?? []).filter((event) => event.timestamp > now - THIRTY_DAYS_MS);
@@ -533,6 +534,17 @@ export async function hashQuotaIdentity(identity: string, salt: string): Promise
  */
 
 /** How long one execution may hold its claim before another attempt is allowed to take over. */
+/**
+ * How long one request identifier keeps deduplicating. A transport retry arrives within
+ * seconds; an identifier presented days later is a new submission, whatever produced it.
+ *
+ * This matters most for clients that still derive the identifier from the payload: without a
+ * bound, logging the same meal again next week would present an identifier the service still
+ * had on file and generate free of the allowance. It matches the execution replay window, past
+ * which the service has forgotten the action anyway.
+ */
+export const DUPLICATE_WINDOW_MS = 120_000;
+
 export const EXECUTION_LEASE_MS = 30_000;
 /** How long a completed action stays replayable, and how long its record survives at all. */
 export const EXECUTION_TTL_MS = 120_000;

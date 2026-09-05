@@ -86,6 +86,7 @@ async function call(
     cache?: MemoryCache | null;
     requestId?: string;
     subscriptionStore?: SubscriptionStore;
+    now?: () => number;
   } = {},
 ): Promise<{ response: Response; body: any; context: ReturnType<typeof makeContext> }> {
   const context = makeContext();
@@ -94,6 +95,7 @@ async function call(
     cache: options.cache ?? null,
     requestId: () => options.requestId ?? 'request-fixed',
     subscriptionStore: options.subscriptionStore,
+    ...(options.now ? { now: options.now } : {}),
   });
   const body = await response.clone().json();
   await Promise.all(context.pending);
@@ -1790,6 +1792,82 @@ test('every generated attempt is priced, including its thinking tokens', async (
   } finally {
     console.log = original;
   }
+});
+
+/*
+ * Task 11 of the food-estimation plan: the new coordination protocol has to be safe in both
+ * directions, because a Worker deploys before an app does and an app can outlive a rollback.
+ */
+
+test('the Worker advertises its coordination protocol on every estimate it answers', async () => {
+  resetModelCooldowns();
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const fetchImpl = (async (input: string | URL | Request) => (
+    String(input).startsWith('https://api.revenuecat.com/')
+      ? jsonResponse(paidRevenueCat())
+      : geminiResponse(recognized)
+  )) as typeof fetch;
+
+  const first = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-protocol-header-01',
+    'X-Eatlog-Request-Version': '2',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(first.response.status, 200);
+  assert.equal(first.response.headers.get('x-eatlog-protocol'), '2');
+  // Including the answers it replays, which is how a client knows the retry was coordinated.
+  const replayed = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-protocol-header-01',
+    'X-Eatlog-Request-Version': '2',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(replayed.response.headers.get('x-eatlog-protocol'), '2');
+});
+
+test('an older client that sends no protocol version is answered exactly as before', async () => {
+  resetModelCooldowns();
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const fetchImpl = (async (input: string | URL | Request) => (
+    String(input).startsWith('https://api.revenuecat.com/')
+      ? jsonResponse(paidRevenueCat())
+      : geminiResponse(recognized)
+  )) as typeof fetch;
+
+  // No X-Eatlog-Request-Version header, and a payload-derived identifier: the shape every
+  // installed app sends today.
+  const { response, body } = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'legacy-payload-hash-000001',
+  }), { env, fetchImpl, subscriptionStore: store });
+
+  assert.equal(response.status, 200);
+  assert.equal(body.status, 'recognized');
+  assert.equal(typeof response.headers.get('x-eatlog-ai-grant'), 'string');
+});
+
+test('a payload-derived identifier deduplicates a retry but not a resubmission days later', async () => {
+  resetModelCooldowns();
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let geminiCalls = 0;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+  const send = (at: number) => call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'legacy-payload-hash-000002',
+  }), { env, fetchImpl, subscriptionStore: store, now: () => at });
+
+  const start = Date.parse('2026-09-05T12:00:00Z');
+  assert.equal((await send(start)).response.status, 200);
+  // Seconds later: the same submission, retried.
+  assert.equal((await send(start + 5_000)).response.status, 200);
+  assert.equal(geminiCalls, 1);
+
+  // A week later the user logs the same meal again. An old client derives the same identifier
+  // from the same text, and a historical row must not make that generation free.
+  assert.equal((await send(start + 7 * 24 * 60 * 60 * 1000)).response.status, 200);
+  assert.equal(geminiCalls, 2);
 });
 
 /*

@@ -61,6 +61,13 @@ const WORKER_DEADLINE_MS = 29000;
 const RESULT_DELIVERY_RESERVE_MS = 1000;
 /** How often a duplicate re-asks whether the live execution it is sharing has finished. */
 const EXECUTION_POLL_MS = 150;
+/**
+ * The coordination protocol this Worker speaks, advertised on every estimate response. A client
+ * reads it to know whether coordinated retry is available; an older Worker sends no such header,
+ * which is itself the answer. The request-side counterpart is `X-Eatlog-Request-Version`, a
+ * header rather than a body field so the JSON contract installed clients send is unchanged.
+ */
+const EXECUTION_PROTOCOL = '2';
 /** A quota round trip is a local Durable Object call; past this it is not going to answer. */
 const STATE_CALL_TIMEOUT_MS = 3000;
 /** RevenueCat's own ceiling, still bounded by whatever the request has left. */
@@ -1550,6 +1557,13 @@ function logOperational(
  * different food is recognised as a different action rather than a retry. It is hashed with the
  * quota identity salt before it leaves this function's caller — the raw text never travels.
  */
+/** Copies a response with the protocol header attached; the body and status are untouched. */
+function announceProtocol(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('X-Eatlog-Protocol', EXECUTION_PROTOCOL);
+  return new Response(response.body, { status: response.status, headers });
+}
+
 function estimateFingerprint(input: EstimateInput): string {
   return JSON.stringify([input.operation, input.text ?? null, input.imageBase64 ?? null, input.context ?? null]);
 }
@@ -1712,7 +1726,7 @@ export async function handleRequest(
     }
     if (claim.state === 'replay') {
       logAiRequest(input.operation, 'replayed', clock() - started);
-      const replayed = json(JSON.parse(claim.result));
+      const replayed = announceProtocol(json(JSON.parse(claim.result)));
       return authorization.refreshedGrant ? attachGrant(replayed, authorization.refreshedGrant) : replayed;
     }
     try {
@@ -1723,9 +1737,10 @@ export async function handleRequest(
       // The provider answered. Either it found food, or it looked and found none — the second
       // is a real generation this Worker paid for and the one worth discouraging if repeated.
       logAiRequest(input.operation, recognized ? 'recognized' : 'unrecognized', clock() - started);
+      const announced = announceProtocol(response);
       if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
       else await bookkeeping(store.refund(claims.sub, idempotencyKey, 'unrecognized'));
-      return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
+      return authorization.refreshedGrant ? attachGrant(announced, authorization.refreshedGrant) : announced;
     } catch (error) {
       // A timeout, an outage, a blocked or malformed reply. None of it is something the
       // customer did, so it is refunded without counting toward the content-abuse ceiling.

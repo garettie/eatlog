@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 
 import {
+  DUPLICATE_WINDOW_MS,
   THIRTY_DAYS_MS,
   ExecutionLedger,
   decideQuota,
@@ -89,8 +90,12 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       const events = rows.map((row) => ({ operationClass: row.operation_class, timestamp: row.timestamp, requestId: row.request_id }));
       if (path === '/quota/usage') return Response.json(quotaUsage(events, access, now));
       const requestId = String(body.requestId ?? '');
-      const prior = [...sql.exec<{ state: string }>('SELECT state FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
-      if (prior?.state === 'reserved' || prior?.state === 'finalized') return Response.json({ allowed: true, duplicate: true, usage: quotaUsage(events, access, now) });
+      const prior = [...sql.exec<{ state: string; created_at: number }>('SELECT state, created_at FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
+      // Deduplication is bounded: a retry arrives in seconds, and an identifier presented much
+      // later is a new submission even when a client derived it from the meal itself.
+      if ((prior?.state === 'reserved' || prior?.state === 'finalized') && prior.created_at > now - DUPLICATE_WINDOW_MS) {
+        return Response.json({ allowed: true, duplicate: true, usage: quotaUsage(events, access, now) });
+      }
       const operation = String(body.operation ?? '');
       const decision = decideQuota(events, access, operation, now);
       if (!decision.allowed) return Response.json(decision);

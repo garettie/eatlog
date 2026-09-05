@@ -127,4 +127,12 @@ Before first production use, drill this sequence on a preview Worker: deploy a h
 - P2: provider degradation with Manual/local logging intact or a material device-specific defect. Record and fix before public release unless the owner accepts it in writing.
 - P3: cosmetic or low-impact operational issue. Record it for the next maintenance release.
 
+## Coordination protocol and rollback target
+
+Estimate responses carry `X-Eatlog-Protocol: 2`. Requests may carry `X-Eatlog-Request-Version: 2`; both are headers, so the JSON body contract installed clients send is unchanged and a Worker that predates the protocol simply omits and ignores them.
+
+Deploy the Worker before the app. A client that sends a random per-action identifier is safe against an older Worker, which treats it as any other identifier. A client that still derives its identifier from the payload is safe against this Worker, which deduplicates only inside a two-minute window and charges a later resubmission of the same meal normally.
+
+Before enabling a new app path, record a rollback Worker version that already understands this protocol. An older Worker remains deployable in an emergency, but it reintroduces free duplicate execution and is not an acceptable ongoing rollback target — prepare the compatible build first and note its version here alongside the deployed one.
+
 Never claim the production Worker is ready while the named owner, deployed-version evidence, provider smoke, quota/alerts, sampled-log review, and rollback drill remain unverified.

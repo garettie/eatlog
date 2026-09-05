@@ -298,6 +298,35 @@ test('durable object: a reservation and its charge survive a restart of the obje
   assert.equal(usage.kind === 'paid' && usage.remaining24Hours, 29);
 });
 
+/*
+ * Task 11: the object's schema setup runs on every construction, so a restart is also the
+ * migration rerun. A populated database has to come through it unchanged.
+ */
+test('durable object: a populated database survives the migration rerun with its quota intact', async () => {
+  const who = subject('migration');
+  const eventTime = Date.now();
+
+  await runtime.store.reserve(who, 'manok', 'describe', 'charged-before-upgrade', eventTime);
+  await runtime.store.finalize(who, 'charged-before-upgrade');
+  await runtime.store.reserve(who, 'manok', 'describe', 'rejected-before-upgrade', eventTime + 1);
+  await runtime.store.refund(who, 'rejected-before-upgrade', 'unrecognized');
+  await runtime.store.reserve(who, 'manok', 'describe', 'outage-before-upgrade', eventTime + 2);
+  await runtime.store.refund(who, 'outage-before-upgrade', 'service-failure');
+  const before = await runtime.store.usage(who, 'manok', eventTime + 3);
+
+  // The schema statements run again on every construction; this is that rerun.
+  await runtime.restart();
+  await runtime.restart();
+
+  const after = await runtime.store.usage(who, 'manok', eventTime + 3);
+  // Nothing erased, nothing recharged, no trial or allowance reset.
+  assert.deepEqual(after, before);
+  assert.equal(after.kind === 'paid' && after.remaining24Hours, 29);
+  // The finalized charge is still recognised as its own request rather than as a fresh one.
+  const retried = await runtime.store.reserve(who, 'manok', 'describe', 'charged-before-upgrade', eventTime + 4);
+  assert.equal(retried.duplicate, true);
+});
+
 test('durable object: the access cache and webhook ledger survive a restart', async () => {
   const customerKey = `customer-${subject('cache')}`;
   // The webhook ledger prunes against the runtime's own clock rather than the caller's `now`,
