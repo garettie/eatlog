@@ -1,0 +1,3 @@
+# Recorded results and any personal fixtures stay out of version control.
+*
+!.gitignore

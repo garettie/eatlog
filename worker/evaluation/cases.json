@@ -1,0 +1,91 @@
+{
+  "frozenAt": "2026-09-05T00:00:00.000Z",
+  "cases": [
+    {
+      "id": "weighed-banana",
+      "split": "development",
+      "category": "weighed-simple",
+      "operation": "describe",
+      "text": "one banana",
+      "expectStatus": "recognized",
+      "componentRange": [1, 1],
+      "reference": {
+        "components": [{ "names": ["banana"] }],
+        "source": "Placeholder: replace with measured reference values before this case is scored."
+      }
+    },
+    {
+      "id": "composite-adobo-rice",
+      "split": "development",
+      "category": "composite-filipino",
+      "operation": "describe",
+      "text": "one cup rice and chicken adobo",
+      "expectStatus": "recognized",
+      "componentRange": [4, 8],
+      "forbiddenNames": ["chicken adobo", "chicken adobo with rice"],
+      "reference": {
+        "components": [
+          { "names": ["rice"] },
+          { "names": ["chicken"] },
+          { "names": ["oil"], "singleton": true },
+          { "names": ["sauce", "soy"] }
+        ],
+        "source": "Placeholder: replace with measured reference values before this case is scored."
+      }
+    },
+    {
+      "id": "composite-pork-lumpia",
+      "split": "development",
+      "category": "composite-filipino",
+      "operation": "describe",
+      "text": "dalawang pork lumpia",
+      "expectStatus": "recognized",
+      "componentRange": [3, 7],
+      "forbiddenNames": ["pork lumpia", "lumpia"],
+      "reference": {
+        "components": [
+          { "names": ["pork"] },
+          { "names": ["wrapper", "lumpia wrapper"] },
+          { "names": ["oil"], "singleton": true }
+        ],
+        "source": "Placeholder: replace with measured reference values before this case is scored."
+      }
+    },
+    {
+      "id": "labeled-yogurt-cup",
+      "split": "development",
+      "category": "labeled-product",
+      "operation": "describe",
+      "text": "one labeled strawberry yogurt cup",
+      "expectStatus": "recognized",
+      "componentRange": [1, 1],
+      "reference": {
+        "components": [{ "names": ["yogurt"] }],
+        "source": "Placeholder: replace with the product's own label before this case is scored."
+      }
+    },
+    {
+      "id": "weighed-cookies-stated-amount",
+      "split": "held-out",
+      "category": "weighed-simple",
+      "operation": "describe",
+      "text": "30g cookies",
+      "expectStatus": "recognized",
+      "statedGrams": 30,
+      "componentRange": [1, 1],
+      "reference": {
+        "totalGrams": 30,
+        "components": [{ "names": ["cookie", "cookies"] }],
+        "source": "The user's own kitchen scale; the stated amount is the reference."
+      }
+    },
+    {
+      "id": "ambiguous-not-food",
+      "split": "held-out",
+      "category": "ambiguous",
+      "operation": "describe",
+      "text": "a photo of my car keys",
+      "expectStatus": "unrecognized"
+    }
+  ]
+}
