@@ -1058,7 +1058,7 @@ test('Pugo refresh and inline estimates share one three-request installation all
   assert.equal(geminiUrls.length, 3);
 });
 
-test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and computes cost from one rate pair', async () => {
+test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices every attempt it made', async () => {
   const original = console.log;
   const logs: Array<Record<string, unknown>> = [];
   console.log = (value?: unknown) => {
@@ -1091,9 +1091,14 @@ test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and computes 
     assert.equal(urls.length, 2);
     assert.ok(urls[0].includes(`/models/${contract.PUGO_GEMINI_MODELS[0]}:generateContent`));
     assert.ok(urls[1].includes(`/models/${contract.PUGO_GEMINI_MODELS[1]}:generateContent`));
-    const fallbackUsage = logs.find((entry) => entry.event === 'ai_usage');
-    assert.equal(fallbackUsage?.model, contract.PUGO_GEMINI_MODELS[1]);
-    assert.equal(fallbackUsage?.estimatedCostUsd, 0.0002);
+    const attempts = logs.filter((entry) => entry.event === 'ai_usage');
+    // Both attempts are recorded: the first was made, and whatever it cost is not zero simply
+    // because its reply could not be parsed.
+    assert.deepEqual(attempts.map((entry) => entry.model), [...contract.PUGO_GEMINI_MODELS]);
+    assert.deepEqual(attempts.map((entry) => entry.outcome), ['invalid-response', 'succeeded']);
+    assert.equal(attempts[0].estimatedCostUsd, null);
+    assert.equal(attempts[1].estimatedCostUsd, 0.0002);
+    assert.deepEqual(logs.filter((entry) => entry.event === 'ai_request').map((entry) => entry.outcome), ['recognized']);
 
     logs.length = 0;
     const primary = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
@@ -1742,9 +1747,7 @@ test('an amount the user stated survives an ambiguous counted serving label', as
   assert.equal(body.components[0].estimatedGrams, 30);
 });
 
-test('every generated attempt is priced, including its thinking tokens', {
-  todo: 'Task 7 — measure every attempt and final outcome accurately',
-}, async () => {
+test('every generated attempt is priced, including its thinking tokens', async () => {
   resetModelCooldowns();
   const original = console.log;
   const logs: Array<Record<string, unknown>> = [];
@@ -1784,6 +1787,104 @@ test('every generated attempt is priced, including its thinking tokens', {
     // One record per generated attempt, each counting the thoughts it was billed for.
     assert.equal(usage.length, 2);
     assert.deepEqual(usage.map((entry) => entry.outputTokens), [1_000, 1_000]);
+  } finally {
+    console.log = original;
+  }
+});
+
+/*
+ * Task 7 of the food-estimation plan: the cost report has to be readable without the request
+ * that produced it, and has to be right about attempts that failed.
+ */
+
+test('each model is priced from its own configured rate, and an unpriced model costs an unknown amount', async () => {
+  resetModelCooldowns();
+  const original = console.log;
+  const logs: Array<Record<string, unknown>> = [];
+  console.log = (value?: unknown) => {
+    if (typeof value === 'string') { try { logs.push(JSON.parse(value)); } catch {} }
+  };
+  try {
+    const [primary, fallback] = contract.PAID_GEMINI_MODELS;
+    let call_ = 0;
+    const fetchImpl = (async () => {
+      call_ += 1;
+      return jsonResponse({
+        candidates: [{ content: { parts: [{ text: call_ === 1 ? 'not json' : JSON.stringify(recognized) }] }, finishReason: 'STOP' }],
+        usageMetadata: { promptTokenCount: 1_000, cachedContentTokenCount: 400, candidatesTokenCount: 100, thoughtsTokenCount: 100 },
+      });
+    }) as typeof fetch;
+
+    const { response } = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }), {
+      env: makeEnv({
+        GEMINI_PRICING: JSON.stringify({
+          dated: '2026-09-05',
+          [fallback]: { input: 0.1, output: 0.4, cached: 0.025 },
+        }),
+      }),
+      fetchImpl,
+    });
+    assert.equal(response.status, 200);
+
+    const attempts = logs.filter((entry) => entry.event === 'ai_usage');
+    assert.deepEqual(attempts.map((entry) => entry.model), [primary, fallback]);
+    // The table names only the second model. The first is not free for being unlisted.
+    assert.equal(attempts[0].estimatedCostUsd, null);
+    // 600 uncached input, 400 cached at its own rate, and 200 output counting the thinking.
+    assert.equal(attempts[1].estimatedCostUsd, ((600 * 0.1) + (400 * 0.025) + (200 * 0.4)) / 1_000_000);
+    assert.deepEqual(attempts.map((entry) => entry.inputTokens), [600, 600]);
+    assert.deepEqual(attempts.map((entry) => entry.cachedInputTokens), [400, 400]);
+    assert.deepEqual(attempts.map((entry) => entry.outputTokens), [200, 200]);
+    assert.deepEqual(attempts.map((entry) => entry.attemptNumber), [1, 2]);
+    assert.equal(attempts[1].attemptCount, 2);
+  } finally {
+    console.log = original;
+  }
+});
+
+test('attempt and outcome logs carry bounded fields only, never food text or a provider message', async () => {
+  resetModelCooldowns();
+  const original = console.log;
+  const logs: Array<Record<string, unknown>> = [];
+  console.log = (value?: unknown) => {
+    if (typeof value === 'string') { try { logs.push(JSON.parse(value)); } catch {} }
+  };
+  try {
+    const fetchImpl = (async () => new Response(JSON.stringify({
+      error: {
+        status: 'INVALID_ARGUMENT',
+        // A provider rejection can quote the request back, and the request is the user's food.
+        message: 'Request contains an invalid argument: adobong manok with rice',
+      },
+    }), { status: 400, headers: { 'Content-Type': 'application/json' } })) as typeof fetch;
+
+    const { response } = await call(
+      request('/v1/estimate', 'POST', { operation: 'describe', text: 'adobong manok with rice' }),
+      { fetchImpl },
+    );
+    assert.equal(response.status, 502);
+
+    const rejected = logs.filter((entry) => entry.event === 'ai_model_rejected');
+    assert.equal(rejected.length, 2);
+    assert.deepEqual(Object.keys(rejected[0]), ['event', 'model', 'upstreamStatus', 'imageBytes', 'relayed', 'reason']);
+    assert.equal(rejected[0].reason, 'invalid-argument');
+
+    const attempts = logs.filter((entry) => entry.event === 'ai_usage');
+    assert.deepEqual(Object.keys(attempts[0]), [
+      'event', 'model', 'attemptNumber', 'attemptCount', 'outcome', 'finishReason', 'relayed',
+      'elapsedMs', 'inputTokens', 'cachedInputTokens', 'candidateTokens', 'thoughtTokens',
+      'outputTokens', 'totalTokens', 'estimatedCostUsd',
+    ]);
+    assert.deepEqual(attempts.map((entry) => entry.outcome), ['rejected', 'rejected']);
+    // Nothing was reported, so nothing is claimed.
+    assert.equal(attempts[0].totalTokens, null);
+    assert.equal(attempts[0].estimatedCostUsd, null);
+
+    for (const entry of logs) {
+      const serialized = JSON.stringify(entry);
+      assert.equal(serialized.includes('adobong manok'), false);
+      assert.equal(serialized.includes('invalid argument:'), false);
+    }
   } finally {
     console.log = original;
   }

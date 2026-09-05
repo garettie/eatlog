@@ -4,6 +4,8 @@ import {
   ENTITLEMENT_CACHE_TTL_MS,
   PROVISIONAL_PUGO_CACHE_TTL_MS,
   aggregateAiUsage,
+  type AiModelRates,
+  type AiTokenUsage,
   accessExpired,
   accessExpiresAt,
   hashQuotaIdentity,
@@ -96,6 +98,8 @@ export interface Env {
   GEMINI_RELAY?: DurableObjectNamespace;
   GEMINI_INPUT_USD_PER_MILLION?: string;
   GEMINI_OUTPUT_USD_PER_MILLION?: string;
+  /** Per-model USD-per-million rates plus the date they were read. See `parsePricing`. */
+  GEMINI_PRICING?: string;
 }
 
 interface CacheLike {
@@ -117,23 +121,136 @@ interface ErrorMeta {
   rejection?: string;
 }
 
-function configuredRate(value: string | undefined): number {
-  if (value == null || value.trim() === '') return Number.NaN;
-  const rate = Number(value);
+/**
+ * Per-model pricing, resolved from configuration rather than hard-coded, because a rate baked
+ * into a deployed Worker goes stale silently. `GEMINI_PRICING` is a JSON object of
+ * `{ "<model id>": { "input": n, "output": n, "cached": n } }` in USD per million tokens, plus a
+ * `"dated"` string recording when those rates were read from the provider's price list.
+ *
+ * A model the table does not name is priced as unknown. That is the whole point of replacing the
+ * single shared rate pair: two models on one rate reported a number that was right for at most
+ * one of them, and a missing rate reported zero, which is never true of a call that was made.
+ */
+interface PricingTable {
+  dated: string | null;
+  models: Record<string, AiModelRates>;
+}
+
+function configuredRate(value: unknown): number {
+  const rate = typeof value === 'number' ? value : Number(String(value ?? '').trim() || Number.NaN);
   return Number.isFinite(rate) && rate >= 0 ? rate : Number.NaN;
 }
 
-function logAiUsage(upstream: unknown, model: string, env: Env): void {
-  const usage = (upstream as any)?.usageMetadata;
-  const inputTokens = Number(usage?.promptTokenCount ?? 0);
-  const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-  const inputRate = configuredRate(env.GEMINI_INPUT_USD_PER_MILLION);
-  const outputRate = configuredRate(env.GEMINI_OUTPUT_USD_PER_MILLION);
+function parsePricing(env: Env): PricingTable {
+  const models: Record<string, AiModelRates> = {};
+  let dated: string | null = null;
+  if (env.GEMINI_PRICING) {
+    let table: Record<string, unknown> = {};
+    try { table = JSON.parse(env.GEMINI_PRICING) as Record<string, unknown>; } catch { table = {}; }
+    if (typeof table.dated === 'string') dated = table.dated;
+    for (const [model, entry] of Object.entries(table)) {
+      if (model === 'dated' || !entry || typeof entry !== 'object') continue;
+      const rates = entry as Record<string, unknown>;
+      const input = configuredRate(rates.input);
+      const output = configuredRate(rates.output);
+      // Cached input has its own rate; absent, it is charged as ordinary input rather than free.
+      const cached = rates.cached === undefined ? input : configuredRate(rates.cached);
+      if (!Number.isFinite(input) || !Number.isFinite(output) || !Number.isFinite(cached)) continue;
+      models[model] = { inputUsdPerMillion: input, outputUsdPerMillion: output, cachedInputUsdPerMillion: cached };
+    }
+  }
+  return { dated, models };
+}
+
+function modelRates(model: string, env: Env): AiModelRates | null {
+  const table = parsePricing(env);
+  if (table.models[model]) return table.models[model];
+  // The pre-table configuration: one rate pair applied to every model. Kept so an existing
+  // deployment keeps reporting cost, and superseded for any model the table does name.
+  const input = configuredRate(env.GEMINI_INPUT_USD_PER_MILLION);
+  const output = configuredRate(env.GEMINI_OUTPUT_USD_PER_MILLION);
+  if (!Number.isFinite(input) || !Number.isFinite(output)) return null;
+  return { inputUsdPerMillion: input, outputUsdPerMillion: output, cachedInputUsdPerMillion: input };
+}
+
+/** A count the provider reported, or `null` — never a zero standing in for "not reported". */
+function reportedTokens(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.trunc(value) : null;
+}
+
+function readTokenUsage(upstream: unknown): AiTokenUsage {
+  const usage = (upstream as { usageMetadata?: Record<string, unknown> } | null)?.usageMetadata;
+  if (!usage) return { inputTokens: null, cachedInputTokens: null, candidateTokens: null, thoughtTokens: null };
+  const prompt = reportedTokens(usage.promptTokenCount);
+  // Gemini's promptTokenCount already includes the cached portion, so the cached tokens are
+  // subtracted out here rather than added again alongside it.
+  const cached = reportedTokens(usage.cachedContentTokenCount) ?? 0;
+  return {
+    inputTokens: prompt === null ? null : Math.max(0, prompt - cached),
+    cachedInputTokens: cached,
+    candidateTokens: reportedTokens(usage.candidatesTokenCount),
+    // Thinking tokens are billed as output. Omitting them understated every attempt that thought.
+    thoughtTokens: reportedTokens(usage.thoughtsTokenCount) ?? 0,
+  };
+}
+
+/** Bounded enums. A provider's own wording never reaches a log, because food text can be in it. */
+type AttemptOutcome = 'succeeded' | 'rejected' | 'transport-failure' | 'invalid-response';
+type RequestOutcome = 'recognized' | 'unrecognized' | 'replayed' | 'failed';
+
+function finishCategory(reason: unknown): string {
+  const value = typeof reason === 'string' ? reason.toUpperCase() : '';
+  if (value === 'STOP') return 'stop';
+  if (value === 'MAX_TOKENS') return 'max-tokens';
+  if (value === 'SAFETY' || value === 'PROHIBITED_CONTENT' || value === 'BLOCKLIST') return 'blocked';
+  if (value === 'RECITATION') return 'recitation';
+  return value === '' ? 'unknown' : 'other';
+}
+
+/** Maps the provider's status code — not its message — onto a fixed set of reasons. */
+function rejectionCategory(reason: string): string {
+  const status = reason.split(' ')[0]?.toUpperCase() ?? '';
+  const known = [
+    'FAILED_PRECONDITION', 'INVALID_ARGUMENT', 'PERMISSION_DENIED', 'UNAUTHENTICATED',
+    'RESOURCE_EXHAUSTED', 'NOT_FOUND', 'UNAVAILABLE', 'INTERNAL', 'DEADLINE_EXCEEDED',
+  ];
+  return known.includes(status) ? status.toLowerCase().replace(/_/g, '-') : 'unknown';
+}
+
+interface AttemptLog {
+  model: string;
+  attemptNumber: number;
+  attemptCount: number;
+  outcome: AttemptOutcome;
+  finishReason: string;
+  relayed: boolean;
+  elapsedMs: number;
+  upstream: unknown;
+  env: Env;
+}
+
+/**
+ * One event per generated attempt, including the malformed and truncated ones. An attempt the
+ * provider billed but this Worker could not use is exactly the attempt a cost report must not
+ * lose, and it was the one the old success-only log dropped.
+ */
+function logAiUsage(attempt: AttemptLog): void {
   console.log(JSON.stringify({
     event: 'ai_usage',
-    model,
-    ...aggregateAiUsage(inputTokens, outputTokens, inputRate, outputRate),
+    model: attempt.model,
+    attemptNumber: attempt.attemptNumber,
+    attemptCount: attempt.attemptCount,
+    outcome: attempt.outcome,
+    finishReason: attempt.finishReason,
+    relayed: attempt.relayed,
+    elapsedMs: attempt.elapsedMs,
+    ...aggregateAiUsage(readTokenUsage(attempt.upstream), modelRates(attempt.model, attempt.env)),
   }));
+}
+
+/** One event per logical request, so attempts can be read against the answer the user received. */
+function logAiRequest(operation: string, outcome: RequestOutcome, elapsedMs: number): void {
+  console.log(JSON.stringify({ event: 'ai_request', operation, outcome, elapsedMs }));
 }
 
 /**
@@ -1302,8 +1419,22 @@ async function geminiEstimate(
   // can actually fund and give the first one a workable share.
   const ordered = routeModels(models, started)
     .slice(0, Math.max(1, Math.floor(providerRemaining() / GEMINI_MODEL_FLOOR_MS)));
+  const attemptCount = ordered.length;
   for (const [index, model] of ordered.entries()) {
-    const isLast = index === ordered.length - 1;
+    const isLast = index === attemptCount - 1;
+    const attemptStarted = Date.now();
+    /** Every exit from this attempt reports it, so a billed attempt is never unaccounted for. */
+    const report = (outcome: AttemptOutcome, upstream: unknown, finishReason: unknown = null): void => logAiUsage({
+      model,
+      attemptNumber: index + 1,
+      attemptCount,
+      outcome,
+      finishReason: finishCategory(finishReason),
+      relayed,
+      elapsedMs: Date.now() - attemptStarted,
+      upstream,
+      env,
+    });
     const remaining = providerRemaining();
     if (remaining <= 0) throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Estimation service timed out.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'timeout' });
     const attempt = attemptBudget(remaining, ordered.length - 1 - index);
@@ -1313,7 +1444,10 @@ async function geminiEstimate(
         ? await fetchUpstream(relayFetchImpl(relay!, model, attempt), GEMINI_RELAY_URL, geminiInit(body), attempt, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES)
         : await fetchUpstream(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), attempt, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES);
     } catch (error) {
-      // Timed out or unreachable: the brownout signal this cooldown exists for.
+      // Timed out or unreachable: the brownout signal this cooldown exists for. The provider may
+      // still have generated and billed for tokens this Worker never saw, so the cost is
+      // recorded as unknown rather than as nothing.
+      report('transport-failure', null);
       noteModelFailed(model, Date.now());
       if (isLast) throw error;
       continue;
@@ -1332,6 +1466,7 @@ async function geminiEstimate(
           try {
             response = await fetchUpstream(relayFetchImpl(relay, model, relayBudget), GEMINI_RELAY_URL, geminiInit(body), relayBudget, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES);
           } catch (error) {
+            report('transport-failure', null);
             noteModelFailed(model, Date.now());
             if (isLast) throw error;
             continue;
@@ -1349,8 +1484,11 @@ async function geminiEstimate(
           upstreamStatus: response.status,
           imageBytes: input.imageBase64 ? Math.round(input.imageBase64.length * 0.75) : 0,
           relayed,
-          reason,
+          // The provider's status, categorised. Its message is not logged: a rejection can quote
+          // the request back, and the request is the user's food.
+          reason: rejectionCategory(reason),
         }));
+        report('rejected', null);
         // Overload and server faults mean the model is unwell and will be again in a moment. A
         // 400 is our own malformed request, and cooling every model over it would only make the
         // chain try them all in a worse order.
@@ -1363,11 +1501,14 @@ async function geminiEstimate(
     try {
       upstream = parseUpstreamJson(response, 'gemini', 'bypass');
     } catch (error) {
+      report('invalid-response', null);
       if (isLast) throw error;
       continue;
     }
+    const finishReason = (upstream as any)?.candidates?.[0]?.finishReason;
     const text = (upstream as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (typeof text !== 'string') {
+      report('invalid-response', upstream, finishReason);
       if (isLast) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
       continue;
     }
@@ -1376,9 +1517,12 @@ async function geminiEstimate(
     const normalized = normalizeGeminiResponse(parsed, input.operation);
     if (normalized) {
       noteModelHealthy(model);
-      logAiUsage(upstream, model, env);
+      report('succeeded', upstream, finishReason);
       return { response: json(normalized), recognized: normalized.status === 'recognized' };
     }
+    // A truncated or otherwise unusable generation. The provider still produced and billed for
+    // every token it emitted, thinking included, so this attempt is priced like any other.
+    report('invalid-response', upstream, finishReason);
     if (isLast) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
   }
   throw new HttpError(502, 'UPSTREAM_UNAVAILABLE', 'Estimation service is unavailable.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream' });
@@ -1567,6 +1711,7 @@ export async function handleRequest(
       throw new HttpError(503, 'EXECUTION_UNAVAILABLE', 'Food service could not complete the request. Try again.', { rejection: claim.state });
     }
     if (claim.state === 'replay') {
+      logAiRequest(input.operation, 'replayed', clock() - started);
       const replayed = json(JSON.parse(claim.result));
       return authorization.refreshedGrant ? attachGrant(replayed, authorization.refreshedGrant) : replayed;
     }
@@ -1577,6 +1722,7 @@ export async function handleRequest(
       await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, 'succeeded', body, clock()));
       // The provider answered. Either it found food, or it looked and found none — the second
       // is a real generation this Worker paid for and the one worth discouraging if repeated.
+      logAiRequest(input.operation, recognized ? 'recognized' : 'unrecognized', clock() - started);
       if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
       else await bookkeeping(store.refund(claims.sub, idempotencyKey, 'unrecognized'));
       return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
@@ -1584,6 +1730,7 @@ export async function handleRequest(
       // A timeout, an outage, a blocked or malformed reply. None of it is something the
       // customer did, so it is refunded without counting toward the content-abuse ceiling.
       // A rejected request is terminal: repeating it verbatim would fail the same way.
+      logAiRequest(input.operation, 'failed', clock() - started);
       const status = error instanceof HttpError ? error.status : 500;
       const outcome = status >= 500 || status === 408 || status === 429 ? 'failed-retryable' : 'failed-terminal';
       await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, outcome, null, clock()));

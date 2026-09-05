@@ -17,14 +17,36 @@ import {
 
 const NOW = Date.parse('2026-08-22T00:00:00Z');
 
+const RATES = { inputUsdPerMillion: 0.1, outputUsdPerMillion: 0.4, cachedInputUsdPerMillion: 0.025 };
+
 test('aggregate token fixtures calculate configured cost without request content', () => {
-  assert.deepEqual(aggregateAiUsage(1_000, 250, 0.1, 0.4), {
-    inputTokens: 1_000,
-    outputTokens: 250,
-    totalTokens: 1_250,
-    estimatedCostUsd: 0.0002,
-  });
-  assert.equal(aggregateAiUsage(1, 1, Number.NaN, 1).estimatedCostUsd, null);
+  // Thinking is billed as output, and the cached portion of the prompt is priced once at its
+  // own rate rather than a second time as ordinary input.
+  assert.deepEqual(
+    aggregateAiUsage({ inputTokens: 800, cachedInputTokens: 200, candidateTokens: 250, thoughtTokens: 750 }, RATES),
+    {
+      inputTokens: 800,
+      cachedInputTokens: 200,
+      candidateTokens: 250,
+      thoughtTokens: 750,
+      outputTokens: 1_000,
+      totalTokens: 2_000,
+      estimatedCostUsd: ((800 * 0.1) + (200 * 0.025) + (1_000 * 0.4)) / 1_000_000,
+    },
+  );
+});
+
+test('an attempt with no reported usage or no known rate costs an unknown amount, not zero', () => {
+  const known = { inputTokens: 1, cachedInputTokens: 0, candidateTokens: 1, thoughtTokens: 0 };
+  assert.equal(aggregateAiUsage(known, null).estimatedCostUsd, null);
+
+  const unreported = aggregateAiUsage(
+    { inputTokens: null, cachedInputTokens: null, candidateTokens: null, thoughtTokens: null },
+    RATES,
+  );
+  assert.equal(unreported.estimatedCostUsd, null);
+  assert.equal(unreported.totalTokens, null);
+  assert.equal(unreported.outputTokens, null);
 });
 
 function subscriber(kind: 'trial' | 'manok' | 'itik' | 'complimentary'): unknown {

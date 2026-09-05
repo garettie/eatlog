@@ -23,20 +23,50 @@ const TRIAL_DAILY_LIMIT = PAID_DAILY_LIMIT;
 const TRIAL_TOTAL_LIMIT = 30;
 const PAID_30_DAY_LIMIT = 250;
 
-export function aggregateAiUsage(
-  inputTokens: number,
-  outputTokens: number,
-  inputUsdPerMillion: number,
-  outputUsdPerMillion: number,
-) {
-  const estimatedCostUsd = Number.isFinite(inputUsdPerMillion) && Number.isFinite(outputUsdPerMillion)
-    ? ((inputTokens * inputUsdPerMillion) + (outputTokens * outputUsdPerMillion)) / 1_000_000
-    : null;
+/**
+ * What one provider attempt is known to have consumed. Every field is separately unknown: a
+ * provider that reports no usage, or reports it in a shape this Worker does not recognise, must
+ * produce `null` rather than a zero that would quietly understate a bill.
+ */
+export interface AiTokenUsage {
+  /** Prompt tokens actually charged as input, with any cached portion already removed. */
+  inputTokens: number | null;
+  /** Cached prompt tokens, priced separately so they are never counted as input as well. */
+  cachedInputTokens: number | null;
+  candidateTokens: number | null;
+  thoughtTokens: number | null;
+}
+
+/** Per-million rates for one model. Absent rates make cost unknown, never free. */
+export interface AiModelRates {
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+  cachedInputUsdPerMillion: number;
+}
+
+function sumKnown(values: Array<number | null>): number | null {
+  return values.some((value) => value === null) ? null : values.reduce((total, value) => total! + value!, 0);
+}
+
+export function aggregateAiUsage(usage: AiTokenUsage, rates: AiModelRates | null) {
+  const outputTokens = sumKnown([usage.candidateTokens, usage.thoughtTokens]);
+  const totalTokens = sumKnown([usage.inputTokens, usage.cachedInputTokens, outputTokens]);
+  const priced = rates !== null
+    && usage.inputTokens !== null
+    && usage.cachedInputTokens !== null
+    && outputTokens !== null;
   return {
-    inputTokens,
+    inputTokens: usage.inputTokens,
+    cachedInputTokens: usage.cachedInputTokens,
+    candidateTokens: usage.candidateTokens,
+    thoughtTokens: usage.thoughtTokens,
     outputTokens,
-    totalTokens: inputTokens + outputTokens,
-    estimatedCostUsd,
+    totalTokens,
+    estimatedCostUsd: priced
+      ? ((usage.inputTokens! * rates!.inputUsdPerMillion)
+        + (usage.cachedInputTokens! * rates!.cachedInputUsdPerMillion)
+        + (outputTokens! * rates!.outputUsdPerMillion)) / 1_000_000
+      : null,
   };
 }
 
