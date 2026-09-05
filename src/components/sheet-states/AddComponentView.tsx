@@ -175,6 +175,9 @@ export default function AddComponentView({
 	const requestBack = useCallback(() => {
 		const goBack = () => {
 			estimateRequestRef.current += 1;
+			// The abandoned estimate's finally block is guarded by this ref, so clear its
+			// spinner here or the Estimate button stays stuck when Describe reopens.
+			setEstimating(false);
 			if (page === "search") {
 				onClose();
 				return;

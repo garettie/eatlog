@@ -154,6 +154,8 @@ function parsePricing(env: Env): PricingTable {
   if (env.GEMINI_PRICING) {
     let table: Record<string, unknown> = {};
     try { table = JSON.parse(env.GEMINI_PRICING) as Record<string, unknown>; } catch { table = {}; }
+    // Valid JSON that is not an object (null, a number, an array) would throw on the reads below.
+    if (!table || typeof table !== 'object' || Array.isArray(table)) table = {};
     if (typeof table.dated === 'string') dated = table.dated;
     for (const [model, entry] of Object.entries(table)) {
       if (model === 'dated' || !entry || typeof entry !== 'object') continue;
@@ -1746,10 +1748,14 @@ export async function handleRequest(
      */
     const fingerprint = await hashQuotaIdentity(estimateFingerprint(input), env.QUOTA_IDENTITY_SALT ?? env.RATE_LIMIT_SALT);
     const claim = await claimExecution(store, claims.sub, idempotencyKey, fingerprint, input.operation, deadline, clock);
-    if (claim.state === 'conflict') {
-      throw new HttpError(409, 'REQUEST_ID_CONFLICT', 'Request identifier is already in use for different content.', { rejection: 'request-conflict' });
-    }
-    if (claim.state === 'exhausted' || claim.state === 'pending') {
+    if (claim.state === 'conflict' || claim.state === 'exhausted' || claim.state === 'pending') {
+      // No generation happened, so the allowance this reservation just spent goes back. The
+      // reserve above writes a fresh event whenever the prior one was refunded, so without this
+      // a retry storm would charge the subject once per refused claim.
+      await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
+      if (claim.state === 'conflict') {
+        throw new HttpError(409, 'REQUEST_ID_CONFLICT', 'Request identifier is already in use for different content.', { rejection: 'request-conflict' });
+      }
       // Either the two permitted executions are spent, or a live duplicate is still running and
       // this request ran out of time waiting for it. Both are retryable, and neither starts a
       // third generation behind the user's back.
