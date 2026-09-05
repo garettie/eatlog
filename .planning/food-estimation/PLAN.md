@@ -1,6 +1,6 @@
 # Food-estimation implementation plan
 
-Date: 2026-09-05. Status: tasks 1–4 implemented on branch `food-estimation-reliability`; tasks 5–12 not started. Nothing deployed, and no paid provider call has been made.
+Date: 2026-09-05. Status: tasks 1–8 and 11 implemented on branch `food-estimation-reliability`, plus the half of task 9 that can be decided without a paid run. Tasks 10 and 12, and the measured half of 9, are blocked on approvals this plan does not carry. Nothing deployed, and no paid provider call has been made.
 
 Inputs: [service assessment](../../docs/research/2026-09-05-food-estimation-service-review.md), [provider research](../../docs/research/2026-09-05-food-estimation-provider-review.md), and the user's goals of minimal friction, very low failure, and cost efficiency. This is the Quick planning path for an already established brief; 12 implementation tasks, grouped into five milestones.
 
@@ -27,12 +27,19 @@ For model promotion, require all deterministic amount/label/contract checks to p
 | 2. Nutrient and portion normalization | Done | `a2407e5` |
 | 3. Deadlines through body consumption and relay | Done | `3656ad1` |
 | 4. Provider recovery separated from abuse limits | Done | `b024e73` |
-| 5–12 | Not started | — |
+| 5. Coordinated execution and short result replay | Done | `e344f1b` |
+| 6. App action identity and recovery | Done | `69bad01` |
+| 7. Per-attempt and per-request measurement | Done | `f30b435` |
+| 8. Reproducible evaluator | Done, dataset outstanding | `a187fd1` |
+| 9. Prompt and output-budget changes | Partly done | `4a57c21` |
+| 10. Routing from measured cost | Blocked on a paid run | — |
+| 11. Compatibility, quotas, migration, rollback | Done | `a72a3e3` |
+| 12. Staging checks and rollout | Blocked on deployment approval | — |
 
 Baseline state, compatibility surface, and the reproduced defects are recorded in
-[BASELINE.md](BASELINE.md). Current suites: Worker 104 tests, 101 pass, 0 fail, 3 todo; app 519
-tests, 515 pass, 0 fail, 4 todo. Both typecheck clean. The remaining todo cases are the
-still-open defects for tasks 5, 6, and 7, each named with the task that turns it green.
+[BASELINE.md](BASELINE.md). Current suites: Worker 139 tests, 139 pass, 0 fail, 0 todo; app 558
+tests, 558 pass, 0 fail, 0 todo. Both typecheck clean, and the staging config dry run passes.
+Every reproduced defect from milestone 1 is now a green assertion rather than a `todo` marker.
 
 ### Decisions taken during implementation
 
@@ -72,14 +79,64 @@ same choices rather than rediscovering them.
   newer, while staging deploys `2026-08-22`. Nothing exercised is date-gated, but a runtime
   behaviour proven locally still deserves confirmation on staging.
 
+### What is left, and why
+
+- **Task 9's measured half.** The prompt now states amount precedence, joins every non-thought
+  part of a reply, and stops on a refusal instead of buying the same refusal from the fallback
+  model. What it does not do is choose between 2,048 and 4,096 maximum output tokens, pin
+  thinking, or change temperature or media resolution. Those are the changes the plan says to
+  decide from repeated measurement on crowded plates, and there is no measurement without a paid
+  run. Nothing was changed on an opinion.
+- **Task 8's dataset.** The evaluator, the scorer, the manifest format, and the offline and
+  staging runners are all in place and tested. The 60 frozen cases are not, because their
+  reference nutrition has to be measured rather than written down: weighed portions, real product
+  labels, consented photos. `worker/evaluation/README.md` states exactly what each category needs
+  and how to split it 40/20 before any tuning. Fabricating those numbers would produce a
+  benchmark that agrees with whatever it is handed, which is worse than having none.
+- **Task 10** cannot start until task 8's dataset exists and a paid run is approved. **Task 12**
+  is the deployment and rollout, which this plan does not authorize.
+- The physical preview-phone checks from tasks 3, 6, and 12 remain outstanding: slow uploads,
+  cold starts, cancel and back, timeout and retry, quota reset, consent withdrawal, and saved-meal
+  reuse. No emulator substitutes for them.
+
+### Decisions taken in tasks 5–11
+
+- Executions have their own ledger, separate from quota accounting and shared by the memory store
+  and the Durable Object so the two cannot drift. It is memory only: replay holds a normalized
+  result for 120 seconds, at most 64 KiB per result and 4 MiB in total, and a restart loses it.
+  Losing it costs a regeneration, which quota still charges, and that is the honest trade against
+  writing food-derived data into durable storage the privacy policy says holds none.
+- One action gets at most two provider executions. A live duplicate waits for the first rather
+  than starting a second; a completed action is replayed; a retryable failure earns one more
+  attempt; anything past that is a clear retryable failure with the user's draft intact.
+- A request identifier is bound to a keyed fingerprint of its validated payload and to its
+  operation. Reusing one for different content, or for a paid Redo where a free initial estimate
+  ran, is refused before Gemini is reached.
+- Deduplication is bounded to the same 120-second window for every client. This is what stops an
+  installed app's payload-derived identifier from making next week's identical meal free, and it
+  applies to the new protocol too, where identifiers are random and never collide anyway.
+- The client's identifier is now random per intentional action rather than a payload hash. It
+  survives an explicit Retry of an unchanged draft and retires when the estimate delivers, so a
+  second deliberate estimate of the same food is a second action. Consent withdrawal and Delete
+  all data retire every remembered identity.
+- Cancellation detaches the caller, never the shared work, and never claims a refund of provider
+  tokens that were already spent.
+- Cost is reported per attempt, from a dated per-model rate table. A model the table does not name
+  is priced as unknown rather than as free; a provider that reports no usage yields null counts
+  rather than zeros; cached input is priced once at its own rate; thinking counts as the output it
+  is billed as. Provider error messages never reach a log, because a rejection can quote the
+  request back.
+- The coordination protocol is advertised on the response and declared on the request, both as
+  headers, so the JSON body contract installed clients send is unchanged in both directions.
+
 ### Carried forward to later tasks
 
 - Task 3's six-second transit allowance is unverified. Slow-upload and cold-start behaviour on
   the physical preview phone remains outstanding before any release.
-- Task 5 should confirm that a retried request ID no longer reaches Gemini at all, which is what
-  makes the single-submission counting rule above correct rather than merely consistent.
-- Task 7 will need the attempt classification task 4 introduced; the failure reason is currently
-  recorded in quota state but not in the usage log.
+- Task 5 confirmed it: a retried request ID is replayed and never reaches Gemini, which is what
+  makes the single-submission counting rule correct rather than merely consistent.
+- Task 7 carried task 4's classification into the usage log as a bounded `outcome` enum on every
+  attempt, plus one `ai_request` outcome per logical estimate.
 
 ## Decisions and tradeoffs
 
@@ -152,7 +209,7 @@ Verification: five distinct provider failures followed by recovery permit the ne
 
 ## Milestone 3 — Make retry behavior and cost predictable
 
-### 5. Implement coordinated execution and short result replay
+### 5. Implement coordinated execution and short result replay — done (`e344f1b`)
 
 Criteria: C2, C3, C6. Dependencies: 1, 3, 4.
 
@@ -167,7 +224,7 @@ Files: `worker/src/index.ts`, `worker/src/subscriptions.ts`, `worker/src/subscri
 
 Verification: ten concurrent duplicates produce one execution and one quota charge; completed retries produce no provider call while replay is available; conflicts and paid-operation bypass attempts fail before Gemini. Exercise lost responses, memory eviction, object restart, lease expiry, late success/refund, and exhausted execution bounds. Distinguish quota-at-most-once from external-provider exactly-once, which is not guaranteed across crashes.
 
-### 6. Give app actions stable retry identity and useful recovery
+### 6. Give app actions stable retry identity and useful recovery — done (`69bad01`)
 
 Criteria: C2, C3, C6. Dependency: 5.
 
@@ -181,7 +238,7 @@ Files: `src/services/foodScan.ts`, `src/components/sheet-states/FoodSheetContent
 
 Verification: same draft Retry reuses its ID; a new identical meal gets a new ID; duplicate taps share work; cancellation prevents stale UI mutation; Redo retains failure categories and dirty drafts. Verify existing screens on a physical Android preview device, including cancel/back, timeout/retry, quota reset, consent withdrawal, and saved-meal reuse.
 
-### 7. Measure every attempt and final outcome accurately
+### 7. Measure every attempt and final outcome accurately — done (`f30b435`)
 
 Criteria: C4. Dependencies: 3, 4; integrate execution/replay outcomes after 5.
 
@@ -197,7 +254,7 @@ Verification: multi-attempt and thought-token fixtures match hand-calculated tot
 
 ## Milestone 4 — Prove prompt and model quality
 
-### 8. Replace the four-case smoke with a reproducible evaluator
+### 8. Replace the four-case smoke with a reproducible evaluator — evaluator done (`a187fd1`), dataset outstanding
 
 Criteria: C1, C4, C5. Dependencies: 2, 3, 7.
 
@@ -211,7 +268,7 @@ Files: `worker/scripts/evaluate-estimates.mjs`, `worker/package.json`; new `work
 
 Verification: offline evaluator tests detect deliberately wrong grams, null nutrients, duplicated oil, wrong label conversion, and unknown latency/cost. Staging runner cannot execute accidentally in offline mode and stops at its request/budget ceilings. Dataset manifest validates without needing paid calls.
 
-### 9. Test focused prompt and output-budget changes
+### 9. Test focused prompt and output-budget changes — partly done (`4a57c21`)
 
 Criteria: C1, C5. Dependency: 8; paid run gate applies.
 
@@ -240,7 +297,7 @@ Verification: held-out comparison across all categories, no unexplained latency 
 
 ## Milestone 5 — Ship compatibly and verify real usage
 
-### 11. Validate compatibility, quotas, migration, and rollback
+### 11. Validate compatibility, quotas, migration, and rollback — done (`a72a3e3`)
 
 Criteria: C2, C3, C6. Dependencies: 2–7; model/prompt changes from 9–10 may ship later.
 
@@ -285,6 +342,9 @@ Verification: recorded deployed versions, approved finite-run receipts, phone ch
 
 - Worker: `env TMPDIR=/tmp npm test` and `npm run typecheck` from `worker/`.
 - App: focused service/contract tests during implementation; `env TMPDIR=/tmp npm test` and `npx tsc --noEmit` before integrated handoff. Classify unrelated pre-existing failures without changing their tests.
+- Evaluation: `npm run evaluate:validate` and `npm run evaluate:estimates` from `worker/` are
+  offline and free. `npm run evaluate:staging` spends money and refuses to start without an
+  explicit approval flag and its ceilings.
 - Runtime: the Durable Object suite runs as part of `npm test` in `worker/` (`test/subscriptionDurableObject.test.ts`), bundling the real class offline and booting it on the installed `workerd`. All paid providers stay mocked; no network or Cloudflare account is used.
 - UI/app bundle when client changes: `npx expo export --platform android --dev`, followed by physical preview-phone checks. This does not build or deploy a new preview APK by itself.
 - Config: existing `npm run dry-run` plus production-config dry run after loading Wrangler guidance; neither deploys.
