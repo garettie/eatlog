@@ -353,27 +353,27 @@ mealName is the parent label. components are nutritionally material ingredient-l
 
 Include every stated or visible food. Infer only standard material hidden ingredients, marking each low confidence with a reason. Keep defensible entries when another part is uncertain; use unrecognized only when none is defensible. Examples: chicken adobo with rice => rice, chicken, material adobo sauce, oil; pork lumpia => pork, material vegetables, wrapper, absorbed oil; banana or labeled yogurt => one component.
 
-estimatedGrams is total edible amount; serving fields describe exactly one practical unit. servingLabel must name one unit, such as "1 egg" or "1 cup", while servingSizeGrams is the grams in that one unit; represent consumed counts only through estimatedGrams. Never null the serving fields for a food eaten in discrete pieces. Prefer grams, then label mass, counts or measures, visual scale, then typical portion. Use prepared-state nutrients per 100g; convert label values as serving value * 100 / serving grams. Count caloric additions once; when oil or sauce is separate, base entries must exclude it. Use specific names and null unsupported brand or preparation. Use low confidence plus a concise reason for inferred or uncertain data. Check completeness, duplicates, parent-child overlap, and plausible amounts.
+estimatedGrams is total edible amount; serving fields describe exactly one practical unit. servingLabel must name one unit, such as "1 egg" or "1 cup", while servingSizeGrams is the grams in that one unit. Never null the serving fields for a food eaten in discrete pieces. Amount precedence, highest first: an amount the user stated; a legible label's serving mass; visible scale; typical portion. A stated amount is final; a labeled serving or whole-dish assumption never overrides it: two eggs is estimatedGrams 100, servingLabel "1 egg", servingSizeGrams 50; 30g of cookies is estimatedGrams 30 whatever the piece count. Use prepared-state nutrients per 100g; convert label values as serving value * 100 / serving grams. Count caloric additions once; when oil or sauce is separate, base entries must exclude it. Use specific names and null unsupported brand or preparation.
 
 Components cover the whole food present, not one person's share. When that whole plainly exceeds one serving, set servesTotal to the countable portions it divides into and servingUnit to one portion's singular name: whole pizza => 8, "slice"; shared sinigang pot => 4, "bowl". Null both for a single plate, drink, or labeled product.`;
 
 const IMAGE_PROMPT = `Analyze the supplied JPEG for food logging.
 
-For a legible nutrition label, return exactly one product component. Transcribe only legible product, brand, serving, and nutrient facts. Set estimatedGrams and servingSizeGrams to one labeled serving.
+For a legible nutrition label, return exactly one product component. Transcribe only legible product, brand, serving, and nutrient facts. Set servingSizeGrams to one labeled serving, and estimatedGrams to the amount the user stated when they stated one, otherwise to one labeled serving.
 
 For actual food, identify each visible food and decompose recognized composite dishes under the component contract. Estimate visible edible grams using labeled packaging, plate or bowl size, utensils, a hand, or standard piece sizes. Mention the scale cue in confidenceReason when it affects certainty.
 
 Reject non-food, a label too unreadable to support an estimate, or an image from which no defensible food component can be identified.`;
 
-const DESCRIPTION_PROMPT = `Estimate the quoted meal description for food logging. Interpret English, Filipino, and Taglish food names and quantities. Preserve stated brands, preparation, counts, and sizes. Decompose named composite dishes under the component contract.
+const DESCRIPTION_PROMPT = `Estimate the quoted meal description for food logging. Interpret English, Filipino, and Taglish food names and quantities. Preserve stated brands and preparation. Decompose named composite dishes under the component contract.
 
 Use these stable anchors when the description gives no better evidence: 1 cup or tasa cooked rice = about 180g; 1/2 cup cooked rice = about 90g; 1 egg = about 50g; 1 slice bread = about 30g; 1 piece chicken = about 150g; 1 sachet dry noodles = about 80g; 1 tbsp cooking oil = about 14g; 1 tbsp sauce or dressing = about 15g; 1 typical ulam serving = about 120g.
 
-If a quantity is absent, use a realistic typical portion and mark that component low confidence. Reject empty, nonsensical, or non-food input.`;
+If a quantity is absent, use a realistic typical portion at low confidence. Reject empty, nonsensical, or non-food input.`;
 
-const CLARIFY_MEAL_PROMPT = `Re-estimate the updated meal name under the component contract. Reconcile it with the original description, current component estimates, and supplied JPEG when present. Treat the updated name as the corrected meal identity. Preserve explicit quantities from the original description unless the updated name conflicts with them. Return the complete ingredient-level breakdown.`;
+const CLARIFY_MEAL_PROMPT = `Re-estimate the updated meal name under the component contract. Treat the updated name as the corrected meal identity, reconciled with the original description, current component estimates, and supplied JPEG when present. Preserve explicit quantities from the original description. Return the complete breakdown.`;
 
-const CLARIFY_COMPONENT_PROMPT = `Re-estimate exactly one user-selected logging component. Use the meal name, original description, current component amounts, and supplied JPEG only to identify that component and preserve its portion. Return one component even when the edited name is a prepared food, using representative prepared-state nutrition for this explicit component-level exception.`;
+const CLARIFY_COMPONENT_PROMPT = `Re-estimate exactly one user-selected logging component. Use the meal name, original description, current component amounts, and supplied JPEG only to identify that component and preserve its portion. Return one component even when the edited name is a prepared food, using representative prepared-state nutrition as an explicit exception.`;
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -1374,6 +1374,30 @@ function relayFetchImpl(stub: DurableObjectStub, model: string, budgetMs: number
  * Google's own status and message, truncated. Enough to name what it objected to without
  * carrying the request content that provoked it.
  */
+/**
+ * The answer text, joined across every part the model emitted for it.
+ *
+ * Reading only the first part discarded a reply the model happened to split in two, and
+ * discarded any reply whose first part was a thought — both of them complete answers that were
+ * paid for, thrown away, and then paid for again on the fallback model.
+ */
+function candidateText(candidate: unknown): string | null {
+  const parts = (candidate as { content?: { parts?: unknown } } | null)?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+  const text = parts
+    .filter((part) => part && typeof part === 'object' && (part as { thought?: unknown }).thought !== true)
+    .map((part) => (part as { text?: unknown }).text)
+    .filter((value): value is string => typeof value === 'string')
+    .join('');
+  return text === '' ? null : text;
+}
+
+/** A refusal, as opposed to a truncation or a malformed reply. Retrying it changes nothing. */
+function blockedFinish(reason: unknown): boolean {
+  return typeof reason === 'string'
+    && ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'RECITATION', 'SPII'].includes(reason.toUpperCase());
+}
+
 function geminiRejectionReason(response: UpstreamResponse): string {
   try {
     const body = JSON.parse(response.text) as { error?: { message?: unknown; status?: unknown } };
@@ -1512,9 +1536,16 @@ async function geminiEstimate(
       if (isLast) throw error;
       continue;
     }
-    const finishReason = (upstream as any)?.candidates?.[0]?.finishReason;
-    const text = (upstream as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== 'string') {
+    const candidate = (upstream as any)?.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    const text = candidateText(candidate);
+    if (blockedFinish(finishReason)) {
+      // The provider looked and refused. Another model refuses the same content for the same
+      // reason, so spending the fallback on it buys nothing but a second bill.
+      report('rejected', upstream, finishReason);
+      throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-blocked' });
+    }
+    if (text === null) {
       report('invalid-response', upstream, finishReason);
       if (isLast) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
       continue;
@@ -1770,6 +1801,7 @@ export default {
 
 export const contract = {
   USDA_ORIGIN,
+  FOOD_ESTIMATE_SYSTEM_INSTRUCTION,
   USDA_PAGE_SIZE,
   GEMINI_ORIGIN,
   PUGO_GEMINI_MODELS,

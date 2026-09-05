@@ -1795,6 +1795,92 @@ test('every generated attempt is priced, including its thinking tokens', async (
 });
 
 /*
+ * Task 9 of the food-estimation plan, the half that can be decided without a paid run: reading
+ * a reply correctly, and telling a refusal apart from a truncation before spending the fallback.
+ */
+
+test('an answer split across parts, or arriving after a thought, is read rather than discarded', async () => {
+  resetModelCooldowns();
+  let attempts = 0;
+  const serialized = JSON.stringify(recognized);
+  const fetchImpl = (async () => {
+    attempts += 1;
+    return jsonResponse({
+      candidates: [{
+        content: {
+          parts: [
+            // A thinking part the model emitted before its answer, and an answer it split in two.
+            { text: 'weighing the rice', thought: true },
+            { text: serialized.slice(0, 40) },
+            { text: serialized.slice(40) },
+          ],
+        },
+        finishReason: 'STOP',
+      }],
+    });
+  }) as typeof fetch;
+
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+    { fetchImpl },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(body.status, 'recognized');
+  // The complete answer was in the first reply, so the fallback model is never reached.
+  assert.equal(attempts, 1);
+});
+
+test('a refused generation stops instead of buying the same refusal from a second model', async () => {
+  resetModelCooldowns();
+  let attempts = 0;
+  const fetchImpl = (async () => {
+    attempts += 1;
+    return jsonResponse({ candidates: [{ content: { parts: [] }, finishReason: 'SAFETY' }] });
+  }) as typeof fetch;
+
+  const { response, body } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+    { fetchImpl },
+  );
+
+  assert.equal(response.status, 502);
+  assert.equal(body.error.code, 'MALFORMED_UPSTREAM');
+  assert.equal(attempts, 1);
+});
+
+test('a truncated generation still falls through to the model that might finish it', async () => {
+  resetModelCooldowns();
+  let attempts = 0;
+  const fetchImpl = (async () => {
+    attempts += 1;
+    return jsonResponse({
+      candidates: [{
+        content: { parts: [{ text: attempts === 1 ? '{"status":"recog' : JSON.stringify(recognized) }] },
+        finishReason: attempts === 1 ? 'MAX_TOKENS' : 'STOP',
+      }],
+    });
+  }) as typeof fetch;
+
+  const { response } = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+    { fetchImpl },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(attempts, 2);
+});
+
+test('an amount the user stated is what the prompt tells the model to return', () => {
+  const instruction = contract.FOOD_ESTIMATE_SYSTEM_INSTRUCTION;
+  // The one-labeled-serving versus whole-dish versus stated-amount conflict, resolved in the
+  // prompt rather than left for normalization to guess at afterwards.
+  assert.match(instruction, /Amount precedence, highest first/);
+  assert.match(instruction, /A stated amount is final/);
+  assert.match(instruction, /never overrides it/);
+});
+
+/*
  * Task 11 of the food-estimation plan: the new coordination protocol has to be safe in both
  * directions, because a Worker deploys before an app does and an app can outlive a rollback.
  */
