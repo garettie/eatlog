@@ -56,7 +56,7 @@ Eatlog console entries may contain only:
 - `cache` outcome;
 - `rejection` category.
 
-Aggregate `ai_usage` entries may additionally contain only `event`, `model`, `inputTokens`, `outputTokens`, `totalTokens`, and `estimatedCostUsd`.
+Per-attempt `ai_usage` entries may additionally contain only `event`, `model`, `attemptNumber`, `attemptCount`, `outcome`, `finishReason`, `relayed`, `elapsedMs`, `inputTokens`, `cachedInputTokens`, `candidateTokens`, `thoughtTokens`, `outputTokens`, `totalTokens`, and `estimatedCostUsd`. One `ai_request` entry per logical estimate may contain only `event`, `operation`, `outcome`, and `elapsedMs`. `outcome`, `finishReason`, and the `reason` on `ai_model_rejected` are fixed enums; the provider's own message is never logged, because a rejection can quote the request back and the request is the user's food.
 
 They must not contain URLs, methods, request or response bodies, search queries, descriptions, prompts, provider responses, raw installation tokens, token hashes, IP addresses, headers, request IDs, or secrets. Unit tests assert the exact field allowlist. Automatic Cloudflare invocation logs are disabled because they can include request and response metadata; Eatlog keeps only its sampled structured console entries. **OWNER-ONLY:** after the approved smoke, inspect a sampled 4xx and 5xx entry in Workers Logs, confirm the allowlist by hand, and record only pass/fail plus the deployment version. Do not copy the log payload into the repository.
 
@@ -80,7 +80,15 @@ This action changes external Cloudflare state. Deployment normally has no direct
 
 1. Confirm the Cloudflare account: `npx wrangler whoami`.
 2. Create each staging secret with `npx wrangler secret put <NAME> --config wrangler.subscription-staging.jsonc`: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. Do not print values.
-3. Configure non-secret model rates without guessing: `GEMINI_INPUT_USD_PER_MILLION` and `GEMINI_OUTPUT_USD_PER_MILLION` for the shared Pugo/paid 3.5/3.1 route. Missing, empty, negative, or non-finite rates intentionally omit `estimatedCostUsd`.
+3. Configure non-secret model rates without guessing. Prefer `GEMINI_PRICING`, a JSON object of per-model USD-per-million rates plus the date they were read from the provider's price list:
+
+   ```json
+   {"dated":"YYYY-MM-DD","gemini-3.1-flash-lite":{"input":0,"output":0,"cached":0}}
+   ```
+
+   Read each rate from the provider's current price list at the time of the change and record that date; do not carry a rate forward on the assumption it still holds. A model the table does not name is priced as unknown rather than as free. `cached` may be omitted, in which case cached input is charged at the ordinary input rate. The older shared pair `GEMINI_INPUT_USD_PER_MILLION` / `GEMINI_OUTPUT_USD_PER_MILLION` still applies to any model the table omits, but it reports one rate for models that do not share one. Missing, empty, negative, or non-finite rates intentionally omit `estimatedCostUsd`, and a provider that reports no token usage yields `null` counts rather than zeros.
+
+   Console entries are sampled. Interpret cost and latency as aggregate ratios and percentiles with the sample size stated, and never extrapolate a sum of sampled entries into a bill — reconcile against the provider's own billing totals instead.
 4. Deploy with `npx wrangler deploy --config wrangler.subscription-staging.jsonc` only after owner approval.
 5. Record the staging URL and configure only the subscription-preview EAS environment as `EXPO_PUBLIC_FOOD_WORKER_URL`; configure its RevenueCat Test Store public key as `EXPO_PUBLIC_REVENUECAT_API_KEY`.
 6. Obtain separate owner approval for cost-bearing provider calls, then run the staging checks in the smoke sequence and record model, status, latency, token counts, and cost estimate without request content or identifiers.
@@ -118,5 +126,13 @@ Before first production use, drill this sequence on a preview Worker: deploy a h
 - P1: Scan, Describe, or USDA broadly unavailable; malformed provider data reaches users; rate limiting fails open; rollback is unavailable. Pause rollout, restore the healthy Worker, and prepare a tested fix.
 - P2: provider degradation with Manual/local logging intact or a material device-specific defect. Record and fix before public release unless the owner accepts it in writing.
 - P3: cosmetic or low-impact operational issue. Record it for the next maintenance release.
+
+## Coordination protocol and rollback target
+
+Estimate responses carry `X-Eatlog-Protocol: 2`. Requests may carry `X-Eatlog-Request-Version: 2`; both are headers, so the JSON body contract installed clients send is unchanged and a Worker that predates the protocol simply omits and ignores them.
+
+Deploy the Worker before the app. A client that sends a random per-action identifier is safe against an older Worker, which treats it as any other identifier. A client that still derives its identifier from the payload is safe against this Worker, which deduplicates only inside a two-minute window and charges a later resubmission of the same meal normally.
+
+Before enabling a new app path, record a rollback Worker version that already understands this protocol. An older Worker remains deployable in an emergency, but it reintroduces free duplicate execution and is not an acceptable ongoing rollback target — prepare the compatible build first and note its version here alongside the deployed one.
 
 Never claim the production Worker is ready while the named owner, deployed-version evidence, provider smoke, quota/alerts, sampled-log review, and rollback drill remain unverified.

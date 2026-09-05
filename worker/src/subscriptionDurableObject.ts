@@ -1,12 +1,16 @@
 import { DurableObject } from 'cloudflare:workers';
 
 import {
+  DUPLICATE_WINDOW_MS,
   THIRTY_DAYS_MS,
+  ExecutionLedger,
   decideQuota,
   operationClass,
   quotaUsage,
   type AiAccessKind,
+  type ExecutionOutcome,
   type QuotaEvent,
+  type RefundReason,
 } from './subscriptions';
 
 interface DurableEnv {}
@@ -14,6 +18,13 @@ interface CacheRow { [key: string]: SqlStorageValue; access_json: string; subjec
 interface EventRow { [key: string]: SqlStorageValue; operation_class: QuotaEvent['operationClass']; timestamp: number; request_id: string }
 
 export class EntitlementQuotaState extends DurableObject<DurableEnv> {
+  /**
+   * Execution claims and replayable results live in memory only, never in SQLite. They are
+   * transient coordination state, and a result is normalized food data the durable store is
+   * committed not to hold. Losing them to a restart costs a regeneration, not correctness.
+   */
+  private readonly executions = new ExecutionLedger();
+
   constructor(ctx: DurableObjectState, env: DurableEnv) {
     super(ctx, env);
     this.ctx.storage.sql.exec(`
@@ -79,14 +90,38 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       const events = rows.map((row) => ({ operationClass: row.operation_class, timestamp: row.timestamp, requestId: row.request_id }));
       if (path === '/quota/usage') return Response.json(quotaUsage(events, access, now));
       const requestId = String(body.requestId ?? '');
-      const prior = [...sql.exec<{ state: string }>('SELECT state FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
-      if (prior?.state === 'reserved' || prior?.state === 'finalized') return Response.json({ allowed: true, duplicate: true, usage: quotaUsage(events, access, now) });
+      const prior = [...sql.exec<{ state: string; created_at: number }>('SELECT state, created_at FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
+      // Deduplication is bounded: a retry arrives in seconds, and an identifier presented much
+      // later is a new submission even when a client derived it from the meal itself.
+      if ((prior?.state === 'reserved' || prior?.state === 'finalized') && prior.created_at > now - DUPLICATE_WINDOW_MS) {
+        return Response.json({ allowed: true, duplicate: true, usage: quotaUsage(events, access, now) });
+      }
       const operation = String(body.operation ?? '');
       const decision = decideQuota(events, access, operation, now);
       if (!decision.allowed) return Response.json(decision);
       sql.exec('INSERT OR REPLACE INTO quota_requests (subject, request_id, state, created_at) VALUES (?, ?, ?, ?)', subject, requestId, 'reserved', now);
       sql.exec('INSERT OR REPLACE INTO quota_events (subject, operation_class, timestamp, request_id) VALUES (?, ?, ?, ?)', subject, operationClass(access, operation), now, requestId);
       return Response.json({ ...decision, usage: quotaUsage([...events, { operationClass: operationClass(access, operation), timestamp: now, requestId }], access, now) });
+    }
+    if (path === '/execution/claim') {
+      return Response.json(this.executions.claim(
+        String(body.subject ?? ''),
+        String(body.requestId ?? ''),
+        String(body.fingerprint ?? ''),
+        String(body.operation ?? ''),
+        Number(body.now),
+      ));
+    }
+    if (path === '/execution/complete') {
+      this.executions.complete(
+        String(body.subject ?? ''),
+        String(body.requestId ?? ''),
+        String(body.token ?? ''),
+        String(body.outcome) as ExecutionOutcome,
+        typeof body.result === 'string' ? body.result : null,
+        Number(body.now),
+      );
+      return Response.json({ ok: true });
     }
     if (path === '/quota/finalize') {
       sql.exec("UPDATE quota_requests SET state = 'finalized' WHERE subject = ? AND request_id = ? AND state = 'reserved'", String(body.subject), String(body.requestId));
@@ -95,14 +130,16 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
     if (path === '/quota/refund') {
       const subject = String(body.subject);
       const requestId = String(body.requestId);
+      const reason: RefundReason = body.reason === 'unrecognized' ? 'unrecognized' : 'service-failure';
       const prior = [...sql.exec<{ state: string }>('SELECT state FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
       if (prior?.state === 'reserved') {
         sql.exec("UPDATE quota_requests SET state = 'refunded' WHERE subject = ? AND request_id = ?", subject, requestId);
-        // Relabel rather than delete: the reservation still cost a real Gemini call, so it
-        // must keep counting toward the refund-abuse ceiling even though it no longer counts
-        // toward the subject's normal quota (quotaUsage and decideQuota both exclude
-        // 'refunded' events from ordinary limits).
-        sql.exec("UPDATE quota_events SET operation_class = 'refunded' WHERE subject = ? AND request_id = ?", subject, requestId);
+        // Relabel rather than delete: the reservation still cost a real Gemini call, and the
+        // cause decides what it costs the customer. An 'unrecognized' generation counts toward
+        // the content-abuse ceiling; a 'service-failure' counts toward nothing, because a
+        // provider outage is not the customer's to be locked out over. Neither counts toward
+        // the ordinary allowance.
+        sql.exec('UPDATE quota_events SET operation_class = ? WHERE subject = ? AND request_id = ?', reason, subject, requestId);
       }
       return Response.json({ ok: true });
     }

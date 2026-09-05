@@ -4,9 +4,12 @@ import {
   ENTITLEMENT_CACHE_TTL_MS,
   PROVISIONAL_PUGO_CACHE_TTL_MS,
   aggregateAiUsage,
+  type AiModelRates,
+  type AiTokenUsage,
   accessExpired,
   accessExpiresAt,
   hashQuotaIdentity,
+  type ExecutionClaim,
   normalizeRevenueCatSubscriber,
   signAiGrant,
   verifyAiGrant,
@@ -43,6 +46,32 @@ const MAX_CLARIFICATION_TEXT_LENGTH = 200;
 const MAX_CONTEXT_DESCRIPTION_LENGTH = 500;
 const MAX_CONTEXT_NAME_LENGTH = 120;
 const MAX_REVENUECAT_BODY_BYTES = 256 * 1024;
+/** A JSON estimate or a provider error envelope; anything larger is corruption, not an answer. */
+const MAX_GEMINI_BODY_BYTES = 256 * 1024;
+/** Well above a full 25-food USDA page, so only a runaway response is refused. */
+const MAX_USDA_RESPONSE_BYTES = 4 * 1024 * 1024;
+/**
+ * The client gives up at 35 seconds. The Worker stops first, so a request that cannot finish
+ * comes back as a named failure the app can act on rather than as the app's own timeout, with
+ * the remainder left for upload and return transit. Six seconds of transit is a hypothesis to
+ * confirm on a phone, not a measured bound for a slow mobile upload.
+ */
+const WORKER_DEADLINE_MS = 29000;
+/** Held back so a finished estimate can still be serialized, signed, and returned. */
+const RESULT_DELIVERY_RESERVE_MS = 1000;
+/** How often a duplicate re-asks whether the live execution it is sharing has finished. */
+const EXECUTION_POLL_MS = 150;
+/**
+ * The coordination protocol this Worker speaks, advertised on every estimate response. A client
+ * reads it to know whether coordinated retry is available; an older Worker sends no such header,
+ * which is itself the answer. The request-side counterpart is `X-Eatlog-Request-Version`, a
+ * header rather than a body field so the JSON contract installed clients send is unchanged.
+ */
+const EXECUTION_PROTOCOL = '2';
+/** A quota round trip is a local Durable Object call; past this it is not going to answer. */
+const STATE_CALL_TIMEOUT_MS = 3000;
+/** RevenueCat's own ceiling, still bounded by whatever the request has left. */
+const REVENUECAT_TIMEOUT_MS = 8000;
 const REVENUECAT_ORIGIN = 'https://api.revenuecat.com';
 const AI_GRANT_HEADER = 'X-Eatlog-AI-Grant';
 const AI_GRANT_EXPIRES_HEADER = 'X-Eatlog-AI-Grant-Expires-At';
@@ -76,6 +105,8 @@ export interface Env {
   GEMINI_RELAY?: DurableObjectNamespace;
   GEMINI_INPUT_USD_PER_MILLION?: string;
   GEMINI_OUTPUT_USD_PER_MILLION?: string;
+  /** Per-model USD-per-million rates plus the date they were read. See `parsePricing`. */
+  GEMINI_PRICING?: string;
 }
 
 interface CacheLike {
@@ -97,23 +128,175 @@ interface ErrorMeta {
   rejection?: string;
 }
 
-function configuredRate(value: string | undefined): number {
-  if (value == null || value.trim() === '') return Number.NaN;
-  const rate = Number(value);
+/**
+ * Per-model pricing, resolved from configuration rather than hard-coded, because a rate baked
+ * into a deployed Worker goes stale silently. `GEMINI_PRICING` is a JSON object of
+ * `{ "<model id>": { "input": n, "output": n, "cached": n } }` in USD per million tokens, plus a
+ * `"dated"` string recording when those rates were read from the provider's price list.
+ *
+ * A model the table does not name is priced as unknown. That is the whole point of replacing the
+ * single shared rate pair: two models on one rate reported a number that was right for at most
+ * one of them, and a missing rate reported zero, which is never true of a call that was made.
+ */
+interface PricingTable {
+  dated: string | null;
+  models: Record<string, AiModelRates>;
+}
+
+function configuredRate(value: unknown): number {
+  const rate = typeof value === 'number' ? value : Number(String(value ?? '').trim() || Number.NaN);
   return Number.isFinite(rate) && rate >= 0 ? rate : Number.NaN;
 }
 
-function logAiUsage(upstream: unknown, model: string, env: Env): void {
-  const usage = (upstream as any)?.usageMetadata;
-  const inputTokens = Number(usage?.promptTokenCount ?? 0);
-  const outputTokens = Number(usage?.candidatesTokenCount ?? 0);
-  const inputRate = configuredRate(env.GEMINI_INPUT_USD_PER_MILLION);
-  const outputRate = configuredRate(env.GEMINI_OUTPUT_USD_PER_MILLION);
+function parsePricing(env: Env): PricingTable {
+  const models: Record<string, AiModelRates> = {};
+  let dated: string | null = null;
+  if (env.GEMINI_PRICING) {
+    let table: Record<string, unknown> = {};
+    try { table = JSON.parse(env.GEMINI_PRICING) as Record<string, unknown>; } catch { table = {}; }
+    // Valid JSON that is not an object (null, a number, an array) would throw on the reads below.
+    if (!table || typeof table !== 'object' || Array.isArray(table)) table = {};
+    if (typeof table.dated === 'string') dated = table.dated;
+    for (const [model, entry] of Object.entries(table)) {
+      if (model === 'dated' || !entry || typeof entry !== 'object') continue;
+      const rates = entry as Record<string, unknown>;
+      const input = configuredRate(rates.input);
+      const output = configuredRate(rates.output);
+      // Cached input has its own rate; absent, it is charged as ordinary input rather than free.
+      const cached = rates.cached === undefined ? input : configuredRate(rates.cached);
+      if (!Number.isFinite(input) || !Number.isFinite(output) || !Number.isFinite(cached)) continue;
+      models[model] = { inputUsdPerMillion: input, outputUsdPerMillion: output, cachedInputUsdPerMillion: cached };
+    }
+  }
+  return { dated, models };
+}
+
+function modelRates(model: string, env: Env): AiModelRates | null {
+  const table = parsePricing(env);
+  if (table.models[model]) return table.models[model];
+  // The pre-table configuration: one rate pair applied to every model. Kept so an existing
+  // deployment keeps reporting cost, and superseded for any model the table does name.
+  const input = configuredRate(env.GEMINI_INPUT_USD_PER_MILLION);
+  const output = configuredRate(env.GEMINI_OUTPUT_USD_PER_MILLION);
+  if (!Number.isFinite(input) || !Number.isFinite(output)) return null;
+  return { inputUsdPerMillion: input, outputUsdPerMillion: output, cachedInputUsdPerMillion: input };
+}
+
+/** A count the provider reported, or `null` — never a zero standing in for "not reported". */
+function reportedTokens(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.trunc(value) : null;
+}
+
+function readTokenUsage(upstream: unknown): AiTokenUsage {
+  const usage = (upstream as { usageMetadata?: Record<string, unknown> } | null)?.usageMetadata;
+  if (!usage) return { inputTokens: null, cachedInputTokens: null, candidateTokens: null, thoughtTokens: null };
+  const prompt = reportedTokens(usage.promptTokenCount);
+  // Gemini's promptTokenCount already includes the cached portion, so the cached tokens are
+  // subtracted out here rather than added again alongside it.
+  const cached = reportedTokens(usage.cachedContentTokenCount) ?? 0;
+  return {
+    inputTokens: prompt === null ? null : Math.max(0, prompt - cached),
+    cachedInputTokens: cached,
+    candidateTokens: reportedTokens(usage.candidatesTokenCount),
+    // Thinking tokens are billed as output. Omitting them understated every attempt that thought.
+    thoughtTokens: reportedTokens(usage.thoughtsTokenCount) ?? 0,
+  };
+}
+
+/** Bounded enums. A provider's own wording never reaches a log, because food text can be in it. */
+type AttemptOutcome = 'succeeded' | 'rejected' | 'transport-failure' | 'invalid-response';
+type RequestOutcome = 'recognized' | 'unrecognized' | 'replayed' | 'failed';
+
+function finishCategory(reason: unknown): string {
+  const value = typeof reason === 'string' ? reason.toUpperCase() : '';
+  if (value === 'STOP') return 'stop';
+  if (value === 'MAX_TOKENS') return 'max-tokens';
+  if (value === 'SAFETY' || value === 'PROHIBITED_CONTENT' || value === 'BLOCKLIST') return 'blocked';
+  if (value === 'RECITATION') return 'recitation';
+  return value === '' ? 'unknown' : 'other';
+}
+
+/** Maps the provider's status code — not its message — onto a fixed set of reasons. */
+function rejectionCategory(reason: string): string {
+  const status = reason.split(' ')[0]?.toUpperCase() ?? '';
+  const known = [
+    'FAILED_PRECONDITION', 'INVALID_ARGUMENT', 'PERMISSION_DENIED', 'UNAUTHENTICATED',
+    'RESOURCE_EXHAUSTED', 'NOT_FOUND', 'UNAVAILABLE', 'INTERNAL', 'DEADLINE_EXCEEDED',
+  ];
+  return known.includes(status) ? status.toLowerCase().replace(/_/g, '-') : 'unknown';
+}
+
+interface AttemptLog {
+  model: string;
+  attemptNumber: number;
+  attemptCount: number;
+  outcome: AttemptOutcome;
+  finishReason: string;
+  relayed: boolean;
+  elapsedMs: number;
+  upstream: unknown;
+  env: Env;
+}
+
+/**
+ * One event per generated attempt, including the malformed and truncated ones. An attempt the
+ * provider billed but this Worker could not use is exactly the attempt a cost report must not
+ * lose, and it was the one the old success-only log dropped.
+ */
+function logAiUsage(attempt: AttemptLog): void {
   console.log(JSON.stringify({
     event: 'ai_usage',
-    model,
-    ...aggregateAiUsage(inputTokens, outputTokens, inputRate, outputRate),
+    model: attempt.model,
+    attemptNumber: attempt.attemptNumber,
+    attemptCount: attempt.attemptCount,
+    outcome: attempt.outcome,
+    finishReason: attempt.finishReason,
+    relayed: attempt.relayed,
+    elapsedMs: attempt.elapsedMs,
+    ...aggregateAiUsage(readTokenUsage(attempt.upstream), modelRates(attempt.model, attempt.env)),
   }));
+}
+
+/** One event per logical request, so attempts can be read against the answer the user received. */
+function logAiRequest(operation: string, outcome: RequestOutcome, elapsedMs: number): void {
+  console.log(JSON.stringify({ event: 'ai_request', operation, outcome, elapsedMs }));
+}
+
+/**
+ * The single clock every stage of one request answers to. Stages ask what is left rather than
+ * each starting a fresh timer of its own, so authorization that ran long shortens the provider
+ * budget instead of pushing the total past the point where the client has stopped listening.
+ */
+interface Deadline {
+  remaining(): number;
+}
+
+function createDeadline(startedAt: number, clock: () => number, totalMs = WORKER_DEADLINE_MS): Deadline {
+  return { remaining: () => startedAt + totalMs - clock() };
+}
+
+/**
+ * Bounds work that has no deadline of its own — reading the client's upload, a quota round
+ * trip. `onTimeout` decides what a caller does with the loss; the underlying work is left to
+ * settle on its own rather than being cancelled, because nothing here is retried.
+ */
+async function withinDeadline<T>(
+  work: Promise<T>,
+  budgetMs: number,
+  onTimeout: () => HttpError,
+): Promise<T> {
+  if (budgetMs <= 0) throw onTimeout();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(onTimeout()), budgetMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 class HttpError extends Error {
@@ -172,27 +355,27 @@ mealName is the parent label. components are nutritionally material ingredient-l
 
 Include every stated or visible food. Infer only standard material hidden ingredients, marking each low confidence with a reason. Keep defensible entries when another part is uncertain; use unrecognized only when none is defensible. Examples: chicken adobo with rice => rice, chicken, material adobo sauce, oil; pork lumpia => pork, material vegetables, wrapper, absorbed oil; banana or labeled yogurt => one component.
 
-estimatedGrams is total edible amount; serving fields describe exactly one practical unit. servingLabel must name one unit, such as "1 egg" or "1 cup", while servingSizeGrams is the grams in that one unit; represent consumed counts only through estimatedGrams. Never null the serving fields for a food eaten in discrete pieces. Prefer grams, then label mass, counts or measures, visual scale, then typical portion. Use prepared-state nutrients per 100g; convert label values as serving value * 100 / serving grams. Count caloric additions once; when oil or sauce is separate, base entries must exclude it. Use specific names and null unsupported brand or preparation. Use low confidence plus a concise reason for inferred or uncertain data. Check completeness, duplicates, parent-child overlap, and plausible amounts.
+estimatedGrams is total edible amount; serving fields describe exactly one practical unit. servingLabel must name one unit, such as "1 egg" or "1 cup", while servingSizeGrams is the grams in that one unit. Never null the serving fields for a food eaten in discrete pieces. Amount precedence, highest first: an amount the user stated; a legible label's serving mass; visible scale; typical portion. A stated amount is final; a labeled serving or whole-dish assumption never overrides it: two eggs is estimatedGrams 100, servingLabel "1 egg", servingSizeGrams 50; 30g of cookies is estimatedGrams 30 whatever the piece count. Use prepared-state nutrients per 100g; convert label values as serving value * 100 / serving grams. Count caloric additions once; when oil or sauce is separate, base entries must exclude it. Use specific names and null unsupported brand or preparation.
 
 Components cover the whole food present, not one person's share. When that whole plainly exceeds one serving, set servesTotal to the countable portions it divides into and servingUnit to one portion's singular name: whole pizza => 8, "slice"; shared sinigang pot => 4, "bowl". Null both for a single plate, drink, or labeled product.`;
 
 const IMAGE_PROMPT = `Analyze the supplied JPEG for food logging.
 
-For a legible nutrition label, return exactly one product component. Transcribe only legible product, brand, serving, and nutrient facts. Set estimatedGrams and servingSizeGrams to one labeled serving.
+For a legible nutrition label, return exactly one product component. Transcribe only legible product, brand, serving, and nutrient facts. Set servingSizeGrams to one labeled serving, and estimatedGrams to the amount the user stated when they stated one, otherwise to one labeled serving.
 
 For actual food, identify each visible food and decompose recognized composite dishes under the component contract. Estimate visible edible grams using labeled packaging, plate or bowl size, utensils, a hand, or standard piece sizes. Mention the scale cue in confidenceReason when it affects certainty.
 
 Reject non-food, a label too unreadable to support an estimate, or an image from which no defensible food component can be identified.`;
 
-const DESCRIPTION_PROMPT = `Estimate the quoted meal description for food logging. Interpret English, Filipino, and Taglish food names and quantities. Preserve stated brands, preparation, counts, and sizes. Decompose named composite dishes under the component contract.
+const DESCRIPTION_PROMPT = `Estimate the quoted meal description for food logging. Interpret English, Filipino, and Taglish food names and quantities. Preserve stated brands and preparation. Decompose named composite dishes under the component contract.
 
 Use these stable anchors when the description gives no better evidence: 1 cup or tasa cooked rice = about 180g; 1/2 cup cooked rice = about 90g; 1 egg = about 50g; 1 slice bread = about 30g; 1 piece chicken = about 150g; 1 sachet dry noodles = about 80g; 1 tbsp cooking oil = about 14g; 1 tbsp sauce or dressing = about 15g; 1 typical ulam serving = about 120g.
 
-If a quantity is absent, use a realistic typical portion and mark that component low confidence. Reject empty, nonsensical, or non-food input.`;
+If a quantity is absent, use a realistic typical portion at low confidence. Reject empty, nonsensical, or non-food input.`;
 
-const CLARIFY_MEAL_PROMPT = `Re-estimate the updated meal name under the component contract. Reconcile it with the original description, current component estimates, and supplied JPEG when present. Treat the updated name as the corrected meal identity. Preserve explicit quantities from the original description unless the updated name conflicts with them. Return the complete ingredient-level breakdown.`;
+const CLARIFY_MEAL_PROMPT = `Re-estimate the updated meal name under the component contract. Treat the updated name as the corrected meal identity, reconciled with the original description, current component estimates, and supplied JPEG when present. Preserve explicit quantities from the original description. Return the complete breakdown.`;
 
-const CLARIFY_COMPONENT_PROMPT = `Re-estimate exactly one user-selected logging component. Use the meal name, original description, current component amounts, and supplied JPEG only to identify that component and preserve its portion. Return one component even when the edited name is a prepared food, using representative prepared-state nutrition for this explicit component-level exception.`;
+const CLARIFY_COMPONENT_PROMPT = `Re-estimate exactly one user-selected logging component. Use the meal name, original description, current component amounts, and supplied JPEG only to identify that component and preserve its portion. Return one component even when the edited name is a prepared food, using representative prepared-state nutrition as an explicit exception.`;
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -230,7 +413,7 @@ function requireJsonContentType(request: Request): void {
   }
 }
 
-async function readJsonObject(request: Request, maxBytes: number): Promise<Record<string, unknown>> {
+async function readJsonObject(request: Request, maxBytes: number, deadline: Deadline): Promise<Record<string, unknown>> {
   const lengthHeader = request.headers.get('content-length');
   if (lengthHeader != null) {
     const length = Number(lengthHeader);
@@ -239,7 +422,13 @@ async function readJsonObject(request: Request, maxBytes: number): Promise<Recor
     }
     if (length > maxBytes) throw new HttpError(413, 'PAYLOAD_TOO_LARGE', 'Request body is too large.', { rejection: 'body-size' });
   }
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  // A client that opened a request and then stalled mid-upload holds the whole budget open,
+  // and the estimate it is uploading for could no longer finish anyway.
+  const bytes = new Uint8Array(await withinDeadline(
+    request.arrayBuffer(),
+    deadline.remaining(),
+    () => new HttpError(408, 'REQUEST_TIMEOUT', 'Request body was not received in time.', { rejection: 'request-body-timeout' }),
+  ));
   if (bytes.byteLength > maxBytes) throw new HttpError(413, 'PAYLOAD_TOO_LARGE', 'Request body is too large.', { rejection: 'body-size' });
   let value: unknown;
   try {
@@ -448,20 +637,75 @@ async function applyRateLimits(env: Env, group: RouteGroup, installId: string, r
   }
 }
 
-async function fetchWithTimeout(
+interface UpstreamResponse {
+  status: number;
+  ok: boolean;
+  contentType: string;
+  text: string;
+}
+
+/**
+ * One deadline over the whole exchange, headers and body alike.
+ *
+ * The previous split — a timer around `fetch`, cleared the moment headers arrived, and the body
+ * read afterwards with nothing watching it — meant a connection that answered fast and then
+ * stalled could spend the entire budget without ever tripping the abort it was given. The
+ * fallback model was unreachable by the time anyone noticed. The body is also bounded as it
+ * streams rather than after it is buffered, so an upstream cannot make us hold what it sends.
+ */
+async function fetchUpstream(
   fetchImpl: typeof fetch,
   input: string,
   init: RequestInit,
   timeoutMs: number,
   upstream: 'usda' | 'gemini' | 'revenuecat',
   cacheOutcome: 'miss' | 'bypass',
-): Promise<Response> {
+  maxBytes: number,
+): Promise<UpstreamResponse> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = setTimeout(() => controller.abort(), Math.max(0, timeoutMs));
+  let overflowed = false;
   try {
-    return await fetchImpl(input, { ...init, signal: controller.signal });
+    const response = await fetchImpl(input, { ...init, signal: controller.signal });
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    const reader = response.body?.getReader();
+    if (reader) {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (!value) continue;
+          size += value.byteLength;
+          if (size > maxBytes) {
+            overflowed = true;
+            controller.abort();
+            throw new Error('upstream body exceeded its limit');
+          }
+          chunks.push(value);
+        }
+      } finally {
+        // Releases the connection whether the read finished, timed out, or overflowed.
+        await reader.cancel().catch(() => {});
+      }
+    }
+    const body = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      body.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return {
+      status: response.status,
+      ok: response.ok,
+      contentType: response.headers.get('content-type') ?? '',
+      text: new TextDecoder().decode(body),
+    };
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (overflowed) {
+      throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream, cacheOutcome, rejection: 'upstream-body-size' });
+    }
+    if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
       throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Upstream service timed out.', { upstream, cacheOutcome, rejection: 'timeout' });
     }
     throw new HttpError(502, 'UPSTREAM_UNAVAILABLE', 'Upstream service is unavailable.', { upstream, cacheOutcome, rejection: 'network' });
@@ -474,6 +718,25 @@ function finiteNonNegative(value: unknown): number | null {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
+
+/**
+ * The same question asked of a generated estimate rather than of USDA's published data.
+ * `Number()` is deliberately not used here: it turns `null`, `false`, and `""` into zero, and a
+ * zero calorie count is a confident claim about food the model actually declined to answer for.
+ * USDA keeps the lenient coercion above, because its fields are numeric strings by design.
+ */
+function generatedNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+/**
+ * Corruption bounds, not nutrition truth. Nothing edible is a thousand calories per hundred
+ * grams (pure fat is about 900) and no macronutrient can exceed the mass containing it, so a
+ * value past these did not come from a working estimate. Anything inside them is passed through
+ * untouched, including legitimate zeros: a boiled egg white really does have no carbohydrate.
+ */
+const MAX_CALORIES_PER_100G = 1000;
+const MAX_MACRO_PER_100G = 100;
 
 function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -516,17 +779,17 @@ function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
   };
 }
 
-async function readUpstreamJson(
-  response: Response,
+function parseUpstreamJson(
+  response: UpstreamResponse,
   upstream: 'usda' | 'gemini' | 'revenuecat',
   cacheOutcome: 'miss' | 'bypass',
-): Promise<unknown> {
+): unknown {
   if (!response.ok) throw new HttpError(502, 'UPSTREAM_ERROR', 'Upstream service rejected the request.', { upstream, cacheOutcome, rejection: 'upstream-status' });
-  if (!(response.headers.get('content-type') ?? '').includes('application/json')) {
+  if (!response.contentType.includes('application/json')) {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream, cacheOutcome, rejection: 'upstream-content-type' });
   }
   try {
-    return await response.json();
+    return JSON.parse(response.text);
   } catch {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream, cacheOutcome, rejection: 'upstream-json' });
   }
@@ -610,6 +873,7 @@ async function refreshRevenueCatAccess(
   fetchImpl: typeof fetch,
   now: number,
   force: boolean,
+  deadline: Deadline,
 ): Promise<{ verified: VerifiedRevenueCatAccess; customerKey: string; provisional: boolean }> {
   requireSubscriptionConfiguration(env);
   const customerKey = await hashQuotaIdentity(`customer:${installId}`, env.RATE_LIMIT_SALT);
@@ -624,10 +888,14 @@ async function refreshRevenueCatAccess(
     }
   }
   try {
-    const response = await fetchWithTimeout(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
+    // Too little time left to both ask RevenueCat and still produce an estimate: fall through
+    // to the cached or provisional answer rather than spending what remains on a call whose
+    // result would arrive after the client has gone.
+    if (deadline.remaining() <= REVENUECAT_TIMEOUT_MS / 2) throw new Error('insufficient time to verify access');
+    const response = await fetchUpstream(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`, Accept: 'application/json' },
-    }, 8000, 'revenuecat', 'bypass');
-    const normalized = normalizeRevenueCatSubscriber(await readUpstreamJson(response, 'revenuecat', 'bypass'), now);
+    }, Math.min(REVENUECAT_TIMEOUT_MS, deadline.remaining()), 'revenuecat', 'bypass', MAX_REVENUECAT_BODY_BYTES);
+    const normalized = normalizeRevenueCatSubscriber(parseUpstreamJson(response, 'revenuecat', 'bypass'), now);
     // A response we could not parse is not a verdict. Caching it would overwrite the last good
     // record with a non-answer and take the outage fallback down with it.
     if (normalized.access.kind === 'pugo' && normalized.access.reason === 'malformed') {
@@ -717,8 +985,9 @@ async function accessRefresh(
   fetchImpl: typeof fetch,
   now: number,
   force: boolean,
+  deadline: Deadline,
 ): Promise<Response> {
-  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force);
+  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force, deadline);
   const grant = await issueAiGrant(verified, env, now, provisional);
   if (!grant) return json({ access: verified.access, usage: { kind: 'none' } });
   const usage = await store.usage(grant.claims.sub, grant.claims.access, now);
@@ -736,6 +1005,7 @@ async function authorizeEstimate(
   store: SubscriptionStore,
   fetchImpl: typeof fetch,
   now: number,
+  deadline: Deadline,
 ): Promise<{ claims: GrantClaims; refreshedGrant: IssuedAiGrant | null }> {
   requireSubscriptionConfiguration(env);
   const token = bearerToken(request);
@@ -743,7 +1013,7 @@ async function authorizeEstimate(
     const claims = await verifyAiGrant(token, env.AI_GRANT_SIGNING_KEY, now);
     if (claims) return { claims, refreshedGrant: null };
   }
-  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false);
+  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false, deadline);
   const refreshedGrant = await issueAiGrant(verified, env, now, provisional);
   if (!refreshedGrant) {
     throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Refresh your plan and try again.', { rejection: 'entitlement-refresh' });
@@ -771,6 +1041,7 @@ async function handleRevenueCatWebhook(
   request: Request,
   env: Env,
   store: SubscriptionStore,
+  deadline: Deadline,
 ): Promise<Response> {
   requireSubscriptionConfiguration(env);
   const authorization = request.headers.get('authorization')?.trim() ?? '';
@@ -778,7 +1049,7 @@ async function handleRevenueCatWebhook(
     throw new HttpError(401, 'UNAUTHORIZED', 'Webhook authorization failed.', { rejection: 'webhook-auth' });
   }
   requireJsonContentType(request);
-  const body = await readJsonObject(request, MAX_REVENUECAT_BODY_BYTES);
+  const body = await readJsonObject(request, MAX_REVENUECAT_BODY_BYTES, deadline);
   const event = body.event;
   if (!event || typeof event !== 'object') throw new HttpError(400, 'INVALID_WEBHOOK', 'Webhook payload is invalid.', { rejection: 'webhook-shape' });
   const value = event as Record<string, unknown>;
@@ -815,6 +1086,7 @@ async function usdaSearch(
   context: ExecutionContext,
   fetchImpl: typeof fetch,
   cache: CacheLike | null,
+  deadline: Deadline,
 ): Promise<Response> {
   const queryDigest = await digestText(`${input.mode}\0${input.query}`);
   const key = new Request(`https://cache.eatlog.invalid/usda/search/${input.mode}/${queryDigest}`);
@@ -823,12 +1095,12 @@ async function usdaSearch(
   const dataType = input.mode === 'common'
     ? ['Survey (FNDDS)', 'Foundation', 'SR Legacy']
     : ['Survey (FNDDS)', 'Foundation', 'SR Legacy', 'Branded'];
-  const response = await fetchWithTimeout(fetchImpl, `${USDA_ORIGIN}${USDA_SEARCH_PATH}?api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
+  const response = await fetchUpstream(fetchImpl, `${USDA_ORIGIN}${USDA_SEARCH_PATH}?api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query: input.query, pageSize: USDA_PAGE_SIZE, pageNumber: 1, dataType }),
-  }, USDA_TIMEOUT_MS, 'usda', 'miss');
-  const upstream = await readUpstreamJson(response, 'usda', 'miss');
+  }, Math.min(USDA_TIMEOUT_MS, deadline.remaining()), 'usda', 'miss', MAX_USDA_RESPONSE_BYTES);
+  const upstream = parseUpstreamJson(response, 'usda', 'miss');
   if (!upstream || typeof upstream !== 'object' || !Array.isArray((upstream as Record<string, unknown>).foods)) {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream: 'usda', cacheOutcome: 'miss', rejection: 'upstream-shape' });
   }
@@ -848,14 +1120,15 @@ async function usdaDetail(
   context: ExecutionContext,
   fetchImpl: typeof fetch,
   cache: CacheLike | null,
+  deadline: Deadline,
 ): Promise<Response> {
   const key = new Request(`https://cache.eatlog.invalid/usda/food/${fdcId}`);
   const cached = await cacheMatch(cache, key);
   if (cached) return json(cached);
-  const response = await fetchWithTimeout(fetchImpl, `${USDA_ORIGIN}/fdc/v1/food/${fdcId}?format=full&api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
+  const response = await fetchUpstream(fetchImpl, `${USDA_ORIGIN}/fdc/v1/food/${fdcId}?format=full&api_key=${encodeURIComponent(env.USDA_API_KEY)}`, {
     method: 'GET', headers: { Accept: 'application/json' },
-  }, USDA_TIMEOUT_MS, 'usda', 'miss');
-  const normalized = normalizeUsdaFood(await readUpstreamJson(response, 'usda', 'miss'));
+  }, Math.min(USDA_TIMEOUT_MS, deadline.remaining()), 'usda', 'miss', MAX_USDA_RESPONSE_BYTES);
+  const normalized = normalizeUsdaFood(parseUpstreamJson(response, 'usda', 'miss'));
   if (!normalized) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid food.', { upstream: 'usda', cacheOutcome: 'miss', rejection: 'upstream-food' });
   const body = { food: normalized };
   cacheStore(cache, context, key, body, 86400);
@@ -907,15 +1180,22 @@ function normalizeMealDivision(
   const empty = { servesTotal: null, servingUnit: null };
   if (operation === 'clarify-component') return empty;
   const servingUnit = nullableText(value.servingUnit);
-  const servesTotal = finiteNonNegative(value.servesTotal);
+  const servesTotal = generatedNumber(value.servesTotal);
   if (!servingUnit || servesTotal == null) return empty;
   const whole = Math.round(servesTotal);
   if (whole < 2 || whole > MAX_SERVES_TOTAL) return empty;
   return { servesTotal: whole, servingUnit: servingUnit.slice(0, 40) };
 }
 
+/**
+ * A counted label ("3 cookies") is rewritten to the single unit the review sheet scales from.
+ * The consumed total is never recomputed from it. "3 cookies" alongside a 30g serving mass can
+ * mean three cookies weighing 30g altogether or three weighing 30g each, and the payload says
+ * which only if the model happened to make its own two fields agree — so multiplying the count
+ * by the serving mass silently tripled amounts a user had already weighed and stated.
+ * `estimatedGrams` is what was eaten; this function only renames the unit beside it.
+ */
 function normalizeCountedServing(
-  operation: EstimateOperation,
   estimatedGrams: number,
   servingSizeGrams: number | null,
   servingLabel: string | null,
@@ -946,14 +1226,8 @@ function normalizeCountedServing(
     break;
   }
 
-  const consumedGrams = operation === 'scan'
-    ? estimatedGrams
-    : quantity * servingSizeGrams;
-  if (!Number.isFinite(consumedGrams) || consumedGrams <= 0) {
-    return { estimatedGrams, servingLabel };
-  }
   return {
-    estimatedGrams: consumedGrams,
+    estimatedGrams,
     servingLabel: `1 ${words.join(' ')}`,
   };
 }
@@ -974,29 +1248,27 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
   const components = result.components.map((entry) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
     const component = entry as Record<string, unknown>;
-    const estimatedGrams = finiteNonNegative(component.estimatedGrams);
-    const servingSizeGrams = component.servingSizeGrams === null ? null : finiteNonNegative(component.servingSizeGrams);
-    const caloriesPer100g = finiteNonNegative(component.caloriesPer100g);
-    const proteinPer100g = finiteNonNegative(component.proteinPer100g);
-    const carbsPer100g = finiteNonNegative(component.carbsPer100g);
-    const fatPer100g = finiteNonNegative(component.fatPer100g);
+    const estimatedGrams = generatedNumber(component.estimatedGrams);
+    const servingSizeGrams = component.servingSizeGrams === null ? null : generatedNumber(component.servingSizeGrams);
+    const caloriesPer100g = generatedNumber(component.caloriesPer100g);
+    const proteinPer100g = generatedNumber(component.proteinPer100g);
+    const carbsPer100g = generatedNumber(component.carbsPer100g);
+    const fatPer100g = generatedNumber(component.fatPer100g);
     const confidence = component.confidence;
     const confidenceReason = nullableText(component.confidenceReason);
-    if (typeof component.name !== 'string' || !component.name.trim() || estimatedGrams == null || estimatedGrams <= 0
+    if (typeof component.name !== 'string' || !component.name.trim()
+      || estimatedGrams == null || estimatedGrams <= 0 || estimatedGrams > MAX_COMPONENT_GRAMS
       || caloriesPer100g == null || proteinPer100g == null || carbsPer100g == null || fatPer100g == null
-      || (servingSizeGrams != null && servingSizeGrams <= 0)
+      || caloriesPer100g > MAX_CALORIES_PER_100G
+      || proteinPer100g > MAX_MACRO_PER_100G || carbsPer100g > MAX_MACRO_PER_100G || fatPer100g > MAX_MACRO_PER_100G
+      || (servingSizeGrams != null && (servingSizeGrams <= 0 || servingSizeGrams > MAX_COMPONENT_GRAMS))
       || (confidence !== 'high' && confidence !== 'medium' && confidence !== 'low')
       || (confidence === 'low' && !confidenceReason)) return null;
     const brand = nullableText(component.brand);
     const preparation = nullableText(component.preparation);
     const servingLabel = nullableText(component.servingLabel);
     if (brand === undefined || preparation === undefined || servingLabel === undefined || confidenceReason === undefined) return null;
-    const normalizedServing = normalizeCountedServing(
-      operation,
-      estimatedGrams,
-      servingSizeGrams,
-      servingLabel,
-    );
+    const normalizedServing = normalizeCountedServing(estimatedGrams, servingSizeGrams, servingLabel);
     return {
       name: component.name.trim().slice(0, 200),
       estimatedGrams: normalizedServing.estimatedGrams,
@@ -1084,20 +1356,53 @@ function geminiRelayStub(env: Env): DurableObjectStub | null {
   return namespace.get(namespace.idFromName('gemini-relay-v1'), { locationHint: GEMINI_RELAY_LOCATION_HINT });
 }
 
-function relayFetchImpl(stub: DurableObjectStub, model: string): typeof fetch {
+/**
+ * The relay is told how long it may take, not left to invent its own budget. Its inner call to
+ * Google is a second network hop that the caller's abort does not reach, so without this a
+ * stalled relay could outlive the request that started it.
+ */
+function relayFetchImpl(stub: DurableObjectStub, model: string, budgetMs: number): typeof fetch {
   return ((_input: unknown, init: RequestInit = {}) => stub.fetch(GEMINI_RELAY_URL, {
     ...init,
-    headers: { ...(init.headers as Record<string, string> | undefined), 'x-eatlog-gemini-model': model },
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      'x-eatlog-gemini-model': model,
+      'x-eatlog-deadline-ms': String(Math.max(0, Math.round(budgetMs))),
+    },
   })) as typeof fetch;
 }
 
 /**
  * Google's own status and message, truncated. Enough to name what it objected to without
- * carrying the request content that provoked it. Read from a clone so the body survives.
+ * carrying the request content that provoked it.
  */
-async function geminiRejectionReason(response: Response): Promise<string> {
+/**
+ * The answer text, joined across every part the model emitted for it.
+ *
+ * Reading only the first part discarded a reply the model happened to split in two, and
+ * discarded any reply whose first part was a thought — both of them complete answers that were
+ * paid for, thrown away, and then paid for again on the fallback model.
+ */
+function candidateText(candidate: unknown): string | null {
+  const parts = (candidate as { content?: { parts?: unknown } } | null)?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+  const text = parts
+    .filter((part) => part && typeof part === 'object' && (part as { thought?: unknown }).thought !== true)
+    .map((part) => (part as { text?: unknown }).text)
+    .filter((value): value is string => typeof value === 'string')
+    .join('');
+  return text === '' ? null : text;
+}
+
+/** A refusal, as opposed to a truncation or a malformed reply. Retrying it changes nothing. */
+function blockedFinish(reason: unknown): boolean {
+  return typeof reason === 'string'
+    && ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'RECITATION', 'SPII'].includes(reason.toUpperCase());
+}
+
+function geminiRejectionReason(response: UpstreamResponse): string {
   try {
-    const body = await response.clone().json() as { error?: { message?: unknown; status?: unknown } };
+    const body = JSON.parse(response.text) as { error?: { message?: unknown; status?: unknown } };
     return `${String(body.error?.status ?? '')} ${String(body.error?.message ?? '')}`.trim().slice(0, 300);
   } catch {
     return '';
@@ -1121,8 +1426,14 @@ async function geminiEstimate(
   env: Env,
   fetchImpl: typeof fetch,
   models: readonly string[],
+  deadline: Deadline,
 ): Promise<{ response: Response; recognized: boolean }> {
   const started = Date.now();
+  /** Never more than the provider ceiling, and never more than the request actually has left. */
+  const providerRemaining = (): number => Math.min(
+    GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started),
+    deadline.remaining() - RESULT_DELIVERY_RESERVE_MS,
+  );
   const parts: Array<Record<string, unknown>> = [{ text: promptFor(input) }];
   if (input.imageBase64) parts.push({ inlineData: { mimeType: 'image/jpeg', data: input.imageBase64 } });
   const body = JSON.stringify({
@@ -1136,41 +1447,64 @@ async function geminiEstimate(
   });
   const relay = geminiRelayStub(env);
   let relayed = false;
-  const ordered = routeModels(models, started);
+  // Authorization may already have eaten the budget. Two attempts that each get less than the
+  // floor are two calls neither of which can finish, so take however many the remaining time
+  // can actually fund and give the first one a workable share.
+  const ordered = routeModels(models, started)
+    .slice(0, Math.max(1, Math.floor(providerRemaining() / GEMINI_MODEL_FLOOR_MS)));
+  const attemptCount = ordered.length;
   for (const [index, model] of ordered.entries()) {
-    const isLast = index === ordered.length - 1;
-    const remaining = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
+    const isLast = index === attemptCount - 1;
+    const attemptStarted = Date.now();
+    /** Every exit from this attempt reports it, so a billed attempt is never unaccounted for. */
+    const report = (outcome: AttemptOutcome, upstream: unknown, finishReason: unknown = null): void => logAiUsage({
+      model,
+      attemptNumber: index + 1,
+      attemptCount,
+      outcome,
+      finishReason: finishCategory(finishReason),
+      relayed,
+      elapsedMs: Date.now() - attemptStarted,
+      upstream,
+      env,
+    });
+    const remaining = providerRemaining();
     if (remaining <= 0) throw new HttpError(504, 'UPSTREAM_TIMEOUT', 'Estimation service timed out.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'timeout' });
     const attempt = attemptBudget(remaining, ordered.length - 1 - index);
-    let response: Response;
+    let response: UpstreamResponse;
     try {
       response = relayed
-        ? await fetchWithTimeout(relayFetchImpl(relay!, model), GEMINI_RELAY_URL, geminiInit(body), attempt, 'gemini', 'bypass')
-        : await fetchWithTimeout(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), attempt, 'gemini', 'bypass');
+        ? await fetchUpstream(relayFetchImpl(relay!, model, attempt), GEMINI_RELAY_URL, geminiInit(body), attempt, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES)
+        : await fetchUpstream(fetchImpl, geminiGenerateUrl(model, env.GEMINI_API_KEY), geminiInit(body), attempt, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES);
     } catch (error) {
-      // Timed out or unreachable: the brownout signal this cooldown exists for.
+      // Timed out or unreachable: the brownout signal this cooldown exists for. The provider may
+      // still have generated and billed for tokens this Worker never saw, so the cost is
+      // recorded as unknown rather than as nothing.
+      report('transport-failure', null);
       noteModelFailed(model, Date.now());
       if (isLast) throw error;
       continue;
     }
     if (!response.ok) {
-      let reason = await geminiRejectionReason(response);
+      let reason = geminiRejectionReason(response);
       // A location refusal is about where the call left from, not the model, so trying the
       // next model changes nothing. Send the same one through the relay instead, and keep
       // every later model on that path so the budget is not spent proving the point twice.
       if (!relayed && relay && locationUnsupported(response.status, reason)) {
-        const budget = GEMINI_TOTAL_TIMEOUT_MS - (Date.now() - started);
+        const budget = providerRemaining();
         if (budget > 0) {
           relayed = true;
           console.log(JSON.stringify({ event: 'ai_relay_engaged', model, reason }));
+          const relayBudget = attemptBudget(budget, ordered.length - 1 - index);
           try {
-            response = await fetchWithTimeout(relayFetchImpl(relay, model), GEMINI_RELAY_URL, geminiInit(body), attemptBudget(budget, ordered.length - 1 - index), 'gemini', 'bypass');
+            response = await fetchUpstream(relayFetchImpl(relay, model, relayBudget), GEMINI_RELAY_URL, geminiInit(body), relayBudget, 'gemini', 'bypass', MAX_GEMINI_BODY_BYTES);
           } catch (error) {
+            report('transport-failure', null);
             noteModelFailed(model, Date.now());
             if (isLast) throw error;
             continue;
           }
-          reason = response.ok ? '' : await geminiRejectionReason(response);
+          reason = response.ok ? '' : geminiRejectionReason(response);
         }
       }
       if (!response.ok) {
@@ -1183,8 +1517,11 @@ async function geminiEstimate(
           upstreamStatus: response.status,
           imageBytes: input.imageBase64 ? Math.round(input.imageBase64.length * 0.75) : 0,
           relayed,
-          reason,
+          // The provider's status, categorised. Its message is not logged: a rejection can quote
+          // the request back, and the request is the user's food.
+          reason: rejectionCategory(reason),
         }));
+        report('rejected', null);
         // Overload and server faults mean the model is unwell and will be again in a moment. A
         // 400 is our own malformed request, and cooling every model over it would only make the
         // chain try them all in a worse order.
@@ -1195,13 +1532,23 @@ async function geminiEstimate(
     }
     let upstream: unknown;
     try {
-      upstream = await readUpstreamJson(response, 'gemini', 'bypass');
+      upstream = parseUpstreamJson(response, 'gemini', 'bypass');
     } catch (error) {
+      report('invalid-response', null);
       if (isLast) throw error;
       continue;
     }
-    const text = (upstream as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== 'string') {
+    const candidate = (upstream as any)?.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    const text = candidateText(candidate);
+    if (blockedFinish(finishReason)) {
+      // The provider looked and refused. Another model refuses the same content for the same
+      // reason, so spending the fallback on it buys nothing but a second bill.
+      report('rejected', upstream, finishReason);
+      throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-blocked' });
+    }
+    if (text === null) {
+      report('invalid-response', upstream, finishReason);
       if (isLast) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
       continue;
     }
@@ -1210,9 +1557,12 @@ async function geminiEstimate(
     const normalized = normalizeGeminiResponse(parsed, input.operation);
     if (normalized) {
       noteModelHealthy(model);
-      logAiUsage(upstream, model, env);
+      report('succeeded', upstream, finishReason);
       return { response: json(normalized), recognized: normalized.status === 'recognized' };
     }
+    // A truncated or otherwise unusable generation. The provider still produced and billed for
+    // every token it emitted, thinking included, so this attempt is priced like any other.
+    report('invalid-response', upstream, finishReason);
     if (isLast) throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Estimation service returned an invalid response.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream-shape' });
   }
   throw new HttpError(502, 'UPSTREAM_UNAVAILABLE', 'Estimation service is unavailable.', { upstream: 'gemini', cacheOutcome: 'bypass', rejection: 'upstream' });
@@ -1234,16 +1584,71 @@ function logOperational(
   }));
 }
 
+/**
+ * The content half of an action's identity. Canonical field order so an identical submission
+ * always hashes the same, and the whole validated payload so a reused identifier carrying
+ * different food is recognised as a different action rather than a retry. It is hashed with the
+ * quota identity salt before it leaves this function's caller — the raw text never travels.
+ */
+/** Copies a response with the protocol header attached; the body and status are untouched. */
+function announceProtocol(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('X-Eatlog-Protocol', EXECUTION_PROTOCOL);
+  return new Response(response.body, { status: response.status, headers });
+}
+
+function estimateFingerprint(input: EstimateInput): string {
+  return JSON.stringify([input.operation, input.text ?? null, input.imageBase64 ?? null, input.context ?? null]);
+}
+
+/**
+ * A duplicate that arrives while the first execution is still running waits for it rather than
+ * starting a second generation. The wait is bounded by the same request deadline as everything
+ * else, and gives up in time for the caller to still receive an answer.
+ */
+async function claimExecution(
+  store: SubscriptionStore,
+  subject: string,
+  requestId: string,
+  fingerprint: string,
+  operation: string,
+  deadline: Deadline,
+  clock: () => number,
+): Promise<ExecutionClaim> {
+  const call = (): Promise<ExecutionClaim> => withinDeadline(
+    store.claimExecution(subject, requestId, fingerprint, operation, clock()),
+    Math.min(STATE_CALL_TIMEOUT_MS, Math.max(0, deadline.remaining())),
+    () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
+  );
+  let claim = await call();
+  while (claim.state === 'pending' && deadline.remaining() > RESULT_DELIVERY_RESERVE_MS + EXECUTION_POLL_MS) {
+    await new Promise((resolve) => setTimeout(resolve, EXECUTION_POLL_MS));
+    claim = await call();
+  }
+  return claim;
+}
+
 export async function handleRequest(
   request: Request,
   env: Env,
   context: ExecutionContext,
   dependencies: Dependencies = {},
 ): Promise<Response> {
-  const started = (dependencies.now ?? Date.now)();
+  const clock = dependencies.now ?? Date.now;
+  const started = clock();
+  const deadline = createDeadline(started, clock);
   const requestId = dependencies.requestId?.() ?? crypto.randomUUID();
   const url = new URL(request.url);
   const route = routeName(url.pathname);
+  /**
+   * Quota bookkeeping still has to happen when the estimate itself ran long, but it must not be
+   * what finally pushes the request past the client's patience.
+   */
+  const bookkeeping = (work: Promise<void>): Promise<void> => withinDeadline(
+    work,
+    Math.max(STATE_CALL_TIMEOUT_MS, deadline.remaining()),
+    () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
+  ).catch(() => {});
   try {
     if (route === 'unknown') throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route' });
     const method = allowedMethod(route);
@@ -1253,7 +1658,7 @@ export async function handleRequest(
     const fetchImpl = dependencies.fetchImpl ?? fetch;
     if (route === 'revenuecat-webhook') {
       if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
-      return await handleRevenueCatWebhook(request, env, resolveSubscriptionStore(env, dependencies.subscriptionStore));
+      return await handleRevenueCatWebhook(request, env, resolveSubscriptionStore(env, dependencies.subscriptionStore), deadline);
     }
     if (route === 'usage') {
       if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
@@ -1266,7 +1671,7 @@ export async function handleRequest(
     if (route === 'access-refresh') {
       if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
       requireJsonContentType(request);
-      const body = await readJsonObject(request, 1024);
+      const body = await readJsonObject(request, 1024, deadline);
       rejectUnknownProperties(body, ['force']);
       if (body.force !== undefined && typeof body.force !== 'boolean') {
         throw new HttpError(400, 'INVALID_BODY', 'Force must be boolean.', { rejection: 'force' });
@@ -1276,8 +1681,9 @@ export async function handleRequest(
         env,
         resolveSubscriptionStore(env, dependencies.subscriptionStore),
         fetchImpl,
-        (dependencies.now ?? Date.now)(),
+        clock(),
         body.force === true,
+        deadline,
       );
     }
 
@@ -1289,15 +1695,15 @@ export async function handleRequest(
 
     if (route === 'usda-search') {
       requireJsonContentType(request);
-      return await usdaSearch(parseUsdaSearch(await readJsonObject(request, MAX_USDA_BODY_BYTES)), env, context, fetchImpl, defaultCache);
+      return await usdaSearch(parseUsdaSearch(await readJsonObject(request, MAX_USDA_BODY_BYTES, deadline)), env, context, fetchImpl, defaultCache, deadline);
     }
     if (route === 'usda-detail') {
-      return await usdaDetail(parseFdcId(url.pathname), env, context, fetchImpl, defaultCache);
+      return await usdaDetail(parseFdcId(url.pathname), env, context, fetchImpl, defaultCache, deadline);
     }
     requireJsonContentType(request);
     if (!subscriptionsEnabled(env)) {
-      const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
-      return (await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS)).response;
+      const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
+      return (await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS, deadline)).response;
     }
 
     const idempotencyKey = request.headers.get('x-eatlog-request-id')?.trim() ?? '';
@@ -1306,10 +1712,14 @@ export async function handleRequest(
     }
     const now = (dependencies.now ?? Date.now)();
     const store = resolveSubscriptionStore(env, dependencies.subscriptionStore);
-    const authorization = await authorizeEstimate(request, installId, env, store, fetchImpl, now);
-    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES));
+    const authorization = await authorizeEstimate(request, installId, env, store, fetchImpl, now, deadline);
+    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
     const claims = authorization.claims;
-    const reservation = await store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now);
+    const reservation = await withinDeadline(
+      store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now),
+      Math.min(STATE_CALL_TIMEOUT_MS, Math.max(0, deadline.remaining())),
+      () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
+    );
     if (!reservation.allowed) {
       if (reservation.code === 'PAID_ACCESS_REQUIRED') {
         throw new HttpError(402, reservation.code, 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
@@ -1320,7 +1730,7 @@ export async function handleRequest(
         TRIAL_ALLOWANCE_EXHAUSTED: 'The trial allowance for this AI action is used. Manok or Itik keeps AI access available.',
         FAIR_USE_DAILY_LIMIT: 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when the window resets.',
         FAIR_USE_30_DAY_LIMIT: 'The 250-operation rolling 30-day fair-use limit is reached. Try again when the window resets.',
-        REFUND_DAILY_LIMIT: 'Too many recent estimate attempts could not be completed. Try again when the window resets.',
+        REFUND_DAILY_LIMIT: 'Too many recent submissions had no recognizable food in them. Try again when the window resets.',
       } as const;
       throw new HttpError(
         429,
@@ -1331,14 +1741,52 @@ export async function handleRequest(
         reservation.nextEligibleAt ? { nextEligibleAt: reservation.nextEligibleAt } : {},
       );
     }
+    /**
+     * The reservation says the subject may spend an estimate. The execution claim says whether
+     * *this* request is the one that calls Gemini: a duplicate transport retry of the same
+     * action must reuse the first execution's answer rather than generate a second one.
+     */
+    const fingerprint = await hashQuotaIdentity(estimateFingerprint(input), env.QUOTA_IDENTITY_SALT ?? env.RATE_LIMIT_SALT);
+    const claim = await claimExecution(store, claims.sub, idempotencyKey, fingerprint, input.operation, deadline, clock);
+    if (claim.state === 'conflict' || claim.state === 'exhausted' || claim.state === 'pending') {
+      // No generation happened, so the allowance this reservation just spent goes back. The
+      // reserve above writes a fresh event whenever the prior one was refunded, so without this
+      // a retry storm would charge the subject once per refused claim.
+      await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
+      if (claim.state === 'conflict') {
+        throw new HttpError(409, 'REQUEST_ID_CONFLICT', 'Request identifier is already in use for different content.', { rejection: 'request-conflict' });
+      }
+      // Either the two permitted executions are spent, or a live duplicate is still running and
+      // this request ran out of time waiting for it. Both are retryable, and neither starts a
+      // third generation behind the user's back.
+      throw new HttpError(503, 'EXECUTION_UNAVAILABLE', 'Food service could not complete the request. Try again.', { rejection: claim.state });
+    }
+    if (claim.state === 'replay') {
+      logAiRequest(input.operation, 'replayed', clock() - started);
+      const replayed = announceProtocol(json(JSON.parse(claim.result)));
+      return authorization.refreshedGrant ? attachGrant(replayed, authorization.refreshedGrant) : replayed;
+    }
     try {
       const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
-      const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models);
-      if (recognized) await store.finalize(claims.sub, idempotencyKey).catch(() => {});
-      else await store.refund(claims.sub, idempotencyKey).catch(() => {});
-      return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
+      const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models, deadline);
+      const body = await response.clone().text();
+      await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, 'succeeded', body, clock()));
+      // The provider answered. Either it found food, or it looked and found none — the second
+      // is a real generation this Worker paid for and the one worth discouraging if repeated.
+      logAiRequest(input.operation, recognized ? 'recognized' : 'unrecognized', clock() - started);
+      const announced = announceProtocol(response);
+      if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
+      else await bookkeeping(store.refund(claims.sub, idempotencyKey, 'unrecognized'));
+      return authorization.refreshedGrant ? attachGrant(announced, authorization.refreshedGrant) : announced;
     } catch (error) {
-      await store.refund(claims.sub, idempotencyKey).catch(() => {});
+      // A timeout, an outage, a blocked or malformed reply. None of it is something the
+      // customer did, so it is refunded without counting toward the content-abuse ceiling.
+      // A rejected request is terminal: repeating it verbatim would fail the same way.
+      logAiRequest(input.operation, 'failed', clock() - started);
+      const status = error instanceof HttpError ? error.status : 500;
+      const outcome = status >= 500 || status === 408 || status === 429 ? 'failed-retryable' : 'failed-terminal';
+      await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, outcome, null, clock()));
+      await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
       throw error;
     }
   } catch (error) {
@@ -1359,6 +1807,7 @@ export default {
 
 export const contract = {
   USDA_ORIGIN,
+  FOOD_ESTIMATE_SYSTEM_INSTRUCTION,
   USDA_PAGE_SIZE,
   GEMINI_ORIGIN,
   PUGO_GEMINI_MODELS,

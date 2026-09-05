@@ -10,6 +10,11 @@ const PAID_DAILY_LIMIT = 30;
 // submitting unrecognizable input can refund its way past the visible daily allowance while
 // this Worker keeps paying for every attempt. This limit is enforced on top of the normal
 // per-access quota, for every access kind, not only Pugo.
+//
+// It counts submissions the provider answered and found no food in — the behaviour worth
+// discouraging. A provider outage is not that: five of Google's own 503s used to exhaust this
+// ceiling and then refuse the next request for the rest of the day, turning a short outage into
+// a much longer one for the customer.
 const REFUND_DAILY_LIMIT = 5;
 // The trial is bounded by its whole-trial total, not by a tighter daily rate. A tighter one
 // walls a trial user off mid-day at a ceiling no paying user meets, which reads as a broken
@@ -18,20 +23,50 @@ const TRIAL_DAILY_LIMIT = PAID_DAILY_LIMIT;
 const TRIAL_TOTAL_LIMIT = 30;
 const PAID_30_DAY_LIMIT = 250;
 
-export function aggregateAiUsage(
-  inputTokens: number,
-  outputTokens: number,
-  inputUsdPerMillion: number,
-  outputUsdPerMillion: number,
-) {
-  const estimatedCostUsd = Number.isFinite(inputUsdPerMillion) && Number.isFinite(outputUsdPerMillion)
-    ? ((inputTokens * inputUsdPerMillion) + (outputTokens * outputUsdPerMillion)) / 1_000_000
-    : null;
+/**
+ * What one provider attempt is known to have consumed. Every field is separately unknown: a
+ * provider that reports no usage, or reports it in a shape this Worker does not recognise, must
+ * produce `null` rather than a zero that would quietly understate a bill.
+ */
+export interface AiTokenUsage {
+  /** Prompt tokens actually charged as input, with any cached portion already removed. */
+  inputTokens: number | null;
+  /** Cached prompt tokens, priced separately so they are never counted as input as well. */
+  cachedInputTokens: number | null;
+  candidateTokens: number | null;
+  thoughtTokens: number | null;
+}
+
+/** Per-million rates for one model. Absent rates make cost unknown, never free. */
+export interface AiModelRates {
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+  cachedInputUsdPerMillion: number;
+}
+
+function sumKnown(values: Array<number | null>): number | null {
+  return values.some((value) => value === null) ? null : values.reduce((total, value) => total! + value!, 0);
+}
+
+export function aggregateAiUsage(usage: AiTokenUsage, rates: AiModelRates | null) {
+  const outputTokens = sumKnown([usage.candidateTokens, usage.thoughtTokens]);
+  const totalTokens = sumKnown([usage.inputTokens, usage.cachedInputTokens, outputTokens]);
+  const priced = rates !== null
+    && usage.inputTokens !== null
+    && usage.cachedInputTokens !== null
+    && outputTokens !== null;
   return {
-    inputTokens,
+    inputTokens: usage.inputTokens,
+    cachedInputTokens: usage.cachedInputTokens,
+    candidateTokens: usage.candidateTokens,
+    thoughtTokens: usage.thoughtTokens,
     outputTokens,
-    totalTokens: inputTokens + outputTokens,
-    estimatedCostUsd,
+    totalTokens,
+    estimatedCostUsd: priced
+      ? ((usage.inputTokens! * rates!.inputUsdPerMillion)
+        + (usage.cachedInputTokens! * rates!.cachedInputUsdPerMillion)
+        + (outputTokens! * rates!.outputUsdPerMillion)) / 1_000_000
+      : null,
   };
 }
 
@@ -99,17 +134,43 @@ export interface SubscriptionStore {
   recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'>;
   reserve(subject: string, access: AiAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision>;
   finalize(subject: string, requestId: string): Promise<void>;
-  refund(subject: string, requestId: string): Promise<void>;
+  refund(subject: string, requestId: string, reason: RefundReason): Promise<void>;
   usage(subject: string, access: AiAccessKind, now: number): Promise<Usage>;
+  /** Claims the single provider execution for one logical action. See `ExecutionLedger`. */
+  claimExecution(subject: string, requestId: string, fingerprint: string, operation: string, now: number): Promise<ExecutionClaim>;
+  /** Reports how a claimed execution ended, holding its result briefly for duplicate retries. */
+  completeExecution(subject: string, requestId: string, token: string, outcome: ExecutionOutcome, result: string | null, now: number): Promise<void>;
 }
 
+/**
+ * `refunded` is the historical class, written before the cause of a refund was recorded. Those
+ * rows stay in history but count toward nothing: their cause is unknown, and treating an old
+ * outage as abuse is exactly the lockout this split exists to end.
+ */
+export type QuotaOperationClass =
+  | 'initial'
+  | 'clarification'
+  | 'paid'
+  | 'refunded'
+  | 'unrecognized'
+  | 'service-failure';
+
+export type RefundReason = 'unrecognized' | 'service-failure';
+
 export interface QuotaEvent {
-  operationClass: 'initial' | 'clarification' | 'paid' | 'refunded';
+  operationClass: QuotaOperationClass;
   timestamp: number;
   requestId: string;
 }
 
-export function operationClass(access: AiAccessKind, operation: string): QuotaEvent['operationClass'] {
+/** Only a generation the user got something out of spends the visible allowance. */
+function spendsAllowance(event: QuotaEvent): boolean {
+  return event.operationClass === 'initial'
+    || event.operationClass === 'clarification'
+    || event.operationClass === 'paid';
+}
+
+export function operationClass(access: AiAccessKind, operation: string): QuotaOperationClass {
   if (access === 'pugo' || access === 'manok-trial') {
     return operation === 'scan' || operation === 'describe' ? 'initial' : 'clarification';
   }
@@ -151,8 +212,8 @@ export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: numb
       nextClarificationEligibleAt: clarificationDaily.length >= TRIAL_DAILY_LIMIT ? nextAt(clarificationDaily, since) : null,
     };
   }
-  const daily = events.filter((event) => event.operationClass !== 'refunded' && event.timestamp > now - DAY_MS);
-  const monthly = events.filter((event) => event.operationClass !== 'refunded' && event.timestamp > now - THIRTY_DAYS_MS);
+  const daily = events.filter((event) => spendsAllowance(event) && event.timestamp > now - DAY_MS);
+  const monthly = events.filter((event) => spendsAllowance(event) && event.timestamp > now - THIRTY_DAYS_MS);
   return {
     kind: 'paid',
     remaining24Hours: remaining(PAID_DAILY_LIMIT, daily.length),
@@ -163,9 +224,12 @@ export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: numb
 
 export function decideQuota(events: QuotaEvent[], access: AiAccessKind, operation: string, now: number): QuotaDecision {
   const usage = quotaUsage(events, access, now);
-  const refundedToday = events.filter((event) => event.operationClass === 'refunded' && event.timestamp > now - DAY_MS).length;
-  if (refundedToday >= REFUND_DAILY_LIMIT) {
-    return { allowed: false, duplicate: false, code: 'REFUND_DAILY_LIMIT', usage };
+  // Only generations the provider completed and found no food in. Provider timeouts, outages,
+  // and malformed replies are our problem to absorb, not the customer's to be locked out over.
+  const rejectedToday = events.filter((event) => event.operationClass === 'unrecognized' && event.timestamp > now - DAY_MS);
+  if (rejectedToday.length >= REFUND_DAILY_LIMIT) {
+    const nextEligibleAt = nextAt(rejectedToday, now - DAY_MS);
+    return { allowed: false, duplicate: false, code: 'REFUND_DAILY_LIMIT', ...(nextEligibleAt ? { nextEligibleAt } : {}), usage };
   }
   if (usage.kind === 'free') {
     if (operationClass(access, operation) !== 'initial') {
@@ -195,6 +259,7 @@ export class MemorySubscriptionStore implements SubscriptionStore {
   private readonly webhookIds = new Set<string>();
   private readonly webhookTimestamps = new Map<string, number>();
   private readonly webhookEventTimestamps = new Map<string, number>();
+  private readonly executions = new ExecutionLedger();
   private queue = Promise.resolve();
 
   private synchronized<T>(task: () => T | Promise<T>): Promise<T> {
@@ -243,14 +308,21 @@ export class MemorySubscriptionStore implements SubscriptionStore {
       for (const [key, request] of this.requests) {
         if (request.createdAt <= now - THIRTY_DAYS_MS) this.requests.delete(key);
       }
-      const prior = this.requests.get(requestKey)?.state;
-      if (prior === 'reserved' || prior === 'finalized') {
+      const prior = this.requests.get(requestKey);
+      if ((prior?.state === 'reserved' || prior?.state === 'finalized')
+        && prior.createdAt > now - DUPLICATE_WINDOW_MS) {
         return { allowed: true, duplicate: true, usage: quotaUsage(this.events.get(subject) ?? [], access, now) };
       }
       const events = (this.events.get(subject) ?? []).filter((event) => event.timestamp > now - THIRTY_DAYS_MS);
       const decision = decideQuota(events, access, operation, now);
       if (!decision.allowed) return decision;
-      const next = [...events, { operationClass: operationClass(access, operation), timestamp: now, requestId }];
+      // One row per request ID, replaced rather than appended, matching the Durable Object's
+      // (subject, request_id) primary key. The two stores disagreeing on this is what let a
+      // behaviour pass here and behave differently in production.
+      const next = [
+        ...events.filter((event) => event.requestId !== requestId),
+        { operationClass: operationClass(access, operation), timestamp: now, requestId },
+      ];
       this.events.set(subject, next);
       this.requests.set(requestKey, { state: 'reserved', createdAt: now });
       return { ...decision, usage: quotaUsage(next, access, now) };
@@ -263,18 +335,26 @@ export class MemorySubscriptionStore implements SubscriptionStore {
     if (request?.state === 'reserved') this.requests.set(key, { ...request, state: 'finalized' });
   }
 
-  async refund(subject: string, requestId: string): Promise<void> {
+  async refund(subject: string, requestId: string, reason: RefundReason): Promise<void> {
     const key = `${subject}:${requestId}`;
     const request = this.requests.get(key);
     if (request?.state !== 'reserved') return;
     this.events.set(subject, (this.events.get(subject) ?? []).map((event) => (
-      event.requestId === requestId ? { ...event, operationClass: 'refunded' } : event
+      event.requestId === requestId ? { ...event, operationClass: reason } : event
     )));
     this.requests.set(key, { ...request, state: 'refunded' });
   }
 
   async usage(subject: string, access: AiAccessKind, now: number): Promise<Usage> {
     return quotaUsage(this.events.get(subject) ?? [], access, now);
+  }
+
+  claimExecution(subject: string, requestId: string, fingerprint: string, operation: string, now: number): Promise<ExecutionClaim> {
+    return this.synchronized(() => this.executions.claim(subject, requestId, fingerprint, operation, now));
+  }
+
+  completeExecution(subject: string, requestId: string, token: string, outcome: ExecutionOutcome, result: string | null, now: number): Promise<void> {
+    return this.synchronized(() => this.executions.complete(subject, requestId, token, outcome, result, now));
   }
 }
 
@@ -439,4 +519,151 @@ export function accessExpired(access: WorkerAccess, now: number): boolean {
 export async function hashQuotaIdentity(identity: string, salt: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${salt}:${identity}`));
   return base64UrlEncode(new Uint8Array(digest));
+}
+
+/*
+ * Task 5 of the food-estimation plan: one intentional action gets one provider execution.
+ *
+ * The quota ledger above answers "what may this subject spend"; this one answers "who is
+ * allowed to call Gemini right now, and does an answer already exist". They are deliberately
+ * separate — a duplicate transport retry must not be charged twice *and* must not generate
+ * twice, and those are two different guarantees.
+ *
+ * Everything here is memory-only and short-lived. Nothing derived from food text, an image, or
+ * a result is ever written to durable storage, which is what the privacy policy commits to.
+ */
+
+/** How long one execution may hold its claim before another attempt is allowed to take over. */
+/**
+ * How long one request identifier keeps deduplicating. A transport retry arrives within
+ * seconds; an identifier presented days later is a new submission, whatever produced it.
+ *
+ * This matters most for clients that still derive the identifier from the payload: without a
+ * bound, logging the same meal again next week would present an identifier the service still
+ * had on file and generate free of the allowance. It matches the execution replay window, past
+ * which the service has forgotten the action anyway.
+ */
+export const DUPLICATE_WINDOW_MS = 120_000;
+
+export const EXECUTION_LEASE_MS = 30_000;
+/** How long a completed action stays replayable, and how long its record survives at all. */
+export const EXECUTION_TTL_MS = 120_000;
+/** Two, so an explicit retryable failure gets a second chance and a loop cannot get a third. */
+export const MAX_EXECUTIONS_PER_ACTION = 2;
+export const MAX_REPLAY_BYTES = 64 * 1024;
+export const MAX_REPLAY_TOTAL_BYTES = 4 * 1024 * 1024;
+
+export type ExecutionClaim =
+  /** This caller owns the execution and must run the provider, then report the outcome. */
+  | { state: 'claimed'; token: string }
+  /** The action already completed and its result is still held; no provider call is needed. */
+  | { state: 'replay'; result: string }
+  /** Another live execution owns this action. Wait for it rather than starting a second one. */
+  | { state: 'pending' }
+  /** The identifier is already bound to different content or a different operation. */
+  | { state: 'conflict' }
+  /** No further execution is permitted for this action; the client needs a new one. */
+  | { state: 'exhausted' };
+
+export type ExecutionOutcome = 'succeeded' | 'failed-retryable' | 'failed-terminal';
+
+interface ExecutionRecord {
+  fingerprint: string;
+  operation: string;
+  attempts: number;
+  touchedAt: number;
+  lease: { token: string; expiresAt: number } | null;
+  outcome: ExecutionOutcome | null;
+  result: string | null;
+  resultBytes: number;
+}
+
+/**
+ * Shared by the memory store and the Durable Object so the two cannot drift apart. The review
+ * that produced this plan found a rule that held in tests and not in production precisely
+ * because each store implemented it separately.
+ */
+export class ExecutionLedger {
+  private readonly records = new Map<string, ExecutionRecord>();
+  private replayBytes = 0;
+
+  claim(subject: string, requestId: string, fingerprint: string, operation: string, now: number): ExecutionClaim {
+    this.prune(now);
+    const key = `${subject}:${requestId}`;
+    const record = this.records.get(key);
+    if (!record) {
+      const token = crypto.randomUUID();
+      this.records.set(key, {
+        fingerprint,
+        operation,
+        attempts: 1,
+        touchedAt: now,
+        lease: { token, expiresAt: now + EXECUTION_LEASE_MS },
+        outcome: null,
+        result: null,
+        resultBytes: 0,
+      });
+      return { state: 'claimed', token };
+    }
+    // A reused identifier carrying different content is not a retry, and a paid Redo must not
+    // be able to collect the result of an earlier free initial estimate.
+    if (record.fingerprint !== fingerprint || record.operation !== operation) return { state: 'conflict' };
+    record.touchedAt = now;
+    if (record.result !== null) return { state: 'replay', result: record.result };
+    if (record.lease !== null && record.lease.expiresAt > now) return { state: 'pending' };
+    // A completed action whose result is gone must not silently pay for a second generation.
+    if (record.outcome === 'succeeded' || record.outcome === 'failed-terminal') return { state: 'exhausted' };
+    if (record.attempts >= MAX_EXECUTIONS_PER_ACTION) return { state: 'exhausted' };
+    const token = crypto.randomUUID();
+    record.attempts += 1;
+    record.lease = { token, expiresAt: now + EXECUTION_LEASE_MS };
+    record.outcome = null;
+    return { state: 'claimed', token };
+  }
+
+  complete(
+    subject: string,
+    requestId: string,
+    token: string,
+    outcome: ExecutionOutcome,
+    result: string | null,
+    now: number,
+  ): void {
+    const record = this.records.get(`${subject}:${requestId}`);
+    // A completion from an execution that already lost its lease belongs to a replaced attempt.
+    if (!record || record.lease?.token !== token) return;
+    record.lease = null;
+    record.outcome = outcome;
+    record.touchedAt = now;
+    if (outcome === 'succeeded' && result !== null) this.remember(record, result, now);
+  }
+
+  private remember(record: ExecutionRecord, result: string, now: number): void {
+    const bytes = new TextEncoder().encode(result).length;
+    if (bytes > MAX_REPLAY_BYTES) return;
+    for (const [key, candidate] of [...this.records].sort((a, b) => a[1].touchedAt - b[1].touchedAt)) {
+      if (this.replayBytes + bytes <= MAX_REPLAY_TOTAL_BYTES) break;
+      if (candidate === record || candidate.result === null) continue;
+      this.forget(candidate);
+      if (candidate.touchedAt <= now - EXECUTION_TTL_MS) this.records.delete(key);
+    }
+    if (this.replayBytes + bytes > MAX_REPLAY_TOTAL_BYTES) return;
+    record.result = result;
+    record.resultBytes = bytes;
+    this.replayBytes += bytes;
+  }
+
+  private forget(record: ExecutionRecord): void {
+    this.replayBytes -= record.resultBytes;
+    record.result = null;
+    record.resultBytes = 0;
+  }
+
+  private prune(now: number): void {
+    for (const [key, record] of this.records) {
+      if (record.touchedAt > now - EXECUTION_TTL_MS) continue;
+      this.forget(record);
+      this.records.delete(key);
+    }
+  }
 }
