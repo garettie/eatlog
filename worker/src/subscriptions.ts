@@ -10,6 +10,11 @@ const PAID_DAILY_LIMIT = 30;
 // submitting unrecognizable input can refund its way past the visible daily allowance while
 // this Worker keeps paying for every attempt. This limit is enforced on top of the normal
 // per-access quota, for every access kind, not only Pugo.
+//
+// It counts submissions the provider answered and found no food in — the behaviour worth
+// discouraging. A provider outage is not that: five of Google's own 503s used to exhaust this
+// ceiling and then refuse the next request for the rest of the day, turning a short outage into
+// a much longer one for the customer.
 const REFUND_DAILY_LIMIT = 5;
 // The trial is bounded by its whole-trial total, not by a tighter daily rate. A tighter one
 // walls a trial user off mid-day at a ceiling no paying user meets, which reads as a broken
@@ -99,17 +104,39 @@ export interface SubscriptionStore {
   recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'>;
   reserve(subject: string, access: AiAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision>;
   finalize(subject: string, requestId: string): Promise<void>;
-  refund(subject: string, requestId: string): Promise<void>;
+  refund(subject: string, requestId: string, reason: RefundReason): Promise<void>;
   usage(subject: string, access: AiAccessKind, now: number): Promise<Usage>;
 }
 
+/**
+ * `refunded` is the historical class, written before the cause of a refund was recorded. Those
+ * rows stay in history but count toward nothing: their cause is unknown, and treating an old
+ * outage as abuse is exactly the lockout this split exists to end.
+ */
+export type QuotaOperationClass =
+  | 'initial'
+  | 'clarification'
+  | 'paid'
+  | 'refunded'
+  | 'unrecognized'
+  | 'service-failure';
+
+export type RefundReason = 'unrecognized' | 'service-failure';
+
 export interface QuotaEvent {
-  operationClass: 'initial' | 'clarification' | 'paid' | 'refunded';
+  operationClass: QuotaOperationClass;
   timestamp: number;
   requestId: string;
 }
 
-export function operationClass(access: AiAccessKind, operation: string): QuotaEvent['operationClass'] {
+/** Only a generation the user got something out of spends the visible allowance. */
+function spendsAllowance(event: QuotaEvent): boolean {
+  return event.operationClass === 'initial'
+    || event.operationClass === 'clarification'
+    || event.operationClass === 'paid';
+}
+
+export function operationClass(access: AiAccessKind, operation: string): QuotaOperationClass {
   if (access === 'pugo' || access === 'manok-trial') {
     return operation === 'scan' || operation === 'describe' ? 'initial' : 'clarification';
   }
@@ -151,8 +178,8 @@ export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: numb
       nextClarificationEligibleAt: clarificationDaily.length >= TRIAL_DAILY_LIMIT ? nextAt(clarificationDaily, since) : null,
     };
   }
-  const daily = events.filter((event) => event.operationClass !== 'refunded' && event.timestamp > now - DAY_MS);
-  const monthly = events.filter((event) => event.operationClass !== 'refunded' && event.timestamp > now - THIRTY_DAYS_MS);
+  const daily = events.filter((event) => spendsAllowance(event) && event.timestamp > now - DAY_MS);
+  const monthly = events.filter((event) => spendsAllowance(event) && event.timestamp > now - THIRTY_DAYS_MS);
   return {
     kind: 'paid',
     remaining24Hours: remaining(PAID_DAILY_LIMIT, daily.length),
@@ -163,9 +190,12 @@ export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: numb
 
 export function decideQuota(events: QuotaEvent[], access: AiAccessKind, operation: string, now: number): QuotaDecision {
   const usage = quotaUsage(events, access, now);
-  const refundedToday = events.filter((event) => event.operationClass === 'refunded' && event.timestamp > now - DAY_MS).length;
-  if (refundedToday >= REFUND_DAILY_LIMIT) {
-    return { allowed: false, duplicate: false, code: 'REFUND_DAILY_LIMIT', usage };
+  // Only generations the provider completed and found no food in. Provider timeouts, outages,
+  // and malformed replies are our problem to absorb, not the customer's to be locked out over.
+  const rejectedToday = events.filter((event) => event.operationClass === 'unrecognized' && event.timestamp > now - DAY_MS);
+  if (rejectedToday.length >= REFUND_DAILY_LIMIT) {
+    const nextEligibleAt = nextAt(rejectedToday, now - DAY_MS);
+    return { allowed: false, duplicate: false, code: 'REFUND_DAILY_LIMIT', ...(nextEligibleAt ? { nextEligibleAt } : {}), usage };
   }
   if (usage.kind === 'free') {
     if (operationClass(access, operation) !== 'initial') {
@@ -250,7 +280,13 @@ export class MemorySubscriptionStore implements SubscriptionStore {
       const events = (this.events.get(subject) ?? []).filter((event) => event.timestamp > now - THIRTY_DAYS_MS);
       const decision = decideQuota(events, access, operation, now);
       if (!decision.allowed) return decision;
-      const next = [...events, { operationClass: operationClass(access, operation), timestamp: now, requestId }];
+      // One row per request ID, replaced rather than appended, matching the Durable Object's
+      // (subject, request_id) primary key. The two stores disagreeing on this is what let a
+      // behaviour pass here and behave differently in production.
+      const next = [
+        ...events.filter((event) => event.requestId !== requestId),
+        { operationClass: operationClass(access, operation), timestamp: now, requestId },
+      ];
       this.events.set(subject, next);
       this.requests.set(requestKey, { state: 'reserved', createdAt: now });
       return { ...decision, usage: quotaUsage(next, access, now) };
@@ -263,12 +299,12 @@ export class MemorySubscriptionStore implements SubscriptionStore {
     if (request?.state === 'reserved') this.requests.set(key, { ...request, state: 'finalized' });
   }
 
-  async refund(subject: string, requestId: string): Promise<void> {
+  async refund(subject: string, requestId: string, reason: RefundReason): Promise<void> {
     const key = `${subject}:${requestId}`;
     const request = this.requests.get(key);
     if (request?.state !== 'reserved') return;
     this.events.set(subject, (this.events.get(subject) ?? []).map((event) => (
-      event.requestId === requestId ? { ...event, operationClass: 'refunded' } : event
+      event.requestId === requestId ? { ...event, operationClass: reason } : event
     )));
     this.requests.set(key, { ...request, state: 'refunded' });
   }

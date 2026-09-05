@@ -1499,7 +1499,7 @@ export async function handleRequest(
         TRIAL_ALLOWANCE_EXHAUSTED: 'The trial allowance for this AI action is used. Manok or Itik keeps AI access available.',
         FAIR_USE_DAILY_LIMIT: 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when the window resets.',
         FAIR_USE_30_DAY_LIMIT: 'The 250-operation rolling 30-day fair-use limit is reached. Try again when the window resets.',
-        REFUND_DAILY_LIMIT: 'Too many recent estimate attempts could not be completed. Try again when the window resets.',
+        REFUND_DAILY_LIMIT: 'Too many recent submissions had no recognizable food in them. Try again when the window resets.',
       } as const;
       throw new HttpError(
         429,
@@ -1513,11 +1513,15 @@ export async function handleRequest(
     try {
       const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
       const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models, deadline);
+      // The provider answered. Either it found food, or it looked and found none — the second
+      // is a real generation this Worker paid for and the one worth discouraging if repeated.
       if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
-      else await bookkeeping(store.refund(claims.sub, idempotencyKey));
+      else await bookkeeping(store.refund(claims.sub, idempotencyKey, 'unrecognized'));
       return authorization.refreshedGrant ? attachGrant(response, authorization.refreshedGrant) : response;
     } catch (error) {
-      await bookkeeping(store.refund(claims.sub, idempotencyKey));
+      // A timeout, an outage, a blocked or malformed reply. None of it is something the
+      // customer did, so it is refunded without counting toward the content-abuse ceiling.
+      await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
       throw error;
     }
   } catch (error) {

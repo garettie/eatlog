@@ -7,6 +7,7 @@ import {
   quotaUsage,
   type AiAccessKind,
   type QuotaEvent,
+  type RefundReason,
 } from './subscriptions';
 
 interface DurableEnv {}
@@ -95,14 +96,16 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
     if (path === '/quota/refund') {
       const subject = String(body.subject);
       const requestId = String(body.requestId);
+      const reason: RefundReason = body.reason === 'unrecognized' ? 'unrecognized' : 'service-failure';
       const prior = [...sql.exec<{ state: string }>('SELECT state FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
       if (prior?.state === 'reserved') {
         sql.exec("UPDATE quota_requests SET state = 'refunded' WHERE subject = ? AND request_id = ?", subject, requestId);
-        // Relabel rather than delete: the reservation still cost a real Gemini call, so it
-        // must keep counting toward the refund-abuse ceiling even though it no longer counts
-        // toward the subject's normal quota (quotaUsage and decideQuota both exclude
-        // 'refunded' events from ordinary limits).
-        sql.exec("UPDATE quota_events SET operation_class = 'refunded' WHERE subject = ? AND request_id = ?", subject, requestId);
+        // Relabel rather than delete: the reservation still cost a real Gemini call, and the
+        // cause decides what it costs the customer. An 'unrecognized' generation counts toward
+        // the content-abuse ceiling; a 'service-failure' counts toward nothing, because a
+        // provider outage is not the customer's to be locked out over. Neither counts toward
+        // the ordinary allowance.
+        sql.exec('UPDATE quota_events SET operation_class = ? WHERE subject = ? AND request_id = ?', reason, subject, requestId);
       }
       return Response.json({ ok: true });
     }

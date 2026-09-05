@@ -155,7 +155,7 @@ test('Pugo shares three initial estimates per rolling 24 hours and rejects clari
     assert.equal(denied.usage.kind, 'free');
   }
 
-  await store.refund('pugo', 'pugo-0');
+  await store.refund('pugo', 'pugo-0', 'unrecognized');
   assert.deepEqual(await store.usage('pugo', 'pugo', NOW + 5), {
     kind: 'free',
     remaining24Hours: 1,
@@ -174,7 +174,7 @@ test('a subject that keeps refunding hits a separate abuse ceiling regardless of
   for (let index = 0; index < 5; index += 1) {
     const decision = await store.reserve('abuser', 'manok', 'scan', `refund-${index}`, NOW + index);
     assert.equal(decision.allowed, true);
-    await store.refund('abuser', `refund-${index}`);
+    await store.refund('abuser', `refund-${index}`, 'unrecognized');
   }
   // The refunded attempts must not count against the real paid quota.
   assert.deepEqual(await store.usage('abuser', 'manok', NOW + 5), {
@@ -230,10 +230,10 @@ test('concurrent requests, idempotent retries, refunds, and finalization charge 
   const duplicate = await store.reserve('subject', 'manok', 'scan', 'request-0', NOW);
   assert.equal(duplicate.allowed, true);
   assert.equal(duplicate.duplicate, true);
-  await store.refund('subject', 'request-0');
+  await store.refund('subject', 'request-0', 'unrecognized');
   assert.equal((await store.reserve('subject', 'manok', 'scan', 'replacement', NOW)).allowed, true);
   await store.finalize('subject', 'replacement');
-  await store.refund('subject', 'replacement');
+  await store.refund('subject', 'replacement', 'unrecognized');
   assert.equal((await store.usage('subject', 'manok', NOW)).kind, 'paid');
 });
 

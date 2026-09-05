@@ -2,6 +2,7 @@ import type {
   CachedAccess,
   AiAccessKind,
   QuotaDecision,
+  RefundReason,
   SubscriptionStore,
   Usage,
 } from './subscriptions';
@@ -34,6 +35,6 @@ export class DurableSubscriptionStore implements SubscriptionStore {
   async recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'> { return (await this.call<{ result: 'accepted' | 'duplicate' | 'stale' }>('/webhook', { eventId, eventTimestamp, customerKeys })).result; }
   reserve(subject: string, access: AiAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision> { return this.call('/quota/reserve', { subject, access, operation, requestId, now }); }
   finalize(subject: string, requestId: string): Promise<void> { return this.call('/quota/finalize', { subject, requestId }); }
-  refund(subject: string, requestId: string): Promise<void> { return this.call('/quota/refund', { subject, requestId }); }
+  refund(subject: string, requestId: string, reason: RefundReason): Promise<void> { return this.call('/quota/refund', { subject, requestId, reason }); }
   usage(subject: string, access: AiAccessKind, now: number): Promise<Usage> { return this.call('/quota/usage', { subject, access, now }); }
 }

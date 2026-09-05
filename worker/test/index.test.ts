@@ -1621,9 +1621,7 @@ test('a request ID bound to one payload cannot be reused for different content',
   assert.equal(geminiCalls, 1);
 });
 
-test('a provider outage does not lock a customer out once the provider recovers', {
-  todo: 'Task 4 — separate provider recovery from abuse limits',
-}, async () => {
+test('a provider outage does not lock a customer out once the provider recovers', async () => {
   resetModelCooldowns();
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
@@ -1956,4 +1954,53 @@ test('a model with too little time left is not called twice for the sake of the 
   assert.equal(attemptBudget(9000, 0), 9000);
   assert.equal(attemptBudget(26000, 1), 17000);
   assert.equal(attemptBudget(12000, 1), 9000);
+});
+
+test('an outage in the middle of a rejected streak does not shorten the content ceiling', async () => {
+  resetModelCooldowns();
+  const store = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let outage = false;
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
+    if (outage) {
+      return new Response(JSON.stringify({ error: { status: 'UNAVAILABLE', message: 'overloaded' } }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    return geminiResponse({
+      status: 'unrecognized',
+      unrecognizedReason: 'No food is visible.',
+      mealName: null,
+      servesTotal: null,
+      servingUnit: null,
+      components: [],
+    });
+  }) as typeof fetch;
+  const submit = async (id: string) => (await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, { 'X-Eatlog-Request-ID': id }),
+    { env, fetchImpl, subscriptionStore: store },
+  ));
+
+  // Four genuinely unrecognizable submissions, then ten provider failures.
+  for (let index = 0; index < 4; index += 1) {
+    assert.equal((await submit(`request-mixed-rejected-${index}`)).response.status, 200);
+  }
+  outage = true;
+  for (let index = 0; index < 10; index += 1) {
+    resetModelCooldowns();
+    assert.equal((await submit(`request-mixed-outage-${index}`)).response.status, 502);
+  }
+
+  // The provider is well again. Only the four rejections count, so there is one submission
+  // left before the ceiling — the outage neither consumed it nor moved it.
+  outage = false;
+  resetModelCooldowns();
+  assert.equal((await submit('request-mixed-rejected-4')).response.status, 200);
+
+  const blocked = await submit('request-mixed-rejected-5');
+  assert.equal(blocked.response.status, 429);
+  assert.equal(blocked.body.error.code, 'REFUND_DAILY_LIMIT');
+  assert.equal(typeof blocked.body.error.nextEligibleAt, 'string');
 });
