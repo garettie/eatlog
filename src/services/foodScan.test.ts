@@ -357,8 +357,6 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
     const cases = [
         ['PAID_ACCESS_REQUIRED', 'paid-access-required'],
         ['PUGO_DAILY_LIMIT', 'pugo-daily-limit'],
-        ['TRIAL_DAILY_LIMIT', 'trial-daily-limit'],
-        ['TRIAL_ALLOWANCE_EXHAUSTED', 'trial-allowance-exhausted'],
         ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
         ['FAIR_USE_30_DAY_LIMIT', 'fair-use-30-day-limit'],
         ['REFUND_DAILY_LIMIT', 'refund-daily-limit'],
@@ -407,7 +405,6 @@ test('an upstream timeout or malformed provider reply is named rather than shown
 test('a rolling daily limit surfaces the actual reset time from the Worker instead of a static string', async () => {
     const cases = [
         ['PUGO_DAILY_LIMIT', 'pugo-daily-limit'],
-        ['TRIAL_DAILY_LIMIT', 'trial-daily-limit'],
         ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
     ] as const;
     const nextEligibleAt = new Date('2026-08-22T21:00:00.000Z').toISOString();

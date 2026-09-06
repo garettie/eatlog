@@ -76,15 +76,6 @@ export interface FreeUsage {
   nextEligibleAt: string | null;
 }
 
-export interface TrialUsage {
-  initialRemaining24Hours: number;
-  initialRemainingTrial: number;
-  clarificationRemaining24Hours: number;
-  clarificationRemainingTrial: number;
-  nextInitialEligibleAt: string | null;
-  nextClarificationEligibleAt: string | null;
-}
-
 export interface PaidUsage {
   remaining24Hours: number;
   remaining30Days: number;
@@ -94,7 +85,6 @@ export interface PaidUsage {
 export type EatlogUsage =
   | { kind: 'none' }
   | ({ kind: 'free' } & FreeUsage)
-  | ({ kind: 'trial' } & TrialUsage)
   | ({ kind: 'paid' } & PaidUsage);
 
 export type BillingActionState =

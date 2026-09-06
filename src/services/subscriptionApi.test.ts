@@ -134,6 +134,51 @@ test('manual access refresh sends force while automatic refresh stays cache-firs
   assert.deepEqual(bodies.map((body) => JSON.parse(body)), [{}, { force: true }]);
 });
 
+test('a free-tier answer never demotes a device holding unexpired paid access', async () => {
+  // The Worker reports Pugo both when it confirmed no purchase and when RevenueCat was
+  // unreachable, and the two are indistinguishable on the wire. Taking the second at face
+  // value would put a subscriber on three estimates a day for reasons that are not theirs.
+  const now = Date.parse('2026-08-22T00:00:00Z');
+  const trial = {
+    kind: 'manok-trial' as const,
+    checkedAt: '2026-08-22T00:00:00Z',
+    expiresAt: '2026-09-22T00:00:00Z',
+    willRenew: true,
+    productId: 'eatlog_manok',
+    billingState: 'active' as const,
+  };
+  setLocalAccessForAi(trial);
+  clearAiGrant();
+  assert.equal(acceptAiGrant('signed.trial.payload-value', '2026-08-23T00:00:00.000Z', now), true);
+
+  const api = createSubscriptionApi({
+    workerUrl: 'https://staging.example',
+    now: () => now,
+    fetchImpl: (async () => new Response(JSON.stringify({
+      access: PUGO,
+      grant: { token: 'signed.pugo.payload-value', expiresAt: '2026-08-22T00:01:00.000Z' },
+      usage: { kind: 'free', remaining24Hours: 3, nextEligibleAt: null },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch,
+  });
+
+  // The trial grant is kept, and the free-tier counter is not adopted as this device's usage.
+  assert.deepEqual(await api.refresh('a'.repeat(32)), { usage: { kind: 'none' } });
+  assert.deepEqual(getAiAuthorization(now + 60_000), { ok: true, grant: 'signed.trial.payload-value' });
+
+  // With no usable grant of its own, the app reports the estimate as unavailable rather than
+  // silently running the subscriber against the free allowance.
+  clearAiGrant();
+  await api.refresh('a'.repeat(32));
+  assert.deepEqual(getAiAuthorization(now + 60_000), { ok: false, kind: 'entitlement-unavailable' });
+
+  // A genuinely free device still takes the answer it is given.
+  setLocalAccessForAi(PUGO);
+  assert.deepEqual(await api.refresh('a'.repeat(32)), {
+    usage: { kind: 'free', remaining24Hours: 3, nextEligibleAt: null },
+  });
+  assert.deepEqual(getAiAuthorization(now), { ok: true, grant: 'signed.pugo.payload-value' });
+});
+
 test('a locally expired paid snapshot blocks AI before a still-valid grant can authorize', async () => {
   const accessExpiresAt = '2026-08-22T00:02:00.000Z';
   const grantExpiresAt = '2026-08-22T00:05:00.000Z';

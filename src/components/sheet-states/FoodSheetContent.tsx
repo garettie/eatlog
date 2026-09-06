@@ -92,8 +92,6 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     'consent-required': 'Enable online estimates to use this.',
     'paid-access-required': 'Choose Eatlog Manok or Itik to use AI estimates.',
     'pugo-daily-limit': "You've used your 3 free estimates for this 24-hour window. Try again after it resets.",
-    'trial-daily-limit': "You've used today's estimate allowance. Try again after it resets.",
-    'trial-allowance-exhausted': 'Your estimate allowance is used. You can keep logging manually.',
     'fair-use-daily-limit': "You've reached the 24-hour fair-use limit. Try again after it resets.",
     'fair-use-30-day-limit': "You've reached the 30-day fair-use limit. Try again after it resets.",
     'refund-daily-limit': 'Too many recent estimate attempts could not be completed. Try again after it resets.',

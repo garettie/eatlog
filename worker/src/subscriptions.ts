@@ -16,11 +16,6 @@ const PAID_DAILY_LIMIT = 30;
 // ceiling and then refuse the next request for the rest of the day, turning a short outage into
 // a much longer one for the customer.
 const REFUND_DAILY_LIMIT = 5;
-// The trial is bounded by its whole-trial total, not by a tighter daily rate. A tighter one
-// walls a trial user off mid-day at a ceiling no paying user meets, which reads as a broken
-// app rather than a limit; the free Pugo tier is where a daily rate belongs.
-const TRIAL_DAILY_LIMIT = PAID_DAILY_LIMIT;
-const TRIAL_TOTAL_LIMIT = 30;
 const PAID_30_DAY_LIMIT = 250;
 
 /**
@@ -86,15 +81,6 @@ export type WorkerAccess =
 export type Usage =
   | { kind: 'none' }
   | { kind: 'free'; remaining24Hours: number; nextEligibleAt: string | null }
-  | {
-      kind: 'trial';
-      initialRemaining24Hours: number;
-      initialRemainingTrial: number;
-      clarificationRemaining24Hours: number;
-      clarificationRemainingTrial: number;
-      nextInitialEligibleAt: string | null;
-      nextClarificationEligibleAt: string | null;
-    }
   | { kind: 'paid'; remaining24Hours: number; remaining30Days: number; nextEligibleAt: string | null };
 
 export interface VerifiedRevenueCatAccess {
@@ -123,7 +109,7 @@ export interface GrantClaims {
 export interface QuotaDecision {
   allowed: boolean;
   duplicate: boolean;
-  code?: 'PAID_ACCESS_REQUIRED' | 'PUGO_DAILY_LIMIT' | 'TRIAL_DAILY_LIMIT' | 'TRIAL_ALLOWANCE_EXHAUSTED' | 'FAIR_USE_DAILY_LIMIT' | 'FAIR_USE_30_DAY_LIMIT' | 'REFUND_DAILY_LIMIT';
+  code?: 'PAID_ACCESS_REQUIRED' | 'PUGO_DAILY_LIMIT' | 'FAIR_USE_DAILY_LIMIT' | 'FAIR_USE_30_DAY_LIMIT' | 'REFUND_DAILY_LIMIT';
   nextEligibleAt?: string;
   usage: Usage;
 }
@@ -170,8 +156,13 @@ function spendsAllowance(event: QuotaEvent): boolean {
     || event.operationClass === 'paid';
 }
 
+/**
+ * The trial is a trial *of the subscription*, so it is classed and counted as paid. Only the
+ * free tier separates initial estimates from clarifications, because only the free tier
+ * withholds clarifications.
+ */
 export function operationClass(access: AiAccessKind, operation: string): QuotaOperationClass {
-  if (access === 'pugo' || access === 'manok-trial') {
+  if (access === 'pugo') {
     return operation === 'scan' || operation === 'describe' ? 'initial' : 'clarification';
   }
   return 'paid';
@@ -194,22 +185,6 @@ export function quotaUsage(events: QuotaEvent[], access: AiAccessKind, now: numb
       kind: 'free',
       remaining24Hours: remaining(PUGO_DAILY_LIMIT, active.length),
       nextEligibleAt: active.length >= PUGO_DAILY_LIMIT ? nextAt(active, since) : null,
-    };
-  }
-  if (access === 'manok-trial') {
-    const initial = events.filter((event) => event.operationClass === 'initial');
-    const clarification = events.filter((event) => event.operationClass === 'clarification');
-    const since = now - DAY_MS;
-    const initialDaily = initial.filter((event) => event.timestamp > since);
-    const clarificationDaily = clarification.filter((event) => event.timestamp > since);
-    return {
-      kind: 'trial',
-      initialRemaining24Hours: remaining(TRIAL_DAILY_LIMIT, initialDaily.length),
-      initialRemainingTrial: remaining(TRIAL_TOTAL_LIMIT, initial.length),
-      clarificationRemaining24Hours: remaining(TRIAL_DAILY_LIMIT, clarificationDaily.length),
-      clarificationRemainingTrial: remaining(TRIAL_TOTAL_LIMIT, clarification.length),
-      nextInitialEligibleAt: initialDaily.length >= TRIAL_DAILY_LIMIT ? nextAt(initialDaily, since) : null,
-      nextClarificationEligibleAt: clarificationDaily.length >= TRIAL_DAILY_LIMIT ? nextAt(clarificationDaily, since) : null,
     };
   }
   const daily = events.filter((event) => spendsAllowance(event) && event.timestamp > now - DAY_MS);
@@ -238,13 +213,6 @@ export function decideQuota(events: QuotaEvent[], access: AiAccessKind, operatio
     if (usage.remaining24Hours === 0) {
       return { allowed: false, duplicate: false, code: 'PUGO_DAILY_LIMIT', ...(usage.nextEligibleAt ? { nextEligibleAt: usage.nextEligibleAt } : {}), usage };
     }
-  } else if (usage.kind === 'trial') {
-    const initial = operationClass(access, operation) === 'initial';
-    const trialRemaining = initial ? usage.initialRemainingTrial : usage.clarificationRemainingTrial;
-    const dailyRemaining = initial ? usage.initialRemaining24Hours : usage.clarificationRemaining24Hours;
-    const nextEligibleAt = initial ? usage.nextInitialEligibleAt : usage.nextClarificationEligibleAt;
-    if (trialRemaining === 0) return { allowed: false, duplicate: false, code: 'TRIAL_ALLOWANCE_EXHAUSTED', usage };
-    if (dailyRemaining === 0) return { allowed: false, duplicate: false, code: 'TRIAL_DAILY_LIMIT', ...(nextEligibleAt ? { nextEligibleAt } : {}), usage };
   } else if (usage.kind === 'paid') {
     if (usage.remaining30Days === 0) return { allowed: false, duplicate: false, code: 'FAIR_USE_30_DAY_LIMIT', usage };
     if (usage.remaining24Hours === 0) return { allowed: false, duplicate: false, code: 'FAIR_USE_DAILY_LIMIT', ...(usage.nextEligibleAt ? { nextEligibleAt: usage.nextEligibleAt } : {}), usage };

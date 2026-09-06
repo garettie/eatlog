@@ -211,27 +211,30 @@ test('a subject that keeps refunding hits a separate abuse ceiling regardless of
   assert.equal(blocked.code, 'REFUND_DAILY_LIMIT');
 });
 
-test('the trial matches the paid daily rate and is bounded only by its whole-trial total', async () => {
-  const store = new MemorySubscriptionStore();
-  // A full paid day of estimates in one sitting is allowed; the trial never walls off
-  // mid-day at a rate a paying user would not meet.
+test('the trial offers exactly what the paid subscription offers', async () => {
+  // A trial of the subscription is the subscription. There is no whole-trial total, no
+  // separate initial and clarification budgets, and no counter shape of its own: every
+  // operation spends the same rolling paid allowance a Manok subscriber spends.
+  const trial = new MemorySubscriptionStore();
+  const paid = new MemorySubscriptionStore();
   for (let index = 0; index < 30; index += 1) {
-    assert.equal((await store.reserve('trial', 'manok-trial', 'scan', `i-${index}`, NOW)).allowed, true);
+    const operation = index % 2 === 0 ? 'scan' : 'clarify-meal';
+    assert.equal((await trial.reserve('trial', 'manok-trial', operation, `t-${index}`, NOW)).allowed, true);
+    assert.equal((await paid.reserve('paid', 'manok', operation, `p-${index}`, NOW)).allowed, true);
   }
-  const exhausted = await store.reserve('trial', 'manok-trial', 'describe', 'i-over', NOW);
-  assert.equal(exhausted.code, 'TRIAL_ALLOWANCE_EXHAUSTED');
-  // Clarifications keep their own budget, so exhausting initial estimates leaves them usable.
-  assert.equal((await store.reserve('trial', 'manok-trial', 'clarify-meal', 'c-1', NOW)).allowed, true);
-  // The total spans the whole trial rather than a rolling day.
+  assert.deepEqual(await trial.usage('trial', 'manok-trial', NOW), await paid.usage('paid', 'manok', NOW));
+
+  // Spreading the same work across the trial does not accumulate toward a hidden total; the
+  // day's allowance comes back with the rolling window, exactly as it does when paying.
   const spread = new MemorySubscriptionStore();
-  for (let index = 0; index < 30; index += 1) {
-    assert.equal((await spread.reserve('trial-total', 'manok-trial', 'scan', `t-${index}`, NOW - (30 - index) * 20 * 60 * 60 * 1000)).allowed, true);
+  for (let index = 0; index < 60; index += 1) {
+    assert.equal((await spread.reserve('spread', 'manok-trial', 'scan', `s-${index}`, NOW - (60 - index) * 20 * 60 * 60 * 1000)).allowed, true);
   }
-  assert.equal((await spread.reserve('trial-total', 'manok-trial', 'scan', 'total-over', NOW)).code, 'TRIAL_ALLOWANCE_EXHAUSTED');
+  assert.equal((await spread.reserve('spread', 'manok-trial', 'scan', 's-next', NOW)).allowed, true);
 });
 
-test('paid quotas enforce rolling boundaries for Manok, Itik, and complimentary access', async () => {
-  for (const access of ['manok', 'itik', 'complimentary'] as const) {
+test('paid quotas enforce rolling boundaries for trial, Manok, Itik, and complimentary access', async () => {
+  for (const access of ['manok-trial', 'manok', 'itik', 'complimentary'] as const) {
     const store = new MemorySubscriptionStore();
     for (let index = 0; index < 30; index += 1) assert.equal((await store.reserve(access, access, 'scan', `${index}`, NOW)).allowed, true);
     assert.equal((await store.reserve(access, access, 'scan', 'daily-over', NOW)).code, 'FAIR_USE_DAILY_LIMIT');

@@ -2181,6 +2181,92 @@ test('a quota store that never answers fails the request instead of holding it o
   assert.equal(body.error.code, 'STATE_TIMEOUT');
 });
 
+test('a reservation that commits after the state call gave up is handed back, not charged', async (t) => {
+  // `withinDeadline` does not cancel the call it stopped waiting for, so the Durable Object can
+  // still commit a reservation the Worker has already given up on. Left alone that silently
+  // costs an estimate nobody received — the failure a free user meets as an early limit.
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const memory = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  const { reached, announce } = arrival();
+  let stall = false;
+  const store: SubscriptionStore = {
+    getCached: memory.getCached.bind(memory),
+    putCached: memory.putCached.bind(memory),
+    recordWebhook: memory.recordWebhook.bind(memory),
+    usage: memory.usage.bind(memory),
+    finalize: memory.finalize.bind(memory),
+    refund: memory.refund.bind(memory),
+    claimExecution: memory.claimExecution.bind(memory),
+    completeExecution: memory.completeExecution.bind(memory),
+    reserve: (subject, access, operation, requestId, at) => {
+      const committed = memory.reserve(subject, access, operation, requestId, at);
+      if (!stall) return committed;
+      announce();
+      // Committed inside the store, never delivered to the Worker.
+      return committed.then(() => new Promise<never>(() => {}));
+    },
+  };
+  const fetchImpl = (async (input: string | URL | Request) => (
+    String(input).startsWith('https://api.revenuecat.com/')
+      ? jsonResponse(freeRevenueCat())
+      : geminiResponse(recognized)
+  )) as typeof fetch;
+
+  const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), { env, fetchImpl, subscriptionStore: store });
+  const grant = { Authorization: `Bearer ${refreshed.body.grant.token}` };
+
+  stall = true;
+  const pending = call(request('/v1/estimate', 'POST', { operation: 'scan', imageBase64: JPEG }, {
+    ...grant, 'X-Eatlog-Request-ID': 'request-late-reservation',
+  }), { env, fetchImpl, subscriptionStore: store });
+  await reached;
+  t.mock.timers.tick(4000);
+  const { response, body } = await pending;
+  assert.equal(response.status, 504);
+  assert.equal(body.error.code, 'STATE_TIMEOUT');
+
+  stall = false;
+  t.mock.timers.reset();
+  const usage = await call(request('/v1/usage', 'GET', undefined, grant), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(usage.body.remaining24Hours, 3);
+});
+
+test('a request with too little time left is refused before it reserves anything', async () => {
+  // Reading a large upload over a slow connection can leave less than one provider attempt.
+  // Such a request cannot produce an estimate, so it must not spend one either.
+  const memory = new MemorySubscriptionStore();
+  const env = subscriptionEnv();
+  let geminiCalls = 0;
+  let elapsed = 0;
+  const base = Date.now();
+  const fetchImpl = (async (input: string | URL | Request) => {
+    if (String(input).startsWith('https://api.revenuecat.com/')) {
+      // Verification answered, but the request has spent most of its budget getting here.
+      elapsed = 17_000;
+      return jsonResponse(freeRevenueCat());
+    }
+    geminiCalls += 1;
+    return geminiResponse(recognized);
+  }) as typeof fetch;
+
+  const { response, body } = await call(request('/v1/estimate', 'POST', { operation: 'scan', imageBase64: JPEG }, {
+    'X-Eatlog-Request-ID': 'request-out-of-budget',
+  }), { env, fetchImpl, subscriptionStore: memory, now: () => base + elapsed });
+  assert.equal(response.status, 504);
+  assert.equal(body.error.code, 'REQUEST_TIMEOUT');
+  assert.equal(geminiCalls, 0);
+
+  elapsed = 0;
+  const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), {
+    env, fetchImpl: (async () => jsonResponse(freeRevenueCat())) as typeof fetch, subscriptionStore: memory,
+  });
+  const usage = await call(request('/v1/usage', 'GET', undefined, { Authorization: `Bearer ${refreshed.body.grant.token}` }), {
+    env, fetchImpl, subscriptionStore: memory,
+  });
+  assert.equal(usage.body.remaining24Hours, 3);
+});
+
 test('the region relay is given the budget it must finish inside', async () => {
   resetModelCooldowns();
   const relayHeaders: Array<Record<string, string>> = [];

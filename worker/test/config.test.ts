@@ -21,8 +21,18 @@ interface WorkerConfig {
   limits?: unknown;
 }
 
-const readConfig = (filename: string): WorkerConfig =>
-  JSON.parse(readFileSync(new URL(`../${filename}`, import.meta.url), 'utf8')) as WorkerConfig;
+/**
+ * Wrangler reads `.jsonc`, so these files may carry comments that `JSON.parse` refuses. Only
+ * whole-line comments are stripped: a `//` inside a value belongs to the value, and removing it
+ * would silently rewrite the configuration this test exists to check.
+ */
+const readConfig = (filename: string): WorkerConfig => {
+  const source = readFileSync(new URL(`../${filename}`, import.meta.url), 'utf8')
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('//'))
+    .join('\n');
+  return JSON.parse(source) as WorkerConfig;
+};
 
 const legacy = readConfig('wrangler.jsonc');
 const staging = readConfig('wrangler.subscription-staging.jsonc');
@@ -44,10 +54,19 @@ test('production subscriptions use an isolated Worker and state namespace', () =
   assert.equal(production.compatibility_date, '2026-08-24');
   assert.deepEqual(production.compatibility_flags, ['nodejs_compat']);
   assert.equal(production.workers_dev, true);
-  assert.deepEqual(production.vars, {
-    SUBSCRIPTIONS_ENABLED: 'true',
-    REVENUECAT_ENTITLEMENT_ID: 'eatlog_paid',
-  });
+  assert.deepEqual(Object.keys(production.vars ?? {}).sort(), [
+    'GEMINI_PRICING',
+    'REVENUECAT_ENTITLEMENT_ID',
+    'SUBSCRIPTIONS_ENABLED',
+  ]);
+  assert.equal(production.vars?.SUBSCRIPTIONS_ENABLED, 'true');
+  assert.equal(production.vars?.REVENUECAT_ENTITLEMENT_ID, 'eatlog_paid');
+  // Priced per model, so an unpriced model reports unknown cost rather than free.
+  const pricing = JSON.parse(production.vars?.GEMINI_PRICING ?? '{}') as Record<string, unknown>;
+  assert.equal(typeof pricing.dated, 'string');
+  for (const model of ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite']) {
+    assert.deepEqual(Object.keys(pricing[model] as object).sort(), ['cached', 'input', 'output']);
+  }
   assert.deepEqual(production.durable_objects?.bindings, [
     { name: 'ACCESS_STATE', class_name: 'EntitlementQuotaState' },
     { name: 'GEMINI_RELAY', class_name: 'GeminiRelay' },

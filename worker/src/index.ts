@@ -15,6 +15,7 @@ import {
   verifyAiGrant,
   type GrantClaims,
   type AiAccessKind,
+  type QuotaDecision,
   type SubscriptionStore,
   type VerifiedRevenueCatAccess,
 } from './subscriptions';
@@ -70,6 +71,12 @@ const EXECUTION_POLL_MS = 150;
 const EXECUTION_PROTOCOL = '2';
 /** A quota round trip is a local Durable Object call; past this it is not going to answer. */
 const STATE_CALL_TIMEOUT_MS = 3000;
+/**
+ * The least a request needs to reach the provider and still deliver: one state round trip, one
+ * model attempt at its floor, and the delivery reserve. Below this an estimate cannot succeed,
+ * so the request is refused before it reserves quota rather than after.
+ */
+const MIN_ESTIMATE_BUDGET_MS = STATE_CALL_TIMEOUT_MS + GEMINI_MODEL_FLOOR_MS + RESULT_DELIVERY_RESERVE_MS;
 /** RevenueCat's own ceiling, still bounded by whatever the request has left. */
 const REVENUECAT_TIMEOUT_MS = 8000;
 const REVENUECAT_ORIGIN = 'https://api.revenuecat.com';
@@ -931,16 +938,23 @@ async function refreshRevenueCatAccess(
     // Pugo quota is keyed on the install alone, so serve it rather than blocking a free
     // estimate on an upstream the free tier never needed. Both the cache entry and the grant
     // it produces expire with the outage window, never outliving their own justification.
+    //
+    // This says only that RevenueCat could not be reached, so it must never be written over a
+    // record that says something. The read above already returns before reaching here when one
+    // exists; the guard keeps that true if this order ever changes, because a fallback that
+    // overwrote the last verified access would take the outage fallback down with it.
     const verified = await withPugoQuotaSubject(
       { access: { kind: 'pugo', checkedAt: new Date(now).toISOString(), reason: 'none' }, subjectIdentity: null },
       installId,
       env,
     );
-    await store.putCached(customerKey, {
-      ...verified,
-      validUntil: now + PROVISIONAL_PUGO_CACHE_TTL_MS,
-      provisional: true,
-    });
+    if (!cached || cached.provisional === true) {
+      await store.putCached(customerKey, {
+        ...verified,
+        validUntil: now + PROVISIONAL_PUGO_CACHE_TTL_MS,
+        provisional: true,
+      });
+    }
     return { verified, customerKey, provisional: true };
   }
 }
@@ -1715,19 +1729,39 @@ export async function handleRequest(
     const authorization = await authorizeEstimate(request, installId, env, store, fetchImpl, now, deadline);
     const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
     const claims = authorization.claims;
-    const reservation = await withinDeadline(
-      store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now),
-      Math.min(STATE_CALL_TIMEOUT_MS, Math.max(0, deadline.remaining())),
-      () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
-    );
+    /**
+     * Reading the upload can consume most of the budget on a slow connection. Refusing here
+     * costs the customer a retry; reserving first and running out of time costs them an
+     * estimate, because the quota is spent the moment the reservation commits.
+     */
+    if (deadline.remaining() < MIN_ESTIMATE_BUDGET_MS) {
+      throw new HttpError(504, 'REQUEST_TIMEOUT', 'Food service could not complete the request.', { rejection: 'deadline' });
+    }
+    /**
+     * `withinDeadline` does not cancel the call it gave up on, so a reservation that timed out
+     * here may still commit inside the Durable Object. Every exit below therefore hands the
+     * reservation back rather than assuming it was never made.
+     */
+    const releaseReservation = async (): Promise<void> => {
+      await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
+    };
+    let reservation: QuotaDecision;
+    try {
+      reservation = await withinDeadline(
+        store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now),
+        STATE_CALL_TIMEOUT_MS,
+        () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
+      );
+    } catch (error) {
+      await releaseReservation();
+      throw error;
+    }
     if (!reservation.allowed) {
       if (reservation.code === 'PAID_ACCESS_REQUIRED') {
         throw new HttpError(402, reservation.code, 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
       }
       const messages = {
         PUGO_DAILY_LIMIT: 'The 3-estimate rolling 24-hour Pugo allowance is used. Try again when the window resets.',
-        TRIAL_DAILY_LIMIT: 'The trial rolling 24-hour allowance for this AI action is used. Try again when the window resets.',
-        TRIAL_ALLOWANCE_EXHAUSTED: 'The trial allowance for this AI action is used. Manok or Itik keeps AI access available.',
         FAIR_USE_DAILY_LIMIT: 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when the window resets.',
         FAIR_USE_30_DAY_LIMIT: 'The 250-operation rolling 30-day fair-use limit is reached. Try again when the window resets.',
         REFUND_DAILY_LIMIT: 'Too many recent submissions had no recognizable food in them. Try again when the window resets.',
@@ -1742,51 +1776,64 @@ export async function handleRequest(
       );
     }
     /**
-     * The reservation says the subject may spend an estimate. The execution claim says whether
-     * *this* request is the one that calls Gemini: a duplicate transport retry of the same
-     * action must reuse the first execution's answer rather than generate a second one.
+     * A duplicate rides on the first request's reservation instead of making one of its own, so
+     * it must never hand that reservation back: the sibling it belongs to may still be running,
+     * and refunding underneath it would give away an estimate the customer is about to receive.
      */
-    const fingerprint = await hashQuotaIdentity(estimateFingerprint(input), env.QUOTA_IDENTITY_SALT ?? env.RATE_LIMIT_SALT);
-    const claim = await claimExecution(store, claims.sub, idempotencyKey, fingerprint, input.operation, deadline, clock);
-    if (claim.state === 'conflict' || claim.state === 'exhausted' || claim.state === 'pending') {
-      // No generation happened, so the allowance this reservation just spent goes back. The
-      // reserve above writes a fresh event whenever the prior one was refunded, so without this
-      // a retry storm would charge the subject once per refused claim.
-      await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
+    const ownsReservation = !reservation.duplicate;
+    try {
+      /**
+       * The reservation says the subject may spend an estimate. The execution claim says whether
+       * *this* request is the one that calls Gemini: a duplicate transport retry of the same
+       * action must reuse the first execution's answer rather than generate a second one.
+       */
+      const fingerprint = await hashQuotaIdentity(estimateFingerprint(input), env.QUOTA_IDENTITY_SALT ?? env.RATE_LIMIT_SALT);
+      const claim = await claimExecution(store, claims.sub, idempotencyKey, fingerprint, input.operation, deadline, clock);
       if (claim.state === 'conflict') {
         throw new HttpError(409, 'REQUEST_ID_CONFLICT', 'Request identifier is already in use for different content.', { rejection: 'request-conflict' });
       }
-      // Either the two permitted executions are spent, or a live duplicate is still running and
-      // this request ran out of time waiting for it. Both are retryable, and neither starts a
-      // third generation behind the user's back.
-      throw new HttpError(503, 'EXECUTION_UNAVAILABLE', 'Food service could not complete the request. Try again.', { rejection: claim.state });
-    }
-    if (claim.state === 'replay') {
-      logAiRequest(input.operation, 'replayed', clock() - started);
-      const replayed = announceProtocol(json(JSON.parse(claim.result)));
-      return authorization.refreshedGrant ? attachGrant(replayed, authorization.refreshedGrant) : replayed;
-    }
-    try {
-      const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
-      const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models, deadline);
-      const body = await response.clone().text();
-      await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, 'succeeded', body, clock()));
-      // The provider answered. Either it found food, or it looked and found none — the second
-      // is a real generation this Worker paid for and the one worth discouraging if repeated.
-      logAiRequest(input.operation, recognized ? 'recognized' : 'unrecognized', clock() - started);
-      const announced = announceProtocol(response);
-      if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
-      else await bookkeeping(store.refund(claims.sub, idempotencyKey, 'unrecognized'));
-      return authorization.refreshedGrant ? attachGrant(announced, authorization.refreshedGrant) : announced;
+      if (claim.state === 'exhausted' || claim.state === 'pending') {
+        // Either the two permitted executions are spent, or a live duplicate is still running and
+        // this request ran out of time waiting for it. Both are retryable, and neither starts a
+        // third generation behind the user's back.
+        throw new HttpError(503, 'EXECUTION_UNAVAILABLE', 'Food service could not complete the request. Try again.', { rejection: claim.state });
+      }
+      if (claim.state === 'replay') {
+        logAiRequest(input.operation, 'replayed', clock() - started);
+        // The customer receives an estimate, so the reservation this request made is spent
+        // rather than released by the exit below.
+        if (ownsReservation) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
+        const replayed = announceProtocol(json(JSON.parse(claim.result)));
+        return authorization.refreshedGrant ? attachGrant(replayed, authorization.refreshedGrant) : replayed;
+      }
+      try {
+        const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
+        const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models, deadline);
+        const body = await response.clone().text();
+        await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, 'succeeded', body, clock()));
+        // The provider answered. Either it found food, or it looked and found none — the second
+        // is a real generation this Worker paid for and the one worth discouraging if repeated.
+        logAiRequest(input.operation, recognized ? 'recognized' : 'unrecognized', clock() - started);
+        const announced = announceProtocol(response);
+        if (recognized) await bookkeeping(store.finalize(claims.sub, idempotencyKey));
+        else await bookkeeping(store.refund(claims.sub, idempotencyKey, 'unrecognized'));
+        return authorization.refreshedGrant ? attachGrant(announced, authorization.refreshedGrant) : announced;
+      } catch (error) {
+        // A timeout, an outage, a blocked or malformed reply. None of it is something the
+        // customer did, so it is refunded without counting toward the content-abuse ceiling.
+        // A rejected request is terminal: repeating it verbatim would fail the same way.
+        logAiRequest(input.operation, 'failed', clock() - started);
+        const status = error instanceof HttpError ? error.status : 500;
+        const outcome = status >= 500 || status === 408 || status === 429 ? 'failed-retryable' : 'failed-terminal';
+        await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, outcome, null, clock()));
+        throw error;
+      }
     } catch (error) {
-      // A timeout, an outage, a blocked or malformed reply. None of it is something the
-      // customer did, so it is refunded without counting toward the content-abuse ceiling.
-      // A rejected request is terminal: repeating it verbatim would fail the same way.
-      logAiRequest(input.operation, 'failed', clock() - started);
-      const status = error instanceof HttpError ? error.status : 500;
-      const outcome = status >= 500 || status === 408 || status === 429 ? 'failed-retryable' : 'failed-terminal';
-      await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, outcome, null, clock()));
-      await bookkeeping(store.refund(claims.sub, idempotencyKey, 'service-failure'));
+      // Nothing between the reservation and a delivered estimate is the customer's doing: a
+      // state call that timed out, a claim that could not be taken, a provider that failed.
+      // Whatever it was, no estimate was produced, so the allowance goes back. Refunding is
+      // idempotent, so a reservation already settled above is untouched.
+      if (ownsReservation) await releaseReservation();
       throw error;
     }
   } catch (error) {

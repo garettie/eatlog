@@ -298,6 +298,9 @@ When the user corrects your approach, append a one-line rule here before ending 
 - FoodEditorView edits buffer into `editDraft` and reach the meal only via its Save button (Save also registers the re-estimate undo); Back/hardware-back prompt `Discard changes?` when the buffer is dirty, and editor open/close must reuse the sheet-state exit/enter choreography (90ms `emphasizedAccelerate` out, 150ms `emphasizedDecelerate` in, offset ±20 + opacity) — never swap the editor and list views without it.
 - SQLite `datetime('now')` values are UTC without a zone suffix; parse stored timestamps through `parseSqliteUtcTimestamp` before display or time arithmetic, while preserving timestamps that already carry `Z` or a numeric offset.
 - Gemini refuses calls that egress from a territory it does not serve, and the Cloudflare colo a user reaches is not their choice: a Manila phone routed to HKG gets 400 `FAILED_PRECONDITION` on every model. A location refusal must retry the same model through the `wnam`-pinned `GeminiRelay` Durable Object, never advance the model list, since the refusal is about the caller's location and not the model.
+- The Manok free trial is a trial of the full subscription and must carry the identical allowance: same rolling 24-hour limit, same rolling 30-day limit, no whole-trial total, no separate initial and clarification budgets, and no counter of its own. Treat `manok-trial` as a paid access kind everywhere in quota code.
+- A quota reservation is spent the moment it commits, and `withinDeadline` never cancels the call it stopped waiting for, so every path out of `handleRequest` after `store.reserve` must refund unless an estimate was delivered — including a reserve that timed out at the Worker boundary. Refuse a request with less than `MIN_ESTIMATE_BUDGET_MS` left before reserving rather than after, and never refund on behalf of a `duplicate` reservation, which belongs to a sibling request that may still be running.
+- The Worker reports `pugo` both when it confirmed no purchase and when RevenueCat was unreachable, and the two are identical on the wire. The device's own store record is the authority: never let a Pugo refresh replace the grant or usage of a device holding unexpired paid access, and never write the synthesized outage fallback over a cached row that carries a verified answer.
 
 ---
 
@@ -334,6 +337,38 @@ Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
 <!-- IJFW-AGENTS-START -->
 No project agents yet. Run `ijfw team` to set them up.
 <!-- IJFW-AGENTS-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
+
+<!-- IJFW-MEMORY-START -->
+Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.
+<!-- IJFW-MEMORY-END -->
 
 <!-- IJFW-MEMORY-START -->
 Project memory at .ijfw/memory/. Call `ijfw_memory_prelude` for full context.

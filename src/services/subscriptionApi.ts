@@ -73,14 +73,6 @@ function isUsage(value: unknown): value is EatlogUsage {
     return isCount(record.remaining24Hours)
       && isNullableDate(record.nextEligibleAt);
   }
-  if (record.kind === 'trial') {
-    return isCount(record.initialRemaining24Hours)
-      && isCount(record.initialRemainingTrial)
-      && isCount(record.clarificationRemaining24Hours)
-      && isCount(record.clarificationRemainingTrial)
-      && isNullableDate(record.nextInitialEligibleAt)
-      && isNullableDate(record.nextClarificationEligibleAt);
-  }
   return record.kind === 'paid'
     && isCount(record.remaining24Hours)
     && isCount(record.remaining30Days)
@@ -210,11 +202,26 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
     const value = await response.json() as Partial<WorkerAccessRefreshResponse>;
     if (!isAccess(value.access)) throw new Error('Subscription service unavailable.');
     const grantMatchesResolvedAccess = value.access.kind !== 'pugo' || isResolvedPugo(value.access);
-    activeGrant = grantMatchesResolvedAccess
+    const offered = grantMatchesResolvedAccess
       && isGrant(value.grant)
       && new Date(value.grant.expiresAt).getTime() > now()
       ? value.grant
       : null;
+    // The Worker synthesizes free access whenever RevenueCat is unreachable, and that answer is
+    // shaped exactly like a confirmed "no purchase". Applying it to a device holding unexpired
+    // paid access would drop a subscriber to free limits for reasons that have nothing to do
+    // with them. The device's own store record wins: keep a grant that is still valid, and
+    // otherwise hold none, so the app reports the estimate as unavailable rather than quietly
+    // enforcing the free allowance on someone who paid.
+    if (value.access.kind === 'pugo'
+      && activeAccess !== null
+      && activeAccess.kind !== 'pugo'
+      && hasPaidFeatures(activeAccess, new Date(now()))) {
+      if (activeGrant !== null && new Date(activeGrant.expiresAt).getTime() <= now()) activeGrant = null;
+      persistPaidAccess();
+      return { usage: { kind: 'none' } };
+    }
+    activeGrant = offered;
     persistPaidAccess();
     return { usage: isUsage(value.usage) ? value.usage : { kind: 'none' } };
   }

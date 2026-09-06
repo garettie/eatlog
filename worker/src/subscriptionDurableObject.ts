@@ -86,7 +86,7 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       const now = Number(body.now);
       sql.exec('DELETE FROM quota_events WHERE timestamp <= ?', now - THIRTY_DAYS_MS);
       sql.exec('DELETE FROM quota_requests WHERE created_at <= ?', now - THIRTY_DAYS_MS);
-      const rows = [...sql.exec<EventRow>('SELECT operation_class, timestamp, request_id FROM quota_events WHERE subject = ? AND timestamp > ? ORDER BY timestamp', subject, access === 'manok-trial' ? 0 : now - THIRTY_DAYS_MS)];
+      const rows = [...sql.exec<EventRow>('SELECT operation_class, timestamp, request_id FROM quota_events WHERE subject = ? AND timestamp > ? ORDER BY timestamp', subject, now - THIRTY_DAYS_MS)];
       const events = rows.map((row) => ({ operationClass: row.operation_class, timestamp: row.timestamp, requestId: row.request_id }));
       if (path === '/quota/usage') return Response.json(quotaUsage(events, access, now));
       const requestId = String(body.requestId ?? '');
