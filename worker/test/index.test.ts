@@ -716,6 +716,65 @@ test('caps USDA results and rejects malformed provider responses instead of forw
   }
 });
 
+test('keeps usable USDA foods and caches the surviving page', async () => {
+  const cache = new MemoryCache();
+  let fetches = 0;
+  const fetchImpl = (async () => {
+    fetches += 1;
+    return jsonResponse({ foods: [usdaFood(), { ...usdaFood(2), foodNutrients: [] }] });
+  }) as typeof fetch;
+  for (let index = 0; index < 2; index += 1) {
+    const result = await call(request('/v1/usda/search', 'POST', { query: 'rice', mode: 'common' }), { fetchImpl, cache });
+    assert.equal(result.response.status, 200);
+    assert.deepEqual(result.body.foods.map((food: any) => food.fdcId), [1]);
+  }
+  assert.equal(fetches, 1);
+  assert.equal(cache.writes.length, 1);
+  const empty = await call(request('/v1/usda/search', 'POST', { query: 'nothing', mode: 'common' }), {
+    fetchImpl: (async () => jsonResponse({ foods: [] })) as typeof fetch,
+  });
+  assert.equal(empty.response.status, 200);
+  assert.deepEqual(empty.body.foods, []);
+});
+
+test('normalizes USDA Atwater energy with specific, general, then existing energy precedence', async () => {
+  for (const [energy, expected] of [
+    [[{ nutrientId: 2047, value: 140 }, { nutrientId: 2048, value: 135 }], 135],
+    [[{ nutrientId: 2047, value: 140 }], 140],
+    [[{ nutrientId: 1008, value: 0 }, { nutrientId: 2048, value: 135 }], 0],
+  ] as const) {
+    const food = { ...usdaFood(), foodNutrients: [
+      { nutrientId: 1003, value: 2.7 }, { nutrientId: 1005, value: 28 },
+      { nutrientId: 1004, value: 0.3 }, ...energy,
+    ] };
+    for (const detail of [false, true]) {
+      const result = await call(detail ? request('/v1/usda/foods/1')
+        : request('/v1/usda/search', 'POST', { query: 'rice', mode: 'common' }), {
+        fetchImpl: (async () => jsonResponse(detail ? {
+          ...food, foodNutrients: food.foodNutrients.map(({ nutrientId, value }) => ({ nutrient: { id: nutrientId }, amount: value })),
+        } : { foods: [food] })) as typeof fetch,
+      });
+      assert.equal(result.response.status, 200);
+      const normalized = detail ? result.body.food : result.body.foods[0];
+      assert.deepEqual(normalized.foodNutrients.filter((item: any) => item.nutrientId === 1008), [{ nutrientId: 1008, value: expected }]);
+    }
+  }
+});
+
+test('preserves USDA portion amount and unit metadata for catalog validation', async () => {
+  const result = await call(request('/v1/usda/foods/1'), {
+    fetchImpl: (async () => jsonResponse({ ...usdaFood(), foodPortions: [
+      { id: 10, gramWeight: 158, portionDescription: '1 cup' },
+      { id: 11, gramWeight: 15, amount: 1, modifier: 'tablespoon', measureUnit: { name: 'tablespoon' } },
+    ] })) as typeof fetch,
+  });
+  assert.equal(result.response.status, 200);
+  assert.deepEqual(result.body.food.foodPortions, [
+    { id: 10, gramWeight: 158, portionDescription: '1 cup' },
+    { id: 11, gramWeight: 15, portionDescription: 'tablespoon', amount: 1, modifier: 'tablespoon', measureUnitName: 'tablespoon' },
+  ]);
+});
+
 test('maps upstream errors and timeouts to stable redacted errors with request IDs', async () => {
   const upstream = await call(request('/v1/usda/search', 'POST', { query: 'private rice query', mode: 'common' }), {
     fetchImpl: (async () => new Response('secret upstream body', { status: 500 })) as typeof fetch,

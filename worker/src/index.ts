@@ -760,6 +760,11 @@ function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
     const amount = finiteNonNegative(nutrient.value ?? nutrient.amount);
     return Number.isSafeInteger(nutrientId) && amount != null ? [{ nutrientId, value: amount }] : [];
   });
+  if (!nutrients.some((nutrient) => nutrient.nutrientId === 1008)) {
+    const energy = nutrients.find((nutrient) => nutrient.nutrientId === 2048)
+      ?? nutrients.find((nutrient) => nutrient.nutrientId === 2047);
+    if (energy) nutrients.push({ nutrientId: 1008, value: energy.value });
+  }
   if (![1008, 1003, 1005, 1004].every((id) => nutrients.some((nutrient) => nutrient.nutrientId === id))) return null;
   const portions = Array.isArray(food.foodPortions) ? food.foodPortions.flatMap((entry, index) => {
     if (!entry || typeof entry !== 'object') return [];
@@ -768,7 +773,17 @@ function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
     if (gramWeight == null || gramWeight <= 0) return [];
     const label = [portion.portionDescription, portion.modifier]
       .find((candidate) => typeof candidate === 'string' && candidate.trim()) as string | undefined;
-    return [{ id: Number.isSafeInteger(Number(portion.id)) ? Number(portion.id) : index, gramWeight, portionDescription: label?.trim() ?? `${gramWeight} g` }];
+    const amount = portion.amount == null ? null : finiteNonNegative(portion.amount);
+    const unit = portion.measureUnit && typeof portion.measureUnit === 'object'
+      ? (portion.measureUnit as Record<string, unknown>).name : undefined;
+    return [{
+      id: Number.isSafeInteger(Number(portion.id)) ? Number(portion.id) : index,
+      gramWeight,
+      portionDescription: label?.trim() ?? `${gramWeight} g`,
+      ...(amount != null && amount > 0 ? { amount } : {}),
+      ...(typeof portion.modifier === 'string' && portion.modifier.trim() ? { modifier: portion.modifier.trim() } : {}),
+      ...(typeof unit === 'string' && unit.trim() ? { measureUnitName: unit.trim() } : {}),
+    }];
   }) : [];
   const servingSize = finiteNonNegative(food.servingSize);
   return {
@@ -1119,8 +1134,8 @@ async function usdaSearch(
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid response.', { upstream: 'usda', cacheOutcome: 'miss', rejection: 'upstream-shape' });
   }
   const rawFoods = (upstream as { foods: unknown[] }).foods.slice(0, MAX_RESULTS);
-  const foods = rawFoods.map(normalizeUsdaFood);
-  if (foods.some((food) => food == null)) {
+  const foods = rawFoods.map(normalizeUsdaFood).filter((food) => food != null);
+  if (rawFoods.length > 0 && foods.length === 0) {
     throw new HttpError(502, 'MALFORMED_UPSTREAM', 'Upstream service returned an invalid food.', { upstream: 'usda', cacheOutcome: 'miss', rejection: 'upstream-food' });
   }
   const body = { foods };
