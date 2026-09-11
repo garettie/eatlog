@@ -1,179 +1,63 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { setTimeout as delay } from 'node:timers/promises';
+import { writeFileSync } from 'node:fs';
 
 import { normalizeFoodText } from '../src/services/foodSearchCore';
 import { FoodSearchEngine } from '../src/services/foodSearchEngine';
 import { createFoodSearchRemoteProviders } from '../src/services/foodSearchRemote';
-import type { DedupNearMiss, FoodResult, FoodSearchMode } from '../src/services/foodSearchTypes';
-
-interface EvaluationCase {
-  query: string;
-  mode: FoodSearchMode;
-  expected: string[];
-  brand?: string;
-}
-
-const cases: EvaluationCase[] = [
-  { query: 'rice', mode: 'common', expected: ['rice'] },
-  { query: 'white rice', mode: 'common', expected: ['white rice'] },
-  { query: 'brown rice', mode: 'common', expected: ['brown rice'] },
-  { query: 'bread', mode: 'common', expected: ['bread'] },
-  { query: 'pasta', mode: 'common', expected: ['pasta'] },
-  { query: 'oatmeal', mode: 'common', expected: ['oatmeal', 'oats'] },
-  { query: 'egg', mode: 'common', expected: ['egg'] },
-  { query: 'chicken breast', mode: 'common', expected: ['chicken breast'] },
-  { query: 'fried chicken', mode: 'common', expected: ['fried chicken', 'chicken fried'] },
-  { query: 'ground beef', mode: 'common', expected: ['ground beef', 'beef ground'] },
-  { query: 'pork chop', mode: 'common', expected: ['pork chop'] },
-  { query: 'tuna', mode: 'common', expected: ['tuna'] },
-  { query: 'tofu', mode: 'common', expected: ['tofu'] },
-  { query: 'banana', mode: 'common', expected: ['banana'] },
-  { query: 'apple', mode: 'common', expected: ['apple'] },
-  { query: 'potato', mode: 'common', expected: ['potato'] },
-  { query: 'tomato', mode: 'common', expected: ['tomato'] },
-  { query: 'broccoli', mode: 'common', expected: ['broccoli'] },
-  { query: 'avocado', mode: 'common', expected: ['avocado'] },
-  { query: 'milk', mode: 'common', expected: ['milk'] },
-  { query: 'cheddar cheese', mode: 'common', expected: ['cheddar cheese', 'cheese cheddar'] },
-  { query: 'yogurt', mode: 'common', expected: ['yogurt'] },
-  { query: 'butter', mode: 'common', expected: ['butter'] },
-  { query: 'peanut butter', mode: 'common', expected: ['peanut butter'] },
-  { query: 'hamburger', mode: 'common', expected: ['hamburger', 'burger'] },
-  { query: 'pizza', mode: 'common', expected: ['pizza'] },
-  { query: 'pancakes', mode: 'common', expected: ['pancake'] },
-  { query: 'sandwich', mode: 'common', expected: ['sandwich'] },
-  { query: 'fried rice', mode: 'common', expected: ['fried rice', 'rice fried'] },
-  { query: 'chicken soup', mode: 'common', expected: ['chicken soup', 'soup chicken'] },
-  { query: 'coffee', mode: 'common', expected: ['coffee'] },
-  { query: 'orange juice', mode: 'common', expected: ['orange juice'] },
-  { query: 'soda', mode: 'common', expected: ['soda', 'soft drink', 'cola'] },
-  { query: 'potato chips', mode: 'common', expected: ['potato chip', 'chips potato'] },
-  { query: 'granola bar', mode: 'common', expected: ['granola bar'] },
-  { query: 'raw chicken breast', mode: 'common', expected: ['chicken breast raw', 'raw chicken breast'] },
-  { query: 'grilled chicken breast', mode: 'common', expected: ['chicken breast grilled', 'grilled chicken breast'] },
-  { query: 'boiled egg', mode: 'common', expected: ['egg boiled', 'boiled egg'] },
-  { query: 'scrambled egg', mode: 'common', expected: ['egg scrambled', 'scrambled egg'] },
-  { query: 'poached egg', mode: 'common', expected: ['egg poached', 'poached egg'] },
-  { query: 'toasted bread', mode: 'common', expected: ['bread toasted', 'toasted bread', 'toast'] },
-  { query: 'baked potato', mode: 'common', expected: ['potato baked', 'baked potato'] },
-  { query: 'canned tuna', mode: 'common', expected: ['tuna canned', 'canned tuna'] },
-  { query: 'frozen broccoli', mode: 'common', expected: ['broccoli frozen', 'frozen broccoli'] },
-  { query: 'steamed rice', mode: 'common', expected: ['rice steamed', 'steamed rice'] },
-  { query: 'Coca Cola', mode: 'full', expected: ['coca cola'], brand: 'coca cola' },
-  { query: 'Oreo cookies', mode: 'full', expected: ['oreo cookie'], brand: 'oreo' },
-  { query: 'Nutella hazelnut spread', mode: 'full', expected: ['nutella hazelnut spread'], brand: 'nutella' },
-  { query: 'Cheerios cereal', mode: 'full', expected: ['cheerios cereal'], brand: 'cheerios' },
-  { query: 'Jif peanut butter', mode: 'full', expected: ['jif peanut butter'], brand: 'jif' },
-];
-
-function containsExpected(item: FoodResult, expected: string[]): boolean {
-  const text = normalizeFoodText(`${item.brand ?? ''} ${item.name} ${item.preparation ?? ''}`);
-  return expected.some((phrase) => normalizeFoodText(phrase).split(' ').every((token) => text.includes(token)));
-}
-
-function duplicateLimitMet(items: FoodResult[]): boolean {
-  const counts = new Map<string, number>();
-  for (const item of items.slice(0, 10)) {
-    const key = `${normalizeFoodText(item.normalizedName)}|${item.preparation ?? ''}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return Math.max(0, ...counts.values()) <= 3;
-}
-
-function printNearMiss(query: string, nearMiss: DedupNearMiss): void {
-  const percentages = Object.entries(nearMiss.differences)
-    .map(([macro, difference]) => `${macro}=${(difference * 100).toFixed(1)}%`)
-    .join(', ');
-  console.log(`  near-miss [${query}] ${nearMiss.first.name} (${nearMiss.first.sourceFoodId}) <> ${nearMiss.second.name} (${nearMiss.second.sourceFoodId}): ${percentages}; merged=${nearMiss.merged}`);
-}
+import { buildOpenFoodFactsUserAgent } from '../src/services/publicReleaseConfig';
+import { duplicateLimitMet, evaluationCases, evaluationRow, summarizeEvaluation, type EvaluationRow } from './foodSearchEvaluation';
+import { readLocalEnv } from './foodSearchScriptConfig';
+import app from '../app.json';
 
 async function main(): Promise<void> {
-  let workerUrl = process.env.EXPO_PUBLIC_FOOD_WORKER_URL?.trim() ?? '';
-  if (!workerUrl && existsSync('.env.local')) {
-    const line = readFileSync('.env.local', 'utf8')
-      .split(/\r?\n/)
-      .find((entry) => entry.trim().startsWith('EXPO_PUBLIC_FOOD_WORKER_URL='));
-    workerUrl = line
-      ?.slice(line.indexOf('=') + 1)
-      .trim()
-      .replace(/^(['"])(.*)\1$/, '$2')
-      ?? '';
-  }
+  const workerUrl = readLocalEnv('EXPO_PUBLIC_FOOD_WORKER_URL').replace(/\/$/, '');
   if (!workerUrl) throw new Error('EXPO_PUBLIC_FOOD_WORKER_URL is required for the live food-search evaluation.');
-  const requestedQueries = process.argv.slice(2).map((query) => normalizeFoodText(query));
-  const evaluationCases = requestedQueries.length === 0
-    ? cases
-    : cases.filter((evaluation) => requestedQueries.includes(normalizeFoodText(evaluation.query)));
-  if (evaluationCases.length === 0) throw new Error('No evaluation query matched the provided filter.');
-  const providers = createFoodSearchRemoteProviders({
-    workerUrl: workerUrl.replace(/\/$/, ''),
-    getInstallationToken: () => '00000000000000000000000000000000',
-  });
-  let nearMisses: DedupNearMiss[] = [];
-  let providerFailures: string[] = [];
+  const userAgent = buildOpenFoodFactsUserAgent(app.expo.version, readLocalEnv('EXPO_PUBLIC_SUPPORT_EMAIL'));
+  if (!userAgent) console.warn('Warning: support email is absent; Open Food Facts will not run.');
+  const args = process.argv.slice(2);
+  const queries = args.filter((arg) => !arg.startsWith('--')).map(normalizeFoodText);
+  const cases = queries.length ? evaluationCases.filter((item) => queries.includes(normalizeFoodText(item.query))) : evaluationCases;
+  if (!cases.length) throw new Error('No evaluation query matched the provided filter.');
+  const providers = createFoodSearchRemoteProviders({ workerUrl, openFoodFactsUserAgent: userAgent,
+    getInstallationToken: () => '00000000000000000000000000000000' });
+  const failures: string[] = [];
   const engine = new FoodSearchEngine({
     searchLocal: async () => [],
     searchUSDA: providers.searchUSDA,
     searchOpenFoodFacts: providers.searchOpenFoodFacts,
-    onNearMisses: (current) => { nearMisses = current; },
-    onProviderFailure: (provider, error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      providerFailures.push(`${provider}: ${message}`);
-    },
+    onProviderFailure: (provider, error) => failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`),
   });
-
-  let commonTopThreeHits = 0;
-  let commonQueries = 0;
-  let commonPortioned = 0;
-  let commonFirstFive = 0;
-  let duplicatePasses = 0;
-  let brandTopThreeHits = 0;
-  let brandQueries = 0;
-
-  for (const evaluation of evaluationCases) {
-    providerFailures = [];
-    const outcome = await engine.search(evaluation.query, evaluation.mode);
-    const topFive = outcome.items.slice(0, 5);
-    console.log(`\n[${evaluation.mode}] ${evaluation.query} (${outcome.kind})`);
-    topFive.forEach((item, index) => {
-      const serving = item.defaultAmount.servingId
-        ? item.portions.find((candidate) => candidate.id === item.defaultAmount.servingId) ?? null
-        : null;
-      const amountLabel = serving?.label ?? (item.defaultAmount.kind === 'last-logged' ? 'Last logged' : item.defaultAmount.kind === 'reviewed' ? 'Reviewed amount' : '100 g');
-      console.log(`  ${index + 1}. ${item.name}${item.brand ? ` — ${item.brand}` : ''} [${item.dataType}] · ${amountLabel}`);
-    });
-    nearMisses.forEach((nearMiss) => printNearMiss(evaluation.query, nearMiss));
-    providerFailures.forEach((failure) => console.log(`  provider failure: ${failure}`));
-    if (duplicateLimitMet(outcome.items)) duplicatePasses += 1;
-
-    if (evaluation.mode === 'common') {
-      commonQueries += 1;
-      if (outcome.items.slice(0, 3).some((item) => containsExpected(item, evaluation.expected))) commonTopThreeHits += 1;
-      commonFirstFive += topFive.length;
-      commonPortioned += topFive.filter((item) => item.defaultAmount.grams > 0).length;
-    } else {
-      brandQueries += 1;
-      if (outcome.items.slice(0, 3).some((item) => containsExpected(item, evaluation.expected))) {
-        brandTopThreeHits += 1;
-      }
-    }
+  const rows: EvaluationRow[] = [];
+  let duplicates = 0;
+  for (const [index, item] of cases.entries()) {
+    if (index > 0) await delay(2100);
+    failures.length = 0;
+    const outcome = await engine.search(item.query, item.mode);
+    const row = evaluationRow(item.query, item.mode, outcome, failures);
+    rows.push(row);
+    if (duplicateLimitMet(outcome.items)) duplicates += 1;
+    console.log(`\n[${item.mode}] ${item.query} (${row.kind})`);
+    row.top.slice(0, 5).forEach((food, index) => console.log(`  ${index + 1}. ${food.name} [${food.dataType}] · ${food.serving}`));
   }
-
-  const remoteMetrics = providers.getMetrics();
-  const cacheMetrics = engine.getCacheMetrics();
-  const commonHitRate = commonQueries === 0 ? 0 : commonTopThreeHits / commonQueries;
-  const portionRate = commonFirstFive === 0 ? 0 : commonPortioned / commonFirstFive;
-  const duplicateRate = duplicatePasses / evaluationCases.length;
-  const brandHitRate = brandQueries === 0 ? 1 : brandTopThreeHits / brandQueries;
+  const summary = summarizeEvaluation(rows, duplicates);
+  const metric = (label: string, count: number, total: number, target: string) =>
+    console.log(`  ${label}: ${count}/${total} (${total ? (100 * count / total).toFixed(1) : 'n/a'}%; target ${target})`);
   console.log('\nAggregate metrics');
-  console.log(`  Common intended result in top 3: ${commonTopThreeHits}/${commonQueries} (${(commonHitRate * 100).toFixed(1)}%; target >=85%)`);
-  console.log(`  Queries meeting top-10 duplicate limit: ${duplicatePasses}/${evaluationCases.length} (${(duplicateRate * 100).toFixed(1)}%; target 100%)`);
-  console.log(`  First-five common results with portions: ${commonPortioned}/${commonFirstFive} (${(portionRate * 100).toFixed(1)}%; target >=80%)`);
-  console.log(`  Explicit brands in top 3: ${brandTopThreeHits}/${brandQueries} (${(brandHitRate * 100).toFixed(1)}%; target 100%)`);
-  console.log(`  USDA requests: ${remoteMetrics.usdaRequests} (${(remoteMetrics.usdaRequests / evaluationCases.length).toFixed(2)} per evaluated query)`);
-  console.log(`  Remote cache: ${cacheMetrics.hits} hits, ${cacheMetrics.misses} misses`);
-  console.log(`  Worker failures: ${remoteMetrics.workerFailures}`);
-
-  if (commonHitRate < 0.85 || duplicateRate < 1 || portionRate < 0.8 || brandHitRate < 1) process.exitCode = 1;
+  metric('Common correct in top 1', summary.topOne, summary.common, '>=90%');
+  metric('Common correct in top 3', summary.topThree, summary.common, '>=95%');
+  metric('Top 1 correct with a real serving', summary.serving, summary.common, '>=80%');
+  metric('Explicit brands in top 3', summary.brands, summary.branded, '100%');
+  metric('Queries meeting top-10 duplicate limit', duplicates, rows.length, '100%');
+  console.log(`  Provider failure queries: ${summary.failures}`);
+  console.log(`  Worker failures: ${providers.getMetrics().workerFailures}`);
+  if (summary.failures) {
+    console.log('\nProvider failures');
+    rows.filter((row) => row.failures.length || row.kind === 'unavailable')
+      .forEach((row) => console.log(`  ${row.query}: ${row.failures.join('; ') || 'unavailable'}`));
+  }
+  const output = args.find((arg) => arg.startsWith('--output='))?.slice('--output='.length);
+  if (output) writeFileSync(output, `${JSON.stringify(rows, null, 2)}\n`);
+  if (!summary.passed) process.exitCode = 1;
 }
 
 void main().catch((error) => {

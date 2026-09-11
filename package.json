@@ -53,7 +53,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "test": "node plugins/withEatlogHealthConnect.test.js && node plugins/withEatlogSubscriptionPreview.test.js && tsx --test src/utils/*.test.ts src/db/*.test.ts src/services/*.test.ts src/components/*.test.ts src/navigation/*.test.ts worker/test/*.test.ts",
+    "test": "node plugins/withEatlogHealthConnect.test.js && node plugins/withEatlogSubscriptionPreview.test.js && tsx --test src/utils/*.test.ts src/db/*.test.ts src/services/*.test.ts src/components/*.test.ts src/navigation/*.test.ts worker/test/*.test.ts scripts/*.test.ts",
     "evaluate:food-search": "tsx scripts/evaluate-food-search.ts",
     "notices": "node scripts/generate-third-party-notices.mjs",
     "notices:check": "node scripts/generate-third-party-notices.mjs --check",
