@@ -1,0 +1,1411 @@
+[
+  {
+    "query": "rice",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Rice Dressing",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Paper",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Pilaf",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Cake",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Croquette",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "white rice",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Beans And White Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice White Cooked Glutinous",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Black Beans And White Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Kidney Beans And White Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pinto Beans And White Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "brown rice",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Beans And Brown Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Flavored Rice Brown And Wild",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Black Beans And Brown Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Kidney Beans And Brown Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pinto Beans And Brown Rice",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "bread",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Bread Fruit",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Naan",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Zucchini",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Puri",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Pumpkin",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "pasta",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "oatmeal",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Oatmeal Multigrain",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oatmeal Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oatmeal Reduced Sugar",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oatmeal Fast Food Flavored",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oatmeal Fast Food Plain",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "egg",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Egg Benedict",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Creamed",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Deviled",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Burrito",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Omelet Or Scrambled Egg Made With Butter",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "chicken breast",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "fried chicken",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Rice Fried With Chicken",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Chicken Meatless Breaded Fried",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Chicken Fried With Potatoes Vegetable Frozen Meal",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Chicken Fillet Sandwich Fried On Wheat Bun",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Chicken Fillet Sandwich Fried On White Bun",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "ground beef",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "pork chop",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "tuna",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Tuna Cake Or Patty",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tuna Salad With Cheese",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tuna Salad With Egg",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tuna Salad Sandwich On White",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tuna Salad Sandwich Wrap",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "tofu",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Tofu Yogurt",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tofu Fried",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tofu Dried Frozen",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tofu Hard Prepared With Nigari",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Tofu Salted And Fermented",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "banana",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Banana Baked",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Banana Raw",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Banana Chips",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Banana Nectar",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Banana Pudding",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "apple",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "potato",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "tomato",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "broccoli",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Broccoli Raw",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Raab Raw",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Raab Cooked",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Slaw Salad",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Chinese Cooked",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "avocado",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "milk",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "cheddar cheese",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Cheese Cheddar",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cheese Cheddar Reduced Fat",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cheese Spread American Or Cheddar Cheese Base",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cheese Sandwich Cheddar Cheese On White Bread",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cheese Sandwich Cheddar Cheese On Wheat Bread",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "yogurt",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "butter",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "peanut butter",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "hamburger",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Hamburger",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Hamburger Slider",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Hamburger Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Hamburger",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Hamburger From School Cafeteria",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "pizza",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Pizza Rolls",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pizza No Cheese Thick Crust",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pizza Hut 12 Cheese Pizza Pan Crust",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pizza Hut 12 Pepperoni Pizza Pan Crust",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pizza Hut 14 Cheese Pizza Pan Crust",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "pancakes",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Pancake Syrup",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pancakes Chocolate",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pancakes Fruit",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pancakes Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Pancakes Plain",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "sandwich",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Sandwich Spread",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Sandwich Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Crackers Sandwich",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cuban Sandwich",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Falafel Sandwich",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "fried rice",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Rice Fried Meatless",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Fried Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Fried With Beef",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Fried With Chicken",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Rice Fried With Pork",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "chicken soup",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Soup Chicken",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Soup Chicken Noodle",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Soup Chicken Canned",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Soup Cream Of Chicken",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Soup Chicken Noodle Canned",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "coffee",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Coffee Brewed",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coffee Substitute",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coffee Cappuccino",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coffee Cuban",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coffee Espresso",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "orange juice",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Orange Juice 100 Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Orange Juice Beverage 40 50 Juice Light",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Orange Juice 100 Frozen Reconstituted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Orange Juice 100 Freshly Squeezed",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Orange Juice 100 Frozen Not Reconstituted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "soda",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Whiskey And Soda",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Vodka And Soda",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Irish Soda",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Ice Cream Soda Chocolate",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Soft Drink Cream Soda",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "potato chips",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Potato Chips Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Chips Plain",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Chips Unsalted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Chips Restructured Flavored",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Chips Restructured Plain",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "granola bar",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Cereal Or Granola Bar",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cereal Or Granola Bar",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cereal Or Granola Bar",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cereal Or Granola Bar",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cereal Or Granola Bar Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "raw chicken breast",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "grilled chicken breast",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": []
+  },
+  {
+    "query": "boiled egg",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Egg Whole Boiled Or Poached",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Whole Cooked Hard Boiled",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "scrambled egg",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Egg Omelet Or Scrambled Egg Made With Butter",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Omelet Or Scrambled Egg Made With Margarine",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Omelet Or Scrambled Egg Made With Oil",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Omelet Or Scrambled Egg No Added Fat",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Omelet Or Scrambled Egg Ns As To Fat",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "poached egg",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Egg Whole Boiled Or Poached",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Egg Whole Cooked Poached",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "toasted bread",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Bread Rye Toasted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Vegetable Toasted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread White Toasted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Barley Toasted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Bread Black Toasted",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "baked potato",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Potato Baked Nfs",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Chips Baked Flavored",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Chips Baked Plain",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Baked Peel Eaten",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Potato Baked Peel Not Eaten",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "canned tuna",
+    "mode": "common",
+    "kind": "unavailable",
+    "failures": [
+      "usda: fetch failed"
+    ],
+    "top": []
+  },
+  {
+    "query": "frozen broccoli",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Broccoli Frozen Cooked With Oil",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Frozen Cooked With Butter Or Margarine",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Frozen Cooked No Added Fat",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Frozen Cooked Fat Added Ns As To Fat Type",
+        "brand": null,
+        "dataType": "Survey (FNDDS)",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Broccoli Frozen Chopped Unprepared",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "steamed rice",
+    "mode": "common",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Rice White Steamed Chinese Restaurant",
+        "brand": null,
+        "dataType": "SR Legacy",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "Coca Cola",
+    "mode": "full",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Coca Cola",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coca Cola",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coca Cola",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coca Cola",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Coca Cola Cola",
+        "brand": "Coca-Cola USA Operations",
+        "dataType": "Branded",
+        "serving": "1 CAN"
+      }
+    ]
+  },
+  {
+    "query": "Oreo cookies",
+    "mode": "full",
+    "kind": "partial",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": [
+      {
+        "name": "Oreo Cookies",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oreo Cookies",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oreo Cookies",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oreo Cookies",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Oreo Cookies Vanilla",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      }
+    ]
+  },
+  {
+    "query": "Nutella hazelnut spread",
+    "mode": "full",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Nutella Hazelnut Spread",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Nutella Hazelnut Spread With Cocoa",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Nutella Hazelnut Spread With Cocoa",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cookies Filled With Nutella Hazelnut Spread Biscuits Cookies Filled With Nutella Hazelnut Spread",
+        "brand": "Ferrero U.S.A., Incorporated",
+        "dataType": "Branded",
+        "serving": "2 cookies"
+      },
+      {
+        "name": "Crispy Wafer Filled With Nutella Hazelnut Spread With Cocoa Hazelnut Spread With Cocoa",
+        "brand": "Ferrero U.S.A., Incorporated",
+        "dataType": "Branded",
+        "serving": "1 bar"
+      }
+    ]
+  },
+  {
+    "query": "Cheerios cereal",
+    "mode": "full",
+    "kind": "success",
+    "failures": [],
+    "top": [
+      {
+        "name": "Cheerios Cereal",
+        "brand": "General Mills",
+        "dataType": "Branded",
+        "serving": "3/4 cup (20g) (age 1-3 years)"
+      },
+      {
+        "name": "Cheerios Cereal",
+        "brand": "GENERAL MILLS SALES INC.",
+        "dataType": "Branded",
+        "serving": "1 bowl"
+      },
+      {
+        "name": "Cheerios Cereal",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Cheerios Cereal Bowlpak",
+        "brand": "GENERAL MILLS SALES INC.",
+        "dataType": "Branded",
+        "serving": "1 bowl"
+      },
+      {
+        "name": "Cheerios Cereal Pouch",
+        "brand": "GENERAL MILLS SALES INC.",
+        "dataType": "Branded",
+        "serving": "39"
+      }
+    ]
+  },
+  {
+    "query": "Jif peanut butter",
+    "mode": "full",
+    "kind": "partial",
+    "failures": [
+      "usda: Food service request failed: 502"
+    ],
+    "top": [
+      {
+        "name": "Jif Peanut Butter",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Jif Peanut Butter Creamy",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Jif Peanut Butter Chocolate",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Peanut Butter Creamy Jif Jif Jif",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      },
+      {
+        "name": "Jif Creamy Peanut Butter",
+        "brand": null,
+        "dataType": "off",
+        "serving": "100 g (reference)"
+      }
+    ]
+  }
+]
