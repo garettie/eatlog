@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import {
   formatMealPortion,
   mealPortionCeiling,
+  mealPortionStep,
   type MealPortionScale,
 } from '../utils/mealReview';
 import { M3 } from '../theme/tokens';
@@ -22,12 +23,17 @@ interface Shortcut {
 }
 
 /**
- * Shortcuts land on whole portions, so a half of three slices is two rather than
+ * Ordinary plates use exact fractions. Counted foods land on whole portions, so a half of three slices is two rather than
  * an unservable 1.5. Duplicates collapse (half of two is one, which is also the
  * quarter), and a single remaining shortcut means the stepper already covers the
  * range, so the row is dropped.
  */
 function shortcutsFor(servesTotal: number): Shortcut[] {
+  if (servesTotal === 1) return [
+    { value: 1, label: 'All' },
+    { value: 0.5, label: 'Half' },
+    { value: 0.25, label: 'Quarter' },
+  ];
   const candidates: Shortcut[] = [
     { value: servesTotal, label: 'All' },
     { value: Math.max(1, Math.round(servesTotal / 2)), label: 'Half' },
@@ -80,7 +86,8 @@ export default function MealPortionSelector({
   onChange,
 }: MealPortionSelectorProps) {
   const shortcuts = scale.servesTotal == null ? [] : shortcutsFor(scale.servesTotal);
-  const atMin = eaten <= 1;
+  const step = mealPortionStep(scale);
+  const atMin = eaten <= step;
   // Past the whole is still loggable: a second helping, or one of the two pizzas on
   // the table. Only the far end of that is implausible enough to stop at.
   const atMax = eaten >= mealPortionCeiling(scale);
@@ -95,9 +102,9 @@ export default function MealPortionSelector({
         <View className="flex-row items-center gap-3">
           <StepButton
             icon="remove"
-            label={`One less ${scale.unit}`}
+            label={scale.servesTotal === 1 ? 'Decrease by a quarter of the meal' : `One less ${scale.unit}`}
             disabled={disabled || atMin}
-            onPress={() => onChange(eaten - 1)}
+            onPress={() => onChange(eaten - step)}
           />
           <Text
             accessibilityLiveRegion="polite"
@@ -107,9 +114,9 @@ export default function MealPortionSelector({
           </Text>
           <StepButton
             icon="add"
-            label={`One more ${scale.unit}`}
+            label={scale.servesTotal === 1 ? 'Increase by a quarter of the meal' : `One more ${scale.unit}`}
             disabled={disabled || atMax}
-            onPress={() => onChange(eaten + 1)}
+            onPress={() => onChange(eaten + step)}
           />
         </View>
 

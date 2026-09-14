@@ -1,5 +1,6 @@
 import { serviceConfig } from '../config/services';
 import { buildFoodPortions, normalizeFoodName } from './foodSearchCore';
+import { formatFoodDisplayName } from '../utils/foodDisplayName';
 import type { FoodResult } from './foodSearch';
 import { getInstallationToken, isInstallationToken } from './installIdentity';
 import { hasRemoteEstimateConsent } from './remoteEstimateConsent';
@@ -143,24 +144,6 @@ function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null
     return { ok: false, kind, message };
 }
 
-function titleCaseWord(word: string): string {
-    // A word the model already capitalized inside itself is a real name ("McDonald's",
-    // "iPhone"); lowering it would be wrong. Shouted words carry no such intent.
-    const shouted = word === word.toUpperCase();
-    if (!shouted && /[A-Z]/.test(word.slice(1))) return word;
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-}
-
-function normalizeScanName(name: string): string {
-    return name
-        .replace(/[^A-Za-z0-9'\u2019\-\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .split(' ')
-        .map(titleCaseWord)
-        .join(' ');
-}
-
 function buildEstimateContext(input: {
     originalDescription?: string;
     mealName?: string;
@@ -192,7 +175,7 @@ function mapComponents(
     timestamp: number,
 ): FoodResult[] {
     return components.map((component, index) => {
-        const name = normalizeScanName(component.name);
+        const name = formatFoodDisplayName(component.name);
         const normalized = normalizeFoodName(name, component.brand ?? null);
         const portions = buildFoodPortions([
             { id: 'serving', label: component.servingLabel ?? `${component.servingSizeGrams ?? 0} g`, grams: component.servingSizeGrams },
@@ -437,7 +420,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             return {
                 ok: true,
                 result: {
-                    mealName: providedMealTitle || result.mealName.trim(),
+                    mealName: formatFoodDisplayName(providedMealTitle || result.mealName, 'sentence'),
                     components: mapComponents(result.components, source, now()),
                     ...(originalDescription ? { originalDescription } : {}),
                     ...(division ? { division } : {}),

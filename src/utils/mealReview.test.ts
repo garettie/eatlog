@@ -7,6 +7,7 @@ import {
   formatMealPortion,
   MEAL_PORTION_COUNT_CEILING,
   mealPortionCeiling,
+  mealPortionStep,
   scaleComponentPortions,
   scaleFromDivision,
   toEditable,
@@ -63,6 +64,20 @@ test('a nonsense or no-op factor leaves the meal untouched', () => {
   assert.equal(scaleComponentPortions(components, 1), components);
   assert.equal(scaleComponentPortions(components, 0), components);
   assert.equal(scaleComponentPortions(components, Number.NaN), components);
+});
+
+test('an ordinary plate scales as a whole without an AI serving count', () => {
+  const scale = { unit: 'meal', servesTotal: 1 };
+  assert.equal(mealPortionStep(scale), 0.25);
+  assert.equal(formatMealPortion(1, scale), '100%');
+  assert.equal(formatMealPortion(0.5, scale), '50%');
+  assert.equal(formatMealPortion(0.25, scale), '25%');
+  assert.equal(formatMealPortion(1.5, scale), '150%');
+  assert.equal(mealPortionCeiling(scale), 2);
+  const components = [toEditable(food()), toEditable(food({ id: 'cheese' }))];
+  const half = scaleComponentPortions(components, 0.5);
+  assert.equal(computeMealTotals(half).totalGrams, computeMealTotals(components).totalGrams / 2);
+  assert.equal(computeMealTotals(half).calories, computeMealTotals(components).calories / 2);
 });
 
 test('successive relative scaling returns to the original amounts', () => {

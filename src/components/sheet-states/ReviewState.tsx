@@ -91,6 +91,7 @@ import {
 	formatCollapsedPortion,
 	isLoggingBlocked,
 	mealPortionCeiling,
+	mealPortionStep,
 	removeComponentAt,
 	renameComponent,
 	replaceComponent,
@@ -619,15 +620,16 @@ export default function ReviewState({
 
 	const portionScale = useMemo<MealPortionScale | null>(() => {
 		if (division) return scaleFromDivision(division);
-		if (!singleServing) return null;
+		if (!components.length) return null;
+		if (!singleServing) return { unit: 'meal', servesTotal: 1 };
 		return { unit: servingCountUnit(singleServing.label), servesTotal: null };
-	}, [division, singleServing]);
+	}, [division, singleServing, components.length]);
 
 	const portionCount = division
 		? eatenPortions
 		: singleServing
 			? Math.round((components[0].selection.grams / singleServing.grams) * 100) / 100
-			: 1;
+			: eatenPortions;
 
 	// For a shared dish, scaling is relative to what is on screen rather than to the
 	// original estimate, so a food the user already corrected by hand keeps that
@@ -636,11 +638,12 @@ export default function ReviewState({
 	const handlePortionCountChange = useCallback(
 		(next: number) => {
 			if (!portionScale) return;
+			const step = mealPortionStep(portionScale);
 			const clamped = Math.min(
-				Math.max(Math.round(next), 1),
+				Math.max(Math.round(next / step) * step, step),
 				mealPortionCeiling(portionScale),
 			);
-			if (division) {
+			if (division || !singleServing) {
 				if (clamped === eatenPortions) return;
 				setComponents((previous) =>
 					scaleComponentPortions(previous, clamped / eatenPortions),

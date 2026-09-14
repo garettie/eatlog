@@ -310,6 +310,7 @@ test('a re-estimated component is held to the same amount and density bounds', a
     { servingSizeGrams: 10_001 },
     { caloriesPer100g: 1_001 },
     { fatPer100g: 101 },
+    { proteinPer100g: 40, carbsPer100g: 60, fatPer100g: 30 },
   ]) {
     const rejected = await redo(impossible);
     assert.equal(rejected.status, 502);
@@ -378,6 +379,28 @@ test('passes through a shareable meal division and degrades unusable ones to nul
     await divisionOf(pizza(8, 'slice'), 'clarify-component'),
     { servesTotal: null, servingUnit: null },
   );
+});
+
+test('normalizes readable estimate names and drops incomplete serving pairs without changing grams', async () => {
+  for (const serving of [
+    { servingLabel: '1 cup', servingSizeGrams: null },
+    { servingLabel: null, servingSizeGrams: 180 },
+  ]) {
+    const { response, body } = await call(
+      request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+      { fetchImpl: (async () => geminiResponse({
+        ...recognized,
+        mealName: ' **CHICKEN ADOBO WITH RICE** ',
+        components: [{ ...recognized.components[0], ...serving, name: 'CAFÉ RICE', estimatedGrams: 90 }],
+      })) as typeof fetch },
+    );
+    assert.equal(response.status, 200);
+    assert.equal(body.mealName, 'Chicken adobo with rice');
+    assert.equal(body.components[0].name, 'Café Rice');
+    assert.equal(body.components[0].estimatedGrams, 90);
+    assert.equal(body.components[0].servingLabel, null);
+    assert.equal(body.components[0].servingSizeGrams, null);
+  }
 });
 
 test('allows only documented routes and exact methods', async () => {

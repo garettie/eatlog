@@ -140,6 +140,18 @@ test('component names keep apostrophes, hyphens, and deliberate inner capitals',
     );
 });
 
+test('scan and describe apply the same readable meal title formatting', async () => {
+    const client = createAcceptedClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async () => jsonResponse({ ...recognizedEstimate(), mealName: ' **CHICKEN ADOBO WITH RICE** ' })) as typeof fetch,
+    });
+    const described = await client.describeMeal('adobo and rice');
+    const scanned = await client.scanFood('c3ludGhldGlj', '  CHICKEN ADOBO WITH RICE  ');
+    assert.equal(described.ok && described.result.mealName, 'Chicken adobo with rice');
+    assert.equal(scanned.ok && scanned.result.mealName, 'Chicken adobo with rice');
+});
+
 test('clarification sends source description and current component context', async () => {
     const requests: Array<Record<string, unknown>> = [];
     const client = createAcceptedClient({

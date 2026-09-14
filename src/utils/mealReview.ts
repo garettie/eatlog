@@ -88,12 +88,16 @@ function pluralize(singular: string): string {
 /**
  * How the meal is counted, from either of two sources: a shared dish the estimate
  * says divides into portions (`servesTotal` slices of one pizza), or a single food
- * whose own serving is the unit (`servesTotal` null — there is no known whole, the
- * user simply had some number of empanadas).
+ * whose own serving is the unit (`servesTotal` null). An ordinary plate uses one
+ * whole (`servesTotal` 1), shown as a percentage and adjustable in quarters.
  */
 export interface MealPortionScale {
   unit: string;
   servesTotal: number | null;
+}
+
+export function mealPortionStep(scale: MealPortionScale): number {
+  return scale.servesTotal === 1 ? 0.25 : 1;
 }
 
 export function scaleFromDivision(division: MealDivision): MealPortionScale {
@@ -125,6 +129,7 @@ export function mealPortionCeiling(scale: MealPortionScale): number {
  */
 export function formatMealPortion(eaten: number, scale: MealPortionScale): string {
   const count = Math.round(eaten * 100) / 100;
+  if (scale.servesTotal === 1) return `${Math.round(count * 100)}%`;
   if (scale.servesTotal == null || count > scale.servesTotal) {
     return `${count} ${count === 1 ? scale.unit : pluralize(scale.unit)}`;
   }
