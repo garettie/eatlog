@@ -57,6 +57,8 @@ export interface FoodResult {
   defaultAmount: FoodDefaultAmount;
   history?: FoodHistoryMetadata;
   isPinned?: boolean;
+  isCommonFood?: boolean;
+  aliases?: string[];
   confidence?: FoodEstimateConfidence;
   confidenceReason?: string | null;
   alternateSourceIds: { source: FoodSource; id: string }[];

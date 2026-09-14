@@ -1,0 +1,6060 @@
+[
+  {
+    "id": "white-rice-cooked",
+    "fdcId": 2708408,
+    "name": "White Rice, cooked",
+    "aliases": [
+      "rice",
+      "white rice",
+      "steamed rice"
+    ],
+    "portions": [
+      {
+        "id": "302892",
+        "label": "1 cup, cooked",
+        "usdaPortionId": 302892
+      }
+    ],
+    "defaultPortionId": "302892"
+  },
+  {
+    "id": "brown-rice-cooked",
+    "fdcId": 2708414,
+    "name": "Brown Rice, cooked",
+    "aliases": [
+      "brown rice"
+    ],
+    "portions": [
+      {
+        "id": "302904",
+        "label": "1 cup, cooked",
+        "usdaPortionId": 302904
+      }
+    ],
+    "defaultPortionId": "302904"
+  },
+  {
+    "id": "white-bread",
+    "fdcId": 174924,
+    "name": "White Bread",
+    "aliases": [
+      "bread"
+    ],
+    "portions": [
+      {
+        "id": "95169",
+        "label": "1 slice",
+        "usdaPortionId": 95169
+      },
+      {
+        "id": "95174",
+        "label": "1 slice",
+        "usdaPortionId": 95174
+      },
+      {
+        "id": "95176",
+        "label": "1 slice, thin",
+        "usdaPortionId": 95176
+      }
+    ],
+    "defaultPortionId": "95169"
+  },
+  {
+    "id": "pasta-cooked",
+    "fdcId": 2708357,
+    "name": "Pasta, cooked",
+    "aliases": [
+      "pasta",
+      "noodles"
+    ],
+    "portions": [
+      {
+        "id": "302670",
+        "label": "1 cup, cooked",
+        "usdaPortionId": 302670
+      }
+    ],
+    "defaultPortionId": "302670"
+  },
+  {
+    "id": "oatmeal",
+    "fdcId": 2708380,
+    "name": "Oatmeal",
+    "aliases": [
+      "oats",
+      "porridge"
+    ],
+    "portions": [
+      {
+        "id": "302756",
+        "label": "1 cup, cooked",
+        "usdaPortionId": 302756
+      }
+    ],
+    "defaultPortionId": "302756"
+  },
+  {
+    "id": "egg",
+    "fdcId": 171287,
+    "name": "Egg",
+    "aliases": [
+      "eggs",
+      "raw egg"
+    ],
+    "portions": [
+      {
+        "id": "88377",
+        "label": "1 cup (4.86 large eggs)",
+        "usdaPortionId": 88377
+      },
+      {
+        "id": "88374",
+        "label": "1 large",
+        "usdaPortionId": 88374
+      },
+      {
+        "id": "88375",
+        "label": "1 extra large",
+        "usdaPortionId": 88375
+      }
+    ],
+    "defaultPortionId": "88374"
+  },
+  {
+    "id": "chicken-breast-roasted",
+    "fdcId": 2705956,
+    "name": "Chicken Breast, roasted",
+    "aliases": [
+      "chicken breast",
+      "chicken"
+    ],
+    "portions": [
+      {
+        "id": "292780",
+        "label": "1 medium breast",
+        "usdaPortionId": 292780
+      }
+    ],
+    "defaultPortionId": "292780"
+  },
+  {
+    "id": "fried-chicken-breast",
+    "fdcId": 2705975,
+    "name": "Fried Chicken Breast",
+    "aliases": [
+      "fried chicken"
+    ],
+    "portions": [
+      {
+        "id": "292964",
+        "label": "1 medium breast",
+        "usdaPortionId": 292964
+      }
+    ],
+    "defaultPortionId": "292964"
+  },
+  {
+    "id": "ground-beef-cooked",
+    "fdcId": 174034,
+    "name": "Ground Beef, cooked",
+    "aliases": [
+      "ground beef",
+      "minced beef"
+    ],
+    "portions": [
+      {
+        "id": "93669",
+        "label": "3 oz",
+        "usdaPortionId": 93669
+      }
+    ],
+    "defaultPortionId": "93669"
+  },
+  {
+    "id": "pork-chop",
+    "fdcId": 2705867,
+    "name": "Pork Chop",
+    "aliases": [
+      "pork chops"
+    ],
+    "portions": [
+      {
+        "id": "292343",
+        "label": "1 regular",
+        "usdaPortionId": 292343
+      }
+    ],
+    "defaultPortionId": "292343"
+  },
+  {
+    "id": "tuna-canned",
+    "fdcId": 173709,
+    "name": "Tuna, canned",
+    "aliases": [
+      "tuna",
+      "canned tuna"
+    ],
+    "portions": [
+      {
+        "id": "93156",
+        "label": "1 can",
+        "usdaPortionId": 93156
+      }
+    ],
+    "defaultPortionId": "93156"
+  },
+  {
+    "id": "firm-tofu",
+    "fdcId": 172475,
+    "name": "Firm Tofu",
+    "aliases": [
+      "tofu",
+      "tokwa"
+    ],
+    "portions": [
+      {
+        "id": "90683",
+        "label": "0.5 cup",
+        "usdaPortionId": 90683
+      }
+    ],
+    "defaultPortionId": "90683"
+  },
+  {
+    "id": "banana",
+    "fdcId": 173944,
+    "name": "Banana",
+    "aliases": [
+      "bananas"
+    ],
+    "portions": [
+      {
+        "id": "93515",
+        "label": "1 medium (7\" to 7-7/8\" long)",
+        "usdaPortionId": 93515
+      }
+    ],
+    "defaultPortionId": "93515"
+  },
+  {
+    "id": "apple",
+    "fdcId": 171688,
+    "name": "Apple",
+    "aliases": [
+      "apples"
+    ],
+    "portions": [
+      {
+        "id": "89193",
+        "label": "1 medium (3\" dia)",
+        "usdaPortionId": 89193
+      }
+    ],
+    "defaultPortionId": "89193"
+  },
+  {
+    "id": "potato-raw",
+    "fdcId": 170026,
+    "name": "Potato, raw",
+    "aliases": [
+      "potato"
+    ],
+    "portions": [
+      {
+        "id": "85919",
+        "label": "1 Potato medium (2-1/4\" to 3-1/4\" dia)",
+        "usdaPortionId": 85919
+      }
+    ],
+    "defaultPortionId": "85919"
+  },
+  {
+    "id": "tomato",
+    "fdcId": 170457,
+    "name": "Tomato",
+    "aliases": [
+      "tomatoes"
+    ],
+    "portions": [
+      {
+        "id": "86686",
+        "label": "1 medium whole (2-3/5\" dia)",
+        "usdaPortionId": 86686
+      },
+      {
+        "id": "86687",
+        "label": "1 slice, medium (1/4\" thick)",
+        "usdaPortionId": 86687
+      },
+      {
+        "id": "86691",
+        "label": "1 wedge (1/4 of medium tomato)",
+        "usdaPortionId": 86691
+      }
+    ],
+    "defaultPortionId": "86686"
+  },
+  {
+    "id": "broccoli",
+    "fdcId": 170379,
+    "name": "Broccoli",
+    "aliases": [
+      "raw broccoli"
+    ],
+    "portions": [
+      {
+        "id": "86528",
+        "label": "1 cup chopped",
+        "usdaPortionId": 86528
+      },
+      {
+        "id": "86532",
+        "label": "0.5 cup, chopped or diced",
+        "usdaPortionId": 86532
+      }
+    ],
+    "defaultPortionId": "86528"
+  },
+  {
+    "id": "avocado",
+    "fdcId": 171705,
+    "name": "Avocado",
+    "aliases": [
+      "avocados"
+    ],
+    "portions": [
+      {
+        "id": "89223",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 89223
+      },
+      {
+        "id": "89224",
+        "label": "1 cup, pureed",
+        "usdaPortionId": 89224
+      },
+      {
+        "id": "89225",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 89225
+      }
+    ],
+    "defaultPortionId": "89223"
+  },
+  {
+    "id": "whole-milk",
+    "fdcId": 2705385,
+    "name": "Whole Milk",
+    "aliases": [
+      "milk"
+    ],
+    "portions": [
+      {
+        "id": "290515",
+        "label": "1 cup",
+        "usdaPortionId": 290515
+      }
+    ],
+    "defaultPortionId": "290515"
+  },
+  {
+    "id": "cheddar-cheese",
+    "fdcId": 2705709,
+    "name": "Cheddar Cheese",
+    "aliases": [
+      "cheddar"
+    ],
+    "portions": [
+      {
+        "id": "291559",
+        "label": "1 slice",
+        "usdaPortionId": 291559
+      },
+      {
+        "id": "291558",
+        "label": "1 cracker-size slice",
+        "usdaPortionId": 291558
+      }
+    ],
+    "defaultPortionId": "291559"
+  },
+  {
+    "id": "plain-yogurt",
+    "fdcId": 171284,
+    "name": "Plain Yogurt",
+    "aliases": [
+      "yogurt"
+    ],
+    "portions": [
+      {
+        "id": "88365",
+        "label": "1 cup (8 fl oz)",
+        "usdaPortionId": 88365
+      }
+    ],
+    "defaultPortionId": "88365"
+  },
+  {
+    "id": "butter",
+    "fdcId": 173410,
+    "name": "Butter",
+    "aliases": [
+      "salted butter"
+    ],
+    "portions": [
+      {
+        "id": "92457",
+        "label": "1 tbsp",
+        "usdaPortionId": 92457
+      }
+    ],
+    "defaultPortionId": "92457"
+  },
+  {
+    "id": "peanut-butter",
+    "fdcId": 2707537,
+    "name": "Peanut Butter",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "298558",
+        "label": "1 tbsp",
+        "usdaPortionId": 298558
+      }
+    ],
+    "defaultPortionId": "298558"
+  },
+  {
+    "id": "hamburger",
+    "fdcId": 2706927,
+    "name": "Hamburger",
+    "aliases": [
+      "burger"
+    ],
+    "portions": [
+      {
+        "id": "296513",
+        "label": "1 hamburger",
+        "usdaPortionId": 296513
+      }
+    ],
+    "defaultPortionId": "296513"
+  },
+  {
+    "id": "cheese-pizza",
+    "fdcId": 2708616,
+    "name": "Cheese Pizza",
+    "aliases": [
+      "pizza"
+    ],
+    "portions": [
+      {
+        "id": "303682",
+        "label": "1 piece, medium pizza",
+        "usdaPortionId": 303682
+      }
+    ],
+    "defaultPortionId": "303682"
+  },
+  {
+    "id": "pancakes",
+    "fdcId": 2708304,
+    "name": "Pancakes",
+    "aliases": [
+      "pancake"
+    ],
+    "portions": [
+      {
+        "id": "302408",
+        "label": "1 medium pancake",
+        "usdaPortionId": 302408
+      }
+    ],
+    "defaultPortionId": "302408"
+  },
+  {
+    "id": "sandwich",
+    "fdcId": 2706880,
+    "name": "Sandwich",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "296405",
+        "label": "1 regular",
+        "usdaPortionId": 296405
+      }
+    ],
+    "defaultPortionId": "296405"
+  },
+  {
+    "id": "fried-rice",
+    "fdcId": 2708951,
+    "name": "Fried Rice",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "305365",
+        "label": "1 cup",
+        "usdaPortionId": 305365
+      }
+    ],
+    "defaultPortionId": "305365"
+  },
+  {
+    "id": "chicken-soup",
+    "fdcId": 2707134,
+    "name": "Chicken Soup",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "297221",
+        "label": "1 cup",
+        "usdaPortionId": 297221
+      }
+    ],
+    "defaultPortionId": "297221"
+  },
+  {
+    "id": "coffee",
+    "fdcId": 2710375,
+    "name": "Coffee",
+    "aliases": [
+      "black coffee"
+    ],
+    "portions": [
+      {
+        "id": "310449",
+        "label": "1 cup (8 fl oz)",
+        "usdaPortionId": 310449
+      }
+    ],
+    "defaultPortionId": "310449"
+  },
+  {
+    "id": "orange-juice",
+    "fdcId": 169098,
+    "name": "Orange Juice",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84231",
+        "label": "1 cup",
+        "usdaPortionId": 84231
+      }
+    ],
+    "defaultPortionId": "84231"
+  },
+  {
+    "id": "soda",
+    "fdcId": 2710541,
+    "name": "Soda",
+    "aliases": [
+      "cola",
+      "soft drink"
+    ],
+    "portions": [
+      {
+        "id": "311406",
+        "label": "1 can (12 fl oz)",
+        "usdaPortionId": 311406
+      }
+    ],
+    "defaultPortionId": "311406"
+  },
+  {
+    "id": "potato-chips",
+    "fdcId": 2709422,
+    "name": "Potato Chips",
+    "aliases": [
+      "chips"
+    ],
+    "portions": [
+      {
+        "id": "306961",
+        "label": "1 small single serving bag",
+        "usdaPortionId": 306961
+      },
+      {
+        "id": "306963",
+        "label": "1 large single serving bag",
+        "usdaPortionId": 306963
+      },
+      {
+        "id": "306962",
+        "label": "1 medium single serving bag",
+        "usdaPortionId": 306962
+      }
+    ],
+    "defaultPortionId": "306961"
+  },
+  {
+    "id": "granola-bar",
+    "fdcId": 2708101,
+    "name": "Granola Bar",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "301215",
+        "label": "1 bar",
+        "usdaPortionId": 301215
+      },
+      {
+        "id": "301218",
+        "label": "1 Sunbelt bar",
+        "usdaPortionId": 301218
+      },
+      {
+        "id": "301217",
+        "label": "1 fun size bar",
+        "usdaPortionId": 301217
+      }
+    ],
+    "defaultPortionId": "301215"
+  },
+  {
+    "id": "chicken-breast-raw",
+    "fdcId": 171077,
+    "name": "Chicken Breast, raw",
+    "aliases": [
+      "raw chicken breast"
+    ],
+    "portions": [
+      {
+        "id": "87919",
+        "label": "4 oz",
+        "usdaPortionId": 87919
+      }
+    ],
+    "defaultPortionId": "87919"
+  },
+  {
+    "id": "chicken-breast-grilled",
+    "fdcId": 2705968,
+    "name": "Chicken Breast, grilled",
+    "aliases": [
+      "grilled chicken breast"
+    ],
+    "portions": [
+      {
+        "id": "292892",
+        "label": "1 medium breast",
+        "usdaPortionId": 292892
+      }
+    ],
+    "defaultPortionId": "292892"
+  },
+  {
+    "id": "boiled-egg",
+    "fdcId": 173424,
+    "name": "Boiled Egg",
+    "aliases": [
+      "hard boiled egg"
+    ],
+    "portions": [
+      {
+        "id": "92500",
+        "label": "1 large",
+        "usdaPortionId": 92500
+      }
+    ],
+    "defaultPortionId": "92500"
+  },
+  {
+    "id": "scrambled-egg",
+    "fdcId": 2707205,
+    "name": "Scrambled Egg",
+    "aliases": [
+      "scrambled eggs"
+    ],
+    "portions": [
+      {
+        "id": "297445",
+        "label": "1 egg",
+        "usdaPortionId": 297445
+      }
+    ],
+    "defaultPortionId": "297445"
+  },
+  {
+    "id": "poached-egg",
+    "fdcId": 172186,
+    "name": "Poached Egg",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90049",
+        "label": "1 large",
+        "usdaPortionId": 90049
+      }
+    ],
+    "defaultPortionId": "90049"
+  },
+  {
+    "id": "toasted-bread",
+    "fdcId": 174925,
+    "name": "Toasted Bread",
+    "aliases": [
+      "toast",
+      "toasted white bread"
+    ],
+    "portions": [
+      {
+        "id": "95187",
+        "label": "1 slice",
+        "usdaPortionId": 95187
+      },
+      {
+        "id": "95184",
+        "label": "1 slice, thin",
+        "usdaPortionId": 95184
+      },
+      {
+        "id": "95182",
+        "label": "1 slice, large",
+        "usdaPortionId": 95182
+      }
+    ],
+    "defaultPortionId": "95187"
+  },
+  {
+    "id": "baked-potato",
+    "fdcId": 2709524,
+    "name": "Baked Potato",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "307447",
+        "label": "1 medium",
+        "usdaPortionId": 307447
+      }
+    ],
+    "defaultPortionId": "307447"
+  },
+  {
+    "id": "frozen-broccoli",
+    "fdcId": 169968,
+    "name": "Frozen Broccoli",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85777",
+        "label": "1 cup",
+        "usdaPortionId": 85777
+      }
+    ],
+    "defaultPortionId": "85777"
+  },
+  {
+    "id": "orange",
+    "fdcId": 169918,
+    "name": "Orange",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85677",
+        "label": "1 fruit (2-5/8\" dia)",
+        "usdaPortionId": 85677
+      },
+      {
+        "id": "85678",
+        "label": "1 fruit (2-11/16\" dia)",
+        "usdaPortionId": 85678
+      },
+      {
+        "id": "85676",
+        "label": "1 cup sections, without membranes",
+        "usdaPortionId": 85676
+      }
+    ],
+    "defaultPortionId": "85677"
+  },
+  {
+    "id": "pear",
+    "fdcId": 169118,
+    "name": "Pear",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84275",
+        "label": "1 medium",
+        "usdaPortionId": 84275
+      },
+      {
+        "id": "84276",
+        "label": "1 large",
+        "usdaPortionId": 84276
+      },
+      {
+        "id": "84274",
+        "label": "1 small",
+        "usdaPortionId": 84274
+      }
+    ],
+    "defaultPortionId": "84275"
+  },
+  {
+    "id": "peach",
+    "fdcId": 169928,
+    "name": "Peach",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85699",
+        "label": "1 medium (2-2/3\" dia)",
+        "usdaPortionId": 85699
+      },
+      {
+        "id": "85697",
+        "label": "1 cup slices",
+        "usdaPortionId": 85697
+      },
+      {
+        "id": "85702",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 85702
+      }
+    ],
+    "defaultPortionId": "85699"
+  },
+  {
+    "id": "nectarine",
+    "fdcId": 169914,
+    "name": "Nectarine",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85666",
+        "label": "1 medium (2-1/2\" dia)",
+        "usdaPortionId": 85666
+      },
+      {
+        "id": "85664",
+        "label": "1 cup slices",
+        "usdaPortionId": 85664
+      },
+      {
+        "id": "85668",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 85668
+      }
+    ],
+    "defaultPortionId": "85666"
+  },
+  {
+    "id": "plum",
+    "fdcId": 169949,
+    "name": "Plum",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85734",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 85734
+      },
+      {
+        "id": "85736",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 85736
+      },
+      {
+        "id": "85735",
+        "label": "1 fruit (2-1/8\" dia)",
+        "usdaPortionId": 85735
+      }
+    ],
+    "defaultPortionId": "85735"
+  },
+  {
+    "id": "apricot",
+    "fdcId": 171697,
+    "name": "Apricot",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "89211",
+        "label": "1 apricot",
+        "usdaPortionId": 89211
+      },
+      {
+        "id": "89209",
+        "label": "1 cup, halves",
+        "usdaPortionId": 89209
+      },
+      {
+        "id": "89210",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 89210
+      }
+    ],
+    "defaultPortionId": "89211"
+  },
+  {
+    "id": "pineapple",
+    "fdcId": 169124,
+    "name": "Pineapple",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84287",
+        "label": "1 cup, chunks",
+        "usdaPortionId": 84287
+      },
+      {
+        "id": "84288",
+        "label": "1 fruit",
+        "usdaPortionId": 84288
+      },
+      {
+        "id": "84289",
+        "label": "1 slice (4-2/3\" dia x 3/4\" thick)",
+        "usdaPortionId": 84289
+      }
+    ],
+    "defaultPortionId": "84287"
+  },
+  {
+    "id": "mango",
+    "fdcId": 169910,
+    "name": "Mango",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85651",
+        "label": "1 cup pieces",
+        "usdaPortionId": 85651
+      },
+      {
+        "id": "85652",
+        "label": "1 fruit without refuse",
+        "usdaPortionId": 85652
+      }
+    ],
+    "defaultPortionId": "85651"
+  },
+  {
+    "id": "papaya",
+    "fdcId": 169926,
+    "name": "Papaya",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85692",
+        "label": "1 cup, 1\" pieces",
+        "usdaPortionId": 85692
+      },
+      {
+        "id": "85693",
+        "label": "1 cup, mashed",
+        "usdaPortionId": 85693
+      },
+      {
+        "id": "85694",
+        "label": "1 fruit, small",
+        "usdaPortionId": 85694
+      },
+      {
+        "id": "85695",
+        "label": "1 fruit, large",
+        "usdaPortionId": 85695
+      }
+    ],
+    "defaultPortionId": "85692"
+  },
+  {
+    "id": "watermelon",
+    "fdcId": 167765,
+    "name": "Watermelon",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "81933",
+        "label": "1 cup, diced",
+        "usdaPortionId": 81933
+      },
+      {
+        "id": "81932",
+        "label": "1 cup, balls",
+        "usdaPortionId": 81932
+      },
+      {
+        "id": "81937",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 81937
+      }
+    ],
+    "defaultPortionId": "81933"
+  },
+  {
+    "id": "cantaloupe",
+    "fdcId": 169092,
+    "name": "Cantaloupe",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84208",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 84208
+      },
+      {
+        "id": "84209",
+        "label": "1 cup, diced",
+        "usdaPortionId": 84209
+      },
+      {
+        "id": "84207",
+        "label": "1 cup, balls",
+        "usdaPortionId": 84207
+      }
+    ],
+    "defaultPortionId": "84208"
+  },
+  {
+    "id": "honeydew-melon",
+    "fdcId": 169911,
+    "name": "Honeydew Melon",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85653",
+        "label": "1 cup, diced",
+        "usdaPortionId": 85653
+      },
+      {
+        "id": "85654",
+        "label": "1 cup, balls",
+        "usdaPortionId": 85654
+      },
+      {
+        "id": "85660",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 85660
+      },
+      {
+        "id": "85655",
+        "label": "1 melon (5-1/4\" dia)",
+        "usdaPortionId": 85655
+      }
+    ],
+    "defaultPortionId": "85653"
+  },
+  {
+    "id": "strawberries",
+    "fdcId": 167762,
+    "name": "Strawberries",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "81922",
+        "label": "1 cup, whole",
+        "usdaPortionId": 81922
+      },
+      {
+        "id": "81920",
+        "label": "1 cup, pureed",
+        "usdaPortionId": 81920
+      },
+      {
+        "id": "81921",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 81921
+      }
+    ],
+    "defaultPortionId": "81922"
+  },
+  {
+    "id": "blueberries",
+    "fdcId": 171711,
+    "name": "Blueberries",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "89238",
+        "label": "1 cup",
+        "usdaPortionId": 89238
+      }
+    ],
+    "defaultPortionId": "89238"
+  },
+  {
+    "id": "raspberries",
+    "fdcId": 167755,
+    "name": "Raspberries",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "81905",
+        "label": "1 cup",
+        "usdaPortionId": 81905
+      }
+    ],
+    "defaultPortionId": "81905"
+  },
+  {
+    "id": "blackberries",
+    "fdcId": 173946,
+    "name": "Blackberries",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "93521",
+        "label": "1 cup",
+        "usdaPortionId": 93521
+      }
+    ],
+    "defaultPortionId": "93521"
+  },
+  {
+    "id": "cranberries",
+    "fdcId": 171722,
+    "name": "Cranberries",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "89261",
+        "label": "1 cup, whole",
+        "usdaPortionId": 89261
+      },
+      {
+        "id": "89260",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 89260
+      }
+    ],
+    "defaultPortionId": "89261"
+  },
+  {
+    "id": "grapes",
+    "fdcId": 174683,
+    "name": "Grapes",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "94748",
+        "label": "1 cup",
+        "usdaPortionId": 94748
+      },
+      {
+        "id": "94750",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 94750
+      }
+    ],
+    "defaultPortionId": "94748"
+  },
+  {
+    "id": "cherries",
+    "fdcId": 171719,
+    "name": "Cherries",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "89255",
+        "label": "1 cup, without pits",
+        "usdaPortionId": 89255
+      },
+      {
+        "id": "89256",
+        "label": "1 cherry",
+        "usdaPortionId": 89256
+      },
+      {
+        "id": "89257",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 89257
+      }
+    ],
+    "defaultPortionId": "89255"
+  },
+  {
+    "id": "kiwi",
+    "fdcId": 168153,
+    "name": "Kiwi",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "82566",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 82566
+      },
+      {
+        "id": "82568",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 82568
+      },
+      {
+        "id": "82567",
+        "label": "1 fruit (2\" dia)",
+        "usdaPortionId": 82567
+      }
+    ],
+    "defaultPortionId": "82567"
+  },
+  {
+    "id": "lemon",
+    "fdcId": 167746,
+    "name": "Lemon",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "81884",
+        "label": "1 fruit (2-3/8\" dia)",
+        "usdaPortionId": 81884
+      },
+      {
+        "id": "81883",
+        "label": "1 fruit (2-1/8\" dia)",
+        "usdaPortionId": 81883
+      },
+      {
+        "id": "81886",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 81886
+      }
+    ],
+    "defaultPortionId": "81884"
+  },
+  {
+    "id": "lime",
+    "fdcId": 168155,
+    "name": "Lime",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "82570",
+        "label": "1 fruit (2\" dia)",
+        "usdaPortionId": 82570
+      },
+      {
+        "id": "82571",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 82571
+      }
+    ],
+    "defaultPortionId": "82570"
+  },
+  {
+    "id": "pomegranate",
+    "fdcId": 169134,
+    "name": "Pomegranate",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84309",
+        "label": "0.5 cup arils (seed/juice sacs)",
+        "usdaPortionId": 84309
+      },
+      {
+        "id": "84310",
+        "label": "1 pomegranate (4\" dia)",
+        "usdaPortionId": 84310
+      }
+    ],
+    "defaultPortionId": "84309"
+  },
+  {
+    "id": "guava",
+    "fdcId": 173044,
+    "name": "Guava",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "91858",
+        "label": "1 cup",
+        "usdaPortionId": 91858
+      },
+      {
+        "id": "91859",
+        "label": "1 fruit, without refuse",
+        "usdaPortionId": 91859
+      }
+    ],
+    "defaultPortionId": "91858"
+  },
+  {
+    "id": "passion-fruit",
+    "fdcId": 169108,
+    "name": "Passion Fruit",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84255",
+        "label": "1 cup",
+        "usdaPortionId": 84255
+      },
+      {
+        "id": "84256",
+        "label": "1 fruit without refuse",
+        "usdaPortionId": 84256
+      }
+    ],
+    "defaultPortionId": "84256"
+  },
+  {
+    "id": "persimmon",
+    "fdcId": 169941,
+    "name": "Persimmon",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85724",
+        "label": "1 fruit (2-1/2\" dia)",
+        "usdaPortionId": 85724
+      }
+    ],
+    "defaultPortionId": "85724"
+  },
+  {
+    "id": "figs",
+    "fdcId": 173021,
+    "name": "Figs",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "91821",
+        "label": "1 medium (2-1/4\" dia)",
+        "usdaPortionId": 91821
+      },
+      {
+        "id": "91820",
+        "label": "1 large (2-1/2\" dia)",
+        "usdaPortionId": 91820
+      },
+      {
+        "id": "91822",
+        "label": "1 small (1-1/2\" dia)",
+        "usdaPortionId": 91822
+      }
+    ],
+    "defaultPortionId": "91821"
+  },
+  {
+    "id": "tangerine",
+    "fdcId": 169105,
+    "name": "Tangerine",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84249",
+        "label": "1 medium (2-1/2\" dia)",
+        "usdaPortionId": 84249
+      },
+      {
+        "id": "84251",
+        "label": "1 NLEA serving",
+        "usdaPortionId": 84251
+      },
+      {
+        "id": "84247",
+        "label": "1 cup, sections",
+        "usdaPortionId": 84247
+      }
+    ],
+    "defaultPortionId": "84249"
+  },
+  {
+    "id": "carrot",
+    "fdcId": 170393,
+    "name": "Carrot",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86559",
+        "label": "1 medium",
+        "usdaPortionId": 86559
+      },
+      {
+        "id": "86563",
+        "label": "1 strip medium",
+        "usdaPortionId": 86563
+      },
+      {
+        "id": "86561",
+        "label": "1 slice",
+        "usdaPortionId": 86561
+      }
+    ],
+    "defaultPortionId": "86559"
+  },
+  {
+    "id": "celery",
+    "fdcId": 169988,
+    "name": "Celery",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85828",
+        "label": "1 stalk, medium (7-1/2\" - 8\" long)",
+        "usdaPortionId": 85828
+      },
+      {
+        "id": "85826",
+        "label": "1 tbsp",
+        "usdaPortionId": 85826
+      },
+      {
+        "id": "85824",
+        "label": "1 cup chopped",
+        "usdaPortionId": 85824
+      }
+    ],
+    "defaultPortionId": "85828"
+  },
+  {
+    "id": "cucumber",
+    "fdcId": 168409,
+    "name": "Cucumber",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83049",
+        "label": "0.5 cup slices",
+        "usdaPortionId": 83049
+      },
+      {
+        "id": "83050",
+        "label": "1 cucumber (8-1/4\")",
+        "usdaPortionId": 83050
+      }
+    ],
+    "defaultPortionId": "83049"
+  },
+  {
+    "id": "spinach",
+    "fdcId": 168462,
+    "name": "Spinach",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83132",
+        "label": "1 cup",
+        "usdaPortionId": 83132
+      },
+      {
+        "id": "83134",
+        "label": "1 leaf",
+        "usdaPortionId": 83134
+      },
+      {
+        "id": "83133",
+        "label": "1 bunch",
+        "usdaPortionId": 83133
+      }
+    ],
+    "defaultPortionId": "83132"
+  },
+  {
+    "id": "romaine-lettuce",
+    "fdcId": 169247,
+    "name": "Romaine Lettuce",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84506",
+        "label": "1 cup shredded",
+        "usdaPortionId": 84506
+      },
+      {
+        "id": "84509",
+        "label": "1 head",
+        "usdaPortionId": 84509
+      },
+      {
+        "id": "84507",
+        "label": "1 leaf inner",
+        "usdaPortionId": 84507
+      }
+    ],
+    "defaultPortionId": "84506"
+  },
+  {
+    "id": "iceberg-lettuce",
+    "fdcId": 169248,
+    "name": "Iceberg Lettuce",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84511",
+        "label": "1 cup shredded",
+        "usdaPortionId": 84511
+      },
+      {
+        "id": "84512",
+        "label": "1 cup, chopped (1/2\" pieces, loosely packed)",
+        "usdaPortionId": 84512
+      },
+      {
+        "id": "84513",
+        "label": "1 head, large",
+        "usdaPortionId": 84513
+      }
+    ],
+    "defaultPortionId": "84511"
+  },
+  {
+    "id": "green-leaf-lettuce",
+    "fdcId": 169249,
+    "name": "Green Leaf Lettuce",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84520",
+        "label": "1 cup shredded",
+        "usdaPortionId": 84520
+      },
+      {
+        "id": "84521",
+        "label": "1 head",
+        "usdaPortionId": 84521
+      },
+      {
+        "id": "84522",
+        "label": "1 leaf inner",
+        "usdaPortionId": 84522
+      }
+    ],
+    "defaultPortionId": "84520"
+  },
+  {
+    "id": "kale",
+    "fdcId": 168421,
+    "name": "Kale",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83066",
+        "label": "1 cup",
+        "usdaPortionId": 83066
+      }
+    ],
+    "defaultPortionId": "83066"
+  },
+  {
+    "id": "cabbage",
+    "fdcId": 169975,
+    "name": "Cabbage",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85791",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 85791
+      },
+      {
+        "id": "85792",
+        "label": "1 cup, shredded",
+        "usdaPortionId": 85792
+      },
+      {
+        "id": "85798",
+        "label": "1 leaf",
+        "usdaPortionId": 85798
+      }
+    ],
+    "defaultPortionId": "85791"
+  },
+  {
+    "id": "red-cabbage",
+    "fdcId": 169977,
+    "name": "Red Cabbage",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85801",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 85801
+      },
+      {
+        "id": "85802",
+        "label": "1 cup, shredded",
+        "usdaPortionId": 85802
+      },
+      {
+        "id": "85804",
+        "label": "1 leaf",
+        "usdaPortionId": 85804
+      }
+    ],
+    "defaultPortionId": "85801"
+  },
+  {
+    "id": "cauliflower",
+    "fdcId": 169986,
+    "name": "Cauliflower",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85818",
+        "label": "1 cup chopped (1/2\" pieces)",
+        "usdaPortionId": 85818
+      },
+      {
+        "id": "85819",
+        "label": "1 floweret",
+        "usdaPortionId": 85819
+      },
+      {
+        "id": "85822",
+        "label": "1 head small (4\" dia.)",
+        "usdaPortionId": 85822
+      }
+    ],
+    "defaultPortionId": "85818"
+  },
+  {
+    "id": "zucchini",
+    "fdcId": 169291,
+    "name": "Zucchini",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84610",
+        "label": "1 medium",
+        "usdaPortionId": 84610
+      },
+      {
+        "id": "84609",
+        "label": "1 large",
+        "usdaPortionId": 84609
+      },
+      {
+        "id": "84611",
+        "label": "1 slice",
+        "usdaPortionId": 84611
+      }
+    ],
+    "defaultPortionId": "84610"
+  },
+  {
+    "id": "eggplant",
+    "fdcId": 169228,
+    "name": "Eggplant",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84474",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 84474
+      },
+      {
+        "id": "84476",
+        "label": "1 eggplant, unpeeled (approx 1-1/4 lb)",
+        "usdaPortionId": 84476
+      }
+    ],
+    "defaultPortionId": "84474"
+  },
+  {
+    "id": "asparagus",
+    "fdcId": 168389,
+    "name": "Asparagus",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83012",
+        "label": "1 cup",
+        "usdaPortionId": 83012
+      },
+      {
+        "id": "83017",
+        "label": "1 spear tip (2\" long or less)",
+        "usdaPortionId": 83017
+      },
+      {
+        "id": "83013",
+        "label": "1 spear, small (5\" long or less)",
+        "usdaPortionId": 83013
+      }
+    ],
+    "defaultPortionId": "83012"
+  },
+  {
+    "id": "green-beans",
+    "fdcId": 169961,
+    "name": "Green Beans",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85758",
+        "label": "1 cup 1/2\" pieces",
+        "usdaPortionId": 85758
+      }
+    ],
+    "defaultPortionId": "85758"
+  },
+  {
+    "id": "green-peas",
+    "fdcId": 170419,
+    "name": "Green Peas",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86613",
+        "label": "1 cup",
+        "usdaPortionId": 86613
+      }
+    ],
+    "defaultPortionId": "86613"
+  },
+  {
+    "id": "sweet-corn",
+    "fdcId": 169998,
+    "name": "Sweet Corn",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85846",
+        "label": "1 cup",
+        "usdaPortionId": 85846
+      },
+      {
+        "id": "85849",
+        "label": "1 ear, small (5-1/2\" to 6-1/2\" long)",
+        "usdaPortionId": 85849
+      }
+    ],
+    "defaultPortionId": "85846"
+  },
+  {
+    "id": "onion",
+    "fdcId": 170000,
+    "name": "Onion",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85860",
+        "label": "1 medium (2-1/2\" dia)",
+        "usdaPortionId": 85860
+      },
+      {
+        "id": "85861",
+        "label": "1 slice, medium (1/8\" thick)",
+        "usdaPortionId": 85861
+      },
+      {
+        "id": "85858",
+        "label": "1 large",
+        "usdaPortionId": 85858
+      }
+    ],
+    "defaultPortionId": "85860"
+  },
+  {
+    "id": "garlic",
+    "fdcId": 169230,
+    "name": "Garlic",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84480",
+        "label": "1 clove",
+        "usdaPortionId": 84480
+      },
+      {
+        "id": "84481",
+        "label": "3 cloves",
+        "usdaPortionId": 84481
+      },
+      {
+        "id": "84479",
+        "label": "1 tsp",
+        "usdaPortionId": 84479
+      }
+    ],
+    "defaultPortionId": "84480"
+  },
+  {
+    "id": "ginger",
+    "fdcId": 169231,
+    "name": "Ginger",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84483",
+        "label": "0.25 cup slices (1\" dia)",
+        "usdaPortionId": 84483
+      },
+      {
+        "id": "84482",
+        "label": "1 tsp",
+        "usdaPortionId": 84482
+      }
+    ],
+    "defaultPortionId": "84482"
+  },
+  {
+    "id": "green-bell-pepper",
+    "fdcId": 170427,
+    "name": "Green Bell Pepper",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86627",
+        "label": "1 medium (approx 2-3/4\" long, 2-1/2\" dia)",
+        "usdaPortionId": 86627
+      },
+      {
+        "id": "86625",
+        "label": "1 tbsp",
+        "usdaPortionId": 86625
+      },
+      {
+        "id": "86629",
+        "label": "1 small",
+        "usdaPortionId": 86629
+      }
+    ],
+    "defaultPortionId": "86627"
+  },
+  {
+    "id": "red-bell-pepper",
+    "fdcId": 170108,
+    "name": "Red Bell Pepper",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86066",
+        "label": "1 medium (approx 2-3/4\" long, 2-1/2 dia.)",
+        "usdaPortionId": 86066
+      },
+      {
+        "id": "86067",
+        "label": "1 small",
+        "usdaPortionId": 86067
+      },
+      {
+        "id": "86064",
+        "label": "1 tbsp",
+        "usdaPortionId": 86064
+      }
+    ],
+    "defaultPortionId": "86066"
+  },
+  {
+    "id": "yellow-bell-pepper",
+    "fdcId": 169383,
+    "name": "Yellow Bell Pepper",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84762",
+        "label": "1 pepper, large (3-3/4\" long, 3\" dia)",
+        "usdaPortionId": 84762
+      }
+    ],
+    "defaultPortionId": "84762"
+  },
+  {
+    "id": "mushrooms",
+    "fdcId": 169251,
+    "name": "Mushrooms",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84527",
+        "label": "1 cup, whole",
+        "usdaPortionId": 84527
+      },
+      {
+        "id": "84532",
+        "label": "0.5 cup pieces",
+        "usdaPortionId": 84532
+      },
+      {
+        "id": "84526",
+        "label": "1 cup, pieces or slices",
+        "usdaPortionId": 84526
+      }
+    ],
+    "defaultPortionId": "84527"
+  },
+  {
+    "id": "portobello-mushrooms",
+    "fdcId": 169255,
+    "name": "Portobello Mushrooms",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84545",
+        "label": "1 cup diced",
+        "usdaPortionId": 84545
+      },
+      {
+        "id": "84546",
+        "label": "1 piece whole",
+        "usdaPortionId": 84546
+      }
+    ],
+    "defaultPortionId": "84545"
+  },
+  {
+    "id": "brussels-sprouts",
+    "fdcId": 170383,
+    "name": "Brussels Sprouts",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86540",
+        "label": "1 cup",
+        "usdaPortionId": 86540
+      },
+      {
+        "id": "86541",
+        "label": "1 sprout",
+        "usdaPortionId": 86541
+      }
+    ],
+    "defaultPortionId": "86540"
+  },
+  {
+    "id": "beetroot",
+    "fdcId": 169145,
+    "name": "Beetroot",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84325",
+        "label": "1 cup",
+        "usdaPortionId": 84325
+      },
+      {
+        "id": "84326",
+        "label": "1 beet (2\" dia)",
+        "usdaPortionId": 84326
+      }
+    ],
+    "defaultPortionId": "84325"
+  },
+  {
+    "id": "radish",
+    "fdcId": 169276,
+    "name": "Radish",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84582",
+        "label": "1 cup slices",
+        "usdaPortionId": 84582
+      },
+      {
+        "id": "84587",
+        "label": "0.5 cup slices",
+        "usdaPortionId": 84587
+      },
+      {
+        "id": "84586",
+        "label": "1 small",
+        "usdaPortionId": 84586
+      }
+    ],
+    "defaultPortionId": "84582"
+  },
+  {
+    "id": "turnip",
+    "fdcId": 170465,
+    "name": "Turnip",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86708",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 86708
+      },
+      {
+        "id": "86713",
+        "label": "0.5 cup, cubes",
+        "usdaPortionId": 86713
+      },
+      {
+        "id": "86711",
+        "label": "1 slice",
+        "usdaPortionId": 86711
+      }
+    ],
+    "defaultPortionId": "86708"
+  },
+  {
+    "id": "parsnip",
+    "fdcId": 170417,
+    "name": "Parsnip",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86610",
+        "label": "1 cup slices",
+        "usdaPortionId": 86610
+      }
+    ],
+    "defaultPortionId": "86610"
+  },
+  {
+    "id": "sweet-potato",
+    "fdcId": 168482,
+    "name": "Sweet Potato",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83166",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 83166
+      },
+      {
+        "id": "83167",
+        "label": "1 sweetpotato, 5\" long",
+        "usdaPortionId": 83167
+      }
+    ],
+    "defaultPortionId": "83166"
+  },
+  {
+    "id": "pumpkin",
+    "fdcId": 168448,
+    "name": "Pumpkin",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83112",
+        "label": "1 cup (1\" cubes)",
+        "usdaPortionId": 83112
+      }
+    ],
+    "defaultPortionId": "83112"
+  },
+  {
+    "id": "butternut-squash",
+    "fdcId": 169295,
+    "name": "Butternut Squash",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84617",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 84617
+      }
+    ],
+    "defaultPortionId": "84617"
+  },
+  {
+    "id": "acorn-squash",
+    "fdcId": 168472,
+    "name": "Acorn Squash",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83152",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 83152
+      },
+      {
+        "id": "83153",
+        "label": "1 squash (4 inch dia)",
+        "usdaPortionId": 83153
+      }
+    ],
+    "defaultPortionId": "83152"
+  },
+  {
+    "id": "bok-choy",
+    "fdcId": 170390,
+    "name": "Bok Choy",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86550",
+        "label": "1 cup, shredded",
+        "usdaPortionId": 86550
+      },
+      {
+        "id": "86551",
+        "label": "1 head",
+        "usdaPortionId": 86551
+      },
+      {
+        "id": "86552",
+        "label": "1 leaf",
+        "usdaPortionId": 86552
+      }
+    ],
+    "defaultPortionId": "86550"
+  },
+  {
+    "id": "okra",
+    "fdcId": 169260,
+    "name": "Okra",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84553",
+        "label": "1 cup",
+        "usdaPortionId": 84553
+      }
+    ],
+    "defaultPortionId": "84553"
+  },
+  {
+    "id": "leek",
+    "fdcId": 169246,
+    "name": "Leek",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84503",
+        "label": "1 cup",
+        "usdaPortionId": 84503
+      },
+      {
+        "id": "84504",
+        "label": "1 leek",
+        "usdaPortionId": 84504
+      },
+      {
+        "id": "84505",
+        "label": "1 slice",
+        "usdaPortionId": 84505
+      }
+    ],
+    "defaultPortionId": "84503"
+  },
+  {
+    "id": "scallion",
+    "fdcId": 170005,
+    "name": "Scallion",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85878",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 85878
+      },
+      {
+        "id": "85880",
+        "label": "1 large",
+        "usdaPortionId": 85880
+      },
+      {
+        "id": "85879",
+        "label": "1 tbsp chopped",
+        "usdaPortionId": 85879
+      }
+    ],
+    "defaultPortionId": "85878"
+  },
+  {
+    "id": "arugula",
+    "fdcId": 169387,
+    "name": "Arugula",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84771",
+        "label": "0.5 cup",
+        "usdaPortionId": 84771
+      },
+      {
+        "id": "84770",
+        "label": "1 leaf",
+        "usdaPortionId": 84770
+      }
+    ],
+    "defaultPortionId": "84771"
+  },
+  {
+    "id": "watercress",
+    "fdcId": 170068,
+    "name": "Watercress",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85991",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 85991
+      },
+      {
+        "id": "85992",
+        "label": "1 sprig",
+        "usdaPortionId": 85992
+      }
+    ],
+    "defaultPortionId": "85991"
+  },
+  {
+    "id": "collard-greens",
+    "fdcId": 170406,
+    "name": "Collard Greens",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86586",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 86586
+      }
+    ],
+    "defaultPortionId": "86586"
+  },
+  {
+    "id": "swiss-chard",
+    "fdcId": 169991,
+    "name": "Swiss Chard",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85834",
+        "label": "1 cup",
+        "usdaPortionId": 85834
+      },
+      {
+        "id": "85835",
+        "label": "1 leaf",
+        "usdaPortionId": 85835
+      }
+    ],
+    "defaultPortionId": "85834"
+  },
+  {
+    "id": "mustard-greens",
+    "fdcId": 169256,
+    "name": "Mustard Greens",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84547",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 84547
+      }
+    ],
+    "defaultPortionId": "84547"
+  },
+  {
+    "id": "cilantro",
+    "fdcId": 169997,
+    "name": "Cilantro",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85844",
+        "label": "0.25 cup",
+        "usdaPortionId": 85844
+      }
+    ],
+    "defaultPortionId": "85844"
+  },
+  {
+    "id": "basil",
+    "fdcId": 172232,
+    "name": "Basil",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90127",
+        "label": "0.25 cup leaves, whole",
+        "usdaPortionId": 90127
+      },
+      {
+        "id": "90126",
+        "label": "2 tbsp, chopped",
+        "usdaPortionId": 90126
+      }
+    ],
+    "defaultPortionId": "90127"
+  },
+  {
+    "id": "jalapeno",
+    "fdcId": 168576,
+    "name": "Jalapeno",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83356",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 83356
+      },
+      {
+        "id": "83357",
+        "label": "1 pepper",
+        "usdaPortionId": 83357
+      }
+    ],
+    "defaultPortionId": "83356"
+  },
+  {
+    "id": "bean-sprouts",
+    "fdcId": 169957,
+    "name": "Bean Sprouts",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85751",
+        "label": "1 cup",
+        "usdaPortionId": 85751
+      }
+    ],
+    "defaultPortionId": "85751"
+  },
+  {
+    "id": "carrots-boiled",
+    "fdcId": 170394,
+    "name": "Carrots, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86564",
+        "label": "1 tbsp",
+        "usdaPortionId": 86564
+      },
+      {
+        "id": "86566",
+        "label": "1 carrot",
+        "usdaPortionId": 86566
+      },
+      {
+        "id": "86565",
+        "label": "0.5 cup slices",
+        "usdaPortionId": 86565
+      }
+    ],
+    "defaultPortionId": "86565"
+  },
+  {
+    "id": "broccoli-boiled",
+    "fdcId": 169967,
+    "name": "Broccoli, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85772",
+        "label": "0.5 cup, chopped",
+        "usdaPortionId": 85772
+      },
+      {
+        "id": "85776",
+        "label": "1 spear (about 5\" long)",
+        "usdaPortionId": 85776
+      },
+      {
+        "id": "85775",
+        "label": "1 stalk, small (5\" long)",
+        "usdaPortionId": 85775
+      }
+    ],
+    "defaultPortionId": "85772"
+  },
+  {
+    "id": "cauliflower-boiled",
+    "fdcId": 170397,
+    "name": "Cauliflower, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86574",
+        "label": "3 flowerets",
+        "usdaPortionId": 86574
+      },
+      {
+        "id": "86573",
+        "label": "0.5 cup (1\" pieces)",
+        "usdaPortionId": 86573
+      }
+    ],
+    "defaultPortionId": "86574"
+  },
+  {
+    "id": "spinach-boiled",
+    "fdcId": 168463,
+    "name": "Spinach, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83136",
+        "label": "1 cup",
+        "usdaPortionId": 83136
+      }
+    ],
+    "defaultPortionId": "83136"
+  },
+  {
+    "id": "kale-boiled",
+    "fdcId": 169238,
+    "name": "Kale, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84493",
+        "label": "1 cup",
+        "usdaPortionId": 84493
+      }
+    ],
+    "defaultPortionId": "84493"
+  },
+  {
+    "id": "cabbage-boiled",
+    "fdcId": 169976,
+    "name": "Cabbage, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85800",
+        "label": "1 head",
+        "usdaPortionId": 85800
+      },
+      {
+        "id": "85799",
+        "label": "0.5 cup, shredded",
+        "usdaPortionId": 85799
+      }
+    ],
+    "defaultPortionId": "85799"
+  },
+  {
+    "id": "green-beans-boiled",
+    "fdcId": 169141,
+    "name": "Green Beans, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84317",
+        "label": "1 cup",
+        "usdaPortionId": 84317
+      }
+    ],
+    "defaultPortionId": "84317"
+  },
+  {
+    "id": "green-peas-boiled",
+    "fdcId": 170420,
+    "name": "Green Peas, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86614",
+        "label": "1 cup",
+        "usdaPortionId": 86614
+      }
+    ],
+    "defaultPortionId": "86614"
+  },
+  {
+    "id": "sweet-corn-boiled",
+    "fdcId": 169999,
+    "name": "Sweet Corn, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85853",
+        "label": "1 cup cut",
+        "usdaPortionId": 85853
+      },
+      {
+        "id": "85854",
+        "label": "1 baby ear",
+        "usdaPortionId": 85854
+      },
+      {
+        "id": "85852",
+        "label": "1 ear large (7-3/4\" to 9\" long)",
+        "usdaPortionId": 85852
+      }
+    ],
+    "defaultPortionId": "85853"
+  },
+  {
+    "id": "brussels-sprouts-boiled",
+    "fdcId": 169971,
+    "name": "Brussels Sprouts, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85784",
+        "label": "0.5 cup",
+        "usdaPortionId": 85784
+      },
+      {
+        "id": "85783",
+        "label": "1 sprout",
+        "usdaPortionId": 85783
+      }
+    ],
+    "defaultPortionId": "85784"
+  },
+  {
+    "id": "turnip-boiled",
+    "fdcId": 170058,
+    "name": "Turnip, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85976",
+        "label": "1 cup, cubes",
+        "usdaPortionId": 85976
+      },
+      {
+        "id": "85977",
+        "label": "1 cup, mashed",
+        "usdaPortionId": 85977
+      }
+    ],
+    "defaultPortionId": "85976"
+  },
+  {
+    "id": "parsnip-boiled",
+    "fdcId": 170009,
+    "name": "Parsnip, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85888",
+        "label": "0.5 cup slices",
+        "usdaPortionId": 85888
+      },
+      {
+        "id": "85889",
+        "label": "1 parsnip (9\" long)",
+        "usdaPortionId": 85889
+      }
+    ],
+    "defaultPortionId": "85888"
+  },
+  {
+    "id": "pumpkin-boiled",
+    "fdcId": 168449,
+    "name": "Pumpkin, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83113",
+        "label": "1 cup, mashed",
+        "usdaPortionId": 83113
+      }
+    ],
+    "defaultPortionId": "83113"
+  },
+  {
+    "id": "okra-boiled",
+    "fdcId": 169261,
+    "name": "Okra, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84555",
+        "label": "0.5 cup slices",
+        "usdaPortionId": 84555
+      }
+    ],
+    "defaultPortionId": "84555"
+  },
+  {
+    "id": "bok-choy-boiled",
+    "fdcId": 170391,
+    "name": "Bok Choy, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86553",
+        "label": "1 cup, shredded",
+        "usdaPortionId": 86553
+      }
+    ],
+    "defaultPortionId": "86553"
+  },
+  {
+    "id": "collard-greens-boiled",
+    "fdcId": 170407,
+    "name": "Collard Greens, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86587",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 86587
+      }
+    ],
+    "defaultPortionId": "86587"
+  },
+  {
+    "id": "swiss-chard-boiled",
+    "fdcId": 170401,
+    "name": "Swiss Chard, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86579",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 86579
+      }
+    ],
+    "defaultPortionId": "86579"
+  },
+  {
+    "id": "mustard-greens-boiled",
+    "fdcId": 169257,
+    "name": "Mustard Greens, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84548",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 84548
+      }
+    ],
+    "defaultPortionId": "84548"
+  },
+  {
+    "id": "zucchini-boiled",
+    "fdcId": 169292,
+    "name": "Zucchini, boiled",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "84613",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 84613
+      },
+      {
+        "id": "84614",
+        "label": "0.5 cup, mashed",
+        "usdaPortionId": 84614
+      }
+    ],
+    "defaultPortionId": "84613"
+  },
+  {
+    "id": "whole-wheat-bread",
+    "fdcId": 172688,
+    "name": "Whole Wheat Bread",
+    "aliases": [
+      "wholemeal bread"
+    ],
+    "portions": [
+      {
+        "id": "91108",
+        "label": "1 slice",
+        "usdaPortionId": 91108
+      },
+      {
+        "id": "91109",
+        "label": "1 oz",
+        "usdaPortionId": 91109
+      }
+    ],
+    "defaultPortionId": "91108"
+  },
+  {
+    "id": "rye-bread",
+    "fdcId": 172684,
+    "name": "Rye Bread",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "91100",
+        "label": "1 slice, thin",
+        "usdaPortionId": 91100
+      },
+      {
+        "id": "91098",
+        "label": "1 slice, regular",
+        "usdaPortionId": 91098
+      },
+      {
+        "id": "91099",
+        "label": "1 slice, snack-size",
+        "usdaPortionId": 91099
+      }
+    ],
+    "defaultPortionId": "91100"
+  },
+  {
+    "id": "french-bread",
+    "fdcId": 172675,
+    "name": "French Bread",
+    "aliases": [
+      "baguette"
+    ],
+    "portions": [
+      {
+        "id": "91075",
+        "label": "1 oz",
+        "usdaPortionId": 91075
+      }
+    ],
+    "defaultPortionId": "91075"
+  },
+  {
+    "id": "pita-bread",
+    "fdcId": 174915,
+    "name": "Pita Bread",
+    "aliases": [
+      "pita"
+    ],
+    "portions": [
+      {
+        "id": "95147",
+        "label": "1 pita, small  (4\" dia)",
+        "usdaPortionId": 95147
+      },
+      {
+        "id": "95146",
+        "label": "1 pita, large (6-1/2\" dia)",
+        "usdaPortionId": 95146
+      }
+    ],
+    "defaultPortionId": "95147"
+  },
+  {
+    "id": "corn-tortilla",
+    "fdcId": 175036,
+    "name": "Corn Tortilla",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "95472",
+        "label": "1 tortilla",
+        "usdaPortionId": 95472
+      },
+      {
+        "id": "95470",
+        "label": "1 oz",
+        "usdaPortionId": 95470
+      },
+      {
+        "id": "95471",
+        "label": "1 enchilada",
+        "usdaPortionId": 95471
+      }
+    ],
+    "defaultPortionId": "95472"
+  },
+  {
+    "id": "flour-tortilla",
+    "fdcId": 167535,
+    "name": "Flour Tortilla",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "81584",
+        "label": "1 tortilla",
+        "usdaPortionId": 81584
+      }
+    ],
+    "defaultPortionId": "81584"
+  },
+  {
+    "id": "plain-bagel",
+    "fdcId": 174899,
+    "name": "Plain Bagel",
+    "aliases": [
+      "bagel"
+    ],
+    "portions": [
+      {
+        "id": "95100",
+        "label": "1 medium bagel (3-1/2\" to 4\" dia)",
+        "usdaPortionId": 95100
+      },
+      {
+        "id": "95102",
+        "label": "1 oz",
+        "usdaPortionId": 95102
+      },
+      {
+        "id": "95097",
+        "label": "1 bagel",
+        "usdaPortionId": 95097
+      }
+    ],
+    "defaultPortionId": "95100"
+  },
+  {
+    "id": "croissant",
+    "fdcId": 174987,
+    "name": "Croissant",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "95347",
+        "label": "1 croissant, medium",
+        "usdaPortionId": 95347
+      },
+      {
+        "id": "95344",
+        "label": "1 oz",
+        "usdaPortionId": 95344
+      },
+      {
+        "id": "95345",
+        "label": "1 croissant, mini",
+        "usdaPortionId": 95345
+      }
+    ],
+    "defaultPortionId": "95347"
+  },
+  {
+    "id": "white-rice-dry",
+    "fdcId": 168877,
+    "name": "White Rice, dry",
+    "aliases": [
+      "uncooked rice"
+    ],
+    "portions": [
+      {
+        "id": "83927",
+        "label": "1 cup",
+        "usdaPortionId": 83927
+      }
+    ],
+    "defaultPortionId": "83927"
+  },
+  {
+    "id": "wild-rice-cooked",
+    "fdcId": 168897,
+    "name": "Wild Rice, cooked",
+    "aliases": [
+      "wild rice"
+    ],
+    "portions": [
+      {
+        "id": "83947",
+        "label": "1 cup",
+        "usdaPortionId": 83947
+      }
+    ],
+    "defaultPortionId": "83947"
+  },
+  {
+    "id": "quinoa-cooked",
+    "fdcId": 168917,
+    "name": "Quinoa, cooked",
+    "aliases": [
+      "quinoa"
+    ],
+    "portions": [
+      {
+        "id": "83990",
+        "label": "1 cup",
+        "usdaPortionId": 83990
+      }
+    ],
+    "defaultPortionId": "83990"
+  },
+  {
+    "id": "couscous-cooked",
+    "fdcId": 169700,
+    "name": "Couscous, cooked",
+    "aliases": [
+      "couscous"
+    ],
+    "portions": [
+      {
+        "id": "85372",
+        "label": "1 cup, cooked",
+        "usdaPortionId": 85372
+      }
+    ],
+    "defaultPortionId": "85372"
+  },
+  {
+    "id": "bulgur-cooked",
+    "fdcId": 170287,
+    "name": "Bulgur, cooked",
+    "aliases": [
+      "bulgur"
+    ],
+    "portions": [
+      {
+        "id": "86370",
+        "label": "1 cup",
+        "usdaPortionId": 86370
+      },
+      {
+        "id": "86371",
+        "label": "1 tbsp",
+        "usdaPortionId": 86371
+      }
+    ],
+    "defaultPortionId": "86370"
+  },
+  {
+    "id": "barley-cooked",
+    "fdcId": 170285,
+    "name": "Barley, cooked",
+    "aliases": [
+      "barley"
+    ],
+    "portions": [
+      {
+        "id": "86368",
+        "label": "1 cup",
+        "usdaPortionId": 86368
+      }
+    ],
+    "defaultPortionId": "86368"
+  },
+  {
+    "id": "buckwheat-cooked",
+    "fdcId": 170686,
+    "name": "Buckwheat, cooked",
+    "aliases": [
+      "buckwheat"
+    ],
+    "portions": [
+      {
+        "id": "87082",
+        "label": "1 cup",
+        "usdaPortionId": 87082
+      }
+    ],
+    "defaultPortionId": "87082"
+  },
+  {
+    "id": "millet-cooked",
+    "fdcId": 168871,
+    "name": "Millet, cooked",
+    "aliases": [
+      "millet"
+    ],
+    "portions": [
+      {
+        "id": "83921",
+        "label": "1 cup",
+        "usdaPortionId": 83921
+      }
+    ],
+    "defaultPortionId": "83921"
+  },
+  {
+    "id": "whole-wheat-pasta-cooked",
+    "fdcId": 168910,
+    "name": "Whole Wheat Pasta, cooked",
+    "aliases": [
+      "whole wheat pasta"
+    ],
+    "portions": [
+      {
+        "id": "83966",
+        "label": "1 cup penne",
+        "usdaPortionId": 83966
+      },
+      {
+        "id": "83965",
+        "label": "1 cup elbows",
+        "usdaPortionId": 83965
+      },
+      {
+        "id": "83967",
+        "label": "1 cup shells",
+        "usdaPortionId": 83967
+      }
+    ],
+    "defaultPortionId": "83966"
+  },
+  {
+    "id": "rice-noodles-cooked",
+    "fdcId": 168914,
+    "name": "Rice Noodles, cooked",
+    "aliases": [
+      "rice noodles"
+    ],
+    "portions": [
+      {
+        "id": "83974",
+        "label": "1 cup",
+        "usdaPortionId": 83974
+      }
+    ],
+    "defaultPortionId": "83974"
+  },
+  {
+    "id": "black-beans-cooked",
+    "fdcId": 173735,
+    "name": "Black Beans, cooked",
+    "aliases": [
+      "black beans"
+    ],
+    "portions": [
+      {
+        "id": "93200",
+        "label": "1 cup",
+        "usdaPortionId": 93200
+      }
+    ],
+    "defaultPortionId": "93200"
+  },
+  {
+    "id": "kidney-beans-cooked",
+    "fdcId": 175194,
+    "name": "Kidney Beans, cooked",
+    "aliases": [
+      "kidney beans"
+    ],
+    "portions": [
+      {
+        "id": "95822",
+        "label": "1 cup",
+        "usdaPortionId": 95822
+      },
+      {
+        "id": "95823",
+        "label": "1 tbsp",
+        "usdaPortionId": 95823
+      }
+    ],
+    "defaultPortionId": "95822"
+  },
+  {
+    "id": "pinto-beans-cooked",
+    "fdcId": 175200,
+    "name": "Pinto Beans, cooked",
+    "aliases": [
+      "pinto beans"
+    ],
+    "portions": [
+      {
+        "id": "95832",
+        "label": "1 cup",
+        "usdaPortionId": 95832
+      },
+      {
+        "id": "95833",
+        "label": "1 tbsp",
+        "usdaPortionId": 95833
+      }
+    ],
+    "defaultPortionId": "95832"
+  },
+  {
+    "id": "navy-beans-cooked",
+    "fdcId": 173746,
+    "name": "Navy Beans, cooked",
+    "aliases": [
+      "navy beans"
+    ],
+    "portions": [
+      {
+        "id": "93213",
+        "label": "1 cup",
+        "usdaPortionId": 93213
+      }
+    ],
+    "defaultPortionId": "93213"
+  },
+  {
+    "id": "chickpeas-cooked",
+    "fdcId": 173757,
+    "name": "Chickpeas, cooked",
+    "aliases": [
+      "chickpeas",
+      "garbanzo beans"
+    ],
+    "portions": [
+      {
+        "id": "93226",
+        "label": "1 cup",
+        "usdaPortionId": 93226
+      }
+    ],
+    "defaultPortionId": "93226"
+  },
+  {
+    "id": "lentils-cooked",
+    "fdcId": 172421,
+    "name": "Lentils, cooked",
+    "aliases": [
+      "lentils"
+    ],
+    "portions": [
+      {
+        "id": "90596",
+        "label": "1 cup",
+        "usdaPortionId": 90596
+      },
+      {
+        "id": "90597",
+        "label": "1 tbsp",
+        "usdaPortionId": 90597
+      }
+    ],
+    "defaultPortionId": "90596"
+  },
+  {
+    "id": "split-peas-cooked",
+    "fdcId": 172429,
+    "name": "Split Peas, cooked",
+    "aliases": [
+      "split peas"
+    ],
+    "portions": [
+      {
+        "id": "90606",
+        "label": "1 cup",
+        "usdaPortionId": 90606
+      },
+      {
+        "id": "90607",
+        "label": "1 tbsp",
+        "usdaPortionId": 90607
+      }
+    ],
+    "defaultPortionId": "90606"
+  },
+  {
+    "id": "lima-beans-cooked",
+    "fdcId": 174253,
+    "name": "Lima Beans, cooked",
+    "aliases": [
+      "lima beans"
+    ],
+    "portions": [
+      {
+        "id": "94026",
+        "label": "1 cup",
+        "usdaPortionId": 94026
+      },
+      {
+        "id": "94027",
+        "label": "1 tbsp",
+        "usdaPortionId": 94027
+      }
+    ],
+    "defaultPortionId": "94026"
+  },
+  {
+    "id": "edamame",
+    "fdcId": 168411,
+    "name": "Edamame",
+    "aliases": [
+      "soybeans"
+    ],
+    "portions": [
+      {
+        "id": "83053",
+        "label": "1 cup",
+        "usdaPortionId": 83053
+      }
+    ],
+    "defaultPortionId": "83053"
+  },
+  {
+    "id": "tempeh",
+    "fdcId": 174272,
+    "name": "Tempeh",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "94061",
+        "label": "1 cup",
+        "usdaPortionId": 94061
+      }
+    ],
+    "defaultPortionId": "94061"
+  },
+  {
+    "id": "almonds",
+    "fdcId": 170567,
+    "name": "Almonds",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86867",
+        "label": "1 oz (23 whole kernels)",
+        "usdaPortionId": 86867
+      },
+      {
+        "id": "86868",
+        "label": "1 almond",
+        "usdaPortionId": 86868
+      },
+      {
+        "id": "86863",
+        "label": "1 cup, whole",
+        "usdaPortionId": 86863
+      }
+    ],
+    "defaultPortionId": "86867"
+  },
+  {
+    "id": "walnuts",
+    "fdcId": 170187,
+    "name": "Walnuts",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86206",
+        "label": "1 oz (14 halves)",
+        "usdaPortionId": 86206
+      },
+      {
+        "id": "86202",
+        "label": "1 cup, ground",
+        "usdaPortionId": 86202
+      },
+      {
+        "id": "86201",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 86201
+      }
+    ],
+    "defaultPortionId": "86206"
+  },
+  {
+    "id": "pecans",
+    "fdcId": 170182,
+    "name": "Pecans",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86190",
+        "label": "1 oz (19 halves)",
+        "usdaPortionId": 86190
+      },
+      {
+        "id": "86189",
+        "label": "1 cup, halves",
+        "usdaPortionId": 86189
+      },
+      {
+        "id": "86188",
+        "label": "1 cup, chopped",
+        "usdaPortionId": 86188
+      }
+    ],
+    "defaultPortionId": "86190"
+  },
+  {
+    "id": "cashews",
+    "fdcId": 170162,
+    "name": "Cashews",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86155",
+        "label": "1 oz",
+        "usdaPortionId": 86155
+      }
+    ],
+    "defaultPortionId": "86155"
+  },
+  {
+    "id": "pistachios",
+    "fdcId": 170184,
+    "name": "Pistachios",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86193",
+        "label": "1 oz (49 kernels)",
+        "usdaPortionId": 86193
+      },
+      {
+        "id": "86192",
+        "label": "1 cup",
+        "usdaPortionId": 86192
+      },
+      {
+        "id": "86194",
+        "label": "1 kernel",
+        "usdaPortionId": 86194
+      }
+    ],
+    "defaultPortionId": "86193"
+  },
+  {
+    "id": "hazelnuts",
+    "fdcId": 170581,
+    "name": "Hazelnuts",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86899",
+        "label": "1 oz (21 whole kernels)",
+        "usdaPortionId": 86899
+      },
+      {
+        "id": "86898",
+        "label": "1 cup, whole",
+        "usdaPortionId": 86898
+      },
+      {
+        "id": "86897",
+        "label": "1 cup, ground",
+        "usdaPortionId": 86897
+      }
+    ],
+    "defaultPortionId": "86899"
+  },
+  {
+    "id": "macadamia-nuts",
+    "fdcId": 170178,
+    "name": "Macadamia Nuts",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86183",
+        "label": "1 oz (10-12 kernels)",
+        "usdaPortionId": 86183
+      },
+      {
+        "id": "86182",
+        "label": "1 cup, whole or halves",
+        "usdaPortionId": 86182
+      }
+    ],
+    "defaultPortionId": "86183"
+  },
+  {
+    "id": "brazil-nuts",
+    "fdcId": 170569,
+    "name": "Brazil Nuts",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86874",
+        "label": "1 oz (6 kernels)",
+        "usdaPortionId": 86874
+      },
+      {
+        "id": "86873",
+        "label": "1 kernel",
+        "usdaPortionId": 86873
+      },
+      {
+        "id": "86872",
+        "label": "1 cup, whole",
+        "usdaPortionId": 86872
+      }
+    ],
+    "defaultPortionId": "86874"
+  },
+  {
+    "id": "peanuts",
+    "fdcId": 172430,
+    "name": "Peanuts",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90608",
+        "label": "1 oz",
+        "usdaPortionId": 90608
+      },
+      {
+        "id": "90609",
+        "label": "1 cup",
+        "usdaPortionId": 90609
+      }
+    ],
+    "defaultPortionId": "90608"
+  },
+  {
+    "id": "peanuts-roasted",
+    "fdcId": 173806,
+    "name": "Peanuts, roasted",
+    "aliases": [
+      "roasted peanuts"
+    ],
+    "portions": [
+      {
+        "id": "93281",
+        "label": "1 oz",
+        "usdaPortionId": 93281
+      },
+      {
+        "id": "93280",
+        "label": "1 cup",
+        "usdaPortionId": 93280
+      },
+      {
+        "id": "93282",
+        "label": "1 peanut",
+        "usdaPortionId": 93282
+      }
+    ],
+    "defaultPortionId": "93281"
+  },
+  {
+    "id": "sunflower-seeds",
+    "fdcId": 170563,
+    "name": "Sunflower Seeds",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86858",
+        "label": "1 oz",
+        "usdaPortionId": 86858
+      },
+      {
+        "id": "86857",
+        "label": "1 cup",
+        "usdaPortionId": 86857
+      }
+    ],
+    "defaultPortionId": "86858"
+  },
+  {
+    "id": "pumpkin-seeds",
+    "fdcId": 170556,
+    "name": "Pumpkin Seeds",
+    "aliases": [
+      "pepitas"
+    ],
+    "portions": [
+      {
+        "id": "86848",
+        "label": "1 oz",
+        "usdaPortionId": 86848
+      },
+      {
+        "id": "86847",
+        "label": "1 cup",
+        "usdaPortionId": 86847
+      }
+    ],
+    "defaultPortionId": "86848"
+  },
+  {
+    "id": "chia-seeds",
+    "fdcId": 170554,
+    "name": "Chia Seeds",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86844",
+        "label": "1 oz",
+        "usdaPortionId": 86844
+      }
+    ],
+    "defaultPortionId": "86844"
+  },
+  {
+    "id": "flaxseed",
+    "fdcId": 169414,
+    "name": "Flaxseed",
+    "aliases": [
+      "flax seeds"
+    ],
+    "portions": [
+      {
+        "id": "84816",
+        "label": "1 tbsp, whole",
+        "usdaPortionId": 84816
+      },
+      {
+        "id": "84818",
+        "label": "1 tbsp, ground",
+        "usdaPortionId": 84818
+      },
+      {
+        "id": "84817",
+        "label": "1 cup, whole",
+        "usdaPortionId": 84817
+      }
+    ],
+    "defaultPortionId": "84816"
+  },
+  {
+    "id": "sesame-seeds",
+    "fdcId": 170150,
+    "name": "Sesame Seeds",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86136",
+        "label": "1 tbsp",
+        "usdaPortionId": 86136
+      },
+      {
+        "id": "86135",
+        "label": "1 cup",
+        "usdaPortionId": 86135
+      }
+    ],
+    "defaultPortionId": "86136"
+  },
+  {
+    "id": "coconut-dried",
+    "fdcId": 170170,
+    "name": "Coconut, dried",
+    "aliases": [
+      "desiccated coconut"
+    ],
+    "portions": [
+      {
+        "id": "86166",
+        "label": "1 oz",
+        "usdaPortionId": 86166
+      }
+    ],
+    "defaultPortionId": "86166"
+  },
+  {
+    "id": "dates",
+    "fdcId": 168191,
+    "name": "Dates",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "82634",
+        "label": "1 date, pitted",
+        "usdaPortionId": 82634
+      }
+    ],
+    "defaultPortionId": "82634"
+  },
+  {
+    "id": "prunes",
+    "fdcId": 168162,
+    "name": "Prunes",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "82582",
+        "label": "1 cup, pitted",
+        "usdaPortionId": 82582
+      },
+      {
+        "id": "82583",
+        "label": "1 prune, pitted",
+        "usdaPortionId": 82583
+      }
+    ],
+    "defaultPortionId": "82583"
+  },
+  {
+    "id": "dried-apricots",
+    "fdcId": 173941,
+    "name": "Dried Apricots",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "93507",
+        "label": "1 cup, halves",
+        "usdaPortionId": 93507
+      },
+      {
+        "id": "93508",
+        "label": "1 half",
+        "usdaPortionId": 93508
+      }
+    ],
+    "defaultPortionId": "93507"
+  },
+  {
+    "id": "dried-figs",
+    "fdcId": 174665,
+    "name": "Dried Figs",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "94719",
+        "label": "1 cup",
+        "usdaPortionId": 94719
+      },
+      {
+        "id": "94720",
+        "label": "1 fig",
+        "usdaPortionId": 94720
+      }
+    ],
+    "defaultPortionId": "94720"
+  },
+  {
+    "id": "honey",
+    "fdcId": 169640,
+    "name": "Honey",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85265",
+        "label": "1 tbsp",
+        "usdaPortionId": 85265
+      },
+      {
+        "id": "85264",
+        "label": "1 cup",
+        "usdaPortionId": 85264
+      },
+      {
+        "id": "85266",
+        "label": "1 packet (0.5 oz)",
+        "usdaPortionId": 85266
+      }
+    ],
+    "defaultPortionId": "85265"
+  },
+  {
+    "id": "maple-syrup",
+    "fdcId": 169661,
+    "name": "Maple Syrup",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85303",
+        "label": "1 tbsp",
+        "usdaPortionId": 85303
+      },
+      {
+        "id": "85305",
+        "label": "1 cup",
+        "usdaPortionId": 85305
+      },
+      {
+        "id": "85304",
+        "label": "1 serving 1/4 cup",
+        "usdaPortionId": 85304
+      }
+    ],
+    "defaultPortionId": "85303"
+  },
+  {
+    "id": "white-sugar",
+    "fdcId": 169655,
+    "name": "White Sugar",
+    "aliases": [
+      "sugar"
+    ],
+    "portions": [
+      {
+        "id": "85287",
+        "label": "1 tsp",
+        "usdaPortionId": 85287
+      },
+      {
+        "id": "85288",
+        "label": "1 cup",
+        "usdaPortionId": 85288
+      },
+      {
+        "id": "85289",
+        "label": "1 serving 1 cube",
+        "usdaPortionId": 85289
+      }
+    ],
+    "defaultPortionId": "85287"
+  },
+  {
+    "id": "brown-sugar",
+    "fdcId": 168833,
+    "name": "Brown Sugar",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83857",
+        "label": "1 tsp packed",
+        "usdaPortionId": 83857
+      },
+      {
+        "id": "83854",
+        "label": "1 tsp unpacked",
+        "usdaPortionId": 83854
+      },
+      {
+        "id": "83858",
+        "label": "1 tsp brownulated",
+        "usdaPortionId": 83858
+      }
+    ],
+    "defaultPortionId": "83857"
+  },
+  {
+    "id": "powdered-sugar",
+    "fdcId": 169656,
+    "name": "Powdered Sugar",
+    "aliases": [
+      "icing sugar"
+    ],
+    "portions": [
+      {
+        "id": "85293",
+        "label": "1 tsp",
+        "usdaPortionId": 85293
+      },
+      {
+        "id": "85292",
+        "label": "1 tbsp unsifted",
+        "usdaPortionId": 85292
+      },
+      {
+        "id": "85291",
+        "label": "1 cup sifted",
+        "usdaPortionId": 85291
+      }
+    ],
+    "defaultPortionId": "85293"
+  },
+  {
+    "id": "olive-oil",
+    "fdcId": 171413,
+    "name": "Olive Oil",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "88669",
+        "label": "1 tsp",
+        "usdaPortionId": 88669
+      },
+      {
+        "id": "88667",
+        "label": "1 tbsp",
+        "usdaPortionId": 88667
+      },
+      {
+        "id": "88668",
+        "label": "1 cup",
+        "usdaPortionId": 88668
+      }
+    ],
+    "defaultPortionId": "88669"
+  },
+  {
+    "id": "canola-oil",
+    "fdcId": 172336,
+    "name": "Canola Oil",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90376",
+        "label": "1 tsp",
+        "usdaPortionId": 90376
+      },
+      {
+        "id": "90374",
+        "label": "1 tbsp",
+        "usdaPortionId": 90374
+      },
+      {
+        "id": "90375",
+        "label": "1 cup",
+        "usdaPortionId": 90375
+      }
+    ],
+    "defaultPortionId": "90376"
+  },
+  {
+    "id": "coconut-oil",
+    "fdcId": 171412,
+    "name": "Coconut Oil",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "88664",
+        "label": "1 tbsp",
+        "usdaPortionId": 88664
+      },
+      {
+        "id": "88665",
+        "label": "1 cup",
+        "usdaPortionId": 88665
+      },
+      {
+        "id": "88666",
+        "label": "1 tsp",
+        "usdaPortionId": 88666
+      }
+    ],
+    "defaultPortionId": "88664"
+  },
+  {
+    "id": "sesame-oil",
+    "fdcId": 171016,
+    "name": "Sesame Oil",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "87779",
+        "label": "1 tsp",
+        "usdaPortionId": 87779
+      },
+      {
+        "id": "87777",
+        "label": "1 tbsp",
+        "usdaPortionId": 87777
+      },
+      {
+        "id": "87778",
+        "label": "1 cup",
+        "usdaPortionId": 87778
+      }
+    ],
+    "defaultPortionId": "87779"
+  },
+  {
+    "id": "sunflower-oil",
+    "fdcId": 171025,
+    "name": "Sunflower Oil",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "87799",
+        "label": "1 tsp",
+        "usdaPortionId": 87799
+      },
+      {
+        "id": "87797",
+        "label": "1 tbsp",
+        "usdaPortionId": 87797
+      },
+      {
+        "id": "87798",
+        "label": "1 cup",
+        "usdaPortionId": 87798
+      }
+    ],
+    "defaultPortionId": "87799"
+  },
+  {
+    "id": "vegetable-oil",
+    "fdcId": 171411,
+    "name": "Vegetable Oil",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "88663",
+        "label": "1 tsp",
+        "usdaPortionId": 88663
+      },
+      {
+        "id": "88661",
+        "label": "1 tbsp",
+        "usdaPortionId": 88661
+      },
+      {
+        "id": "88662",
+        "label": "1 cup",
+        "usdaPortionId": 88662
+      }
+    ],
+    "defaultPortionId": "88663"
+  },
+  {
+    "id": "unsalted-butter",
+    "fdcId": 173430,
+    "name": "Unsalted Butter",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "92512",
+        "label": "1 tbsp",
+        "usdaPortionId": 92512
+      },
+      {
+        "id": "92513",
+        "label": "1 cup",
+        "usdaPortionId": 92513
+      },
+      {
+        "id": "92514",
+        "label": "1 stick",
+        "usdaPortionId": 92514
+      }
+    ],
+    "defaultPortionId": "92512"
+  },
+  {
+    "id": "almond-butter",
+    "fdcId": 168588,
+    "name": "Almond Butter",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83375",
+        "label": "1 tbsp",
+        "usdaPortionId": 83375
+      },
+      {
+        "id": "83376",
+        "label": "1 cup",
+        "usdaPortionId": 83376
+      }
+    ],
+    "defaultPortionId": "83375"
+  },
+  {
+    "id": "tahini",
+    "fdcId": 170189,
+    "name": "Tahini",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86209",
+        "label": "1 tbsp",
+        "usdaPortionId": 86209
+      },
+      {
+        "id": "86210",
+        "label": "1 oz",
+        "usdaPortionId": 86210
+      }
+    ],
+    "defaultPortionId": "86209"
+  },
+  {
+    "id": "cream-cheese",
+    "fdcId": 173418,
+    "name": "Cream Cheese",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "92484",
+        "label": "1 oz",
+        "usdaPortionId": 92484
+      },
+      {
+        "id": "92481",
+        "label": "1 tbsp",
+        "usdaPortionId": 92481
+      },
+      {
+        "id": "92483",
+        "label": "1 tbsp, whipped",
+        "usdaPortionId": 92483
+      }
+    ],
+    "defaultPortionId": "92484"
+  },
+  {
+    "id": "mozzarella",
+    "fdcId": 170845,
+    "name": "Mozzarella",
+    "aliases": [
+      "mozzarella cheese"
+    ],
+    "portions": [
+      {
+        "id": "87382",
+        "label": "1 oz",
+        "usdaPortionId": 87382
+      },
+      {
+        "id": "87381",
+        "label": "1 cup, shredded",
+        "usdaPortionId": 87381
+      }
+    ],
+    "defaultPortionId": "87382"
+  },
+  {
+    "id": "swiss-cheese",
+    "fdcId": 171251,
+    "name": "Swiss Cheese",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "88274",
+        "label": "1 oz",
+        "usdaPortionId": 88274
+      },
+      {
+        "id": "88276",
+        "label": "1 slice (1 oz)",
+        "usdaPortionId": 88276
+      },
+      {
+        "id": "88271",
+        "label": "1 cup, diced",
+        "usdaPortionId": 88271
+      }
+    ],
+    "defaultPortionId": "88274"
+  },
+  {
+    "id": "parmesan",
+    "fdcId": 171247,
+    "name": "Parmesan",
+    "aliases": [
+      "parmesan cheese"
+    ],
+    "portions": [
+      {
+        "id": "88263",
+        "label": "1 oz",
+        "usdaPortionId": 88263
+      },
+      {
+        "id": "88262",
+        "label": "1 tbsp",
+        "usdaPortionId": 88262
+      },
+      {
+        "id": "88261",
+        "label": "1 cup",
+        "usdaPortionId": 88261
+      }
+    ],
+    "defaultPortionId": "88263"
+  },
+  {
+    "id": "feta",
+    "fdcId": 173420,
+    "name": "Feta",
+    "aliases": [
+      "feta cheese"
+    ],
+    "portions": [
+      {
+        "id": "92490",
+        "label": "1 oz",
+        "usdaPortionId": 92490
+      },
+      {
+        "id": "92492",
+        "label": "1 wedge (1.33 oz)",
+        "usdaPortionId": 92492
+      },
+      {
+        "id": "92489",
+        "label": "1 cup, crumbled",
+        "usdaPortionId": 92489
+      }
+    ],
+    "defaultPortionId": "92490"
+  },
+  {
+    "id": "brie",
+    "fdcId": 172177,
+    "name": "Brie",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90025",
+        "label": "1 oz",
+        "usdaPortionId": 90025
+      },
+      {
+        "id": "90026",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 90026
+      },
+      {
+        "id": "90027",
+        "label": "1 cup, melted",
+        "usdaPortionId": 90027
+      }
+    ],
+    "defaultPortionId": "90025"
+  },
+  {
+    "id": "gouda",
+    "fdcId": 171241,
+    "name": "Gouda",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "88235",
+        "label": "1 oz",
+        "usdaPortionId": 88235
+      }
+    ],
+    "defaultPortionId": "88235"
+  },
+  {
+    "id": "ricotta",
+    "fdcId": 170851,
+    "name": "Ricotta",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "87402",
+        "label": "1 cup",
+        "usdaPortionId": 87402
+      },
+      {
+        "id": "87401",
+        "label": "0.5 cup",
+        "usdaPortionId": 87401
+      }
+    ],
+    "defaultPortionId": "87401"
+  },
+  {
+    "id": "cottage-cheese",
+    "fdcId": 172179,
+    "name": "Cottage Cheese",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90035",
+        "label": "1 cup, large curd (not packed)",
+        "usdaPortionId": 90035
+      },
+      {
+        "id": "90036",
+        "label": "1 cup, small curd (not packed)",
+        "usdaPortionId": 90036
+      },
+      {
+        "id": "90034",
+        "label": "4 oz",
+        "usdaPortionId": 90034
+      }
+    ],
+    "defaultPortionId": "90035"
+  },
+  {
+    "id": "blue-cheese",
+    "fdcId": 172175,
+    "name": "Blue Cheese",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90017",
+        "label": "1 oz",
+        "usdaPortionId": 90017
+      },
+      {
+        "id": "90019",
+        "label": "1 cup, crumbled, not packed",
+        "usdaPortionId": 90019
+      }
+    ],
+    "defaultPortionId": "90017"
+  },
+  {
+    "id": "goat-cheese",
+    "fdcId": 173435,
+    "name": "Goat Cheese",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "92519",
+        "label": "1 oz",
+        "usdaPortionId": 92519
+      }
+    ],
+    "defaultPortionId": "92519"
+  },
+  {
+    "id": "low-fat-yogurt",
+    "fdcId": 170886,
+    "name": "Low Fat Yogurt",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "87497",
+        "label": "1 cup (8 fl oz)",
+        "usdaPortionId": 87497
+      },
+      {
+        "id": "87495",
+        "label": "1 container (8 oz)",
+        "usdaPortionId": 87495
+      },
+      {
+        "id": "87494",
+        "label": "1 container (6 oz)",
+        "usdaPortionId": 87494
+      }
+    ],
+    "defaultPortionId": "87497"
+  },
+  {
+    "id": "sour-cream",
+    "fdcId": 171257,
+    "name": "Sour Cream",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "88296",
+        "label": "1 tbsp",
+        "usdaPortionId": 88296
+      },
+      {
+        "id": "88297",
+        "label": "1 cup",
+        "usdaPortionId": 88297
+      }
+    ],
+    "defaultPortionId": "88296"
+  },
+  {
+    "id": "heavy-cream",
+    "fdcId": 170859,
+    "name": "Heavy Cream",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "87432",
+        "label": "1 cup, whipped",
+        "usdaPortionId": 87432
+      },
+      {
+        "id": "87434",
+        "label": "1 tbsp",
+        "usdaPortionId": 87434
+      },
+      {
+        "id": "87435",
+        "label": "1 fl oz",
+        "usdaPortionId": 87435
+      }
+    ],
+    "defaultPortionId": "87434"
+  },
+  {
+    "id": "half-and-half",
+    "fdcId": 171255,
+    "name": "Half and Half",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "88291",
+        "label": "1 tbsp",
+        "usdaPortionId": 88291
+      },
+      {
+        "id": "88292",
+        "label": "1 cup",
+        "usdaPortionId": 88292
+      },
+      {
+        "id": "88290",
+        "label": "1 fl oz",
+        "usdaPortionId": 88290
+      }
+    ],
+    "defaultPortionId": "88291"
+  },
+  {
+    "id": "egg-white",
+    "fdcId": 172183,
+    "name": "Egg White",
+    "aliases": [
+      "egg whites"
+    ],
+    "portions": [
+      {
+        "id": "90043",
+        "label": "1 large",
+        "usdaPortionId": 90043
+      },
+      {
+        "id": "90044",
+        "label": "1 cup",
+        "usdaPortionId": 90044
+      }
+    ],
+    "defaultPortionId": "90043"
+  },
+  {
+    "id": "egg-yolk",
+    "fdcId": 172184,
+    "name": "Egg Yolk",
+    "aliases": [
+      "egg yolks"
+    ],
+    "portions": [
+      {
+        "id": "90045",
+        "label": "1 large",
+        "usdaPortionId": 90045
+      },
+      {
+        "id": "90046",
+        "label": "1 cup",
+        "usdaPortionId": 90046
+      }
+    ],
+    "defaultPortionId": "90045"
+  },
+  {
+    "id": "duck-egg",
+    "fdcId": 172189,
+    "name": "Duck Egg",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90055",
+        "label": "1 egg",
+        "usdaPortionId": 90055
+      }
+    ],
+    "defaultPortionId": "90055"
+  },
+  {
+    "id": "quail-egg",
+    "fdcId": 172191,
+    "name": "Quail Egg",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "90057",
+        "label": "1 egg",
+        "usdaPortionId": 90057
+      }
+    ],
+    "defaultPortionId": "90057"
+  },
+  {
+    "id": "salmon-raw",
+    "fdcId": 175167,
+    "name": "Salmon, raw",
+    "aliases": [
+      "raw salmon"
+    ],
+    "portions": [
+      {
+        "id": "95786",
+        "label": "3 oz",
+        "usdaPortionId": 95786
+      },
+      {
+        "id": "95787",
+        "label": "0.5 fillet",
+        "usdaPortionId": 95787
+      }
+    ],
+    "defaultPortionId": "95786"
+  },
+  {
+    "id": "salmon-cooked",
+    "fdcId": 175168,
+    "name": "Salmon, cooked",
+    "aliases": [
+      "salmon"
+    ],
+    "portions": [
+      {
+        "id": "95788",
+        "label": "3 oz",
+        "usdaPortionId": 95788
+      },
+      {
+        "id": "95789",
+        "label": "0.5 fillet",
+        "usdaPortionId": 95789
+      }
+    ],
+    "defaultPortionId": "95788"
+  },
+  {
+    "id": "cod-cooked",
+    "fdcId": 171956,
+    "name": "Cod, cooked",
+    "aliases": [
+      "cod"
+    ],
+    "portions": [
+      {
+        "id": "89622",
+        "label": "3 oz",
+        "usdaPortionId": 89622
+      },
+      {
+        "id": "89623",
+        "label": "1 fillet",
+        "usdaPortionId": 89623
+      }
+    ],
+    "defaultPortionId": "89622"
+  },
+  {
+    "id": "tilapia-cooked",
+    "fdcId": 175177,
+    "name": "Tilapia, cooked",
+    "aliases": [
+      "tilapia"
+    ],
+    "portions": [
+      {
+        "id": "95804",
+        "label": "1 fillet",
+        "usdaPortionId": 95804
+      }
+    ],
+    "defaultPortionId": "95804"
+  },
+  {
+    "id": "shrimp-cooked",
+    "fdcId": 175180,
+    "name": "Shrimp, cooked",
+    "aliases": [
+      "shrimp",
+      "prawns"
+    ],
+    "portions": [
+      {
+        "id": "95807",
+        "label": "3 oz",
+        "usdaPortionId": 95807
+      }
+    ],
+    "defaultPortionId": "95807"
+  },
+  {
+    "id": "sardines-canned",
+    "fdcId": 175139,
+    "name": "Sardines, canned",
+    "aliases": [
+      "sardines"
+    ],
+    "portions": [
+      {
+        "id": "95725",
+        "label": "1 can (3.75 oz)",
+        "usdaPortionId": 95725
+      },
+      {
+        "id": "95722",
+        "label": "1 cup, drained",
+        "usdaPortionId": 95722
+      },
+      {
+        "id": "95723",
+        "label": "1 oz",
+        "usdaPortionId": 95723
+      },
+      {
+        "id": "95727",
+        "label": "2 sardines",
+        "usdaPortionId": 95727
+      }
+    ],
+    "defaultPortionId": "95725"
+  },
+  {
+    "id": "trout-cooked",
+    "fdcId": 173718,
+    "name": "Trout, cooked",
+    "aliases": [
+      "trout"
+    ],
+    "portions": [
+      {
+        "id": "93178",
+        "label": "3 oz",
+        "usdaPortionId": 93178
+      },
+      {
+        "id": "93177",
+        "label": "1 fillet",
+        "usdaPortionId": 93177
+      }
+    ],
+    "defaultPortionId": "93178"
+  },
+  {
+    "id": "halibut-cooked",
+    "fdcId": 174201,
+    "name": "Halibut, cooked",
+    "aliases": [
+      "halibut"
+    ],
+    "portions": [
+      {
+        "id": "93921",
+        "label": "3 oz",
+        "usdaPortionId": 93921
+      },
+      {
+        "id": "93922",
+        "label": "0.5 fillet",
+        "usdaPortionId": 93922
+      }
+    ],
+    "defaultPortionId": "93921"
+  },
+  {
+    "id": "crab-cooked",
+    "fdcId": 174205,
+    "name": "Crab, cooked",
+    "aliases": [
+      "crab"
+    ],
+    "portions": [
+      {
+        "id": "93929",
+        "label": "1 cup (not packed)",
+        "usdaPortionId": 93929
+      },
+      {
+        "id": "93928",
+        "label": "1 cup, flaked and pieces",
+        "usdaPortionId": 93928
+      },
+      {
+        "id": "93930",
+        "label": "1 oz",
+        "usdaPortionId": 93930
+      }
+    ],
+    "defaultPortionId": "93929"
+  },
+  {
+    "id": "lobster-cooked",
+    "fdcId": 174209,
+    "name": "Lobster, cooked",
+    "aliases": [
+      "lobster"
+    ],
+    "portions": [
+      {
+        "id": "93937",
+        "label": "1 cup",
+        "usdaPortionId": 93937
+      },
+      {
+        "id": "93938",
+        "label": "3 oz",
+        "usdaPortionId": 93938
+      }
+    ],
+    "defaultPortionId": "93937"
+  },
+  {
+    "id": "mussels-cooked",
+    "fdcId": 174217,
+    "name": "Mussels, cooked",
+    "aliases": [
+      "mussels"
+    ],
+    "portions": [
+      {
+        "id": "93960",
+        "label": "3 oz",
+        "usdaPortionId": 93960
+      }
+    ],
+    "defaultPortionId": "93960"
+  },
+  {
+    "id": "clams-cooked",
+    "fdcId": 171975,
+    "name": "Clams, cooked",
+    "aliases": [
+      "clams"
+    ],
+    "portions": [
+      {
+        "id": "89661",
+        "label": "3 oz",
+        "usdaPortionId": 89661
+      }
+    ],
+    "defaultPortionId": "89661"
+  },
+  {
+    "id": "oysters-raw",
+    "fdcId": 171978,
+    "name": "Oysters, raw",
+    "aliases": [
+      "oysters"
+    ],
+    "portions": [
+      {
+        "id": "89667",
+        "label": "6 medium",
+        "usdaPortionId": 89667
+      },
+      {
+        "id": "89668",
+        "label": "1 cup",
+        "usdaPortionId": 89668
+      }
+    ],
+    "defaultPortionId": "89667"
+  },
+  {
+    "id": "ground-beef-90-10-raw",
+    "fdcId": 174030,
+    "name": "Ground Beef 90/10, raw",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "93663",
+        "label": "4 oz",
+        "usdaPortionId": 93663
+      }
+    ],
+    "defaultPortionId": "93663"
+  },
+  {
+    "id": "ground-beef-80-20-raw",
+    "fdcId": 174036,
+    "name": "Ground Beef 80/20, raw",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "93671",
+        "label": "4 oz",
+        "usdaPortionId": 93671
+      }
+    ],
+    "defaultPortionId": "93671"
+  },
+  {
+    "id": "ground-turkey-raw",
+    "fdcId": 171505,
+    "name": "Ground Turkey, raw",
+    "aliases": [
+      "ground turkey"
+    ],
+    "portions": [
+      {
+        "id": "88874",
+        "label": "1 lb",
+        "usdaPortionId": 88874
+      },
+      {
+        "id": "88873",
+        "label": "4 oz",
+        "usdaPortionId": 88873
+      },
+      {
+        "id": "88875",
+        "label": "1 patty, 4 oz",
+        "usdaPortionId": 88875
+      }
+    ],
+    "defaultPortionId": "88873"
+  },
+  {
+    "id": "ground-pork-raw",
+    "fdcId": 167902,
+    "name": "Ground Pork, raw",
+    "aliases": [
+      "ground pork"
+    ],
+    "portions": [
+      {
+        "id": "82190",
+        "label": "4 oz",
+        "usdaPortionId": 82190
+      },
+      {
+        "id": "82189",
+        "label": "1 oz",
+        "usdaPortionId": 82189
+      }
+    ],
+    "defaultPortionId": "82190"
+  },
+  {
+    "id": "chicken-thigh-roasted",
+    "fdcId": 172388,
+    "name": "Chicken Thigh, roasted",
+    "aliases": [
+      "chicken thigh"
+    ],
+    "portions": [
+      {
+        "id": "90511",
+        "label": "3 oz",
+        "usdaPortionId": 90511
+      },
+      {
+        "id": "90513",
+        "label": "1 thigh with skin",
+        "usdaPortionId": 90513
+      },
+      {
+        "id": "90512",
+        "label": "1 thigh without skin",
+        "usdaPortionId": 90512
+      }
+    ],
+    "defaultPortionId": "90511"
+  },
+  {
+    "id": "turkey-breast-roasted",
+    "fdcId": 171496,
+    "name": "Turkey Breast, roasted",
+    "aliases": [
+      "turkey breast"
+    ],
+    "portions": [
+      {
+        "id": "88856",
+        "label": "3 oz",
+        "usdaPortionId": 88856
+      },
+      {
+        "id": "88857",
+        "label": "1 breast",
+        "usdaPortionId": 88857
+      }
+    ],
+    "defaultPortionId": "88856"
+  },
+  {
+    "id": "pork-tenderloin-roasted",
+    "fdcId": 168250,
+    "name": "Pork Tenderloin, roasted",
+    "aliases": [
+      "pork tenderloin"
+    ],
+    "portions": [
+      {
+        "id": "82751",
+        "label": "3 oz",
+        "usdaPortionId": 82751
+      },
+      {
+        "id": "82753",
+        "label": "1 roast",
+        "usdaPortionId": 82753
+      }
+    ],
+    "defaultPortionId": "82751"
+  },
+  {
+    "id": "wheat-flour",
+    "fdcId": 168894,
+    "name": "Wheat Flour",
+    "aliases": [
+      "flour",
+      "all purpose flour"
+    ],
+    "portions": [
+      {
+        "id": "83944",
+        "label": "1 cup",
+        "usdaPortionId": 83944
+      }
+    ],
+    "defaultPortionId": "83944"
+  },
+  {
+    "id": "cornmeal",
+    "fdcId": 169697,
+    "name": "Cornmeal",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "85369",
+        "label": "1 cup",
+        "usdaPortionId": 85369
+      }
+    ],
+    "defaultPortionId": "85369"
+  },
+  {
+    "id": "cocoa-powder",
+    "fdcId": 169593,
+    "name": "Cocoa Powder",
+    "aliases": [
+      "cocoa"
+    ],
+    "portions": [
+      {
+        "id": "85187",
+        "label": "1 tbsp",
+        "usdaPortionId": 85187
+      },
+      {
+        "id": "85186",
+        "label": "1 cup",
+        "usdaPortionId": 85186
+      }
+    ],
+    "defaultPortionId": "85187"
+  },
+  {
+    "id": "baking-powder",
+    "fdcId": 172804,
+    "name": "Baking Powder",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "91439",
+        "label": "1 tsp",
+        "usdaPortionId": 91439
+      },
+      {
+        "id": "91440",
+        "label": "0.5 tsp",
+        "usdaPortionId": 91440
+      }
+    ],
+    "defaultPortionId": "91439"
+  },
+  {
+    "id": "baking-soda",
+    "fdcId": 175040,
+    "name": "Baking Soda",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "95484",
+        "label": "1 tsp",
+        "usdaPortionId": 95484
+      },
+      {
+        "id": "95485",
+        "label": "0.5 tsp",
+        "usdaPortionId": 95485
+      }
+    ],
+    "defaultPortionId": "95484"
+  },
+  {
+    "id": "greek-yogurt-plain",
+    "fdcId": 2705422,
+    "name": "Greek Yogurt, plain",
+    "aliases": [
+      "greek yogurt"
+    ],
+    "portions": [
+      {
+        "id": "290696",
+        "label": "1 cup",
+        "usdaPortionId": 290696
+      },
+      {
+        "id": "290694",
+        "label": "1 6 oz container",
+        "usdaPortionId": 290694
+      },
+      {
+        "id": "290693",
+        "label": "1 5.3 oz container",
+        "usdaPortionId": 290693
+      }
+    ],
+    "defaultPortionId": "290696"
+  },
+  {
+    "id": "greek-yogurt-nonfat",
+    "fdcId": 2705424,
+    "name": "Greek Yogurt, nonfat",
+    "aliases": [
+      "nonfat greek yogurt"
+    ],
+    "portions": [
+      {
+        "id": "290706",
+        "label": "1 cup",
+        "usdaPortionId": 290706
+      },
+      {
+        "id": "290704",
+        "label": "1 6 oz container",
+        "usdaPortionId": 290704
+      },
+      {
+        "id": "290703",
+        "label": "1 5.3 oz container",
+        "usdaPortionId": 290703
+      }
+    ],
+    "defaultPortionId": "290706"
+  },
+  {
+    "id": "milk-2",
+    "fdcId": 2705386,
+    "name": "Milk, 2%",
+    "aliases": [
+      "2 percent milk"
+    ],
+    "portions": [
+      {
+        "id": "290521",
+        "label": "1 cup",
+        "usdaPortionId": 290521
+      },
+      {
+        "id": "290522",
+        "label": "1 fl oz",
+        "usdaPortionId": 290522
+      },
+      {
+        "id": "290523",
+        "label": "1 individual school container",
+        "usdaPortionId": 290523
+      }
+    ],
+    "defaultPortionId": "290521"
+  },
+  {
+    "id": "milk-1",
+    "fdcId": 2705387,
+    "name": "Milk, 1%",
+    "aliases": [
+      "1 percent milk"
+    ],
+    "portions": [
+      {
+        "id": "290527",
+        "label": "1 cup",
+        "usdaPortionId": 290527
+      },
+      {
+        "id": "290528",
+        "label": "1 fl oz",
+        "usdaPortionId": 290528
+      },
+      {
+        "id": "290529",
+        "label": "1 individual school container",
+        "usdaPortionId": 290529
+      }
+    ],
+    "defaultPortionId": "290527"
+  },
+  {
+    "id": "skim-milk",
+    "fdcId": 2705388,
+    "name": "Skim Milk",
+    "aliases": [
+      "nonfat milk"
+    ],
+    "portions": [
+      {
+        "id": "290533",
+        "label": "1 cup",
+        "usdaPortionId": 290533
+      },
+      {
+        "id": "290534",
+        "label": "1 fl oz",
+        "usdaPortionId": 290534
+      },
+      {
+        "id": "290535",
+        "label": "1 individual school container",
+        "usdaPortionId": 290535
+      }
+    ],
+    "defaultPortionId": "290533"
+  },
+  {
+    "id": "chocolate-milk",
+    "fdcId": 2705467,
+    "name": "Chocolate Milk",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "290870",
+        "label": "1 cup",
+        "usdaPortionId": 290870
+      },
+      {
+        "id": "290871",
+        "label": "1 fl oz",
+        "usdaPortionId": 290871
+      },
+      {
+        "id": "290872",
+        "label": "1 individual school container",
+        "usdaPortionId": 290872
+      }
+    ],
+    "defaultPortionId": "290870"
+  },
+  {
+    "id": "vanilla-ice-cream",
+    "fdcId": 2705630,
+    "name": "Vanilla Ice Cream",
+    "aliases": [
+      "ice cream"
+    ],
+    "portions": [
+      {
+        "id": "291300",
+        "label": "1 cup",
+        "usdaPortionId": 291300
+      },
+      {
+        "id": "291302",
+        "label": "1 small ice cream cup",
+        "usdaPortionId": 291302
+      },
+      {
+        "id": "291304",
+        "label": "1 large ice cream cup",
+        "usdaPortionId": 291304
+      }
+    ],
+    "defaultPortionId": "291300"
+  },
+  {
+    "id": "chocolate-ice-cream",
+    "fdcId": 2705632,
+    "name": "Chocolate Ice Cream",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "291315",
+        "label": "1 cup",
+        "usdaPortionId": 291315
+      },
+      {
+        "id": "291319",
+        "label": "1 large ice cream cup",
+        "usdaPortionId": 291319
+      },
+      {
+        "id": "291317",
+        "label": "1 small ice cream cup",
+        "usdaPortionId": 291317
+      }
+    ],
+    "defaultPortionId": "291315"
+  },
+  {
+    "id": "vanilla-ice-cream-sandwich",
+    "fdcId": 2705642,
+    "name": "Vanilla Ice Cream Sandwich",
+    "aliases": [
+      "ice cream sandwich"
+    ],
+    "portions": [
+      {
+        "id": "291360",
+        "label": "1 sandwich",
+        "usdaPortionId": 291360
+      }
+    ],
+    "defaultPortionId": "291360"
+  },
+  {
+    "id": "bacon-cooked",
+    "fdcId": 2705885,
+    "name": "Bacon, cooked",
+    "aliases": [
+      "bacon"
+    ],
+    "portions": [
+      {
+        "id": "292451",
+        "label": "1 thin slice (yield after cooking)",
+        "usdaPortionId": 292451
+      },
+      {
+        "id": "292453",
+        "label": "1 thick slice (yield after cooking)",
+        "usdaPortionId": 292453
+      },
+      {
+        "id": "292452",
+        "label": "1 medium slice (yield after cooking)",
+        "usdaPortionId": 292452
+      }
+    ],
+    "defaultPortionId": "292451"
+  },
+  {
+    "id": "hot-dog",
+    "fdcId": 2706167,
+    "name": "Hot Dog",
+    "aliases": [
+      "frankfurter"
+    ],
+    "portions": [
+      {
+        "id": "293934",
+        "label": "1 cup, sliced",
+        "usdaPortionId": 293934
+      },
+      {
+        "id": "293930",
+        "label": "1 regular",
+        "usdaPortionId": 293930
+      },
+      {
+        "id": "293933",
+        "label": "1 footlong",
+        "usdaPortionId": 293933
+      }
+    ],
+    "defaultPortionId": "293930"
+  },
+  {
+    "id": "hot-dog-in-bun",
+    "fdcId": 2707056,
+    "name": "Hot Dog in Bun",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "297009",
+        "label": "1 sandwich",
+        "usdaPortionId": 297009
+      }
+    ],
+    "defaultPortionId": "297009"
+  },
+  {
+    "id": "sausage",
+    "fdcId": 2706190,
+    "name": "Sausage",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "294062",
+        "label": "1 piece",
+        "usdaPortionId": 294062
+      },
+      {
+        "id": "294061",
+        "label": "1 slice",
+        "usdaPortionId": 294061
+      },
+      {
+        "id": "294057",
+        "label": "1 patty",
+        "usdaPortionId": 294057
+      }
+    ],
+    "defaultPortionId": "294062"
+  },
+  {
+    "id": "chili-with-meat-and-beans",
+    "fdcId": 2706375,
+    "name": "Chili with Meat and Beans",
+    "aliases": [
+      "chili"
+    ],
+    "portions": [
+      {
+        "id": "295109",
+        "label": "1 cup",
+        "usdaPortionId": 295109
+      }
+    ],
+    "defaultPortionId": "295109"
+  },
+  {
+    "id": "chili-with-meat",
+    "fdcId": 2706377,
+    "name": "Chili with Meat",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "295115",
+        "label": "1 cup",
+        "usdaPortionId": 295115
+      }
+    ],
+    "defaultPortionId": "295115"
+  },
+  {
+    "id": "blt-sandwich",
+    "fdcId": 2706979,
+    "name": "BLT Sandwich",
+    "aliases": [
+      "blt"
+    ],
+    "portions": [
+      {
+        "id": "296680",
+        "label": "1 sandwich, any size",
+        "usdaPortionId": 296680
+      }
+    ],
+    "defaultPortionId": "296680"
+  },
+  {
+    "id": "grilled-cheese-sandwich",
+    "fdcId": 2705801,
+    "name": "Grilled Cheese Sandwich",
+    "aliases": [
+      "grilled cheese"
+    ],
+    "portions": [
+      {
+        "id": "292001",
+        "label": "1 sandwich",
+        "usdaPortionId": 292001
+      }
+    ],
+    "defaultPortionId": "292001"
+  },
+  {
+    "id": "chicken-noodle-soup",
+    "fdcId": 2709149,
+    "name": "Chicken Noodle Soup",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "305809",
+        "label": "1 cup",
+        "usdaPortionId": 305809
+      }
+    ],
+    "defaultPortionId": "305809"
+  },
+  {
+    "id": "tomato-soup",
+    "fdcId": 2709757,
+    "name": "Tomato Soup",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "308166",
+        "label": "1 cup",
+        "usdaPortionId": 308166
+      }
+    ],
+    "defaultPortionId": "308166"
+  },
+  {
+    "id": "vegetable-soup",
+    "fdcId": 2710113,
+    "name": "Vegetable Soup",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "309266",
+        "label": "1 cup",
+        "usdaPortionId": 309266
+      }
+    ],
+    "defaultPortionId": "309266"
+  },
+  {
+    "id": "lentil-soup",
+    "fdcId": 2707462,
+    "name": "Lentil Soup",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "298199",
+        "label": "1 cup",
+        "usdaPortionId": 298199
+      }
+    ],
+    "defaultPortionId": "298199"
+  },
+  {
+    "id": "mayonnaise",
+    "fdcId": 2710204,
+    "name": "Mayonnaise",
+    "aliases": [
+      "mayo"
+    ],
+    "portions": [
+      {
+        "id": "309656",
+        "label": "1 tbsp",
+        "usdaPortionId": 309656
+      },
+      {
+        "id": "309655",
+        "label": "1 cup",
+        "usdaPortionId": 309655
+      },
+      {
+        "id": "309657",
+        "label": "1 packet",
+        "usdaPortionId": 309657
+      }
+    ],
+    "defaultPortionId": "309656"
+  },
+  {
+    "id": "light-mayonnaise",
+    "fdcId": 2710220,
+    "name": "Light Mayonnaise",
+    "aliases": [
+      "light mayo"
+    ],
+    "portions": [
+      {
+        "id": "309737",
+        "label": "1 tbsp",
+        "usdaPortionId": 309737
+      },
+      {
+        "id": "309736",
+        "label": "1 cup",
+        "usdaPortionId": 309736
+      },
+      {
+        "id": "309739",
+        "label": "1 dipping-size container",
+        "usdaPortionId": 309739
+      }
+    ],
+    "defaultPortionId": "309737"
+  },
+  {
+    "id": "chocolate-hazelnut-spread",
+    "fdcId": 2710289,
+    "name": "Chocolate Hazelnut Spread",
+    "aliases": [
+      "hazelnut spread"
+    ],
+    "portions": [
+      {
+        "id": "310002",
+        "label": "1 tbsp",
+        "usdaPortionId": 310002
+      }
+    ],
+    "defaultPortionId": "310002"
+  },
+  {
+    "id": "chocolate-chips",
+    "fdcId": 167976,
+    "name": "Chocolate Chips",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "82318",
+        "label": "1 oz (approx 60 pcs)",
+        "usdaPortionId": 82318
+      },
+      {
+        "id": "82319",
+        "label": "1 cup chips (6 oz package)",
+        "usdaPortionId": 82319
+      }
+    ],
+    "defaultPortionId": "82318"
+  },
+  {
+    "id": "black-tea",
+    "fdcId": 2710488,
+    "name": "Black Tea",
+    "aliases": [
+      "tea"
+    ],
+    "portions": [
+      {
+        "id": "311021",
+        "label": "1 cup",
+        "usdaPortionId": 311021
+      },
+      {
+        "id": "311022",
+        "label": "1 small",
+        "usdaPortionId": 311022
+      },
+      {
+        "id": "311024",
+        "label": "1 large",
+        "usdaPortionId": 311024
+      }
+    ],
+    "defaultPortionId": "311021"
+  },
+  {
+    "id": "green-tea",
+    "fdcId": 2710490,
+    "name": "Green Tea",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "311032",
+        "label": "1 cup",
+        "usdaPortionId": 311032
+      },
+      {
+        "id": "311033",
+        "label": "1 small",
+        "usdaPortionId": 311033
+      },
+      {
+        "id": "311035",
+        "label": "1 large",
+        "usdaPortionId": 311035
+      }
+    ],
+    "defaultPortionId": "311032"
+  },
+  {
+    "id": "oolong-tea",
+    "fdcId": 2710492,
+    "name": "Oolong Tea",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "311044",
+        "label": "1 cup",
+        "usdaPortionId": 311044
+      },
+      {
+        "id": "311043",
+        "label": "1 fl oz",
+        "usdaPortionId": 311043
+      },
+      {
+        "id": "311047",
+        "label": "1 large",
+        "usdaPortionId": 311047
+      }
+    ],
+    "defaultPortionId": "311044"
+  },
+  {
+    "id": "herbal-tea",
+    "fdcId": 2710502,
+    "name": "Herbal Tea",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "311087",
+        "label": "1 cup",
+        "usdaPortionId": 311087
+      },
+      {
+        "id": "311090",
+        "label": "1 large",
+        "usdaPortionId": 311090
+      },
+      {
+        "id": "311088",
+        "label": "1 small",
+        "usdaPortionId": 311088
+      }
+    ],
+    "defaultPortionId": "311087"
+  },
+  {
+    "id": "chamomile-tea",
+    "fdcId": 2710505,
+    "name": "Chamomile Tea",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "311102",
+        "label": "1 cup",
+        "usdaPortionId": 311102
+      },
+      {
+        "id": "311105",
+        "label": "1 large",
+        "usdaPortionId": 311105
+      },
+      {
+        "id": "311103",
+        "label": "1 small",
+        "usdaPortionId": 311103
+      }
+    ],
+    "defaultPortionId": "311102"
+  },
+  {
+    "id": "ginger-tea",
+    "fdcId": 2710507,
+    "name": "Ginger Tea",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "311116",
+        "label": "1 cup",
+        "usdaPortionId": 311116
+      },
+      {
+        "id": "311113",
+        "label": "1 small",
+        "usdaPortionId": 311113
+      },
+      {
+        "id": "311112",
+        "label": "1 fl oz",
+        "usdaPortionId": 311112
+      }
+    ],
+    "defaultPortionId": "311116"
+  },
+  {
+    "id": "kombucha",
+    "fdcId": 2710509,
+    "name": "Kombucha",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "311122",
+        "label": "1 fl oz (no ice)",
+        "usdaPortionId": 311122
+      },
+      {
+        "id": "311123",
+        "label": "1 fl oz (with ice)",
+        "usdaPortionId": 311123
+      },
+      {
+        "id": "311125",
+        "label": "1 can or bottle (12 fl oz)",
+        "usdaPortionId": 311125
+      }
+    ],
+    "defaultPortionId": "311125"
+  },
+  {
+    "id": "iced-tea-unsweetened",
+    "fdcId": 2710517,
+    "name": "Iced Tea, unsweetened",
+    "aliases": [
+      "iced tea"
+    ],
+    "portions": [
+      {
+        "id": "311169",
+        "label": "1 small drink",
+        "usdaPortionId": 311169
+      },
+      {
+        "id": "311171",
+        "label": "1 large drink",
+        "usdaPortionId": 311171
+      },
+      {
+        "id": "311170",
+        "label": "1 medium drink",
+        "usdaPortionId": 311170
+      }
+    ],
+    "defaultPortionId": "311169"
+  },
+  {
+    "id": "iced-tea-sweetened",
+    "fdcId": 2710515,
+    "name": "Iced Tea, sweetened",
+    "aliases": [
+      "sweet tea"
+    ],
+    "portions": [
+      {
+        "id": "311151",
+        "label": "1 small drink",
+        "usdaPortionId": 311151
+      },
+      {
+        "id": "311153",
+        "label": "1 large drink",
+        "usdaPortionId": 311153
+      },
+      {
+        "id": "311152",
+        "label": "1 medium drink",
+        "usdaPortionId": 311152
+      }
+    ],
+    "defaultPortionId": "311151"
+  },
+  {
+    "id": "sparkling-water",
+    "fdcId": 2710539,
+    "name": "Sparkling Water",
+    "aliases": [
+      "soda water",
+      "seltzer"
+    ],
+    "portions": [
+      {
+        "id": "311395",
+        "label": "1 fl oz",
+        "usdaPortionId": 311395
+      },
+      {
+        "id": "311396",
+        "label": "1 can (12 fl oz)",
+        "usdaPortionId": 311396
+      },
+      {
+        "id": "311397",
+        "label": "1 bottle (16.9 fl oz or 500 ml)",
+        "usdaPortionId": 311397
+      }
+    ],
+    "defaultPortionId": "311396"
+  },
+  {
+    "id": "water",
+    "fdcId": 2710707,
+    "name": "Water",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "312220",
+        "label": "1 cup",
+        "usdaPortionId": 312220
+      },
+      {
+        "id": "312223",
+        "label": "1 cup ice",
+        "usdaPortionId": 312223
+      },
+      {
+        "id": "312221",
+        "label": "1 fl oz",
+        "usdaPortionId": 312221
+      }
+    ],
+    "defaultPortionId": "312220"
+  },
+  {
+    "id": "lemonade",
+    "fdcId": 173217,
+    "name": "Lemonade",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "92127",
+        "label": "1 cup (8 fl oz)",
+        "usdaPortionId": 92127
+      },
+      {
+        "id": "92126",
+        "label": "1 fl oz",
+        "usdaPortionId": 92126
+      }
+    ],
+    "defaultPortionId": "92127"
+  },
+  {
+    "id": "diet-cola",
+    "fdcId": 2710542,
+    "name": "Diet Cola",
+    "aliases": [
+      "diet soda"
+    ],
+    "portions": [
+      {
+        "id": "311418",
+        "label": "1 can (12 fl oz)",
+        "usdaPortionId": 311418
+      },
+      {
+        "id": "311424",
+        "label": "1 large drink",
+        "usdaPortionId": 311424
+      },
+      {
+        "id": "311422",
+        "label": "1 small drink",
+        "usdaPortionId": 311422
+      }
+    ],
+    "defaultPortionId": "311418"
+  },
+  {
+    "id": "decaf-coffee",
+    "fdcId": 2710452,
+    "name": "Decaf Coffee",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "310890",
+        "label": "1 small",
+        "usdaPortionId": 310890
+      },
+      {
+        "id": "310889",
+        "label": "1 cup (8 fl oz)",
+        "usdaPortionId": 310889
+      },
+      {
+        "id": "310893",
+        "label": "1 small pot (20 FO, 4 servings)",
+        "usdaPortionId": 310893
+      }
+    ],
+    "defaultPortionId": "310889"
+  },
+  {
+    "id": "espresso",
+    "fdcId": 2710378,
+    "name": "Espresso",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "310468",
+        "label": "1 espresso cup (2 fl oz)",
+        "usdaPortionId": 310468
+      },
+      {
+        "id": "310467",
+        "label": "1 fl oz",
+        "usdaPortionId": 310467
+      }
+    ],
+    "defaultPortionId": "310468"
+  },
+  {
+    "id": "yellow-mustard",
+    "fdcId": 2710085,
+    "name": "Yellow Mustard",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "309174",
+        "label": "1 packet",
+        "usdaPortionId": 309174
+      },
+      {
+        "id": "309173",
+        "label": "1 tbsp",
+        "usdaPortionId": 309173
+      }
+    ],
+    "defaultPortionId": "309174"
+  },
+  {
+    "id": "soy-sauce",
+    "fdcId": 2707442,
+    "name": "Soy Sauce",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "298134",
+        "label": "1 tbsp",
+        "usdaPortionId": 298134
+      },
+      {
+        "id": "298135",
+        "label": "1 individual packet",
+        "usdaPortionId": 298135
+      }
+    ],
+    "defaultPortionId": "298134"
+  },
+  {
+    "id": "barbecue-sauce",
+    "fdcId": 2709750,
+    "name": "Barbecue Sauce",
+    "aliases": [
+      "bbq sauce"
+    ],
+    "portions": [
+      {
+        "id": "308144",
+        "label": "1 tbsp",
+        "usdaPortionId": 308144
+      },
+      {
+        "id": "308145",
+        "label": "1 cup",
+        "usdaPortionId": 308145
+      },
+      {
+        "id": "308146",
+        "label": "1 packet",
+        "usdaPortionId": 308146
+      }
+    ],
+    "defaultPortionId": "308144"
+  },
+  {
+    "id": "tortilla-chips",
+    "fdcId": 2708202,
+    "name": "Tortilla Chips",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "301675",
+        "label": "1 cup",
+        "usdaPortionId": 301675
+      },
+      {
+        "id": "301670",
+        "label": "1 chip",
+        "usdaPortionId": 301670
+      },
+      {
+        "id": "301671",
+        "label": "1 small single serving bag",
+        "usdaPortionId": 301671
+      }
+    ],
+    "defaultPortionId": "301675"
+  },
+  {
+    "id": "macaroni-and-cheese",
+    "fdcId": 2708811,
+    "name": "Macaroni and Cheese",
+    "aliases": [
+      "mac and cheese"
+    ],
+    "portions": [
+      {
+        "id": "304949",
+        "label": "1 cup",
+        "usdaPortionId": 304949
+      }
+    ],
+    "defaultPortionId": "304949"
+  },
+  {
+    "id": "coleslaw",
+    "fdcId": 2709815,
+    "name": "Coleslaw",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "308369",
+        "label": "1 cup",
+        "usdaPortionId": 308369
+      },
+      {
+        "id": "308370",
+        "label": "1 single serving container",
+        "usdaPortionId": 308370
+      }
+    ],
+    "defaultPortionId": "308369"
+  },
+  {
+    "id": "potato-salad",
+    "fdcId": 2709532,
+    "name": "Potato Salad",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "307483",
+        "label": "1 cup",
+        "usdaPortionId": 307483
+      }
+    ],
+    "defaultPortionId": "307483"
+  },
+  {
+    "id": "fried-egg",
+    "fdcId": 2707158,
+    "name": "Fried Egg",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "297283",
+        "label": "1 cup",
+        "usdaPortionId": 297283
+      },
+      {
+        "id": "297282",
+        "label": "1 egg",
+        "usdaPortionId": 297282
+      }
+    ],
+    "defaultPortionId": "297282"
+  },
+  {
+    "id": "cheese-omelet",
+    "fdcId": 2707212,
+    "name": "Cheese Omelet",
+    "aliases": [
+      "cheese omelette"
+    ],
+    "portions": [
+      {
+        "id": "297467",
+        "label": "1 cup",
+        "usdaPortionId": 297467
+      },
+      {
+        "id": "297466",
+        "label": "1 egg",
+        "usdaPortionId": 297466
+      }
+    ],
+    "defaultPortionId": "297467"
+  },
+  {
+    "id": "peanut-butter-and-jelly-sandwich",
+    "fdcId": 2707554,
+    "name": "Peanut Butter and Jelly Sandwich",
+    "aliases": [
+      "pbj"
+    ],
+    "portions": [
+      {
+        "id": "298617",
+        "label": "1 sandwich",
+        "usdaPortionId": 298617
+      },
+      {
+        "id": "298618",
+        "label": "1 sandwich (1 slice bread)",
+        "usdaPortionId": 298618
+      }
+    ],
+    "defaultPortionId": "298617"
+  },
+  {
+    "id": "waffle",
+    "fdcId": 2708325,
+    "name": "Waffle",
+    "aliases": [
+      "waffles"
+    ],
+    "portions": [
+      {
+        "id": "302558",
+        "label": "1 large waffle",
+        "usdaPortionId": 302558
+      },
+      {
+        "id": "302556",
+        "label": "1 small waffle",
+        "usdaPortionId": 302556
+      },
+      {
+        "id": "302557",
+        "label": "1 medium waffle",
+        "usdaPortionId": 302557
+      }
+    ],
+    "defaultPortionId": "302558"
+  },
+  {
+    "id": "plain-muffin",
+    "fdcId": 2707841,
+    "name": "Plain Muffin",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "300064",
+        "label": "1 medium",
+        "usdaPortionId": 300064
+      },
+      {
+        "id": "300063",
+        "label": "1 small",
+        "usdaPortionId": 300063
+      },
+      {
+        "id": "300065",
+        "label": "1 large",
+        "usdaPortionId": 300065
+      }
+    ],
+    "defaultPortionId": "300064"
+  },
+  {
+    "id": "chocolate-chip-cookie",
+    "fdcId": 2707909,
+    "name": "Chocolate Chip Cookie",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "300375",
+        "label": "1 large cookie",
+        "usdaPortionId": 300375
+      },
+      {
+        "id": "300373",
+        "label": "1 small cookie",
+        "usdaPortionId": 300373
+      },
+      {
+        "id": "300383",
+        "label": "1 Subway cookie",
+        "usdaPortionId": 300383
+      }
+    ],
+    "defaultPortionId": "300375"
+  },
+  {
+    "id": "hummus",
+    "fdcId": 2707402,
+    "name": "Hummus",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "298023",
+        "label": "1 tbsp",
+        "usdaPortionId": 298023
+      },
+      {
+        "id": "298024",
+        "label": "1 individual container",
+        "usdaPortionId": 298024
+      }
+    ],
+    "defaultPortionId": "298023"
+  },
+  {
+    "id": "guacamole",
+    "fdcId": 2709307,
+    "name": "Guacamole",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "306381",
+        "label": "1 tbsp",
+        "usdaPortionId": 306381
+      },
+      {
+        "id": "306382",
+        "label": "1 individual container",
+        "usdaPortionId": 306382
+      }
+    ],
+    "defaultPortionId": "306381"
+  },
+  {
+    "id": "popcorn",
+    "fdcId": 167959,
+    "name": "Popcorn",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "82278",
+        "label": "1 cup",
+        "usdaPortionId": 82278
+      },
+      {
+        "id": "82279",
+        "label": "1 oz",
+        "usdaPortionId": 82279
+      }
+    ],
+    "defaultPortionId": "82278"
+  },
+  {
+    "id": "raisins",
+    "fdcId": 168165,
+    "name": "Raisins",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "82590",
+        "label": "1 small box (1.5 oz)",
+        "usdaPortionId": 82590
+      },
+      {
+        "id": "82587",
+        "label": "1 cup, packed",
+        "usdaPortionId": 82587
+      },
+      {
+        "id": "82588",
+        "label": "1 cup (not packed)",
+        "usdaPortionId": 82588
+      },
+      {
+        "id": "82592",
+        "label": "1 oz (60 raisins)",
+        "usdaPortionId": 82592
+      }
+    ],
+    "defaultPortionId": "82590"
+  },
+  {
+    "id": "ketchup",
+    "fdcId": 168556,
+    "name": "Ketchup",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "83301",
+        "label": "1 tbsp",
+        "usdaPortionId": 83301
+      },
+      {
+        "id": "83303",
+        "label": "1 cup",
+        "usdaPortionId": 83303
+      },
+      {
+        "id": "83302",
+        "label": "1 packet",
+        "usdaPortionId": 83302
+      }
+    ],
+    "defaultPortionId": "83301"
+  },
+  {
+    "id": "parsley",
+    "fdcId": 170416,
+    "name": "Parsley",
+    "aliases": [],
+    "portions": [
+      {
+        "id": "86607",
+        "label": "1 cup chopped",
+        "usdaPortionId": 86607
+      },
+      {
+        "id": "86608",
+        "label": "1 tbsp",
+        "usdaPortionId": 86608
+      }
+    ],
+    "defaultPortionId": "86607"
+  }
+]

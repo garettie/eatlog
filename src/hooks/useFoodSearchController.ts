@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   combineFoodSearchResults,
-  searchPersonalFoods,
+  searchLocalFoods,
   searchRemoteFood,
   type FoodResult,
   type FoodSearchMode,
@@ -13,7 +13,7 @@ type RemoteSearchState = 'idle' | 'loading' | FoodSearchOutcome['kind'];
 
 export function useFoodSearchController(initialQuery = '') {
   const [query, setQuery] = useState(initialQuery);
-  const [personalResults, setPersonalResults] = useState<FoodResult[]>([]);
+  const [localResults, setLocalResults] = useState<FoodResult[]>([]);
   const [remoteResults, setRemoteResults] = useState<FoodResult[]>([]);
   const [remoteState, setRemoteState] = useState<RemoteSearchState>('idle');
   const [localLoading, setLocalLoading] = useState(true);
@@ -29,12 +29,12 @@ export function useFoodSearchController(initialQuery = '') {
     const sequence = ++localSequence.current;
     setLocalLoading(true);
     setLocalError(false);
-    void searchPersonalFoods(query).then((items) => {
-      if (sequence === localSequence.current) setPersonalResults(items);
+    void searchLocalFoods(query).then((items) => {
+      if (sequence === localSequence.current) setLocalResults(items);
     }).catch((error) => {
-      console.error('[FoodSearch] personal history failed', error);
+      console.error('[FoodSearch] local search failed', error);
       if (sequence === localSequence.current) {
-        setPersonalResults([]);
+        setLocalResults([]);
         setLocalError(true);
       }
     }).finally(() => {
@@ -89,15 +89,17 @@ export function useFoodSearchController(initialQuery = '') {
   }, []);
 
   const combined = useMemo(
-    () => combineFoodSearchResults(personalResults, remoteResults, query, mode),
-    [mode, personalResults, query, remoteResults],
+    () => combineFoodSearchResults(localResults, remoteResults, query, mode),
+    [mode, localResults, query, remoteResults],
   );
 
   return {
     query,
     setQuery,
     personalResults: combined.filter((item) => item.history != null),
-    remoteResults: combined.filter((item) => item.history == null),
+    // A remote USDA row with the same fdcId has already merged into its common food.
+    commonResults: combined.filter((item) => item.history == null && item.isCommonFood),
+    remoteResults: combined.filter((item) => item.history == null && !item.isCommonFood),
     remoteState,
     localLoading,
     localError,

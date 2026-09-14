@@ -1,6 +1,7 @@
 import { serviceConfig } from '../config/services';
 import { getFoodHistoryRows, getPinnedFoodKeys } from '../db/database';
-import { buildPersonalFoodResults, rankAndDeduplicateFoodResults } from './foodSearchCore';
+import { searchCommonFoods } from './commonFoods';
+import { buildPersonalFoodResults, loadUSDAFoodDetails, rankAndDeduplicateFoodResults } from './foodSearchCore';
 import { FoodSearchEngine } from './foodSearchEngine';
 import { createFoodSearchRemoteProviders } from './foodSearchRemote';
 import type { DedupNearMiss, FoodResult, FoodSearchMode, FoodSearchOutcome } from './foodSearchTypes';
@@ -18,14 +19,14 @@ const remote = createFoodSearchRemoteProviders({
   openFoodFactsUserAgent: serviceConfig.openFoodFactsUserAgent,
 });
 
-export async function searchPersonalFoods(query: string): Promise<FoodResult[]> {
+export async function searchLocalFoods(query: string): Promise<FoodResult[]> {
   const [rows, pinnedKeys] = await Promise.all([getFoodHistoryRows(), getPinnedFoodKeys()]);
   const personal = buildPersonalFoodResults(rows, pinnedKeys);
-  return rankAndDeduplicateFoodResults(personal, query, 'common').items;
+  return rankAndDeduplicateFoodResults([...personal, ...searchCommonFoods(query)], query, 'common').items;
 }
 
 const engine = new FoodSearchEngine({
-  searchLocal: searchPersonalFoods,
+  searchLocal: searchLocalFoods,
   searchUSDA: remote.searchUSDA,
   searchOpenFoodFacts: serviceConfig.availability.openFoodFacts ? remote.searchOpenFoodFacts : undefined,
   onNearMisses: (nearMisses) => { latestNearMisses = nearMisses; },
@@ -57,9 +58,7 @@ export function combineFoodSearchResults(
 }
 
 export async function loadFoodDetails(food: FoodResult, signal?: AbortSignal): Promise<FoodResult> {
-  if (food.source !== 'usda' || food.history || !remote.loadUSDAFood) return food;
-  const detail = await remote.loadUSDAFood(food.sourceFoodId, signal);
-  return detail ? { ...food, ...detail, id: food.id, providerOrder: food.providerOrder } : food;
+  return loadUSDAFoodDetails(food, remote.loadUSDAFood, signal);
 }
 
 function getFoodSearchDiagnostics() {

@@ -2,7 +2,9 @@
 
 ## Status and objective
 
-This plan replaces the previous API-first plan. Eatlog will not bundle or download a food catalog. It will not use FatSecret or add barcode search.
+This plan replaces the previous API-first plan. It will not use FatSecret or add barcode search.
+
+Bundled common foods are specified in `FOOD_SEARCH_QUALITY_IMPLEMENTATION_PLAN.md`.
 
 The search experience will use the user's own logging history first, including individual components created by image and description scans. Remote USDA and Open Food Facts results will cover foods the user has not logged. An explicit Gemini estimate will cover gaps. Once the user logs a result, the existing `food_logs` rows make it available offline.
 
@@ -14,7 +16,6 @@ Success means:
 - Search remains useful offline for prior foods, meal components, meals, and manual entry.
 - Online failures do not hide personal results.
 - Quick-log reproduces the latest quantity and nutrition and supports undo.
-- The APK contains no bundled food database, JSON dataset, or CSV dataset.
 - The Expo bundle contains no USDA or Gemini secret.
 - The Worker rejects undocumented routes, malformed or oversized input, and requests over its layered abuse limits before contacting an upstream provider.
 - Worker logs contain operational metadata without food queries, descriptions, images, device identifiers, prompts, responses, or secrets.
@@ -343,18 +344,17 @@ Before handoff:
 4. Run `npx expo export --platform android --dev`.
 5. Run the Worker tests and local contract checks.
 6. Run `npx wrangler deploy --dry-run` and inspect its resolved bindings and bundle contents.
-7. Confirm the Expo and Worker outputs contain no USDA key, Gemini key, rate-limit salt, food database, dataset JSON, or dataset CSV.
+7. Confirm the Expo and Worker outputs contain no USDA key, Gemini key, or rate-limit salt.
 8. Against the deployed preview Worker, test health, valid USDA search, wrong methods, malformed JSON, oversized input, rate limiting, upstream timeout, and redacted errors.
 9. Confirm Workers Logs contain no query text, prompts, images, Android IDs, request bodies, response bodies, or secrets.
 10. Record the deployed URL, Worker version, rollback command, secret-rotation status, and the owner's confirmation that Gemini account limits are configured.
 
 ## Fixed decisions
 
-- No bundled or downloadable food catalog.
 - No FatSecret integration.
 - No barcode search in this implementation.
 - No automatic AI result mixed into deterministic search results.
-- Offline discovery covers the user's history and manual entry only.
+- Offline discovery covers the user's history, bundled common foods, and manual entry.
 - Whole meals keep their review flow; quick-log applies to individual foods and components.
 - Android remains the verification target.
 - The Worker URL is public. Worker controls bound anonymous abuse but do not authenticate the APK.

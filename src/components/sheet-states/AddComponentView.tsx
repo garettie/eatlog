@@ -324,6 +324,7 @@ export default function AddComponentView({
 		!search.localLoading &&
 		search.remoteState !== "loading" &&
 		search.personalResults.length === 0 &&
+		search.commonResults.length === 0 &&
 		search.remoteResults.length === 0;
 
 	const foodRow = (food: FoodResult) => (
@@ -641,6 +642,13 @@ export default function AddComponentView({
 							<Text className="text-m3-on-surface-variant text-sm px-1">
 								No personal matches
 							</Text>
+						) : null}
+
+						{search.commonResults.length > 0 ? (
+							<>
+								<SectionTitle>Common foods</SectionTitle>
+								{search.commonResults.map(foodRow)}
+							</>
 						) : null}
 
 						<SectionTitle>Online results</SectionTitle>

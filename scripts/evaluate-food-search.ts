@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { normalizeFoodText } from '../src/services/foodSearchCore';
 import { FoodSearchEngine } from '../src/services/foodSearchEngine';
 import { createFoodSearchRemoteProviders } from '../src/services/foodSearchRemote';
+import { searchCommonFoods } from '../src/services/commonFoods';
 import { buildOpenFoodFactsUserAgent } from '../src/services/publicReleaseConfig';
 import { duplicateLimitMet, evaluationCases, evaluationRow, summarizeEvaluation, type EvaluationRow } from './foodSearchEvaluation';
 import { readLocalEnv } from './foodSearchScriptConfig';
@@ -22,7 +23,8 @@ async function main(): Promise<void> {
     getInstallationToken: () => '00000000000000000000000000000000' });
   const failures: string[] = [];
   const engine = new FoodSearchEngine({
-    searchLocal: async () => [],
+    // --remote-only keeps the Phase 2 baseline without bundled common foods.
+    searchLocal: async (query) => args.includes('--remote-only') ? [] : searchCommonFoods(query),
     searchUSDA: providers.searchUSDA,
     searchOpenFoodFacts: providers.searchOpenFoodFacts,
     onProviderFailure: (provider, error) => failures.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`),

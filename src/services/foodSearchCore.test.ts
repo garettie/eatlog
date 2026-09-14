@@ -7,6 +7,7 @@ import {
   createQuickLogInput,
   expandFoodAliases,
   historyPinKey,
+  loadUSDAFoodDetails,
   normalizeFoodName,
   parseOpenFoodFactsProducts,
   parseUSDAFoods,
@@ -55,6 +56,68 @@ function history(overrides: Partial<FoodHistoryRecord> & Pick<FoodHistoryRecord,
     ...overrides,
   };
 }
+
+test('common foods retain curated identity when a remote duplicate matches more closely', () => {
+  const common = food({ id: 'common-rice', name: 'White Rice, cooked', sourceFoodId: '42', isCommonFood: true,
+    aliases: ['steamed rice'], portions: [{ id: 'cup', label: '1 cup', grams: 158 }],
+    defaultAmount: { kind: 'serving', grams: 158, servingId: 'cup' } });
+  const remote = food({ id: 'remote-rice', name: 'Rice', sourceFoodId: '42' });
+  for (const input of [[common, remote], [remote, common]]) {
+    const result = rankAndDeduplicateFoodResults(input, 'rice').items;
+    assert.equal(result.length, 1);
+    assert.equal(result[0].name, common.name);
+    assert.deepEqual(result[0].defaultAmount, common.defaultAmount);
+    assert.deepEqual(result[0].portions, common.portions);
+    assert.equal(result[0].isCommonFood, true);
+  }
+  assert.equal(rankAndDeduplicateFoodResults([common], 'steamed rice').items[0]?.id, common.id);
+});
+
+test('history survives a better matching common food or remote duplicate in either order', () => {
+  const personal = buildPersonalFoodResults([history({ id: 1, name: 'My lunch rice', source: 'usda', source_food_id: '42' })], [])[0];
+  for (const isCommonFood of [true, false]) {
+    const duplicate = food({ id: 'rice', name: 'Rice', sourceFoodId: '42', isCommonFood,
+      alternateSourceIds: [{ source: 'off', id: 'alternate' }] });
+    for (const input of [[personal, duplicate], [duplicate, personal]]) {
+      const result = rankAndDeduplicateFoodResults(input, 'rice').items[0];
+      assert.equal(result.id, personal.id);
+      assert.deepEqual(result.defaultAmount, personal.defaultAmount);
+      assert.deepEqual(result.alternateSourceIds, [{ source: 'off', id: 'alternate' }]);
+    }
+  }
+});
+
+test('common foods win equal matches and repeated remote names leave room for other foods', () => {
+  const common = food({ id: 'common', name: 'Rice', isCommonFood: true });
+  const remote = food({ id: 'remote', name: 'Rice', caloriesPer100g: 300 });
+  assert.equal(rankAndDeduplicateFoodResults([remote, common], 'rice').items[0].id, 'common');
+  const variants = Array.from({ length: 5 }, (_, index) => food({
+    id: String(index), name: 'Coca Cola', dataType: 'off', source: 'off',
+    caloriesPer100g: 10 * (2 ** index),
+  }));
+  const other = food({ id: 'zero', name: 'Coca Cola Zero', caloriesPer100g: 0 });
+  const result = rankAndDeduplicateFoodResults([...variants, other], 'coca cola', 'full').items;
+  assert.equal(result.filter((item) => item.name === 'Coca Cola').length, 3);
+  assert.ok(result.some((item) => item.id === 'zero'));
+  assert.deepEqual(variants.map((item) => item.alternateSourceIds), [[], [], [], [], []]);
+});
+
+test('personal history outranks common foods, which outrank remote results', () => {
+  const personal = buildPersonalFoodResults([history({ id: 1, name: 'Rice' })], [])[0];
+  // Distinct macros keep the three rows out of one nutrition cluster.
+  const common = food({ id: 'common-rice', name: 'Rice', sourceFoodId: '42', isCommonFood: true,
+    caloriesPer100g: 130, proteinPer100g: 3, carbsPer100g: 28, fatPer100g: 0.3 });
+  const remote = food({ id: 'remote-rice', name: 'Rice', sourceFoodId: '77', caloriesPer100g: 300 });
+  const ids = rankAndDeduplicateFoodResults([remote, common, personal], 'rice').items.map((item) => item.id);
+  assert.deepEqual(ids, [personal.id, common.id, remote.id]);
+});
+
+test('common foods open without a USDA detail request', async () => {
+  const loader = async (): Promise<FoodResult | null> => { throw new Error('offline'); };
+  const common = food({ id: 'common-rice', name: 'White Rice, cooked', isCommonFood: true });
+  assert.equal(await loadUSDAFoodDetails(common, loader), common);
+  await assert.rejects(loadUSDAFoodDetails(food({ id: '42', name: 'Rice' }), loader), /offline/);
+});
 
 test('parses supported USDA records with every valid household portion', () => {
   const types: DataType[] = ['Survey (FNDDS)', 'SR Legacy', 'Foundation', 'Branded'];

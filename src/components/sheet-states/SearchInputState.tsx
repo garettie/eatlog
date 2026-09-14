@@ -172,6 +172,7 @@ export default function SearchInputState({
 		trimmedQuery.length > 0 &&
 		!search.localLoading &&
 		search.personalResults.length === 0 &&
+		search.commonResults.length === 0 &&
 		search.remoteResults.length === 0 &&
 		search.remoteState !== "loading";
 
@@ -269,6 +270,13 @@ export default function SearchInputState({
 							<Text className="text-m3-on-surface-variant text-sm px-1">
 								No personal matches
 							</Text>
+						) : null}
+
+						{search.commonResults.length > 0 ? (
+							<>
+								<SectionTitle>Common foods</SectionTitle>
+								{search.commonResults.map(foodRow)}
+							</>
 						) : null}
 
 						<SectionTitle>Online results</SectionTitle>

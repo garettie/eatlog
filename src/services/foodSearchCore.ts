@@ -170,24 +170,24 @@ function isOneEditApart(first: string, second: string): boolean {
   return true;
 }
 
-function matchClass(query: string, item: FoodResult, mode: FoodSearchMode): number {
+function matchClass(query: string, item: FoodResult, mode: FoodSearchMode, queryAliases: string[]): number {
   const normalizedQuery = normalizeFoodText(query);
   if (!normalizedQuery) return 1;
   const candidateText = normalizeFoodText(
     mode === 'full' ? (item.searchText ?? `${item.name} ${item.normalizedName}`) : `${item.name} ${item.normalizedName}`,
   );
   const candidateTokens = comparableTokens(candidateText);
-  const candidateName = comparableTokens(item.normalizedName).join(' ');
+  const candidateNames = [item.normalizedName, ...(item.aliases ?? [])].map((name) => comparableTokens(name).join(' '));
   let best = 0;
-  for (const alias of expandFoodAliases(query)) {
+  for (const alias of queryAliases) {
     const aliasTokens = comparableTokens(alias);
     const normalizedAlias = aliasTokens.join(' ');
     if (!normalizedAlias) continue;
-    if (candidateName === normalizedAlias) {
+    if (candidateNames.some((name) => name === normalizedAlias)) {
       best = Math.max(best, 4);
       continue;
     }
-    if (candidateName.startsWith(`${normalizedAlias} `)) {
+    if (candidateNames.some((name) => name.startsWith(`${normalizedAlias} `))) {
       best = Math.max(best, 3);
       continue;
     }
@@ -234,10 +234,9 @@ function preparationRank(requested: string | null, candidate: string | null): nu
   return 2;
 }
 
-function makeComparator(items: FoodResult[], query: string, mode: FoodSearchMode) {
+function makeComparator(items: FoodResult[], query: string, matchClasses: Map<string, number>) {
   const inputOrder = new Map(items.map((item, index) => [item.id, index]));
   const requestedPreparation = extractPreparation(query);
-  const matchClasses = new Map(items.map((item) => [item.id, matchClass(query, item, mode)]));
   return (first: FoodResult, second: FoodResult): number => {
     const firstMatch = matchClasses.get(first.id) ?? 0;
     const secondMatch = matchClasses.get(second.id) ?? 0;
@@ -258,6 +257,8 @@ function makeComparator(items: FoodResult[], query: string, mode: FoodSearchMode
     const firstLoggedAt = first.history?.lastLoggedAt ?? '';
     const secondLoggedAt = second.history?.lastLoggedAt ?? '';
     if (firstLoggedAt !== secondLoggedAt) return secondLoggedAt.localeCompare(firstLoggedAt);
+
+    if (!!first.isCommonFood !== !!second.isCommonFood) return first.isCommonFood ? -1 : 1;
 
     const firstPreparation = preparationRank(requestedPreparation, first.preparation);
     const secondPreparation = preparationRank(requestedPreparation, second.preparation);
@@ -329,8 +330,29 @@ export function rankAndDeduplicateFoodResults(
   query: string,
   mode: FoodSearchMode = 'common',
 ): { items: FoodResult[]; nearMisses: DedupNearMiss[] } {
-  const comparator = makeComparator(items, query, mode);
-  const ranked = [...items].filter((item) => matchClass(query, item, mode) > 0).sort(comparator);
+  const queryAliases = expandFoodAliases(query);
+  const matchClasses = new Map(items.map((item) => [item.id, matchClass(query, item, mode, queryAliases)]));
+  const identityGroups: FoodResult[] = [];
+  const priority = (item: FoodResult) => item.history ? 0 : item.isCommonFood ? 1 : 2;
+  // Select the canonical provider record before filtering or ranking by query text.
+  for (const item of items) {
+    const index = identityGroups.findIndex((existing) => hasSameProviderIdentity(existing, item));
+    if (index < 0) {
+      identityGroups.push({ ...item, alternateSourceIds: [...item.alternateSourceIds] });
+      continue;
+    }
+    const existing = identityGroups[index];
+    const survivor = priority(item) < priority(existing)
+      ? { ...item, alternateSourceIds: [...item.alternateSourceIds] } : existing;
+    const duplicate = survivor === existing ? item : existing;
+    appendAlternates(survivor, duplicate);
+    // Preserve searchable curated aliases when history takes over a common food.
+    if (duplicate.aliases?.length) survivor.aliases = [...new Set([...(survivor.aliases ?? []), ...duplicate.aliases])];
+    matchClasses.set(survivor.id, Math.max(matchClasses.get(existing.id) ?? 0, matchClasses.get(item.id) ?? 0));
+    identityGroups[index] = survivor;
+  }
+  const comparator = makeComparator(identityGroups, query, matchClasses);
+  const ranked = identityGroups.filter((item) => (matchClasses.get(item.id) ?? 0) > 0).sort(comparator);
   const canonical: FoodResult[] = [];
   const nearMisses: DedupNearMiss[] = [];
 
@@ -365,7 +387,15 @@ export function rankAndDeduplicateFoodResults(
   }
 
   canonical.sort(comparator);
-  return { items: canonical.slice(0, 25), nearMisses };
+  // Keep distinct nutrition variants, but prevent identical-looking rows from filling the list.
+  const visibleCounts = new Map<string, number>();
+  const visible = canonical.filter((item) => {
+    const key = `${normalizeFoodText(item.normalizedName)}|${item.preparation ?? ''}`;
+    const count = visibleCounts.get(key) ?? 0;
+    visibleCounts.set(key, count + 1);
+    return count < 3 || item.history != null;
+  });
+  return { items: visible.slice(0, 25), nearMisses };
 }
 
 function finiteNonNegative(value: unknown): number | null {
@@ -390,6 +420,17 @@ export function buildFoodPortions(
     portions.push({ id, label, grams: candidate.grams });
   }
   return portions;
+}
+
+export async function loadUSDAFoodDetails(
+  food: FoodResult,
+  loadUSDAFood: ((fdcId: string, signal?: AbortSignal) => Promise<FoodResult | null>) | undefined,
+  signal?: AbortSignal,
+): Promise<FoodResult> {
+  // Common foods already carry curated names and servings, and must open offline.
+  if (food.isCommonFood || food.source !== 'usda' || food.history || !loadUSDAFood) return food;
+  const detail = await loadUSDAFood(food.sourceFoodId, signal);
+  return detail ? { ...food, ...detail, id: food.id, providerOrder: food.providerOrder } : food;
 }
 
 function parseRequiredMacros(values: {
