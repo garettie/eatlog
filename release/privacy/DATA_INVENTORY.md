@@ -93,7 +93,7 @@ HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigati
 - USDA and Open Food Facts clients: `src/services/foodSearchRemote.ts`, `src/services/foodSearchEngine.ts`, and `src/hooks/useFoodSearchController.ts`
 - Health Connect: `src/services/healthConnect.ts`, `src/screens/DataSyncScreens.tsx`, and `src/navigation/TabNavigator.tsx`
 - Backup, restore, CSV, and reset: `src/services/dataBackup.ts`, `src/services/dataExport.ts`, and `src/services/dataReset.ts`
-- Worker gateway and rate limiting: `worker/src/index.ts` and `worker/wrangler.jsonc`
+- Worker gateway and rate limiting: `worker/src/index.ts`, `worker/wrangler.subscription-production.jsonc`, and `worker/wrangler.subscription-staging.jsonc`
 
 ## Current audit evidence
 

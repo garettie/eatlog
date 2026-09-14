@@ -20,8 +20,8 @@ Set `GEMINI_INPUT_USD_PER_MILLION` and `GEMINI_OUTPUT_USD_PER_MILLION` for aggre
 Do not deploy either subscription Worker without owner approval. A deployment changes external state. Before approval, the owner must confirm the target account and supply these secret values without exposing them: `USDA_API_KEY`, `GEMINI_API_KEY`, `RATE_LIMIT_SALT`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `AI_GRANT_SIGNING_KEY`, and `QUOTA_IDENTITY_SALT`. Always pass the intended subscription config to secret, deploy, deployment-list, and rollback commands; never use a bare deploy command for a subscription Worker. The exact staging and production procedures are in the release runbook.
 
 The checked-in config supports the Workers Free plan and therefore relies on
-Cloudflare's built-in 10 ms CPU and 50-subrequest limits. Custom `limits` in
-`wrangler.jsonc` require the Workers Paid plan.
+Cloudflare's built-in 10 ms CPU and 50-subrequest limits. Custom `limits` in the
+Worker configuration require the Workers Paid plan.
 
 ```bash
 npx wrangler login
@@ -34,7 +34,7 @@ npx wrangler deploy
 
 Set `EXPO_PUBLIC_FOOD_WORKER_URL` to the deployed HTTPS origin. With the same origin in `EATLOG_WORKER_URL`, `npm run smoke:health` performs only the read-only health check. `npm run smoke:validation` adds synthetic invalid requests; it does not call USDA or Gemini, but it does consume test rate-limit entries. Run it only against local, preview, or an explicitly approved production Worker.
 
-Workers dashboard: inspect **Workers & Pages > eatlog-food > Metrics** for traffic, CPU, errors, and latency; inspect **Logs** for 429/5xx events and rejection categories. Logs intentionally exclude request URLs, bodies, queries, prompts, responses, headers, identifiers, hashes, and secrets.
+Workers dashboard: inspect **Workers & Pages > eatlog-food-subscription-production > Metrics** for traffic, CPU, errors, and latency; inspect **Logs** for 429/5xx events and rejection categories. Logs intentionally exclude request URLs, bodies, queries, prompts, responses, headers, identifiers, hashes, and secrets.
 
 Successful Gemini requests also emit one aggregate `ai_usage` record containing only model name, input/output/total token counts, and an estimated USD cost when both non-secret per-million-token rates are configured. No food content or customer identifier is logged.
 

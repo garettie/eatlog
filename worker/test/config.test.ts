@@ -34,7 +34,6 @@ const readConfig = (filename: string): WorkerConfig => {
   return JSON.parse(source) as WorkerConfig;
 };
 
-const legacy = readConfig('wrangler.jsonc');
 const staging = readConfig('wrangler.subscription-staging.jsonc');
 const production = readConfig('wrangler.subscription-production.jsonc');
 
@@ -78,10 +77,8 @@ test('production subscriptions use an isolated Worker and state namespace', () =
   assert.equal(production.limits, undefined);
 
   assert.notEqual(production.name, staging.name);
-  assert.notEqual(production.name, legacy.name);
   assert.equal(staging.name, 'eatlog-food-subscription-staging');
-  assert.equal(legacy.name, 'eatlog-food');
-  assert.equal(legacy.main, 'src/index.ts');
+  assert.equal(staging.main, 'src/worker.ts');
 });
 
 test('production subscriptions declare the complete secret and observability contracts', () => {
@@ -109,7 +106,7 @@ test('production rate limit bindings preserve limits with unique namespaces', ()
   );
 
   const existingNamespaceIds = new Set(
-    [...(legacy.ratelimits ?? []), ...(staging.ratelimits ?? [])].map(({ namespace_id }) => namespace_id),
+    (staging.ratelimits ?? []).map(({ namespace_id }) => namespace_id),
   );
   for (const { namespace_id } of production.ratelimits ?? []) {
     assert.equal(existingNamespaceIds.has(namespace_id), false);
