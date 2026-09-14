@@ -14,7 +14,6 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
-import { serviceConfig } from "../../config/services";
 import { useEntitlement } from "../../context/EntitlementContext";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
 import { insertFoodLog, type MealType, setFoodPinned } from "../../db/database";
@@ -280,11 +279,6 @@ export default function SearchInputState({
 						) : null}
 
 						<SectionTitle>Online results</SectionTitle>
-						{serviceConfig.availability.openFoodFacts ? (
-							<Text className="text-m3-on-surface-variant text-xs px-1">
-								Press Search to send this query to Open Food Facts.
-							</Text>
-						) : null}
 						{search.remoteResults.map(foodRow)}
 						{search.remoteState === "loading" ? (
 							<View className="py-4">

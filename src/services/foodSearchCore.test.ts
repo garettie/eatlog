@@ -217,6 +217,56 @@ test('clusters at 20 percent, separates above boundary, and chooses newest row',
   assert.equal(merged?.history?.representativeLogId, 2);
 });
 
+test('repeated AI foods share one history result despite case, portions, and estimate drift', () => {
+  const results = buildPersonalFoodResults([
+    history({ id: 1, name: 'White Rice', source: 'scan', data_type: 'scan', fat_g_per_100g: 0.1 }),
+    history({ id: 2, name: 'WHITE RICE (200g)', source: 'scan', data_type: 'scan', grams_logged: 200,
+      serving_label: '1 cup', serving_size_g: 160, fat_g_per_100g: 0.5 }),
+    history({ id: 3, name: '1 cup white rice', source: 'describe', data_type: 'describe', grams_logged: 158,
+      serving_label: '1 cup', serving_size_g: 158, calories_per_100g: 130, calories: 205 }),
+  ], [historyPinKey('WHITE RICE (200g)', null, null)]);
+  assert.equal(results.length, 1);
+  const result = results[0];
+  assert.equal(result.history?.timesLogged, 3);
+  assert.equal(result.history?.representativeLogId, 3);
+  assert.equal(result.defaultAmount.grams, 158);
+  assert.equal(result.caloriesPer100g, 130);
+  assert.equal(result.history?.calories, 205);
+  assert.equal(result.isPinned, true);
+  assert.ok(result.history?.legacyPinKeys.includes(historyPinKey('WHITE RICE (200g)', null, null)));
+  assert.equal(rankAndDeduplicateFoodResults(results, 'white rice').items.length, 1);
+});
+
+test('a month of rice scans leaves online matches visible after history', () => {
+  const personal = buildPersonalFoodResults(Array.from({ length: 30 }, (_, index) => history({
+    id: index + 1,
+    name: index % 2 ? 'White Rice' : 'WHITE RICE',
+    source: 'scan',
+    source_food_id: `scan-component-${index}`,
+    fat_g_per_100g: index / 10,
+    grams_logged: 100 + index * 10,
+  })), []);
+  const online = food({ id: 'online-rice', name: 'White rice', brand: 'Rice brand' });
+  const results = rankAndDeduplicateFoodResults([...personal, online], 'white rice').items;
+  assert.equal(results.length, 2);
+  assert.equal(results[0].history?.timesLogged, 30);
+  assert.equal(results[1].id, online.id);
+});
+
+test('AI history grouping preserves brands, preparations, and manual nutrition variants', () => {
+  const results = buildPersonalFoodResults([
+    history({ id: 1, name: 'White rice', source: 'scan', preparation: 'raw' }),
+    history({ id: 2, name: 'White rice', source: 'scan', preparation: 'fried' }),
+    history({ id: 3, name: 'White rice', source: 'scan', brand: 'Brand A' }),
+    history({ id: 4, name: 'White rice', source: 'scan', brand: 'Brand B' }),
+    history({ id: 5, name: 'White rice', source: 'scan' }),
+    history({ id: 6, name: 'White rice', source: 'manual' }),
+    history({ id: 7, name: '2% milk', source: 'scan' }),
+    history({ id: 8, name: 'Milk', source: 'scan' }),
+  ], []);
+  assert.equal(results.length, 8);
+});
+
 test('derives per-100 g macros from absolute values and excludes unusable rows', () => {
   const results = buildPersonalFoodResults([
     history({

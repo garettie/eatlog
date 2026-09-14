@@ -757,6 +757,20 @@ function historyNameKey(record: PreparedHistoryRecord): string {
   ].join('|');
 }
 
+function isEstimatedHistory(row: FoodHistoryRecord): boolean {
+  return row.source === 'scan' || row.source === 'describe';
+}
+
+function estimatedHistoryName(name: string): string {
+  // Amounts identify a past portion, not a different food. Keep nutrition qualifiers
+  // such as "2% milk" and preparation words in the matching key.
+  const amount = String.raw`\d+(?:[./]\d+)?(?:\s+\d+/\d+)?\s*(?:g|grams?|kg|ml|cups?|servings?|pieces?|slices?|bowls?|tbsp|tsp|oz)\b`;
+  return name
+    .replace(new RegExp(`^\\s*${amount}\\s+(?:of\\s+)?`, 'i'), '')
+    .replace(new RegExp(`\\s*[,(-]?\\s*${amount}\\s*\\)?\\s*$`, 'i'), '')
+    .trim();
+}
+
 function newestFirst(first: PreparedHistoryRecord, second: PreparedHistoryRecord): number {
   return second.row.logged_at.localeCompare(first.row.logged_at) || second.row.id - first.row.id;
 }
@@ -768,7 +782,7 @@ export function buildPersonalFoodResults(
   const prepared = rows.flatMap((row): PreparedHistoryRecord[] => {
     const macros = historyMacros(row);
     if (!macros) return [];
-    const normalized = normalizeFoodName(row.name, row.brand);
+    const normalized = normalizeFoodName(isEstimatedHistory(row) ? estimatedHistoryName(row.name) : row.name, row.brand);
     if (!normalized.normalizedName) return [];
     return [{
       row,
@@ -781,7 +795,9 @@ export function buildPersonalFoodResults(
   const groups = new Map<string, PreparedHistoryRecord[]>();
   for (const record of prepared) {
     const providerKey = historyProviderKey(record.row);
-    const groupKey = providerKey ? `provider:${providerKey}` : `name:${historyNameKey(record)}`;
+    const groupKey = isEstimatedHistory(record.row)
+      ? `estimate:${historyNameKey(record)}`
+      : providerKey ? `provider:${providerKey}` : `name:${historyNameKey(record)}`;
     const group = groups.get(groupKey) ?? [];
     group.push(record);
     groups.set(groupKey, group);
@@ -789,7 +805,7 @@ export function buildPersonalFoodResults(
 
   const clusters: PreparedHistoryRecord[][] = [];
   for (const [groupKey, records] of groups) {
-    if (groupKey.startsWith('provider:')) {
+    if (groupKey.startsWith('provider:') || groupKey.startsWith('estimate:')) {
       clusters.push(records);
       continue;
     }
@@ -833,7 +849,11 @@ export function buildPersonalFoodResults(
       grams: servingRecord.row.serving_size_g,
     }] : []);
     const serving = portions[0] ?? null;
-    const isPinned = pinned.has(pinKey) || cluster.some((record) => pinned.has(record.row.legacy_food_key));
+    const legacyPinKeys = [...new Set(cluster.flatMap((record) => [
+      record.row.legacy_food_key,
+      historyPinKey(normalizeFoodName(record.row.name, record.row.brand).normalizedName, record.row.brand, record.preparation),
+    ]))];
+    const isPinned = pinned.has(pinKey) || legacyPinKeys.some((key) => pinned.has(key));
     return {
       id: `history-${row.id}`,
       name: row.name,
@@ -853,7 +873,7 @@ export function buildPersonalFoodResults(
         timesLogged: cluster.length,
         lastGrams,
         pinKey,
-        legacyPinKeys: [...new Set(cluster.map((record) => record.row.legacy_food_key))],
+        legacyPinKeys,
         parentMealName: row.parent_meal_name,
         parentMealPhotoUri: row.parent_photo_uri,
         calories: row.calories,
