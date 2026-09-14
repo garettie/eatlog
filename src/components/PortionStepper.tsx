@@ -91,7 +91,7 @@ export default function PortionStepper({
   const editorInvalid = unitMode === 'servings' && hasServing ? servingsInvalid : gramsInvalid;
 
   return (
-    <View className="gap-3">
+    <View className="gap-4">
       {amountOptions.length > 0 && onAmountChange ? (
         <ScrollView
           horizontal

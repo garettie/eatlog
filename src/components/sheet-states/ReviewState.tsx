@@ -1482,15 +1482,14 @@ function FoodEditorView({
 
 			<BottomSheetScrollView
 				className="flex-1"
-				contentContainerClassName="px-5"
-				contentContainerStyle={{ paddingBottom: 8 }}
+				contentContainerClassName="px-5 pt-2 pb-6"
 				keyboardShouldPersistTaps="handled"
 			>
 				<View
 					pointerEvents={logging ? "none" : "auto"}
 					className="overflow-hidden rounded-2xl bg-m3-surface-container border border-m3-outline-variant/40"
 				>
-					<View className="px-4 py-4 gap-2">
+					<View className="px-4 py-6 gap-3">
 						<BottomSheetTextInput
 							value={component.food.name}
 							onChangeText={onNameChange}
@@ -1501,7 +1500,7 @@ function FoodEditorView({
 							textAlignVertical="center"
 							accessibilityLabel="Food name"
 							accessibilityHint={nameValid ? undefined : "Required before logging"}
-							className={`min-h-[48px] max-h-24 rounded-xl border bg-m3-surface-container-high px-3 py-3 text-m3-on-surface text-base font-medium ${nameValid ? "border-m3-outline-variant/50" : "border-m3-error"}`}
+							className={`min-h-[48px] max-h-24 rounded-xl border bg-m3-surface-container-high px-3 py-3 text-m3-on-surface text-xl font-bold ${nameValid ? "border-m3-outline-variant/50" : "border-m3-error"}`}
 						/>
 						{nameValid ? null : (
 							<Text
@@ -1606,7 +1605,7 @@ function FoodEditorView({
 						</View>
 					) : null}
 
-					<View className="border-t border-m3-outline-variant/50 px-4 py-4 gap-3">
+					<View className="border-t border-m3-outline-variant/50 px-4 py-6 gap-4">
 						<Text className="text-m3-on-surface text-sm font-semibold">
 							Portion
 						</Text>
@@ -1624,13 +1623,15 @@ function FoodEditorView({
 							onGramsSet={onGramsSet}
 							onValidityChange={onValidityChange}
 						/>
-						<MacroSummaryCard
-							variant="row"
-							calories={cal}
-							protein={protein}
-							carbs={carbs}
-							fat={fat}
-						/>
+						<View className="pt-2">
+							<MacroSummaryCard
+								variant="row"
+								calories={cal}
+								protein={protein}
+								carbs={carbs}
+								fat={fat}
+							/>
+						</View>
 					</View>
 
 					<View className="border-t border-m3-outline-variant/50">
@@ -1738,7 +1739,7 @@ function FoodEditorView({
 			</BottomSheetScrollView>
 
 			<View
-				className="border-t border-m3-outline-variant/30 px-5 pt-3 gap-2"
+				className="shrink-0 border-t border-m3-outline-variant/30 px-5 pt-4 gap-2"
 				style={{ paddingBottom: insets.bottom + 8 }}
 			>
 				<PrimaryButton

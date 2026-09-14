@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Animated, { FadeInUp, useReducedMotion } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -209,20 +210,25 @@ export default function SingleFoodReviewState({
 
   return (
     <View className="flex-1">
-      <View className="px-5 pt-3 gap-3">
+      <View className="px-5 pt-2 pb-3">
         <View className="flex-row items-center gap-1">
           <SheetBackButton onPress={onBack} />
-          <Text className="text-m3-on-surface font-bold text-base">Review food</Text>
+          <Text accessibilityRole="header" className="text-m3-on-surface font-bold text-base">Review food</Text>
         </View>
+      </View>
+      <BottomSheetScrollView
+        className="flex-1"
+        contentContainerClassName="px-5 pt-2 pb-6"
+        keyboardShouldPersistTaps="handled"
+      >
         <Animated.View
           entering={reducedMotion ? undefined : FadeInUp.duration(180)}
-          className="gap-3"
+          className="gap-6"
         >
-          <View className="flex-row justify-between items-start">
-            <View className="flex-1 mr-3">
+          <View className="gap-3">
+            <View className="gap-1">
               <Text
-                className="text-m3-on-surface font-bold text-base leading-5"
-                numberOfLines={2}
+                className="text-m3-on-surface font-bold text-xl"
               >
                 {food.name}
               </Text>
@@ -236,7 +242,7 @@ export default function SingleFoodReviewState({
                 {food.preparation ? ` · ${food.preparation}` : ''}
               </Text>
             </View>
-            <View className="bg-m3-surface-container-high px-3 py-1 rounded-full">
+            <View className="self-start bg-m3-surface-container-high px-3 py-1 rounded-full">
               <Text className="text-m3-on-surface tabular-nums text-xs font-semibold">
                 {food.caloriesPer100g != null
                   ? `${Math.round(food.caloriesPer100g)} kcal / 100 g`
@@ -274,10 +280,10 @@ export default function SingleFoodReviewState({
             />
           )}
         </Animated.View>
-      </View>
+      </BottomSheetScrollView>
 
       <View
-        className="px-5 pt-3 pb-3 gap-3 border-t border-m3-outline-variant/30"
+        className="shrink-0 px-5 pt-4 pb-3 gap-3 border-t border-m3-outline-variant/30"
       >
         <View className={isNarrow ? 'gap-2' : 'flex-row items-center gap-2'}>
           <Pressable
