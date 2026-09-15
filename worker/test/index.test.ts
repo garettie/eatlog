@@ -317,12 +317,17 @@ test('a re-estimated component is held to the same amount and density bounds', a
     { servingSizeGrams: 10_001 },
     { caloriesPer100g: 1_001 },
     { fatPer100g: 101 },
-    { proteinPer100g: 40, carbsPer100g: 60, fatPer100g: 30 },
   ]) {
     const rejected = await redo(impossible);
     assert.equal(rejected.status, 502);
     assert.equal(rejected.body.error.code, 'MALFORMED_UPSTREAM');
   }
+  // A split heavier than the food is the provider erring, not the customer. It is scaled back
+  // to 100g so the re-estimate still lands in an editable sheet.
+  const overweight = await redo({ proteinPer100g: 40, carbsPer100g: 60, fatPer100g: 30 });
+  assert.equal(overweight.status, 200);
+  const split = overweight.body.components[0];
+  assert.deepEqual([split.proteinPer100g, split.carbsPer100g, split.fatPer100g], [30.8, 46.2, 23.1]);
   // The boundaries themselves are legitimate: a pure oil is 100g of fat per 100g.
   const oil = await redo({ estimatedGrams: 10_000, servingSizeGrams: 10_000, caloriesPer100g: 900, proteinPer100g: 0, carbsPer100g: 0, fatPer100g: 100 });
   assert.equal(oil.status, 200);
@@ -573,6 +578,75 @@ test('rejects invalid subscription estimate input before auth or provider work',
   assert.equal(result.response.status, 400);
   assert.equal(result.body.error.code, 'INVALID_TEXT');
   assert.equal(fetches, 0);
+});
+
+test('a cosmetically unusable name or an over-weight macro split degrades instead of failing the meal', async () => {
+  const component = (over: Record<string, unknown>) => ({ ...recognized.components[0], ...over });
+  const payload = {
+    ...recognized,
+    mealName: '2 slices',
+    components: [
+      component({ name: 'Garlic rice' }),
+      component({ name: '1 serving' }),
+      component({ name: 'Sugar', proteinPer100g: 0, carbsPer100g: 100, fatPer100g: 6 }),
+    ],
+  };
+  const result = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'silog' }),
+    { fetchImpl: (async () => geminiResponse(payload)) as typeof fetch },
+  );
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.mealName, '2 Slices');
+  // Every component the user ate survives, including the one no formatting could name.
+  assert.deepEqual(result.body.components.map((c: any) => c.name), ['Garlic Rice', '1 Serving', 'Sugar']);
+  // The implausible split is scaled back to 100g rather than discarding the estimate.
+  const sugar = result.body.components[2];
+  assert.deepEqual(
+    [sugar.proteinPer100g, sugar.carbsPer100g, sugar.fatPer100g],
+    [0, 94.3, 5.7],
+  );
+  assert.equal(sugar.caloriesPer100g, recognized.components[0].caloriesPer100g);
+});
+
+test('a macro split within label rounding is passed through untouched', async () => {
+  const payload = {
+    ...recognized,
+    components: [{ ...recognized.components[0], proteinPer100g: 2.75, carbsPer100g: 60, fatPer100g: 39 }],
+  };
+  const result = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
+    { fetchImpl: (async () => geminiResponse(payload)) as typeof fetch },
+  );
+  assert.equal(result.response.status, 200);
+  const only = result.body.components[0];
+  // Untouched values keep their precision; nothing is rounded on the way through.
+  assert.deepEqual([only.proteinPer100g, only.carbsPer100g, only.fatPer100g], [2.75, 60, 39]);
+});
+
+test('a counted serving label is singularized to a name a person would read', async () => {
+  const unit = async (servingLabel: string) => {
+    const { body } = await call(
+      request('/v1/estimate', 'POST', { operation: 'describe', text: 'snack' }),
+      {
+        fetchImpl: (async () => geminiResponse({
+          ...recognized,
+          components: [{ ...recognized.components[0], estimatedGrams: 90, servingSizeGrams: 30, servingLabel }],
+        })) as typeof fetch,
+      },
+    );
+    return body.components[0].servingLabel;
+  };
+
+  // "-ies" is only a "-y" plural for some foods. The rest keep the "-ie" their singular ends in.
+  assert.equal(await unit('3 cookies'), '1 cookie');
+  assert.equal(await unit('3 brownies'), '1 brownie');
+  assert.equal(await unit('3 pies'), '1 pie');
+  assert.equal(await unit('3 berries'), '1 berry');
+  assert.equal(await unit('3 patties'), '1 patty');
+  assert.equal(await unit('3 fries'), '1 fry');
+  assert.equal(await unit('3 sandwiches'), '1 sandwich');
+  assert.equal(await unit('3 glasses'), '1 glass');
+  assert.equal(await unit('3 bowls'), '1 bowl');
 });
 
 test('rejects malformed base64, non-JPEG bytes, decoded images over 4 MiB, and bodies over 6 MiB', async () => {

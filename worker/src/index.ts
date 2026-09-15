@@ -745,6 +745,8 @@ function generatedNumber(value: unknown): number | null {
  */
 const MAX_CALORIES_PER_100G = 1000;
 const MAX_MACRO_PER_100G = 100;
+/** Protein, carbohydrate and fat together, with room for label rounding. */
+const MAX_MACRO_MASS_PER_100G = 102;
 
 function normalizeUsdaFood(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -1218,6 +1220,13 @@ function normalizeMealDivision(
 }
 
 /**
+ * Foods whose singular ends in "-ie", where the "-ies" to "-y" rule would produce "cooky" or
+ * "browny". No suffix rule separates these from "berries" or "candies", so they are named.
+ * Shorter plurals such as "pies" are left to the plain "-s" rule by the length guard.
+ */
+const IE_PLURALS = new Set(['cookies', 'brownies', 'smoothies', 'veggies', 'hoagies', 'pinkies']);
+
+/**
  * Serving metadata always leaves this boundary as one named practical unit and that unit's mass.
  * `estimatedGrams` remains the total amount represented by the component. A counted label therefore
  * derives its one-unit mass from that total instead of changing a stated or visible amount.
@@ -1253,7 +1262,9 @@ function normalizeCountedServing(
   for (let index = 0; index < words.length; index += 1) {
     const word = words[index];
     const singular =
-      /ies$/i.test(word) && word.length > 3
+      IE_PLURALS.has(word.toLowerCase())
+        ? word.slice(0, -1)
+        : /ies$/i.test(word) && word.length > 4
         ? `${word.slice(0, -3)}y`
         : /(ches|shes|sses|xes|zes)$/i.test(word)
           ? word.slice(0, -2)
@@ -1298,8 +1309,10 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
   if (result.status !== 'recognized' || typeof result.mealName !== 'string' || !result.mealName.trim() || !Array.isArray(result.components)) return null;
   if (result.components.length < 1 || result.components.length > MAX_COMPONENTS) return null;
   if (operation === 'clarify-component' && result.components.length !== 1) return null;
-  const mealName = formatFoodDisplayName(result.mealName, 'sentence').slice(0, 200);
-  if (!mealName) return null;
+  // Presentation never decides validity: a name that survived the check above is kept whatever
+  // formatting makes of it, so a cosmetic rule can never discard an otherwise usable estimate.
+  const mealName = formatFoodDisplayName(result.mealName, 'sentence').slice(0, 200)
+    || result.mealName.trim().slice(0, 200);
   const division = normalizeMealDivision(operation, result);
   const components = result.components.map((entry) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return null;
@@ -1317,8 +1330,6 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
       || caloriesPer100g == null || proteinPer100g == null || carbsPer100g == null || fatPer100g == null
       || caloriesPer100g > MAX_CALORIES_PER_100G
       || proteinPer100g > MAX_MACRO_PER_100G || carbsPer100g > MAX_MACRO_PER_100G || fatPer100g > MAX_MACRO_PER_100G
-      // Allow label rounding, but not more macronutrient mass than the food itself.
-      || proteinPer100g + carbsPer100g + fatPer100g > 102
       || (servingSizeGrams != null && (servingSizeGrams <= 0 || servingSizeGrams > MAX_COMPONENT_GRAMS))
       || (confidence !== 'high' && confidence !== 'medium' && confidence !== 'low')
       || (confidence === 'low' && !confidenceReason)) return null;
@@ -1327,16 +1338,26 @@ function normalizeGeminiResponse(value: unknown, operation: EstimateOperation): 
     const servingLabel = nullableText(component.servingLabel);
     if (brand === undefined || preparation === undefined || servingLabel === undefined || confidenceReason === undefined) return null;
     const normalizedServing = normalizeCountedServing(estimatedGrams, servingSizeGrams, servingLabel);
-    const name = formatFoodDisplayName(component.name).slice(0, 200);
-    if (!name) return null;
+    /**
+     * Macronutrients cannot outweigh the food carrying them. Label rounding lands a little over,
+     * so only a real excess is corrected, and it is corrected by scaling the split back to 100g
+     * rather than by refusing the meal: calories are carried separately and the review sheet is
+     * editable, so one implausible component is worth far less than the whole estimate.
+     */
+    const macroMass = proteinPer100g + carbsPer100g + fatPer100g;
+    const macroScale = macroMass > MAX_MACRO_MASS_PER_100G ? 100 / macroMass : 1;
+    const scaleMacro = (value: number): number => (
+      macroScale === 1 ? value : Math.round(value * macroScale * 10) / 10
+    );
+    const name = formatFoodDisplayName(component.name).slice(0, 200) || component.name.trim().slice(0, 200);
     return {
       name,
       estimatedGrams: normalizedServing.estimatedGrams,
       servingSizeGrams: normalizedServing.servingSizeGrams,
       caloriesPer100g,
-      proteinPer100g,
-      carbsPer100g,
-      fatPer100g,
+      proteinPer100g: scaleMacro(proteinPer100g),
+      carbsPer100g: scaleMacro(carbsPer100g),
+      fatPer100g: scaleMacro(fatPer100g),
       brand,
       preparation,
       servingLabel: normalizedServing.servingLabel,

@@ -1,23 +1,42 @@
 const FOOD_ACRONYMS = new Set(['BBQ', 'BLT', 'KFC']);
 const AMOUNT = String.raw`(?:\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?|[¼½¾])`;
 const PORTION_UNIT = String.raw`(?:mg|g|grams?|kg|ml|l|cups?|tbsp|tablespoons?|tsp|teaspoons?|servings?|pieces?|pcs?|slices?|bowls?|plates?|scoops?|packets?|sachets?)`;
-const LEADING_PORTION = new RegExp(`^\\s*${AMOUNT}\\s*${PORTION_UNIT}\\s*(?:of\\s+)?`, 'iu');
-const LEADING_COUNT = new RegExp(`^\\s*${AMOUNT}\\s+(?=\\p{L}[\\p{L}\\p{M}'’\\-]*s(?:\\s|$))`, 'iu');
+// Gemini writes stated counts as words as often as digits ("Two slices of bread"). Only the
+// explicit-unit form takes word amounts: a bare word before a plural noun is far more likely
+// to be a name ("Three Bean Salad") than a portion.
+const WORD_AMOUNT = String.raw`(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|half)`;
+const LEADING_PORTION = new RegExp(`^\\s*(?:${AMOUNT}|${WORD_AMOUNT})\\s*${PORTION_UNIT}\\s*(?:of\\s+)?`, 'iu');
+const LEADING_COUNT = new RegExp(`^\\s*(${AMOUNT})\\s+(?=\\p{L}[\\p{L}\\p{M}'’\\-]*s(?:\\s|$))`, 'iu');
 const TRAILING_PORTION = new RegExp(`\\s*[,–—-]?\\s*${AMOUNT}\\s*${PORTION_UNIT}\\s*$`, 'iu');
 const PARENTHETICAL_PORTION = new RegExp(`\\s*\\(\\s*${AMOUNT}\\s*${PORTION_UNIT}\\s*\\)\\s*$`, 'iu');
+
+/**
+ * A bare number ahead of a plural word is a portion count ("2 eggs") only while it reads as a
+ * portion. Past that it belongs to the name itself, as in the drink "100 Plus". Fractions are
+ * always portions.
+ */
+const MAX_LEADING_COUNT = 20;
+
+function isPortionCount(amount: string): boolean {
+  if (!/^\d+(?:\.\d+)?$/.test(amount)) return true;
+  return Number(amount) <= MAX_LEADING_COUNT;
+}
 
 export function stripFoodAmount(name: string): string {
   return name
     .replace(PARENTHETICAL_PORTION, '')
     .replace(LEADING_PORTION, '')
-    .replace(LEADING_COUNT, '')
+    .replace(LEADING_COUNT, (match, amount: string) => (isPortionCount(amount) ? '' : match))
     .replace(TRAILING_PORTION, '')
     .trim();
 }
 
 /** Format display text without losing accents, brand punctuation, or nutrition qualifiers. */
 export function formatFoodDisplayName(name: string, style: 'title' | 'sentence' = 'title'): string {
-  const clean = stripFoodAmount(name.replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim());
+  const text = name.replace(/[*_`#]/g, '').replace(/\s+/g, ' ').trim();
+  // A name that is nothing but an amount ("1 cup", "3 pcs") strips to nothing. Formatting is
+  // cosmetic, so it keeps the original rather than handing callers an empty name to reject.
+  const clean = stripFoodAmount(text) || text;
   const hasLowercase = /\p{Ll}/u.test(clean);
   let first = true;
   return clean.replace(/[\p{L}][\p{L}\p{M}'’\-]*(?:[&/+][\p{L}\p{M}]+)*/gu, (word) => {

@@ -27,3 +27,29 @@ test('food amounts are removed without damaging nutrition qualifiers or numbered
   assert.equal(stripFoodAmount('5-spice chicken'), '5-spice chicken');
   assert.equal(stripFoodAmount('7-layer dip'), '7-layer dip');
 });
+
+test('a name that is only an amount survives formatting instead of emptying', () => {
+  assert.equal(formatFoodDisplayName('1 cup'), '1 Cup');
+  assert.equal(formatFoodDisplayName('3 pcs'), '3 Pcs');
+  assert.equal(formatFoodDisplayName('250g'), '250G');
+  assert.equal(formatFoodDisplayName('2 slices', 'sentence'), '2 Slices');
+  assert.equal(stripFoodAmount('1 serving'), '');
+});
+
+test('a numbered brand keeps its number while portion counts are still removed', () => {
+  assert.equal(stripFoodAmount('100 Plus'), '100 Plus');
+  assert.equal(stripFoodAmount('2 eggs'), 'eggs');
+  assert.equal(stripFoodAmount('20 cookies'), 'cookies');
+  assert.equal(stripFoodAmount('21 boxes'), '21 boxes');
+});
+
+test('a stated amount written as a word is removed only ahead of a real portion unit', () => {
+  assert.equal(stripFoodAmount('Two slices of bread'), 'bread');
+  assert.equal(stripFoodAmount('Three pieces of fried chicken'), 'fried chicken');
+  assert.equal(stripFoodAmount('Half cup of rice'), 'rice');
+  // A number word ahead of an ordinary noun belongs to the name.
+  assert.equal(stripFoodAmount('Three Bean Salad'), 'Three Bean Salad');
+  assert.equal(stripFoodAmount('Three Musketeers'), 'Three Musketeers');
+  assert.equal(stripFoodAmount('Seven Up'), 'Seven Up');
+  assert.equal(stripFoodAmount('Two-bite brownies'), 'Two-bite brownies');
+});
