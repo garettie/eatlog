@@ -558,6 +558,23 @@ test('validates estimate operation field combinations and text limits', async ()
   }
 });
 
+test('rejects invalid subscription estimate input before auth or provider work', async () => {
+  let fetches = 0;
+  const result = await call(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'x'.repeat(2_001) }),
+    {
+      env: subscriptionEnv(),
+      fetchImpl: (async () => {
+        fetches += 1;
+        throw new Error('invalid input must not reach an upstream');
+      }) as typeof fetch,
+    },
+  );
+  assert.equal(result.response.status, 400);
+  assert.equal(result.body.error.code, 'INVALID_TEXT');
+  assert.equal(fetches, 0);
+});
+
 test('rejects malformed base64, non-JPEG bytes, decoded images over 4 MiB, and bodies over 6 MiB', async () => {
   const malformed = await call(request('/v1/estimate', 'POST', { operation: 'scan', imageBase64: '**==' }));
   assert.equal(malformed.body.error.code, 'INVALID_IMAGE');

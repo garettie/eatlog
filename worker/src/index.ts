@@ -1766,6 +1766,7 @@ export async function handleRequest(
       return (await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS, deadline)).response;
     }
 
+    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
     const idempotencyKey = request.headers.get('x-eatlog-request-id')?.trim() ?? '';
     if (!/^[A-Za-z0-9-]{16,128}$/.test(idempotencyKey)) {
       throw new HttpError(400, 'INVALID_REQUEST_ID', 'Request identifier is invalid.', { rejection: 'request-id' });
@@ -1773,7 +1774,6 @@ export async function handleRequest(
     const now = (dependencies.now ?? Date.now)();
     const store = resolveSubscriptionStore(env, dependencies.subscriptionStore);
     const authorization = await authorizeEstimate(request, installId, env, store, fetchImpl, now, deadline);
-    const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
     const claims = authorization.claims;
     /**
      * Reading the upload can consume most of the budget on a slow connection. Refusing here
