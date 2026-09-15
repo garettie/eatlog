@@ -33,6 +33,10 @@ const mealSelectorSource = readFileSync(
   resolve(testDirectory, '../components/MealSelector.tsx'),
   'utf8',
 );
+const mealPortionSelectorSource = readFileSync(
+  resolve(testDirectory, '../components/MealPortionSelector.tsx'),
+  'utf8',
+);
 const mealReviewSource = readFileSync(
   resolve(testDirectory, '../utils/mealReview.ts'),
   'utf8',
@@ -191,6 +195,18 @@ test('meal destination stays visible in one compact row', () => {
   assert.doesNotMatch(reviewStateSource, /destinationEditorVisible/);
   assert.match(mealSelectorSource, /compactLabel: 'Bfast'/);
   assert.match(mealSelectorSource, /compact \? m\.compactLabel : m\.label/);
+});
+
+test('every nonempty meal exposes a full-plate portion selector by default', () => {
+  assert.match(
+    reviewStateSource,
+    /if \(!components\.length\) return null;[\s\S]*?kind: 'plate',[\s\S]*?servesTotal: 1/,
+  );
+  assert.match(reviewStateSource, /\{portionScale \? \([\s\S]*?<MealPortionSelector/);
+  assert.match(mealPortionSelectorSource, /scale\.kind === 'plate'/);
+  assert.match(mealPortionSelectorSource, /\{ value: 1, label: 'All' \}/);
+  assert.match(mealPortionSelectorSource, /\{ value: 0\.5, label: 'Half' \}/);
+  assert.match(mealPortionSelectorSource, /\{ value: 0\.25, label: 'Quarter' \}/);
 });
 
 test('the disclosure chevron animates transform-only and reduced-motion safe', () => {

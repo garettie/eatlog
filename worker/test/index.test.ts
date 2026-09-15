@@ -180,7 +180,7 @@ function freeRevenueCat(): unknown {
   } };
 }
 
-test('normalizes a counted serving label to one unit without recomputing what was eaten', async () => {
+test('normalizes a counted serving label and weight to one unit without changing total grams', async () => {
   const counted = async (component: Record<string, unknown>, operation = 'describe', text = '2 eggs') => {
     const { response, body } = await call(
       request('/v1/estimate', 'POST', operation === 'scan'
@@ -207,17 +207,24 @@ test('normalizes a counted serving label to one unit without recomputing what wa
     await counted({ name: 'Eggs', estimatedGrams: 100, servingSizeGrams: 50, servingLabel: '2 eggs' }),
     { estimatedGrams: 100, servingSizeGrams: 50, servingLabel: '1 egg' },
   );
-  // The same payload shape with a total that happens to equal one unit. Multiplying the count
-  // by the serving mass here is a guess, and it is the guess that tripled weighed amounts, so
-  // the stated total stands and only the unit is renamed.
+  // When the model put the total mass into servingSizeGrams, the one-unit mass still agrees
+  // with the count while estimatedGrams remains the total amount.
   assert.deepEqual(
     await counted({ name: 'Eggs', estimatedGrams: 50, servingSizeGrams: 50, servingLabel: '2 eggs' }),
-    { estimatedGrams: 50, servingSizeGrams: 50, servingLabel: '1 egg' },
+    { estimatedGrams: 50, servingSizeGrams: 25, servingLabel: '1 egg' },
   );
-  // A fractional or single count is already one unit and is left exactly as it arrived.
+  // A fractional measure is expanded into exactly one practical unit.
   assert.deepEqual(
     await counted({ name: 'Rice', estimatedGrams: 79, servingSizeGrams: 158, servingLabel: '0.5 cup' }, 'describe', 'half a cup of rice'),
-    { estimatedGrams: 79, servingSizeGrams: 158, servingLabel: '0.5 cup' },
+    { estimatedGrams: 79, servingSizeGrams: 158, servingLabel: '1 cup' },
+  );
+  assert.deepEqual(
+    await counted({ name: 'Toast', estimatedGrams: 60, servingSizeGrams: 60, servingLabel: '2 slices (60 g)' }),
+    { estimatedGrams: 60, servingSizeGrams: 30, servingLabel: '1 slice' },
+  );
+  assert.deepEqual(
+    await counted({ name: 'Rice', estimatedGrams: 100, servingSizeGrams: 100, servingLabel: '100 g' }),
+    { estimatedGrams: 100, servingSizeGrams: null, servingLabel: null },
   );
 });
 
@@ -381,7 +388,7 @@ test('passes through a shareable meal division and degrades unusable ones to nul
   );
 });
 
-test('normalizes readable estimate names and drops incomplete serving pairs without changing grams', async () => {
+test('normalizes readable quantity-free names and drops incomplete serving pairs without changing grams', async () => {
   for (const serving of [
     { servingLabel: '1 cup', servingSizeGrams: null },
     { servingLabel: null, servingSizeGrams: 180 },
@@ -390,8 +397,8 @@ test('normalizes readable estimate names and drops incomplete serving pairs with
       request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }),
       { fetchImpl: (async () => geminiResponse({
         ...recognized,
-        mealName: ' **CHICKEN ADOBO WITH RICE** ',
-        components: [{ ...recognized.components[0], ...serving, name: 'CAFÉ RICE', estimatedGrams: 90 }],
+        mealName: ' **2 CUPS CHICKEN ADOBO WITH RICE** ',
+        components: [{ ...recognized.components[0], ...serving, name: '200G CAFÉ RICE', estimatedGrams: 90 }],
       })) as typeof fetch },
     );
     assert.equal(response.status, 200);

@@ -67,7 +67,7 @@ test('a nonsense or no-op factor leaves the meal untouched', () => {
 });
 
 test('an ordinary plate scales as a whole without an AI serving count', () => {
-  const scale = { unit: 'meal', servesTotal: 1 };
+  const scale = { kind: 'plate', unit: 'meal', servesTotal: 1 } as const;
   assert.equal(mealPortionStep(scale), 0.25);
   assert.equal(formatMealPortion(1, scale), '100%');
   assert.equal(formatMealPortion(0.5, scale), '50%');
@@ -88,15 +88,15 @@ test('successive relative scaling returns to the original amounts', () => {
 });
 
 test('the portion label agrees with the total, which is never one', () => {
-  const pizza = { unit: 'slice', servesTotal: 8 };
+  const pizza = { kind: 'shared', unit: 'slice', servesTotal: 8 } as const;
   assert.equal(formatMealPortion(3, pizza), '3 of 8 slices');
   assert.equal(formatMealPortion(1, pizza), '1 of 8 slices');
-  assert.equal(formatMealPortion(2, { unit: 'glass', servesTotal: 4 }), '2 of 4 glasses');
-  assert.equal(formatMealPortion(1, { unit: 'patty', servesTotal: 6 }), '1 of 6 patties');
+  assert.equal(formatMealPortion(2, { kind: 'shared', unit: 'glass', servesTotal: 4 }), '2 of 4 glasses');
+  assert.equal(formatMealPortion(1, { kind: 'shared', unit: 'patty', servesTotal: 6 }), '1 of 6 patties');
 });
 
 test('past the whole the label counts instead of claiming a bigger fraction', () => {
-  const pizza = { unit: 'slice', servesTotal: 8 };
+  const pizza = { kind: 'shared', unit: 'slice', servesTotal: 8 } as const;
   assert.equal(formatMealPortion(8, pizza), '8 of 8 slices');
   // A second pizza was never in the photo, so "10 of 8" would misdescribe it.
   assert.equal(formatMealPortion(10, pizza), '10 slices');
@@ -104,7 +104,7 @@ test('past the whole the label counts instead of claiming a bigger fraction', ()
 });
 
 test('a single food counts its own servings with no whole to divide', () => {
-  const empanadas = { unit: 'empanada', servesTotal: null };
+  const empanadas = { kind: 'count', unit: 'empanada', servesTotal: null } as const;
   assert.equal(formatMealPortion(3, empanadas), '3 empanadas');
   assert.equal(formatMealPortion(1, empanadas), '1 empanada');
   // Nothing bounds a plain count, so it stops at an implausible number instead.
@@ -114,6 +114,6 @@ test('a single food counts its own servings with no whole to divide', () => {
 test('a division converts to the scale the portion control reads', () => {
   assert.deepEqual(
     scaleFromDivision({ servesTotal: 8, servingUnit: 'slice' }),
-    { unit: 'slice', servesTotal: 8 },
+    { kind: 'shared', unit: 'slice', servesTotal: 8 },
   );
 });

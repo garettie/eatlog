@@ -621,8 +621,8 @@ export default function ReviewState({
 	const portionScale = useMemo<MealPortionScale | null>(() => {
 		if (division) return scaleFromDivision(division);
 		if (!components.length) return null;
-		if (!singleServing) return { unit: 'meal', servesTotal: 1 };
-		return { unit: servingCountUnit(singleServing.label), servesTotal: null };
+		if (!singleServing) return { kind: 'plate', unit: 'meal', servesTotal: 1 };
+		return { kind: 'count', unit: servingCountUnit(singleServing.label), servesTotal: null };
 	}, [division, singleServing, components.length]);
 
 	const portionCount = division

@@ -28,12 +28,14 @@ interface Shortcut {
  * quarter), and a single remaining shortcut means the stepper already covers the
  * range, so the row is dropped.
  */
-function shortcutsFor(servesTotal: number): Shortcut[] {
-  if (servesTotal === 1) return [
+function shortcutsFor(scale: MealPortionScale): Shortcut[] {
+  if (scale.kind === 'count') return [];
+  if (scale.kind === 'plate') return [
     { value: 1, label: 'All' },
     { value: 0.5, label: 'Half' },
     { value: 0.25, label: 'Quarter' },
   ];
+  const servesTotal = scale.servesTotal;
   const candidates: Shortcut[] = [
     { value: servesTotal, label: 'All' },
     { value: Math.max(1, Math.round(servesTotal / 2)), label: 'Half' },
@@ -85,7 +87,7 @@ export default function MealPortionSelector({
   disabled = false,
   onChange,
 }: MealPortionSelectorProps) {
-  const shortcuts = scale.servesTotal == null ? [] : shortcutsFor(scale.servesTotal);
+  const shortcuts = shortcutsFor(scale);
   const step = mealPortionStep(scale);
   const atMin = eaten <= step;
   // Past the whole is still loggable: a second helping, or one of the two pizzas on
@@ -102,7 +104,7 @@ export default function MealPortionSelector({
         <View className="flex-row items-center gap-3">
           <StepButton
             icon="remove"
-            label={scale.servesTotal === 1 ? 'Decrease by a quarter of the meal' : `One less ${scale.unit}`}
+            label={scale.kind === 'plate' ? 'Decrease by a quarter of the meal' : `One less ${scale.unit}`}
             disabled={disabled || atMin}
             onPress={() => onChange(eaten - step)}
           />
@@ -114,7 +116,7 @@ export default function MealPortionSelector({
           </Text>
           <StepButton
             icon="add"
-            label={scale.servesTotal === 1 ? 'Increase by a quarter of the meal' : `One more ${scale.unit}`}
+            label={scale.kind === 'plate' ? 'Increase by a quarter of the meal' : `One more ${scale.unit}`}
             disabled={disabled || atMax}
             onPress={() => onChange(eaten + step)}
           />

@@ -91,17 +91,17 @@ function pluralize(singular: string): string {
  * whose own serving is the unit (`servesTotal` null). An ordinary plate uses one
  * whole (`servesTotal` 1), shown as a percentage and adjustable in quarters.
  */
-export interface MealPortionScale {
-  unit: string;
-  servesTotal: number | null;
-}
+export type MealPortionScale =
+  | { kind: 'plate'; unit: 'meal'; servesTotal: 1 }
+  | { kind: 'count'; unit: string; servesTotal: null }
+  | { kind: 'shared'; unit: string; servesTotal: number };
 
 export function mealPortionStep(scale: MealPortionScale): number {
-  return scale.servesTotal === 1 ? 0.25 : 1;
+  return scale.kind === 'plate' ? 0.25 : 1;
 }
 
 export function scaleFromDivision(division: MealDivision): MealPortionScale {
-  return { unit: division.servingUnit, servesTotal: division.servesTotal };
+  return { kind: 'shared', unit: division.servingUnit, servesTotal: division.servesTotal };
 }
 
 /**
@@ -115,7 +115,7 @@ export const MEAL_PORTION_CEILING_MULTIPLE = 2;
 export const MEAL_PORTION_COUNT_CEILING = 20;
 
 export function mealPortionCeiling(scale: MealPortionScale): number {
-  return scale.servesTotal == null
+  return scale.kind === 'count'
     ? MEAL_PORTION_COUNT_CEILING
     : scale.servesTotal * MEAL_PORTION_CEILING_MULTIPLE;
 }
@@ -129,8 +129,8 @@ export function mealPortionCeiling(scale: MealPortionScale): number {
  */
 export function formatMealPortion(eaten: number, scale: MealPortionScale): string {
   const count = Math.round(eaten * 100) / 100;
-  if (scale.servesTotal === 1) return `${Math.round(count * 100)}%`;
-  if (scale.servesTotal == null || count > scale.servesTotal) {
+  if (scale.kind === 'plate') return `${Math.round(count * 100)}%`;
+  if (scale.kind === 'count' || count > scale.servesTotal) {
     return `${count} ${count === 1 ? scale.unit : pluralize(scale.unit)}`;
   }
   return `${count} of ${scale.servesTotal} ${pluralize(scale.unit)}`;
