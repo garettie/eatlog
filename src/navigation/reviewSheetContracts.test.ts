@@ -209,6 +209,23 @@ test('every nonempty meal exposes a full-plate portion selector by default', () 
   assert.match(mealPortionSelectorSource, /\{ value: 0\.25, label: 'Quarter' \}/);
 });
 
+test('a single food counts in its own serving even when the estimate returned a division', () => {
+  // A packaged label reports its container yield ("67 scoops per tub") as a division;
+  // that must never override the one food's own scoop count and show "67 of 67".
+  assert.match(
+    reviewStateSource,
+    /const singleServing = useMemo\(\(\) => \{\s*if \(components\.length !== 1\) return null;/,
+  );
+  assert.match(
+    reviewStateSource,
+    /if \(singleServing\) return \{ kind: 'count'[\s\S]*?\}\s*;\s*if \(division\) return scaleFromDivision/,
+  );
+  assert.match(
+    reviewStateSource,
+    /const portionCount = singleServing\s*\?[\s\S]*?selection\.grams \/ singleServing\.grams/,
+  );
+});
+
 test('the disclosure chevron animates transform-only and reduced-motion safe', () => {
   assert.match(reviewStateSource, /function DisclosureChevron/);
   assert.match(reviewStateSource, /duration: reducedMotion \? 0 : 250/);

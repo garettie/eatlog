@@ -611,25 +611,26 @@ export default function ReviewState({
 	// A meal of exactly one food is counted in that food's own serving: the estimate
 	// describes the one empanada in the picture, and the user may have had three. The
 	// count is derived from its grams rather than held separately, so editing the food
-	// directly and stepping the count here can never disagree.
+	// directly and stepping the count here can never disagree. This wins over any
+	// division the estimate returned: a packaged label ("67 scoops per tub") reports a
+	// container yield, not how the logged serving splits, so the food's own scoop count
+	// is the truth and a bogus "67 of 67" never reaches the control.
 	const singleServing = useMemo(() => {
-		if (division || components.length !== 1) return null;
+		if (components.length !== 1) return null;
 		const serving = selectedServing(components[0].food, components[0].selection);
 		return serving && serving.grams > 0 ? serving : null;
-	}, [division, components]);
+	}, [components]);
 
 	const portionScale = useMemo<MealPortionScale | null>(() => {
-		if (division) return scaleFromDivision(division);
 		if (!components.length) return null;
-		if (!singleServing) return { kind: 'plate', unit: 'meal', servesTotal: 1 };
-		return { kind: 'count', unit: servingCountUnit(singleServing.label), servesTotal: null };
+		if (singleServing) return { kind: 'count', unit: servingCountUnit(singleServing.label), servesTotal: null };
+		if (division) return scaleFromDivision(division);
+		return { kind: 'plate', unit: 'meal', servesTotal: 1 };
 	}, [division, singleServing, components.length]);
 
-	const portionCount = division
-		? eatenPortions
-		: singleServing
-			? Math.round((components[0].selection.grams / singleServing.grams) * 100) / 100
-			: eatenPortions;
+	const portionCount = singleServing
+		? Math.round((components[0].selection.grams / singleServing.grams) * 100) / 100
+		: eatenPortions;
 
 	// For a shared dish, scaling is relative to what is on screen rather than to the
 	// original estimate, so a food the user already corrected by hand keeps that
@@ -643,13 +644,13 @@ export default function ReviewState({
 				Math.max(Math.round(next / step) * step, step),
 				mealPortionCeiling(portionScale),
 			);
-			if (division || !singleServing) {
+			if (!singleServing) {
 				if (clamped === eatenPortions) return;
 				setComponents((previous) =>
 					scaleComponentPortions(previous, clamped / eatenPortions),
 				);
 				setEatenPortions(clamped);
-			} else if (singleServing) {
+			} else {
 				const grams = Math.round(clamped * singleServing.grams * 10) / 10;
 				setComponents((previous) =>
 					previous.map((component, index) =>
@@ -670,7 +671,7 @@ export default function ReviewState({
 			setLogError(null);
 			dirtyRef.current = true;
 		},
-		[division, eatenPortions, portionScale, singleServing],
+		[eatenPortions, portionScale, singleServing],
 	);
 
 	const handlePhotoChange = useCallback((nextUri: string | null) => {
