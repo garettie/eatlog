@@ -44,7 +44,6 @@ import { useToday } from "../../hooks/useToday";
 import { useDiscardGuardContext } from "./useDiscardGuard";
 import SheetBackButton from "./SheetBackButton";
 import AddComponentView from "./AddComponentView";
-import MealDatePicker from "./MealDatePicker";
 import { useViewTransition } from "./useViewTransition";
 import MealSelector from "../MealSelector";
 import { useResponsiveLayout } from "../../theme/layout";
@@ -52,6 +51,7 @@ import PortionStepper from "../PortionStepper";
 import PrimaryButton from "../PrimaryButton";
 import MealPhotoEditor from "../MealPhotoEditor";
 import { useSheetDialog } from "../SheetDialog";
+import { showLogDatePicker } from "../LogDatePicker";
 import MacroSummaryCard from "../MacroSummaryCard";
 import MealPortionSelector from "../MealPortionSelector";
 import {
@@ -990,25 +990,7 @@ export default function ReviewState({
 	}, [logDate]);
 
 	const openLogDatePicker = useCallback(() => {
-		showDialog({
-			title: "Log date",
-			body: (close) => (
-				<MealDatePicker
-					value={effectiveLogDate}
-					today={today}
-					onSelect={(nextDate) => {
-						close();
-						selectLogDate(nextDate);
-					}}
-				/>
-			),
-			actions: [
-				{ label: "Cancel", tone: "cancel" },
-				...(effectiveLogDate === today
-					? []
-					: [{ label: "Today", tone: "neutral" as const, onPress: () => selectLogDate(today) }]),
-			],
-		});
+		showLogDatePicker(showDialog, { value: effectiveLogDate, today, onSelect: selectLogDate });
 	}, [effectiveLogDate, selectLogDate, showDialog, today]);
 
 	// The unsaved editor buffer counts as unsaved sheet work: pan-down and backdrop

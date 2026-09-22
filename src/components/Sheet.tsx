@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { BackHandler, Keyboard, useWindowDimensions, View } from "react-native";
+import { BackHandler, Keyboard, useWindowDimensions } from "react-native";
 import BottomSheet, {
 	BottomSheetBackdrop,
 	type BottomSheetBackdropProps,
@@ -252,14 +252,9 @@ export default function Sheet({
 				accessibilityViewIsModal={visible}
 				importantForAccessibility={visible ? "yes" : "no-hide-descendants"}
 			>
-				<View
-					className="flex-1"
-					importantForAccessibility={dialog.request ? "no-hide-descendants" : "auto"}
-				>
-					<SheetDialogContext.Provider value={dialog.show}>
-						{children}
-					</SheetDialogContext.Provider>
-				</View>
+				<SheetDialogContext.Provider value={dialog.show}>
+					{children}
+				</SheetDialogContext.Provider>
 				<SheetDialogOverlay host={dialog} />
 			</Animated.View>
 		</BottomSheet>

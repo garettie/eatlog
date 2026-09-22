@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import Reanimated, {
   interpolateColor,
   useAnimatedStyle,
@@ -10,9 +11,12 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 import { M3 } from '../theme/tokens';
-import CalorieDayRing, { calorieRingProgress } from './CalorieDayRing';
+import { targetOverflowProgress } from '../utils/calculations';
 import { DURATION, EASING } from '../theme/motion';
 
+const RING_R = 15;
+const RING_STROKE = 2;
+const CIRCUMFERENCE = 2 * Math.PI * RING_R;
 const DEFAULT_CELL_WIDTH = 48;
 const CELL_GAP = 4;
 const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -78,7 +82,14 @@ const DayButton = React.memo(function DayButton({
     ),
   }), [day.isToday]);
 
-  const { overflowFraction } = calorieRingProgress(day.calories, day.targetCalories, day.isFuture);
+  const fraction = day.isFuture || day.targetCalories <= 0
+    ? 0
+    : Math.min(1, day.calories / day.targetCalories);
+  const overflowFraction = day.isFuture
+    ? 0
+    : targetOverflowProgress(day.calories, day.targetCalories);
+  const offset = CIRCUMFERENCE * (1 - fraction);
+  const overflowOffset = CIRCUMFERENCE * (1 - overflowFraction);
   const calorieHint = day.targetCalories > 0
     ? overflowFraction > 0
       ? `${Math.round(day.calories)} calories logged, ${Math.round(day.calories - day.targetCalories)} over target`
@@ -113,7 +124,55 @@ const DayButton = React.memo(function DayButton({
         className="items-center justify-center rounded-full"
         style={[{ width: 36, height: 36, borderWidth: 1.5 }, selectionStyle]}
       >
-        <CalorieDayRing calories={day.calories} targetCalories={day.targetCalories} isFuture={day.isFuture} />
+        {fraction === 0 && (
+          <View
+            className="absolute rounded-full"
+            style={{ width: 32, height: 32, borderWidth: RING_STROKE, borderColor: M3.outline, opacity: 0.5 }}
+          />
+        )}
+        {fraction > 0 && (
+          <Svg width={36} height={36} viewBox="0 0 36 36" style={{ position: 'absolute' }}>
+            <Circle
+              cx={18}
+              cy={18}
+              r={RING_R}
+              fill="none"
+              stroke={M3.outline}
+              strokeWidth={RING_STROKE}
+              opacity={0.5}
+            />
+            <Circle
+              cx={18}
+              cy={18}
+              r={RING_R}
+              fill="none"
+              stroke={M3.calories}
+              strokeWidth={RING_STROKE}
+              strokeLinecap="round"
+              strokeDasharray={CIRCUMFERENCE}
+              strokeDashoffset={offset}
+              rotation={-90}
+              originX={18}
+              originY={18}
+            />
+            {overflowFraction > 0 ? (
+              <Circle
+                cx={18}
+                cy={18}
+                r={RING_R}
+                fill="none"
+                stroke={M3.caloriesOverflow}
+                strokeWidth={RING_STROKE}
+                strokeLinecap="round"
+                strokeDasharray={CIRCUMFERENCE}
+                strokeDashoffset={overflowOffset}
+                rotation={-90}
+                originX={18}
+                originY={18}
+              />
+            ) : null}
+          </Svg>
+        )}
         <Text
           className="text-xs font-bold tabular-nums"
           style={{

@@ -286,7 +286,7 @@ test('per-food review status stays on the food rows, with no summary line', () =
 test('single-food review guards edits against dismissal and matches the meal footer', () => {
   assert.match(singleFoodReviewSource, /discardGuard\.register/);
   assert.match(singleFoodReviewSource, /dirtyRef\.current && !loggedRef\.current/);
-  assert.match(singleFoodReviewSource, /<MealDatePicker/);
+  assert.match(singleFoodReviewSource, /showLogDatePicker\(showDialog/);
   assert.match(singleFoodReviewSource, /<MealSelector\s+value=\{meal\}\s+compact/);
   // The direct-entry force-close path must not bypass the discard guard here.
   assert.match(
@@ -307,9 +307,9 @@ test('sheet decisions use the in-sheet dialog, never a native alert', () => {
   for (const source of sheetSources) {
     assert.doesNotMatch(source, /Alert\.alert/);
   }
-  // The sheet hosts the dialog, and hardware Back dismisses it before anything else.
+  // The sheet hosts the dialog as a modal, and hardware Back dismisses it first.
   const sheetSource = readFileSync(resolve(testDirectory, '../components/Sheet.tsx'), 'utf8');
   const dialogSource = readFileSync(resolve(testDirectory, '../components/SheetDialog.tsx'), 'utf8');
   assert.match(sheetSource, /<SheetDialogOverlay host=\{dialog\} \/>/);
-  assert.match(dialogSource, /BackHandler\.addEventListener\('hardwareBackPress'/);
+  assert.match(dialogSource, /<Modal[\s\S]*?onRequestClose=\{dismiss\}/);
 });

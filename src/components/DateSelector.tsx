@@ -12,7 +12,6 @@ interface DateSelectorProps {
   value: Date;
   minimumDate: Date;
   maximumDate?: Date;
-  showTodayAction?: boolean;
   onCancel: () => void;
   onConfirm: (date: Date) => void;
 }
@@ -36,7 +35,6 @@ export default function DateSelector({
   value,
   minimumDate,
   maximumDate,
-  showTodayAction = false,
   onCancel,
   onConfirm,
 }: DateSelectorProps) {
@@ -44,13 +42,11 @@ export default function DateSelector({
   const valueTime = value.getTime();
   const minimumTime = minimumDate.getTime();
   const maximumTime = maximumDate?.getTime();
-  const todayTime = dateOnly(new Date()).getTime();
   const minDate = useMemo(() => dateOnly(new Date(minimumTime)), [minimumTime]);
   const maxDate = useMemo(
     () => maximumTime == null ? undefined : dateOnly(new Date(maximumTime)),
     [maximumTime],
   );
-  const todayDate = useMemo(() => new Date(todayTime), [todayTime]);
   const [draftDate, setDraftDate] = useState(() => (
     clampDate(dateOnly(value), minDate, maxDate)
   ));
@@ -71,21 +67,16 @@ export default function DateSelector({
     DateTimePickerAndroid.open({
       value: clampDate(dateOnly(new Date(valueTime)), minDate, maxDate),
       mode: 'date',
-      // Callers are bounded dates (birthday, weight). Android OEM spinners flicker at a
-      // hard bound, so these use the native calendar dialog. Meal dates use MealDateView.
+      // Callers are bounded birth dates. Android OEM spinners flicker at a hard bound, so
+      // these use the native calendar dialog. Meal and weight dates use LogDatePicker.
       display: 'default',
       minimumDate: minDate,
       maximumDate: maxDate,
       positiveButton: { label: 'Set date' },
       negativeButton: { label: 'Cancel' },
-      neutralButton: showTodayAction ? { label: 'Today' } : undefined,
       onChange: (event, date) => {
         if (event.type === 'set' && date) {
           onConfirmRef.current(clampDate(dateOnly(date), minDate, maxDate));
-          return;
-        }
-        if (event.type === 'neutralButtonPressed' && showTodayAction) {
-          onConfirmRef.current(clampDate(todayDate, minDate, maxDate));
           return;
         }
         if (event.type === 'dismissed') onCancelRef.current();
@@ -95,7 +86,7 @@ export default function DateSelector({
     return () => {
       DateTimePickerAndroid.dismiss('date');
     };
-  }, [maxDate, minDate, showTodayAction, todayDate, valueTime, visible]);
+  }, [maxDate, minDate, valueTime, visible]);
 
   if (!visible || Platform.OS === 'android') return null;
 
@@ -133,18 +124,6 @@ export default function DateSelector({
             }}
           />
           <View className="flex-row items-center justify-end gap-3">
-            {showTodayAction ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Today"
-                onPress={() => onConfirm(clampDate(todayDate, minDate, maxDate))}
-                className="mr-auto min-h-[48px] justify-center rounded-full px-2 active:opacity-70"
-              >
-                <Text className="text-xs font-semibold text-m3-on-surface-variant">
-                  Today
-                </Text>
-              </Pressable>
-            ) : null}
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cancel"

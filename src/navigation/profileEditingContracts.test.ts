@@ -26,8 +26,8 @@ const reviewStateSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/ReviewState.tsx'),
   'utf8',
 );
-const mealDatePickerSource = readFileSync(
-  resolve(testDirectory, '../components/sheet-states/MealDatePicker.tsx'),
+const logDatePickerSource = readFileSync(
+  resolve(testDirectory, '../components/LogDatePicker.tsx'),
   'utf8',
 );
 const weightInputSource = readFileSync(
@@ -74,20 +74,22 @@ test('Android does not fall back to JavaScript scroll-wheel snapping', () => {
   assert.doesNotMatch(dateSelectorSource, /snapToOffsets/);
 });
 
-test('logging date pickers offer a weekday-aware Today action', () => {
+test('meal and weight dates share one modal picker with a Today action', () => {
+  // Birthday pickers keep the bounded native dialog; logging dates never use it.
   assert.match(dateSelectorSource, /maximumDate\?: Date/);
-  assert.match(dateSelectorSource, /showTodayAction\?: boolean/);
-  assert.match(androidPickerSource, /neutralButton:/);
-  assert.match(androidPickerSource, /neutralButtonPressed/);
-  assert.match(weightInputSource, /showTodayAction/);
-  assert.match(weightInputSource, /formatLogDateLabel\(effectiveDate\)/);
-  // Meal dates open an in-sheet dialog with the Diary's calorie-ring month grid.
-  assert.match(reviewStateSource, /title: "Log date",\s*body: \(close\) => \(\s*<MealDatePicker/);
+  assert.doesNotMatch(dateSelectorSource, /showTodayAction/);
   assert.doesNotMatch(reviewStateSource, /<DateSelector/);
+  assert.doesNotMatch(weightInputSource, /<DateSelector/);
+  assert.match(reviewStateSource, /showLogDatePicker\(showDialog, \{ value: effectiveLogDate, today/);
+  assert.match(weightInputSource, /showLogDatePicker\(showDialog, \{/);
+  // A weigh-in can't precede birth or be in the future; meal dates are unbounded.
+  assert.match(weightInputSource, /minDate: formatLocalISO\(birthDate\),\s*maxDate: today,/);
   assert.match(reviewStateSource, /formatLogDateLabel\(effectiveLogDate\)/);
-  assert.match(reviewStateSource, /label: "Today", tone: "neutral"/);
-  assert.match(mealDatePickerSource, /getFixedMonthGrid/);
-  assert.match(mealDatePickerSource, /<CalorieDayRing/);
+  assert.match(weightInputSource, /formatLogDateLabel\(effectiveDate\)/);
+  // The picker leads with the chosen date and offers Today when another day is set.
+  assert.match(logDatePickerSource, /title: 'Log date',\s*headline:/);
+  assert.match(logDatePickerSource, /label: 'Today', tone: 'neutral'/);
+  assert.match(logDatePickerSource, /getFixedMonthGrid/);
 });
 
 test('future meal dates remain selectable and reachable in Diary', () => {
@@ -102,10 +104,11 @@ test('future meal dates remain selectable and reachable in Diary', () => {
 });
 
 test('future weight measurements remain blocked', () => {
-  assert.match(
-    weightInputSource,
-    /maximumDate=\{parseLocalISO\(todayISO\(\)\)\}/,
-  );
+  assert.match(weightInputSource, /maxDate: today,/);
+  // Days past the bound can't be tapped, and paging stops at the bound's month.
+  assert.match(logDatePickerSource, /\(maxDate != null && iso > maxDate\)/);
+  assert.match(logDatePickerSource, /disabled=\{disabled\}/);
+  assert.match(logDatePickerSource, /const canGoForward = !maxDate \|\| monthKey < monthKeyOf\(maxDate\);/);
 });
 
 test('personal details uses the shared date selector instead of a birth-date text field', () => {

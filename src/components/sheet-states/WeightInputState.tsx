@@ -14,10 +14,10 @@ import {
   getWeightLogByDate,
   saveWeightLog,
 } from '../../db/database';
-import DateSelector from '../DateSelector';
 import PrimaryButton from '../PrimaryButton';
 import SegmentedControl from '../SegmentedControl';
 import { type ShowSheetDialog, useSheetDialog } from '../SheetDialog';
+import { showLogDatePicker } from '../LogDatePicker';
 import { formatLocalISO, formatLogDateLabel, parseLocalISO, todayISO } from '../../utils/calendar';
 import { formatWeight, fromKilograms, parseWeightInput, toKilograms } from '../../utils/weightUnits';
 import { M3 } from '../../theme/tokens';
@@ -65,7 +65,6 @@ export default function WeightInputState({ onLogComplete, onBack, onContentHeigh
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [existing, setExisting] = useState(false);
   const [existingOrigin, setExistingOrigin] = useState<WeightOrigin | null>(null);
-  const [dateSelectorVisible, setDateSelectorVisible] = useState(false);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -231,7 +230,16 @@ export default function WeightInputState({ onLogComplete, onBack, onContentHeigh
       </View>
 
       <Pressable
-        onPress={() => setDateSelectorVisible(true)}
+        onPress={() => showLogDatePicker(showDialog, {
+          value: effectiveDate,
+          today,
+          minDate: formatLocalISO(birthDate),
+          maxDate: today,
+          onSelect: (dateISO) => {
+            dateExplicitRef.current = true;
+            void loadDate(dateISO, unit);
+          },
+        })}
         disabled={loading || saving}
         accessibilityRole="button"
         accessibilityLabel="Select weight date"
@@ -291,19 +299,6 @@ export default function WeightInputState({ onLogComplete, onBack, onContentHeigh
         loading={saving}
       />
 
-      <DateSelector
-        visible={dateSelectorVisible}
-        value={parseLocalISO(effectiveDate)}
-        minimumDate={birthDate}
-        maximumDate={parseLocalISO(todayISO())}
-        showTodayAction
-        onCancel={() => setDateSelectorVisible(false)}
-        onConfirm={(date) => {
-          setDateSelectorVisible(false);
-          dateExplicitRef.current = true;
-          void loadDate(formatLocalISO(date), unit);
-        }}
-      />
     </BottomSheetScrollView>
   );
 }
