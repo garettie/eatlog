@@ -325,6 +325,7 @@ export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => 
                                 accessibilityHint="Opens the date selector"
                                 onPress={() => showDatePicker(birthDateDialog.show, {
                                     title: 'Birth date',
+                                    startView: 'years',
                                     value: formatLocalISO(selectedBirthDate),
                                     today: todayISO(),
                                     minDate: formatLocalISO(dateBounds.earliest),

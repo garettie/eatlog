@@ -64,14 +64,14 @@ test('every date the app asks for uses one modal picker', () => {
 
 test('birthdays use the picker with its year view and the age bounds', () => {
   for (const source of [personalDetailsSource, onboardingSource]) {
-    assert.match(source, /showDatePicker\(birthDateDialog\.show, \{\s*title: 'Birth date',/);
+    assert.match(source, /showDatePicker\(birthDateDialog\.show, \{\s*title: 'Birth date',\s*startView: 'years',/);
     assert.match(source, /minDate: formatLocalISO\(dateBounds\.earliest\),\s*maxDate: formatLocalISO\(dateBounds\.latest\),/);
     assert.match(source, /<SheetDialogOverlay host=\{birthDateDialog\} \/>/);
   }
-  // The month label opens a year grid limited to the bounds.
-  assert.match(datePickerSource, /setView\(\(current\) => \(current === 'days' \? 'years' : 'days'\)\)/);
+  // Birthdays open on the year grid, limited to the bounds, then drill into months and days.
   assert.match(datePickerSource, /const first = minDate \? yearOf\(minDate\)/);
-  assert.match(datePickerSource, /clampMonth\(new Date\(year, current\.getMonth\(\), 1\), minDate, maxDate\)/);
+  assert.match(datePickerSource, /go\(\{ view: 'months', month: clampMonth\(new Date\(year, month\.getMonth\(\), 1\), minDate, maxDate\) \}\)/);
+  assert.match(datePickerSource, /go\(\{ view: 'days', month: new Date\(shownYear, monthIndex, 1\) \}\)/);
 });
 
 test('future meal dates remain selectable and reachable in Diary', () => {
@@ -90,7 +90,7 @@ test('future weight measurements remain blocked', () => {
   // Days past the bound can't be tapped, and paging stops at the bound's month.
   assert.match(datePickerSource, /\(maxDate != null && iso > maxDate\)/);
   assert.match(datePickerSource, /disabled=\{disabled\}/);
-  assert.match(datePickerSource, /const canGoForward = !maxDate \|\| monthKey < monthKeyOf\(maxDate\);/);
+  assert.match(datePickerSource, /const canPageForward = view === 'days'\s*\? !maxDate \|\| monthKey < monthKeyOf\(maxDate\)\s*: !maxDate \|\| shownYear < yearOf\(maxDate\);/);
 });
 
 test('personal details uses the shared date picker instead of a birth-date text field', () => {

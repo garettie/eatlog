@@ -22,6 +22,8 @@ export interface SheetDialogRequest {
   title: string;
   /** A large value under the title, such as the date a picker is set to. */
   headline?: string;
+  /** A compact shortcut beside the heading, such as a picker's Today. */
+  accessory?: SheetDialogAction;
   message?: string;
   /** Custom content between the heading and the actions, such as a picker. Sheets only. */
   body?: (close: () => void) => React.ReactNode;
@@ -69,9 +71,12 @@ export function useSheetDialog(): ShowSheetDialog {
   return useContext(SheetDialogContext) ?? showNativeAlert;
 }
 
+// Cancel and neutral actions are outlined: a tonal pill on this card measured 1.17:1, while the
+// outline clears 4:1.
+const OUTLINED = 'border-[1.5px] border-m3-on-surface-variant/60';
 const ACTION_CLASS: Record<NonNullable<SheetDialogAction['tone']>, { button: string; text: string }> = {
-  cancel: { button: 'bg-m3-surface-container-highest', text: 'text-m3-on-surface' },
-  neutral: { button: 'bg-m3-surface-container-highest', text: 'text-m3-on-surface' },
+  cancel: { button: OUTLINED, text: 'text-m3-on-surface' },
+  neutral: { button: OUTLINED, text: 'text-m3-on-surface' },
   primary: { button: 'bg-m3-primary', text: 'text-m3-on-primary' },
   destructive: { button: 'bg-m3-error-container', text: 'text-m3-on-error-container' },
 };
@@ -151,21 +156,33 @@ export function SheetDialogOverlay({ host }: { host: SheetDialogHost }) {
             accessibilityRole={dialog.body ? undefined : 'alert'}
             className="w-full max-w-[420px] gap-5 rounded-3xl border border-m3-outline-variant/40 bg-m3-surface-container-high px-5 pb-5 pt-6"
           >
-            <View className="gap-1">
-              {/* With a headline, the title labels the value below it rather than asking a question. */}
-              <Text
-                accessibilityRole="header"
-                className={dialog.headline
-                  ? 'text-sm font-semibold text-m3-on-surface-variant'
-                  : 'text-base font-semibold text-m3-on-surface'}
-              >
-                {dialog.title}
-              </Text>
-              {dialog.headline ? (
-                <Text className="text-2xl font-bold text-m3-on-surface">{dialog.headline}</Text>
-              ) : null}
-              {dialog.message ? (
-                <Text className="text-sm text-m3-on-surface-variant">{dialog.message}</Text>
+            <View className="flex-row items-start gap-3">
+              <View className="flex-1 gap-1">
+                {/* With a headline, the title labels the value below it rather than asking a question. */}
+                <Text
+                  accessibilityRole="header"
+                  className={dialog.headline
+                    ? 'text-sm font-semibold text-m3-on-surface-variant'
+                    : 'text-base font-semibold text-m3-on-surface'}
+                >
+                  {dialog.title}
+                </Text>
+                {dialog.headline ? (
+                  <Text className="text-2xl font-bold text-m3-on-surface">{dialog.headline}</Text>
+                ) : null}
+                {dialog.message ? (
+                  <Text className="text-sm text-m3-on-surface-variant">{dialog.message}</Text>
+                ) : null}
+              </View>
+              {dialog.accessory ? (
+                <Pressable
+                  onPress={() => run(dialog.accessory)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  className={`h-9 items-center justify-center rounded-full px-4 active:opacity-70 ${OUTLINED}`}
+                >
+                  <Text className="text-xs font-semibold text-m3-on-surface">{dialog.accessory.label}</Text>
+                </Pressable>
               ) : null}
             </View>
             {dialog.body?.(close)}

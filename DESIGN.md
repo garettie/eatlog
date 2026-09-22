@@ -187,6 +187,7 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Primary:** white fill with near-black text; standard vertical padding is 16px.
 - **Press state:** modest opacity or scale feedback only; primary buttons use a brief scale-down.
 - **Loading:** replace label/icon with an activity indicator; disable interaction.
+- **Dialog secondary actions:** Cancel and neutral actions are outlined pills (1.5dp `on-surface-variant` at 60%); a tonal pill on the dialog surface is too low-contrast to read as a button.
 
 ### Chips
 - **Style:** compact rounded pills; macro pills use their named nutrient color at low-opacity background.
@@ -233,7 +234,7 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 
 ### Signature Components
 - **Calorie Ring and Toggle:** white ring on a tonal track, darker off-white overflow refill, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
-- **Calendar Day:** one mark for the Diary strip, the Analytics calendar, and the date picker (meal, weight, and birth dates) (`src/theme/calendarDay.ts`). The 3dp calorie ring runs along the outer edge of the 36dp day; the selected day is a solid White Action disc inset 2dp inside the ring with the number inverted, and today is the same disc at 18% opacity. The ring never sits on the disc, so calorie blue keeps its contrast in every state. The picker has no rings, so its discs fill the full 36dp day; it shares the centered month header, 12sp bold numbers, and muted future and spillover days.
+- **Calendar Day:** one mark for the Diary strip, the Analytics calendar, and the date picker (meal, weight, and birth dates) (`src/theme/calendarDay.ts`). The 3dp calorie ring runs along the outer edge of the 36dp day; the selected day is a solid White Action disc inset 2dp inside the ring with the number inverted, and today is the same disc at 18% opacity. The ring never sits on the disc, so calorie blue keeps its contrast in every state. The picker has no rings, so its discs fill the full 36dp day; its header label drills from days to months to years (birthdays open on years), with deeper levels zooming in, shallower ones zooming out, and paging sliding with the arrow; it shares the centered month header, 12sp bold numbers, and muted future and spillover days.
 - **Ruler Slider:** horizontal-only gesture capture; height uses 8px per unit and tenths use 20px per unit; direct entry is always available; adjustable accessibility actions increment/decrement by the configured step.
 
 ### Motion and haptics

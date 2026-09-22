@@ -664,6 +664,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                     <Pressable
                       onPress={() => showDatePicker(birthDateDialog.show, {
                         title: 'Birth date',
+                        startView: 'years',
                         value: formatLocalISO(birthDate),
                         today: todayISO(),
                         minDate: formatLocalISO(dateBounds.earliest),
