@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Platform, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Platform, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import { BottomSheetScrollView, BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -17,6 +17,7 @@ import {
 import DateSelector from '../DateSelector';
 import PrimaryButton from '../PrimaryButton';
 import SegmentedControl from '../SegmentedControl';
+import { type ShowSheetDialog, useSheetDialog } from '../SheetDialog';
 import { formatLocalISO, formatLogDateLabel, parseLocalISO, todayISO } from '../../utils/calendar';
 import { formatWeight, fromKilograms, parseWeightInput, toKilograms } from '../../utils/weightUnits';
 import { M3 } from '../../theme/tokens';
@@ -42,22 +43,22 @@ function isLargeJump(valueKg: number, neighborKg: number): boolean {
   return difference > 5 && difference > neighborKg * 0.05;
 }
 
-function confirmLargeJump(): Promise<boolean> {
+function confirmLargeJump(showDialog: ShowSheetDialog): Promise<boolean> {
   return new Promise((resolve) => {
-    Alert.alert(
-      'Check weight',
-      'This is a large change from a nearby check-in. Save it anyway?',
-      [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Save anyway', onPress: () => resolve(true) },
+    showDialog({
+      title: 'Check weight',
+      message: 'This is a large change from a nearby check-in. Save it anyway?',
+      actions: [
+        { label: 'Cancel', tone: 'cancel', onPress: () => resolve(false) },
+        { label: 'Save anyway', tone: 'primary', onPress: () => resolve(true) },
       ],
-      { cancelable: true, onDismiss: () => resolve(false) },
-    );
+    });
   });
 }
 
 export default function WeightInputState({ onLogComplete, onBack, onContentHeightChange }: WeightInputStateProps) {
   const discardGuard = useDiscardGuardContext();
+  const showDialog = useSheetDialog();
   const [dateISO, setDateISO] = useState(() => todayISO());
   const [unit, setUnit] = useState<WeightUnit>('kg');
   const [weightText, setWeightText] = useState('');
@@ -168,7 +169,7 @@ export default function WeightInputState({ onLogComplete, onBack, onContentHeigh
       const suspicious = [neighbors.before, neighbors.after].some(
         (neighbor) => neighbor != null && isLargeJump(canonicalKg, neighbor.scale_weight_kg),
       );
-      if (suspicious && !await confirmLargeJump()) return;
+      if (suspicious && !await confirmLargeJump(showDialog)) return;
       const result = await saveWeightLog({ logDate: effectiveDate, scaleWeightKg: canonicalKg, weightUnit: unit });
       baselineRef.current = { dateISO: effectiveDate, weightKg: result.log.scale_weight_kg, unit };
       draftRef.current = baselineRef.current;
@@ -284,6 +285,7 @@ export default function WeightInputState({ onLogComplete, onBack, onContentHeigh
       <PrimaryButton
         title={existing ? 'Update weight' : 'Log weight'}
         icon="monitor-weight"
+        iconPosition="left"
         onPress={handleSave}
         disabled={loading || parseWeightInput(weightText) == null}
         loading={saving}

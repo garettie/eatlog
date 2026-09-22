@@ -26,6 +26,10 @@ const reviewStateSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/ReviewState.tsx'),
   'utf8',
 );
+const mealDateViewSource = readFileSync(
+  resolve(testDirectory, '../components/sheet-states/MealDateView.tsx'),
+  'utf8',
+);
 const weightInputSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/WeightInputState.tsx'),
   'utf8',
@@ -48,7 +52,9 @@ const planPreviewSource = profileScreensSource.slice(
 
 test('Android uses native date pickers with explicit visible actions', () => {
   assert.ok(androidPickerStart >= 0, 'Android should open the imperative native picker');
-  assert.match(androidPickerSource, /display: maxDate \? 'default' : 'spinner'/);
+  // Every remaining caller is bounded, and OEM spinners flicker at a hard bound.
+  assert.match(androidPickerSource, /display: 'default'/);
+  assert.doesNotMatch(androidPickerSource, /'spinner'/);
   assert.match(androidPickerSource, /positiveButton: \{ label: 'Set date' \}/);
   assert.match(androidPickerSource, /negativeButton: \{ label: 'Cancel' \}/);
   assert.match(androidPickerSource, /event\.type === 'set'/);
@@ -68,15 +74,20 @@ test('Android does not fall back to JavaScript scroll-wheel snapping', () => {
   assert.doesNotMatch(dateSelectorSource, /snapToOffsets/);
 });
 
-test('logging date pickers offer a native weekday-aware Today action', () => {
+test('logging date pickers offer a weekday-aware Today action', () => {
   assert.match(dateSelectorSource, /maximumDate\?: Date/);
   assert.match(dateSelectorSource, /showTodayAction\?: boolean/);
   assert.match(androidPickerSource, /neutralButton:/);
   assert.match(androidPickerSource, /neutralButtonPressed/);
-  assert.match(reviewStateSource, /showTodayAction/);
   assert.match(weightInputSource, /showTodayAction/);
-  assert.match(reviewStateSource, /formatLogDateLabel\(effectiveLogDate\)/);
   assert.match(weightInputSource, /formatLogDateLabel\(effectiveDate\)/);
+  // Meal dates use the in-sheet month grid instead of a native dialog.
+  assert.match(reviewStateSource, /<MealDateView/);
+  assert.doesNotMatch(reviewStateSource, /<DateSelector/);
+  assert.match(reviewStateSource, /formatLogDateLabel\(effectiveLogDate\)/);
+  assert.match(mealDateViewSource, /onSelect\(today\)/);
+  assert.match(mealDateViewSource, /formatLogDateLabel\(value, parseLocalISO\(today\)\)/);
+  assert.match(mealDateViewSource, /getFixedMonthGrid/);
 });
 
 test('future meal dates remain selectable and reachable in Diary', () => {

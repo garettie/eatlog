@@ -8,7 +8,6 @@ import React, {
 import {
 	AccessibilityInfo,
 	ActivityIndicator,
-	Alert,
 	BackHandler,
 	Pressable,
 	Text,
@@ -45,23 +44,23 @@ import { useToday } from "../../hooks/useToday";
 import { useDiscardGuardContext } from "./useDiscardGuard";
 import SheetBackButton from "./SheetBackButton";
 import AddComponentView from "./AddComponentView";
+import MealDateView from "./MealDateView";
 import { useViewTransition } from "./useViewTransition";
 import MealSelector from "../MealSelector";
 import { useResponsiveLayout } from "../../theme/layout";
 import PortionStepper from "../PortionStepper";
 import PrimaryButton from "../PrimaryButton";
-import DateSelector from "../DateSelector";
 import MealPhotoEditor from "../MealPhotoEditor";
+import { useSheetDialog } from "../SheetDialog";
 import MacroSummaryCard from "../MacroSummaryCard";
 import MealPortionSelector from "../MealPortionSelector";
 import {
 	formatLogDateLabel,
-	isoFromDate,
 	parseLocalISO,
 	todayISO,
 } from "../../utils/calendar";
 import { M3 } from "../../theme/tokens";
-import { EASING } from "../../theme/motion";
+import { DURATION, EASING } from "../../theme/motion";
 import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
 import { useEntitlement } from "../../context/EntitlementContext";
 import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
@@ -117,9 +116,9 @@ function servingCountUnit(label: string | null): string {
 }
 
 /** The internal views of the review sheet: the meal, one food's editor, add food. */
-type ReviewView = "list" | "editor" | "add";
+type ReviewView = "list" | "editor" | "add" | "date";
 
-/** The meal is the root; the editor and the add flow are one step deeper. */
+/** The meal is the root; the editor, the add flow, and the date grid are one step deeper. */
 const reviewViewIsForward = (_from: ReviewView, to: ReviewView) => to !== "list";
 
 function DisclosureChevron({ expanded }: { expanded: boolean }) {
@@ -261,7 +260,7 @@ export default function ReviewState({
 		() => initialMeal ?? defaultMealForNow(),
 	);
 	const [logDate, setLogDate] = useState(() => logDateProp ?? todayISO());
-	const [dateSelectorVisible, setDateSelectorVisible] = useState(false);
+	const [dateOpen, setDateOpen] = useState(false);
 	const [logging, setLogging] = useState(false);
 	const [logError, setLogError] = useState<string | null>(null);
 	const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
@@ -282,6 +281,7 @@ export default function ReviewState({
 	const originalMealNameRef = useRef(result?.mealName ?? "");
 	const previousResultRef = useRef(result);
 	const discardGuard = useDiscardGuardContext();
+	const showDialog = useSheetDialog();
 	const reducedMotion = useReducedMotion();
 	const insets = useSafeAreaInsets();
 	const today = useToday();
@@ -309,7 +309,7 @@ export default function ReviewState({
 		style: viewTransitionStyle,
 		jumpTo: jumpToView,
 	} = useViewTransition<ReviewView>({
-		target: editorOpen ? "editor" : addOpen ? "add" : "list",
+		target: editorOpen ? "editor" : addOpen ? "add" : dateOpen ? "date" : "list",
 		reducedMotion,
 		isForward: reviewViewIsForward,
 		onCommit: handleViewCommit,
@@ -916,11 +916,15 @@ export default function ReviewState({
 			setEditorOpen(false);
 			return;
 		}
-		Alert.alert("Discard changes?", "Your edits will be lost.", [
-			{ text: "Keep Editing" },
-			{ text: "Discard", style: "destructive", onPress: () => setEditorOpen(false) },
-		]);
-	}, [editorOpen]);
+		showDialog({
+			title: "Discard changes?",
+			message: "Your edits will be lost.",
+			actions: [
+				{ label: "Keep editing", tone: "cancel" },
+				{ label: "Discard", tone: "destructive", onPress: () => setEditorOpen(false) },
+			],
+		});
+	}, [editorOpen, showDialog]);
 
 	const saveEditor = useCallback(() => {
 		if (!editDraft || renderedView !== "editor") return;
@@ -979,6 +983,24 @@ export default function ReviewState({
 		return () => subscription.remove();
 	}, [editorOpen, requestCloseEditor]);
 
+	// Hardware Back leaves the date grid for the meal, not the sheet.
+	useEffect(() => {
+		if (!dateOpen) return;
+		const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+			setDateOpen(false);
+			return true;
+		});
+		return () => subscription.remove();
+	}, [dateOpen]);
+
+	const selectLogDate = useCallback((nextDate: string) => {
+		setDateOpen(false);
+		logDateOverrideRef.current = true;
+		if (nextDate === logDate) return;
+		dirtyRef.current = true;
+		setLogDate(nextDate);
+	}, [logDate]);
+
 	// The unsaved editor buffer counts as unsaved sheet work: pan-down and backdrop
 	// dismissal must warn before dropping it.
 	useEffect(() => {
@@ -1021,6 +1043,19 @@ export default function ReviewState({
 					onAcknowledgeNutrition={acknowledgeNutrition}
 					onRedo={() => void handleClarifyComponent(editDraft)}
 					onRemove={() => removeComponent(editingIndex)}
+				/>
+			</Animated.View>
+		);
+	}
+
+	if (renderedView === "date") {
+		return (
+			<Animated.View style={viewTransitionStyle} className="flex-1">
+				<MealDateView
+					value={effectiveLogDate}
+					today={today}
+					onSelect={selectLogDate}
+					onBack={() => setDateOpen(false)}
 				/>
 			</Animated.View>
 		);
@@ -1086,13 +1121,13 @@ export default function ReviewState({
 						>
 							{clarifying ? (
 								<Animated.View
-									entering={reducedMotion ? undefined : FadeIn.duration(150)}
+									entering={reducedMotion ? undefined : FadeIn.duration(DURATION.enter)}
 								>
 									<ActivityIndicator size="small" color={M3.onSurfaceVariant} />
 								</Animated.View>
 							) : (
 								<Animated.View
-									entering={reducedMotion ? undefined : FadeIn.duration(150)}
+									entering={reducedMotion ? undefined : FadeIn.duration(DURATION.enter)}
 								>
 									<MaterialIcons
 										name="auto-fix-high"
@@ -1254,8 +1289,8 @@ export default function ReviewState({
 			>
 				{undoAction ? (
 					<Animated.View
-						entering={reducedMotion ? undefined : FadeInUp.duration(200)}
-						exiting={reducedMotion ? undefined : FadeOutDown.duration(150)}
+						entering={reducedMotion ? undefined : FadeInUp.duration(DURATION.short)}
+						exiting={reducedMotion ? undefined : FadeOutDown.duration(DURATION.exit)}
 						className="bg-m3-surface-container-highest rounded-2xl px-4 py-3 flex-row items-center border border-m3-outline-variant/30"
 					>
 						<View className="flex-row items-center flex-1 gap-2">
@@ -1290,7 +1325,7 @@ export default function ReviewState({
 				) : null}
 				<View className={isNarrow ? 'gap-2' : 'flex-row items-center gap-2'}>
 					<Pressable
-						onPress={() => setDateSelectorVisible(true)}
+						onPress={() => setDateOpen(true)}
 						disabled={logging}
 						accessibilityRole="button"
 						accessibilityLabel={`Log date, ${formatLogDateLabel(effectiveLogDate)}`}
@@ -1363,21 +1398,6 @@ export default function ReviewState({
 					}
 				/>
 			</View>
-			<DateSelector
-				visible={dateSelectorVisible}
-				value={parseLocalISO(effectiveLogDate)}
-				minimumDate={new Date(1900, 0, 1)}
-				showTodayAction
-				onCancel={() => setDateSelectorVisible(false)}
-				onConfirm={(date) => {
-					setDateSelectorVisible(false);
-					const nextDate = isoFromDate(date);
-					logDateOverrideRef.current = true;
-					if (nextDate === logDate) return;
-					dirtyRef.current = true;
-					setLogDate(nextDate);
-				}}
-			/>
 		</Animated.View>
 	);
 }
@@ -1564,13 +1584,13 @@ function FoodEditorView({
 									>
 										{redoing ? (
 											<Animated.View
-												entering={reducedMotion ? undefined : FadeIn.duration(150)}
+												entering={reducedMotion ? undefined : FadeIn.duration(DURATION.enter)}
 											>
 												<ActivityIndicator size="small" color={M3.onSurfaceVariant} />
 											</Animated.View>
 										) : (
 											<Animated.View
-												entering={reducedMotion ? undefined : FadeIn.duration(150)}
+												entering={reducedMotion ? undefined : FadeIn.duration(DURATION.enter)}
 											>
 												<MaterialIcons
 													name="auto-fix-high"

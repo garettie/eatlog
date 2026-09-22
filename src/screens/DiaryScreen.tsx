@@ -69,9 +69,6 @@ interface JournalSectionModel {
   label: string;
   entries: JournalEntryKind[];
   totalCalories: number;
-  totalProtein: number;
-  totalCarbs: number;
-  totalFat: number;
 }
 
 type DiaryListItem =
@@ -520,18 +517,12 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     }
 
     const sectionCals = sectionLogs.reduce((s, l) => s + l.calories, 0);
-    const sectionP = sectionLogs.reduce((s, l) => s + l.protein_g, 0);
-    const sectionCa = sectionLogs.reduce((s, l) => s + l.carbs_g, 0);
-    const sectionF = sectionLogs.reduce((s, l) => s + l.fat_g, 0);
 
     return {
       meal,
       label,
       entries,
       totalCalories: sectionCals,
-      totalProtein: sectionP,
-      totalCarbs: sectionCa,
-      totalFat: sectionF,
     };
     });
   }, [foodLogs, mealRows]);
@@ -706,9 +697,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       hasEntries={item.section.entries.length > 0}
       collapsed={collapsedSections.has(item.section.meal)}
       totalCalories={item.section.totalCalories}
-      totalProtein={item.section.totalProtein}
-      totalCarbs={item.section.totalCarbs}
-      totalFat={item.section.totalFat}
       onToggle={() => toggleSection(item.section.meal)}
     />
   ) : (

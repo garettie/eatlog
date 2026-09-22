@@ -14,6 +14,7 @@ import Sheet from '../components/Sheet';
 import FoodSheetContent, { isContentSizedFoodSheetState, type FoodSheetState, type FoodSheetStateKey, type LoggedEntryInfo, type WeightLoggedInfo } from '../components/sheet-states/FoodSheetContent';
 import type { MealGroup } from '../components/JournalSection';
 import { DiscardGuardContext, useDiscardGuard } from '../components/sheet-states/useDiscardGuard';
+import { useSheetDialogHost } from '../components/SheetDialog';
 import { deleteFoodLog, deleteMeal, restoreWeightSave, type MealType } from '../db/database';
 import { formatDayHeader, normalizeLogDateInput, todayISO } from '../utils/calendar';
 import { haptics } from '../utils/haptics';
@@ -63,7 +64,8 @@ export default function TabNavigator({ route }: NativeStackScreenProps<RootStack
     const [dataVersion, setDataVersion] = useState(0);
     const insets = useSafeAreaInsets();
     const { isMedium } = useResponsiveLayout();
-    const discardGuard = useDiscardGuard();
+    const foodSheetDialog = useSheetDialogHost();
+    const discardGuard = useDiscardGuard(foodSheetDialog.show);
     const tabBarBottomPadding = Math.max(insets.bottom, 12);
     const tabBarHeight = 80 + tabBarBottomPadding;
     const screenOptions = useMemo(() => ({
@@ -433,6 +435,7 @@ export default function TabNavigator({ route }: NativeStackScreenProps<RootStack
                 contentHeight={contentHeight}
                 stateKey={sheet.stateKey}
                 canCloseRef={canCloseRef}
+                dialogHost={foodSheetDialog}
                 onGoBack={handleSheetGoBack}
                 onSheetClosed={handleCloseSheet}
                 sheetCloseRef={sheetCloseRef}

@@ -74,13 +74,13 @@ test('editor edits buffer until Save and Back asks before discarding', () => {
   assert.match(reviewStateSource, /const saveEditor = useCallback/);
   assert.match(reviewStateSource, /title="Save changes"/);
   // Back goes through the same discard prompt as pan-down dismissal.
-  assert.match(reviewStateSource, /Alert\.alert\("Discard changes\?", "Your edits will be lost\."/);
+  assert.match(reviewStateSource, /showDialog\(\{\s*title: "Discard changes\?",\s*message: "Your edits will be lost\."/);
   // Open/close reuse the sheet-state exit/enter choreography.
   assert.match(reviewStateSource, /useViewTransition<ReviewView>/);
   assert.match(viewTransitionSource, /emphasizedAccelerate/);
   assert.match(viewTransitionSource, /emphasizedDecelerate/);
-  assert.match(viewTransitionSource, /const EXIT_MS = 90/);
-  assert.match(viewTransitionSource, /const ENTER_MS = 150/);
+  assert.match(viewTransitionSource, /const EXIT_MS = DURATION\.exit/);
+  assert.match(viewTransitionSource, /const ENTER_MS = DURATION\.enter/);
 });
 
 test('one transition drives every internal view, and it knows its direction', () => {
@@ -111,7 +111,7 @@ test('the add flow guards typed drafts on Back, hardware Back, and sheet dismiss
   assert.match(addComponentViewSource, /const requestBack = useCallback/);
   assert.match(
     addComponentViewSource,
-    /Alert\.alert\("Discard changes\?", "Your edits will be lost\."/,
+    /showDialog\(\{\s*title: "Discard changes\?",\s*message: "Your edits will be lost\."/,
   );
   assert.match(addComponentViewSource, /BackHandler\.addEventListener\(\s*"hardwareBackPress"/);
   assert.match(addComponentViewSource, /discardGuard\.register\(/);
@@ -286,11 +286,30 @@ test('per-food review status stays on the food rows, with no summary line', () =
 test('single-food review guards edits against dismissal and matches the meal footer', () => {
   assert.match(singleFoodReviewSource, /discardGuard\.register/);
   assert.match(singleFoodReviewSource, /dirtyRef\.current && !loggedRef\.current/);
-  assert.match(singleFoodReviewSource, /<DateSelector/);
+  assert.match(singleFoodReviewSource, /<MealDateView/);
   assert.match(singleFoodReviewSource, /<MealSelector\s+value=\{meal\}\s+compact/);
   // The direct-entry force-close path must not bypass the discard guard here.
   assert.match(
     tabNavigatorSource,
     /sheet\.stateKey !== 'single-food-review'/,
   );
+});
+
+test('sheet decisions use the in-sheet dialog, never a native alert', () => {
+  const sheetSources = [
+    '../components/sheet-states/ReviewState.tsx',
+    '../components/sheet-states/AddComponentView.tsx',
+    '../components/sheet-states/WeightInputState.tsx',
+    '../components/sheet-states/FoodSheetContent.tsx',
+    '../components/sheet-states/useDiscardGuard.ts',
+    '../components/MealPhotoEditor.tsx',
+  ].map((path) => readFileSync(resolve(testDirectory, path), 'utf8'));
+  for (const source of sheetSources) {
+    assert.doesNotMatch(source, /Alert\.alert/);
+  }
+  // The sheet hosts the dialog, and hardware Back dismisses it before anything else.
+  const sheetSource = readFileSync(resolve(testDirectory, '../components/Sheet.tsx'), 'utf8');
+  const dialogSource = readFileSync(resolve(testDirectory, '../components/SheetDialog.tsx'), 'utf8');
+  assert.match(sheetSource, /<SheetDialogOverlay host=\{dialog\} \/>/);
+  assert.match(dialogSource, /BackHandler\.addEventListener\('hardwareBackPress'/);
 });

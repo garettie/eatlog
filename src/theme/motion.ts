@@ -7,6 +7,9 @@ export const DURATION = {
   bar: 350,
   ring: 550,
   toast: 250,
+  // Sheet state choreography: outgoing content leaves fast, incoming settles.
+  exit: 90,
+  enter: 150,
 } as const;
 
 export const EASING = {

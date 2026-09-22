@@ -114,9 +114,9 @@ test('photo estimate action stays above query-driven reuse results', () => {
   );
 });
 
-test('food search is visibly labeled beta at entry and in the search header', () => {
-  assert.match(entryMethodSource, /label="Search foods"[\s\S]*badge="Beta"/);
-  assert.match(entryMethodSource, /accessibilityLabel=\{badge \? `\$\{label\}, \$\{badge\}` : label\}/);
+test('food search is labeled beta in the search header, not at entry', () => {
+  assert.match(entryMethodSource, /label="Search foods"/);
+  assert.doesNotMatch(entryMethodSource, /badge="Beta"/);
   assert.match(searchInputSource, />\s*Beta\s*</);
   assert.match(searchInputSource, /accessibilityLabel="Beta feature"/);
 });

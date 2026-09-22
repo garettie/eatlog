@@ -8,7 +8,7 @@ import Animated, {
 	withTiming,
 } from "react-native-reanimated";
 
-import { EASING } from "../theme/motion";
+import { DURATION, EASING } from "../theme/motion";
 
 function usePulseStyle(value: number) {
 	const reducedMotion = useReducedMotion();
@@ -22,8 +22,8 @@ function usePulseStyle(value: number) {
 		}
 		if (reducedMotion) return;
 		opacity.value = withSequence(
-			withTiming(0.35, { duration: 90, easing: EASING.standardAccelerate }),
-			withTiming(1, { duration: 160, easing: EASING.emphasizedDecelerate }),
+			withTiming(0.35, { duration: DURATION.exit, easing: EASING.standardAccelerate }),
+			withTiming(1, { duration: DURATION.enter, easing: EASING.emphasizedDecelerate }),
 		);
 	}, [value, reducedMotion, opacity]);
 
@@ -67,7 +67,9 @@ function MacroCell({
 	value: number;
 	colorClassName: string;
 }) {
-	const style = usePulseStyle(value);
+	// Whole grams, matching Today and Diary; the stored value keeps its precision.
+	const grams = Math.round(value);
+	const style = usePulseStyle(grams);
 	return (
 		<View className="min-w-0 flex-1 items-center">
 			<Animated.Text
@@ -77,7 +79,7 @@ function MacroCell({
 				minimumFontScale={0.85}
 				className="text-m3-on-surface text-sm font-bold tabular-nums"
 			>
-				{value}g
+				{grams}g
 			</Animated.Text>
 			<Text className={`text-compact font-medium ${colorClassName}`}>{label}</Text>
 		</View>
@@ -101,7 +103,8 @@ export default function MacroSummaryCard({
 	variant = "summary",
 }: MacroSummaryCardProps) {
 	const v = VARIANTS[variant];
-	const calorieStyle = usePulseStyle(calories);
+	const kcal = Math.round(calories);
+	const calorieStyle = usePulseStyle(kcal);
 
 	const strip = (
 		<View className={v.outer}>
@@ -113,7 +116,7 @@ export default function MacroSummaryCard({
 					minimumFontScale={v.calorieFit ? 0.85 : undefined}
 					className={v.calorieText}
 				>
-					{calories}
+					{kcal}
 				</Animated.Text>
 				<Text className="text-m3-calories text-compact font-medium">kcal</Text>
 			</View>

@@ -14,7 +14,6 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Reanimated, {
-  Easing,
   FadeIn,
   runOnJS,
   useAnimatedStyle,
@@ -41,6 +40,7 @@ import {
   insertInitialProfileAndPlan,
 } from '../db/database';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { DURATION, EASING } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 import { todayISO } from '../utils/calendar';
 import { goalRateBounds } from '../utils/goalRate';
@@ -214,8 +214,8 @@ export default function OnboardingScreen({ navigation }: Props) {
     const direction = stepDirectionRef.current;
     animX.value = 28 * direction;
     animOpacity.value = 0;
-    animX.value = withTiming(0, { duration: 240, easing: Easing.out(Easing.cubic) });
-    animOpacity.value = withTiming(1, { duration: 200 }, (finished) => {
+    animX.value = withTiming(0, { duration: DURATION.short, easing: EASING.emphasizedDecelerate });
+    animOpacity.value = withTiming(1, { duration: DURATION.short }, (finished) => {
       if (finished) runOnJS(finishStepTransition)();
     });
   }, [step]);
@@ -230,8 +230,8 @@ export default function OnboardingScreen({ navigation }: Props) {
     }
     stepTransitioningRef.current = true;
     const dir = next > step ? 1 : -1;
-    animX.value = withTiming(-28 * dir, { duration: 110, easing: Easing.in(Easing.quad) });
-    animOpacity.value = withTiming(0, { duration: 110 }, (finished) => {
+    animX.value = withTiming(-28 * dir, { duration: DURATION.exit, easing: EASING.emphasizedAccelerate });
+    animOpacity.value = withTiming(0, { duration: DURATION.exit }, (finished) => {
       if (finished) runOnJS(commitStep)(next, dir);
       else runOnJS(finishStepTransition)();
     });

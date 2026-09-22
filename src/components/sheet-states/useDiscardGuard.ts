@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef } from 'react';
-import { Alert } from 'react-native';
+
+import type { ShowSheetDialog } from '../SheetDialog';
 
 interface GuardEntry {
   isDirty: () => boolean;
@@ -22,7 +23,7 @@ export function useDiscardGuardContext() {
   return ctx;
 }
 
-export function useDiscardGuard(): DiscardGuard {
+export function useDiscardGuard(showDialog: ShowSheetDialog): DiscardGuard {
   const guardsRef = useRef<GuardEntry[]>([]);
 
   const register = useCallback(
@@ -46,20 +47,24 @@ export function useDiscardGuard(): DiscardGuard {
         for (const g of guardsRef.current) g.markClean();
         return true;
       }
-      Alert.alert('Discard changes?', 'Your edits will be lost.', [
-        { text: 'Keep Editing' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            for (const g of guardsRef.current) g.markClean();
-            allowClose();
+      showDialog({
+        title: 'Discard changes?',
+        message: 'Your edits will be lost.',
+        actions: [
+          { label: 'Keep editing', tone: 'cancel' },
+          {
+            label: 'Discard',
+            tone: 'destructive',
+            onPress: () => {
+              for (const g of guardsRef.current) g.markClean();
+              allowClose();
+            },
           },
-        },
-      ]);
+        ],
+      });
       return false;
     },
-    [isAnyDirty],
+    [isAnyDirty, showDialog],
   );
 
   return useMemo(

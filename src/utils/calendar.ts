@@ -152,6 +152,20 @@ export function getMonthGrid(monthStart: Date): Date[][] {
   return weeks;
 }
 
+/** A month grid padded with following weeks to six rows, so its height never changes. */
+export function getFixedMonthGrid(monthStart: Date): Date[][] {
+  const weeks = getMonthGrid(monthStart);
+  while (weeks.length < 6) {
+    const lastMonday = weeks[weeks.length - 1][0];
+    weeks.push(Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(lastMonday);
+      date.setDate(date.getDate() + 7 + index);
+      return date;
+    }));
+  }
+  return weeks;
+}
+
 export function formatMonthLabel(monthStart: Date): string {
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   return `${monthNames[monthStart.getMonth()]} ${monthStart.getFullYear()}`;

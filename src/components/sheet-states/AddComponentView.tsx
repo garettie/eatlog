@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
 	AccessibilityInfo,
 	ActivityIndicator,
-	Alert,
 	BackHandler,
 	Keyboard,
 	Pressable,
@@ -26,6 +25,7 @@ import { useResponsiveLayout } from "../../theme/layout";
 import { M3 } from "../../theme/tokens";
 import FoodSearchResultRow from "../FoodSearchResultRow";
 import PrimaryButton from "../PrimaryButton";
+import { useSheetDialog } from "../SheetDialog";
 import SheetBackButton from "./SheetBackButton";
 import { useDiscardGuardContext } from "./useDiscardGuard";
 import { useViewTransition } from "./useViewTransition";
@@ -64,7 +64,7 @@ const addPageIsForward = (_from: AddPage, to: AddPage) => to !== "search";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
 	return (
-		<Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 pt-2">
+		<Text className="text-m3-on-surface-variant text-xs font-semibold px-1 pt-2">
 			{children}
 		</Text>
 	);
@@ -94,6 +94,7 @@ export default function AddComponentView({
 }: AddComponentViewProps) {
 	const [page, setPage] = useState<AddPage>("search");
 	const reducedMotion = useReducedMotion();
+	const showDialog = useSheetDialog();
 	const { isNarrow } = useResponsiveLayout();
 	const search = useFoodSearchController();
 	const [selectingId, setSelectingId] = useState<string | null>(null);
@@ -189,11 +190,15 @@ export default function AddComponentView({
 			goBack();
 			return;
 		}
-		Alert.alert("Discard changes?", "Your edits will be lost.", [
-			{ text: "Keep Editing" },
-			{ text: "Discard", style: "destructive", onPress: goBack },
-		]);
-	}, [clearDrafts, onClose, page]);
+		showDialog({
+			title: "Discard changes?",
+			message: "Your edits will be lost.",
+			actions: [
+				{ label: "Keep editing", tone: "cancel" },
+				{ label: "Discard", tone: "destructive", onPress: goBack },
+			],
+		});
+	}, [clearDrafts, onClose, page, showDialog]);
 
 	useEffect(() => {
 		const subscription = BackHandler.addEventListener(

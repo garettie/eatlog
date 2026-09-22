@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { FoodLog } from '../db/database';
 import Sheet from './Sheet';
 import { useDiscardGuard } from './sheet-states/useDiscardGuard';
+import { useSheetDialogHost } from './SheetDialog';
 import { M3 } from '../theme/tokens';
 
 export function portionRatio(food: FoodLog, grams: number): number {
@@ -25,7 +26,8 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
   const [grams, setGrams] = useState(0);
   const [contentMeasurement, setContentMeasurement] = useState<{ foodId: number; height: number } | null>(null);
   const baselineRef = useRef(0);
-  const guard = useDiscardGuard();
+  const dialog = useSheetDialogHost();
+  const guard = useDiscardGuard(dialog.show);
   const closeRef = useRef<() => void>(() => { });
   const canCloseRef = useRef<() => boolean>(() => true);
 
@@ -87,6 +89,7 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
       contentHeight={contentHeight}
       stateKey="diary-edit"
       canCloseRef={canCloseRef}
+      dialogHost={dialog}
       sheetCloseRef={closeRef}
       onSheetClosed={onClosed}
     >

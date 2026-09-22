@@ -9,6 +9,7 @@ import {
   normalizeLogDateInput,
   parseLocalISO,
   getMonthGrid,
+  getFixedMonthGrid,
 } from './calendar';
 
 test('log date labels identify today and show the selected weekday', () => {
@@ -91,6 +92,20 @@ test('month grids start on Monday and include spillover days', () => {
     assert.equal(week.length, 7);
     assert.deepEqual(week.map((date) => date.getDay()), [1, 2, 3, 4, 5, 6, 0]);
   }
+});
+
+test('fixed month grids always show six weeks so paging never changes their height', () => {
+  // February 2027 starts on a Monday and fits in exactly four weeks.
+  assert.equal(getMonthGrid(parseLocalISO('2027-02-01')).length, 4);
+  const grid = getFixedMonthGrid(parseLocalISO('2027-02-01'));
+
+  assert.equal(grid.length, 6);
+  assert.equal(formatLocalISO(grid[0][0]), '2027-02-01');
+  assert.equal(formatLocalISO(grid[5][6]), '2027-03-14');
+  for (const week of grid) {
+    assert.deepEqual(week.map((date) => date.getDay()), [1, 2, 3, 4, 5, 6, 0]);
+  }
+  assert.equal(getFixedMonthGrid(parseLocalISO('2026-08-01')).length, 6);
 });
 
 test('month grids preserve local ordering across year boundaries', () => {

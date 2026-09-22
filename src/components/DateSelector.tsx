@@ -71,10 +71,9 @@ export default function DateSelector({
     DateTimePickerAndroid.open({
       value: clampDate(dateOnly(new Date(valueTime)), minDate, maxDate),
       mode: 'date',
-      // Android OEM spinners can flicker when linked wheels reach a hard bound.
-      // Keep the wheel for unbounded meal dates and use the native bounded dialog
-      // for birth dates and weight dates.
-      display: maxDate ? 'default' : 'spinner',
+      // Callers are bounded dates (birthday, weight). Android OEM spinners flicker at a
+      // hard bound, so these use the native calendar dialog. Meal dates use MealDateView.
+      display: 'default',
       minimumDate: minDate,
       maximumDate: maxDate,
       positiveButton: { label: 'Set date' },

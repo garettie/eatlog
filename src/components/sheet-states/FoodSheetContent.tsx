@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Linking, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import Animated, {
@@ -35,7 +35,7 @@ import {
 } from '../../db/database';
 import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos';
 import { formatDayHeader, todayISO } from '../../utils/calendar';
-import { EASING } from '../../theme/motion';
+import { DURATION, EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
 import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
 import { useEntitlement } from '../../context/EntitlementContext';
@@ -44,13 +44,14 @@ import { useNavigation } from '@react-navigation/native';
 import EntryMethodState from './EntryMethodState';
 import DescribeInputState from './DescribeInputState';
 import PhotoMealTitleState from './PhotoMealTitleState';
-import ScanningState from './ScanningState';
+import ScanningState, { SCANNING_SPINNER_HEIGHT } from './ScanningState';
 import ReviewState from './ReviewState';
 import SearchInputState from './SearchInputState';
 import RecentMealsState from './RecentMealsState';
 import SingleFoodReviewState from './SingleFoodReviewState';
 import ManualInputState from './ManualInputState';
 import WeightInputState from './WeightInputState';
+import { useSheetDialog } from '../SheetDialog';
 
 export type FoodSheetStateKey =
     | 'entry'
@@ -108,9 +109,6 @@ const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     'gallery-unavailable': "Couldn't open your photos. Try again or choose another logging method.",
     'photo-unreadable': "Couldn't read this photo. Choose another photo or logging method.",
 };
-
-const CONTENT_EXIT_DURATION = 90;
-const CONTENT_ENTER_DURATION = 150;
 
 export interface FoodSheetState {
     visible: boolean;
@@ -179,6 +177,7 @@ export default function FoodSheetContent({
     onGoBack,
 }: FoodSheetContentProps) {
     const reduced = useReducedMotion();
+    const showDialog = useSheetDialog();
     const { requestConsent } = useRemoteEstimateConsent();
     const { warmEntitlement } = useEntitlement();
     const navigation = useNavigation<any>();
@@ -209,6 +208,15 @@ export default function FoodSheetContent({
     const stateTransitionRequestRef = useRef(0);
     const enteringStateRef = useRef(false);
     const stateContentHeightsRef = useRef<Partial<Record<FoodSheetStateKey, number>>>({});
+    const [scanningPhoto, setScanningPhoto] = useState<{ uri: string; minHeight?: number } | null>(null);
+    // Scanning renders at two heights (spinner or photo), but the sheet caches one height per
+    // state. Size it before the transition so the sheet never starts toward the other variant.
+    const presizeScanningRef = useRef((_height: number) => {});
+    presizeScanningRef.current = (height: number) => {
+        stateContentHeightsRef.current.scanning = height;
+        const chipHeight = state.logDate && state.logDate !== todayISO() ? dateChipHeightRef.current : 0;
+        onContentHeightChange('scanning', height + chipHeight);
+    };
     const dateChipHeightRef = useRef(0);
     const stateOffset = useSharedValue(0);
     const stateOpacity = useSharedValue(1);
@@ -265,10 +273,10 @@ export default function FoodSheetContent({
         const requestId = ++stateTransitionRequestRef.current;
         if (state.stateKey === renderedStateKey) {
             stateOffset.value = withTiming(0, {
-                duration: reduced ? 0 : CONTENT_ENTER_DURATION,
+                duration: reduced ? 0 : DURATION.enter,
                 easing: EASING.emphasizedDecelerate,
             });
-            stateOpacity.value = withTiming(1, { duration: reduced ? 0 : CONTENT_ENTER_DURATION });
+            stateOpacity.value = withTiming(1, { duration: reduced ? 0 : DURATION.enter });
             return;
         }
         if (reduced) {
@@ -279,10 +287,10 @@ export default function FoodSheetContent({
             return;
         }
         stateOffset.value = withTiming(-20, {
-            duration: reduced ? 0 : CONTENT_EXIT_DURATION,
+            duration: reduced ? 0 : DURATION.exit,
             easing: EASING.emphasizedAccelerate,
         });
-        stateOpacity.value = withTiming(0, { duration: reduced ? 0 : CONTENT_EXIT_DURATION }, (finished) => {
+        stateOpacity.value = withTiming(0, { duration: reduced ? 0 : DURATION.exit }, (finished) => {
             if (finished) runOnJS(commitRenderedState)(state.stateKey, requestId);
         });
     }, [reduced, state.stateKey]);
@@ -293,10 +301,10 @@ export default function FoodSheetContent({
         stateOffset.value = 20;
         stateOpacity.value = 0;
         stateOffset.value = withTiming(0, {
-            duration: reduced ? 0 : CONTENT_ENTER_DURATION,
+            duration: reduced ? 0 : DURATION.enter,
             easing: EASING.emphasizedDecelerate,
         });
-        stateOpacity.value = withTiming(1, { duration: reduced ? 0 : CONTENT_ENTER_DURATION });
+        stateOpacity.value = withTiming(1, { duration: reduced ? 0 : DURATION.enter });
     }, [reduced, renderedStateKey]);
 
     const stateTransitionStyle = useAnimatedStyle(() => ({
@@ -473,6 +481,8 @@ export default function FoodSheetContent({
                 return;
             }
 
+            setScanningPhoto(null);
+            presizeScanningRef.current(SCANNING_SPINNER_HEIGHT);
             transitionTo('scanning');
             const result = await ImagePicker.launchCameraAsync({
                 mediaTypes: ['images'],
@@ -509,6 +519,8 @@ export default function FoodSheetContent({
                 return;
             }
 
+            setScanningPhoto(null);
+            presizeScanningRef.current(SCANNING_SPINNER_HEIGHT);
             transitionTo('scanning');
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
@@ -550,6 +562,10 @@ export default function FoodSheetContent({
 
         try {
             if (!await requestConsent() || requestId !== scanRequestRef.current) return;
+            // The estimate keeps the photo and Identify meal's height, so the sheet holds still.
+            const photoTitleHeight = stateContentHeightsRef.current['photo-title'];
+            setScanningPhoto({ uri: pendingPhoto.uri, minHeight: photoTitleHeight });
+            if (photoTitleHeight) presizeScanningRef.current(photoTitleHeight);
             transitionTo('scanning');
 
             let base64 = pendingPhoto.preparedBase64;
@@ -739,9 +755,13 @@ export default function FoodSheetContent({
             if (requestId !== mealRequestRef.current) return;
             console.error('[FoodSheet] recent meal load failed', error);
             transitionTo('recent-foods', { pushHistory: false });
-            Alert.alert('Couldn’t open meal', 'Try selecting it again.');
+            showDialog({
+                title: 'Couldn’t open meal',
+                message: 'Try selecting it again.',
+                actions: [{ label: 'OK', tone: 'cancel' }],
+            });
         }
-    }, [setState, transitionTo]);
+    }, [setState, showDialog, transitionTo]);
 
     const handleManualEntry = useCallback(() => {
         discardPendingPhoto();
@@ -937,7 +957,11 @@ export default function FoodSheetContent({
                 )}
                 {renderedStateKey === 'scanning' && (
                     <View onLayout={handleStaticContentLayout}>
-                        <ScanningState onCancel={handleScanCancel} />
+                        <ScanningState
+                            onCancel={handleScanCancel}
+                            photoUri={scanningPhoto?.uri}
+                            minHeight={scanningPhoto?.minHeight}
+                        />
                     </View>
                 )}
                 {renderedStateKey === 'permission-denied' && (
@@ -1066,14 +1090,19 @@ function PermissionDeniedState({
     onRetry: () => void;
     onClose: () => void;
 }) {
+    const showDialog = useSheetDialog();
     const handleOpenSettings = useCallback(async () => {
         try {
             await Linking.openSettings();
         } catch (error) {
             console.error('[FoodSheet] settings launch failed', error);
-            Alert.alert('Couldn’t open Settings', 'Open Android Settings and allow camera access for Eatlog.');
+            showDialog({
+                title: 'Couldn’t open Settings',
+                message: 'Open Android Settings and allow camera access for Eatlog.',
+                actions: [{ label: 'OK', tone: 'cancel' }],
+            });
         }
-    }, []);
+    }, [showDialog]);
 
     return (
         <View className="px-5 pt-2 pb-6 gap-4 items-center justify-center" accessibilityLiveRegion="assertive">

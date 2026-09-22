@@ -54,16 +54,12 @@ function MethodTile({ icon, label, hint, onPress, compact }: MethodTileProps) {
   );
 }
 
-interface CompactActionRowProps extends EntryActionProps {
-  badge?: string;
-}
-
-function CompactActionRow({ icon, label, hint, onPress, badge }: CompactActionRowProps) {
+function CompactActionRow({ icon, label, hint, onPress }: EntryActionProps) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={badge ? `${label}, ${badge}` : label}
+      accessibilityLabel={label}
       accessibilityHint={hint}
       className="min-h-[56px] flex-row items-center gap-3 px-4 active:opacity-60"
     >
@@ -71,11 +67,6 @@ function CompactActionRow({ icon, label, hint, onPress, badge }: CompactActionRo
         <MaterialIcons name={icon} size={20} color={M3.onSurfaceVariant} />
       </View>
       <Text className="flex-1 text-base font-semibold text-m3-on-surface">{label}</Text>
-      {badge ? (
-        <View className="rounded-full bg-m3-surface-container-highest px-2 py-1">
-          <Text className="text-compact font-semibold text-m3-on-surface-variant">{badge}</Text>
-        </View>
-      ) : null}
       <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />
     </Pressable>
   );
@@ -189,7 +180,7 @@ export default function EntryMethodState({
             {moreWaysOpen || !reusableMealsAvailable ? (
               <>
                 <View className="ml-[68px] mr-4 h-px bg-m3-outline-variant/50" />
-                <CompactActionRow icon="search" label="Search foods" badge="Beta" hint="Look up a food" onPress={onSearch} />
+                <CompactActionRow icon="search" label="Search foods" hint="Look up a food" onPress={onSearch} />
               </>
             ) : (
               <Pressable

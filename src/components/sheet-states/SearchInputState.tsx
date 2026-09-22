@@ -46,7 +46,7 @@ interface SearchInputStateProps {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
 	return (
-		<Text className="text-m3-on-surface-variant text-xs font-semibold uppercase tracking-wider px-1 pt-2">
+		<Text className="text-m3-on-surface-variant text-xs font-semibold px-1 pt-2">
 			{children}
 		</Text>
 	);

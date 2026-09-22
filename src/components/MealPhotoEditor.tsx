@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { M3 } from '../theme/tokens';
 import { saveMealPhoto } from '../utils/mealPhotos';
+import { useSheetDialog } from './SheetDialog';
 
 interface MealPhotoEditorProps {
   value: string | null;
@@ -20,6 +21,7 @@ export default function MealPhotoEditor({
   disabled = false,
   layout = 'card',
 }: MealPhotoEditorProps) {
+  const showDialog = useSheetDialog();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [failedPreviewUri, setFailedPreviewUri] = useState<string | null>(null);
@@ -36,10 +38,11 @@ export default function MealPhotoEditor({
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permission.status !== 'granted') {
-        Alert.alert(
-          source === 'camera' ? 'Camera access needed' : 'Photo access needed',
-          `Allow ${source === 'camera' ? 'camera' : 'photo library'} access to add a meal photo.`,
-        );
+        showDialog({
+          title: source === 'camera' ? 'Camera access needed' : 'Photo access needed',
+          message: `Allow ${source === 'camera' ? 'camera' : 'photo library'} access to add a meal photo.`,
+          actions: [{ label: 'OK', tone: 'cancel' }],
+        });
         return;
       }
 
@@ -75,12 +78,15 @@ export default function MealPhotoEditor({
 
   const chooseSource = useCallback(() => {
     if (busy || disabled) return;
-    Alert.alert('Meal photo', 'Choose a photo source.', [
-      { text: 'Camera', onPress: () => void pickPhoto('camera') },
-      { text: 'Gallery', onPress: () => void pickPhoto('gallery') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }, [busy, disabled, pickPhoto]);
+    showDialog({
+      title: 'Meal photo',
+      actions: [
+        { label: 'Take photo', tone: 'neutral', onPress: () => void pickPhoto('camera') },
+        { label: 'Choose from gallery', tone: 'neutral', onPress: () => void pickPhoto('gallery') },
+        { label: 'Cancel', tone: 'cancel' },
+      ],
+    });
+  }, [busy, disabled, pickPhoto, showDialog]);
 
   if (layout === 'band') {
     return (

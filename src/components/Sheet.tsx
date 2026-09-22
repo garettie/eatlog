@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { BackHandler, Keyboard, useWindowDimensions } from "react-native";
+import { BackHandler, Keyboard, useWindowDimensions, View } from "react-native";
 import BottomSheet, {
 	BottomSheetBackdrop,
 	type BottomSheetBackdropProps,
@@ -8,6 +8,12 @@ import BottomSheet, {
 import Animated, { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+	SheetDialogContext,
+	type SheetDialogHost,
+	SheetDialogOverlay,
+	useSheetDialogHost,
+} from "./SheetDialog";
 import { DURATION } from "../theme/motion";
 import { M3 } from "../theme/tokens";
 
@@ -25,6 +31,8 @@ interface SheetProps {
 	onSheetClosed?: () => void;
 	sheetCloseRef?: React.MutableRefObject<() => void>;
 	forceClose?: boolean;
+	/** Pass a host when something outside the sheet, such as a close guard, must open its dialogs. */
+	dialogHost?: SheetDialogHost;
 }
 
 export default function Sheet({
@@ -39,6 +47,7 @@ export default function Sheet({
 	onSheetClosed,
 	sheetCloseRef,
 	forceClose = false,
+	dialogHost,
 }: SheetProps) {
 	const sheetRef = useRef<BottomSheet>(null);
 	const insets = useSafeAreaInsets();
@@ -51,6 +60,13 @@ export default function Sheet({
 	const lastContentSnapPointRef = useRef<number | null>(null);
 	const forceCloseRef = useRef(forceClose);
 	forceCloseRef.current = forceClose;
+	const ownDialogHost = useSheetDialogHost();
+	const dialog = dialogHost ?? ownDialogHost;
+	const closeDialog = dialog.close;
+
+	useEffect(() => {
+		if (!visible) closeDialog();
+	}, [closeDialog, visible]);
 
 	useEffect(() => {
 		if (sheetCloseRef) {
@@ -236,7 +252,15 @@ export default function Sheet({
 				accessibilityViewIsModal={visible}
 				importantForAccessibility={visible ? "yes" : "no-hide-descendants"}
 			>
-				{children}
+				<View
+					className="flex-1"
+					importantForAccessibility={dialog.request ? "no-hide-descendants" : "auto"}
+				>
+					<SheetDialogContext.Provider value={dialog.show}>
+						{children}
+					</SheetDialogContext.Provider>
+				</View>
+				<SheetDialogOverlay host={dialog} />
 			</Animated.View>
 		</BottomSheet>
 	);

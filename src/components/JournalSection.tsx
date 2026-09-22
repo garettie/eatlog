@@ -327,18 +327,12 @@ export function JournalSectionHeader({
   hasEntries,
   collapsed,
   totalCalories,
-  totalProtein,
-  totalCarbs,
-  totalFat,
   onToggle,
 }: {
   label: string;
   hasEntries: boolean;
   collapsed: boolean;
   totalCalories: number;
-  totalProtein: number;
-  totalCarbs: number;
-  totalFat: number;
   onToggle: () => void;
 }) {
   return (
@@ -359,14 +353,9 @@ export function JournalSectionHeader({
             <Chevron open={!collapsed} />
           </View>
         </View>
-        <View className="min-w-[150px] min-h-[38px] items-end justify-center shrink-0">
-          {hasEntries && (
-            <>
-              <Text className="text-m3-on-surface-variant text-xs font-semibold tabular-nums">{kcalLabel(totalCalories)}</Text>
-              <View className="mt-1"><MacroPills protein={totalProtein} carbs={totalCarbs} fat={totalFat} /></View>
-            </>
-          )}
-        </View>
+        {hasEntries && (
+          <Text className="text-m3-on-surface-variant text-xs font-semibold tabular-nums shrink-0">{kcalLabel(totalCalories)}</Text>
+        )}
       </Pressable>
       <View className="mx-4 h-px bg-m3-outline-variant/40" />
     </>

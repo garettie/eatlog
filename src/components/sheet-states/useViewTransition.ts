@@ -6,11 +6,11 @@ import {
 	withTiming,
 } from "react-native-reanimated";
 
-import { EASING } from "../../theme/motion";
+import { DURATION, EASING } from "../../theme/motion";
 
 /** The sheet's state-change choreography: exit, swap, enter from the opposite side. */
-const EXIT_MS = 90;
-const ENTER_MS = 150;
+const EXIT_MS = DURATION.exit;
+const ENTER_MS = DURATION.enter;
 const OFFSET = 20;
 
 interface ViewTransitionOptions<T extends string> {

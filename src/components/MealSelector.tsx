@@ -138,6 +138,7 @@ export default function MealSelector({ value, onChange, compact = false, disable
             }}
             disabled={disabled}
             accessibilityRole="radio"
+            accessibilityLabel={m.label}
             accessibilityState={{ checked: selected, disabled }}
             className="flex-1 min-h-[48px] px-1 rounded-full items-center justify-center z-10 active:opacity-70"
           >
