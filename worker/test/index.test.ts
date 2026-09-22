@@ -158,7 +158,7 @@ function paidRevenueCat(periodType = 'normal'): unknown {
     original_app_user_id: INSTALL_ID,
     entitlements: { eatlog_paid: {
       product_identifier: 'eatlog_manok',
-      expires_date: '2026-09-22T00:00:00Z',
+      expires_date: new Date(Date.now() + 30 * 86_400_000).toISOString(),
       store: 'play_store',
     } },
     subscriptions: { eatlog_manok: {
