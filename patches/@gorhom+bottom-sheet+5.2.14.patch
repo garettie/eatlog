@@ -1,0 +1,125 @@
+diff --git a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx
+--- a/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx
++++ b/node_modules/@gorhom/bottom-sheet/src/components/bottomSheet/BottomSheetContent.tsx
+@@ -2,8 +2,10 @@
+ import type { ViewProps, ViewStyle } from 'react-native';
+ import Animated, {
+   type AnimatedStyle,
++  useAnimatedReaction,
+   useAnimatedStyle,
+   useDerivedValue,
++  useSharedValue,
+ } from 'react-native-reanimated';
+ import {
+   INITIAL_LAYOUT_VALUE,
+@@ -176,6 +178,77 @@
+     animatedDetentsState,
+     animatedKeyboardState,
+   ]);
++  // eatlog patch: the content height the sheet rests at, ignoring the keyboard.
++  const animatedContentFollowBase = useDerivedValue(() => {
++    const { containerHeight, handleHeight } = animatedLayoutState.get();
++    const sheetHeight = animatedSheetHeight.get();
++    if (
++      containerHeight === INITIAL_LAYOUT_VALUE ||
++      sheetHeight === INITIAL_LAYOUT_VALUE ||
++      animatedKeyboardState.get().status === KEYBOARD_STATUS.SHOWN
++    ) {
++      return INITIAL_LAYOUT_VALUE;
++    }
++    return Math.max(sheetHeight - Math.max(0, handleHeight), 0);
++  }, [animatedLayoutState, animatedSheetHeight, animatedKeyboardState]);
++  // eatlog patch: the content height the sheet's live position leaves room for.
++  // With a single detent it equals the base once the sheet settles.
++  const animatedContentFollowHeight = useDerivedValue(() => {
++    const { containerHeight, handleHeight } = animatedLayoutState.get();
++    return Math.max(
++      containerHeight - animatedPosition.get() - Math.max(0, handleHeight),
++      0
++    );
++  }, [animatedLayoutState, animatedPosition]);
++  // eatlog patch: where the current height change started. It resets to the base
++  // once the sheet settles or closes, so drags and open/close stay rigid.
++  const animatedMaskFromHeight = useSharedValue(INITIAL_LAYOUT_VALUE);
++  useAnimatedReaction(
++    () => ({
++      base: animatedContentFollowBase.get(),
++      follow: animatedContentFollowHeight.get(),
++      closed:
++        animatedPosition.get() >=
++        (animatedDetentsState.get().closedDetentPosition ?? Infinity) - 1,
++    }),
++    (current, previous) => {
++      if (current.base === INITIAL_LAYOUT_VALUE) {
++        animatedMaskFromHeight.set(INITIAL_LAYOUT_VALUE);
++        return;
++      }
++      const from = animatedMaskFromHeight.get();
++      if (from === INITIAL_LAYOUT_VALUE) {
++        // After mount or a keyboard change, keep the original animation until the
++        // sheet is settled or closed.
++        if (current.closed || Math.abs(current.follow - current.base) < 1) {
++          animatedMaskFromHeight.set(current.base);
++        }
++        return;
++      }
++      if (
++        previous &&
++        previous.base !== INITIAL_LAYOUT_VALUE &&
++        previous.base !== current.base
++      ) {
++        // Start from the height currently shown so a change arriving mid-transition
++        // continues instead of jumping.
++        animatedMaskFromHeight.set(
++          Math.min(
++            Math.max(current.follow, Math.min(from, previous.base)),
++            Math.max(from, previous.base)
++          )
++        );
++        return;
++      }
++      if (
++        from !== current.base &&
++        (current.closed || Math.abs(current.follow - current.base) < 1)
++      ) {
++        animatedMaskFromHeight.set(current.base);
++      }
++    },
++    [animatedContentFollowBase, animatedContentFollowHeight]
++  );
+   //#endregion
+ 
+   //#region styles
+@@ -199,6 +272,32 @@
+     const paddingBottom = detached ? 0 : animatedPaddingBottom.get();
+     const height = animatedContentHeightMax.get() + paddingBottom;
+ 
++    // eatlog patch: while the sheet's own height changes, size the mask from the
++    // sheet's live position so its bottom edge stays where it rests instead of
++    // wiping across the content on a separate timer. Keyboard-adjusted heights
++    // keep the original animation.
++    const followBase = animatedContentFollowBase.get();
++    const fromHeight = animatedMaskFromHeight.get();
++    if (
++      !detached &&
++      followBase !== INITIAL_LAYOUT_VALUE &&
++      fromHeight !== INITIAL_LAYOUT_VALUE &&
++      animatedContentHeightMax.get() === followBase
++    ) {
++      const followHeight = Math.min(
++        Math.max(animatedContentFollowHeight.get(), Math.min(fromHeight, followBase)),
++        Math.max(fromHeight, followBase)
++      );
++      return {
++        paddingBottom: animate({
++          point: paddingBottom,
++          configs: animationConfigs,
++          overrideReduceMotion,
++        }),
++        height: followHeight + paddingBottom,
++      };
++    }
++
+     return {
+       paddingBottom: animate({
+         point: paddingBottom,
