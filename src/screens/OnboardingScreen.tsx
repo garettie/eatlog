@@ -22,10 +22,11 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import DateSelector from '../components/DateSelector';
+import { showDatePicker } from '../components/DatePicker';
 import GoalRateControl from '../components/GoalRateControl';
 import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
+import { SheetDialogOverlay, useSheetDialogHost } from '../components/SheetDialog';
 import RulerSlider from '../components/RulerSlider';
 import SegmentedControl from '../components/SegmentedControl';
 import TappableRow from '../components/TappableRow';
@@ -42,7 +43,7 @@ import {
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { DURATION, EASING } from '../theme/motion';
 import { M3 } from '../theme/tokens';
-import { todayISO } from '../utils/calendar';
+import { formatLocalISO, parseLocalISO, todayISO } from '../utils/calendar';
 import { goalRateBounds } from '../utils/goalRate';
 import {
   ageFromBirthDate,
@@ -152,7 +153,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   const [displayName, setDisplayName] = useState('');
 
   const [birthDate, setBirthDate] = useState<Date>(new Date(1995, 5, 15));
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const birthDateDialog = useSheetDialogHost();
 
   // Height is canonical in cm; imperial surfaces derive inches from it.
   const [heightCm, setHeightCm] = useState(178);
@@ -661,7 +662,17 @@ export default function OnboardingScreen({ navigation }: Props) {
                   <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-4">
                     <SectionLabel>Birth Date</SectionLabel>
                     <Pressable
-                      onPress={() => setShowDatePicker(true)}
+                      onPress={() => showDatePicker(birthDateDialog.show, {
+                        title: 'Birth date',
+                        value: formatLocalISO(birthDate),
+                        today: todayISO(),
+                        minDate: formatLocalISO(dateBounds.earliest),
+                        maxDate: formatLocalISO(dateBounds.latest),
+                        onSelect: (dateISO) => {
+                          setBirthDate(parseLocalISO(dateISO));
+                          setStepError(null);
+                        },
+                      })}
                       accessibilityRole="button"
                       accessibilityLabel="Select birth date"
                       accessibilityHint="Opens the date selector"
@@ -1080,18 +1091,7 @@ export default function OnboardingScreen({ navigation }: Props) {
           )}
         </View>
       </KeyboardAvoidingView>
-      <DateSelector
-        visible={showDatePicker}
-        value={birthDate}
-        minimumDate={dateBounds.earliest}
-        maximumDate={dateBounds.latest}
-        onCancel={() => setShowDatePicker(false)}
-        onConfirm={(date) => {
-          setBirthDate(date);
-          setStepError(null);
-          setShowDatePicker(false);
-        }}
-      />
+      <SheetDialogOverlay host={birthDateDialog} />
     </SafeAreaView>
   );
 }

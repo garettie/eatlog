@@ -51,7 +51,7 @@ import PortionStepper from "../PortionStepper";
 import PrimaryButton from "../PrimaryButton";
 import MealPhotoEditor from "../MealPhotoEditor";
 import { useSheetDialog } from "../SheetDialog";
-import { showLogDatePicker } from "../LogDatePicker";
+import { showDatePicker } from "../DatePicker";
 import MacroSummaryCard from "../MacroSummaryCard";
 import MealPortionSelector from "../MealPortionSelector";
 import {
@@ -990,7 +990,7 @@ export default function ReviewState({
 	}, [logDate]);
 
 	const openLogDatePicker = useCallback(() => {
-		showLogDatePicker(showDialog, { value: effectiveLogDate, today, onSelect: selectLogDate });
+		showDatePicker(showDialog, { title: "Log date", value: effectiveLogDate, today, onSelect: selectLogDate });
 	}, [effectiveLogDate, selectLogDate, showDialog, today]);
 
 	// The unsaved editor buffer counts as unsaved sheet work: pan-down and backdrop

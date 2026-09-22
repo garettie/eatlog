@@ -6,7 +6,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Card from '../components/Card';
-import DateSelector from '../components/DateSelector';
+import { showDatePicker } from '../components/DatePicker';
+import { SheetDialogOverlay, useSheetDialogHost } from '../components/SheetDialog';
 import GoalRateControl from '../components/GoalRateControl';
 import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
@@ -268,7 +269,7 @@ export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => 
     const [name, setName] = useState('');
     const [sex, setSex] = useState<Sex>('male');
     const [birthDate, setBirthDate] = useState('');
-    const [birthDateSelectorVisible, setBirthDateSelectorVisible] = useState(false);
+    const birthDateDialog = useSheetDialogHost();
     const [height, setHeight] = useState('');
     const [heightInches, setHeightInches] = useState('');
     const [activity, setActivity] = useState<ActivityLevel>('moderate');
@@ -322,7 +323,17 @@ export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => 
                                 accessibilityRole="button"
                                 accessibilityLabel="Select birth date"
                                 accessibilityHint="Opens the date selector"
-                                onPress={() => setBirthDateSelectorVisible(true)}
+                                onPress={() => showDatePicker(birthDateDialog.show, {
+                                    title: 'Birth date',
+                                    value: formatLocalISO(selectedBirthDate),
+                                    today: todayISO(),
+                                    minDate: formatLocalISO(dateBounds.earliest),
+                                    maxDate: formatLocalISO(dateBounds.latest),
+                                    onSelect: (dateISO) => {
+                                        setBirthDate(dateISO);
+                                        setError(null);
+                                    },
+                                })}
                                 className="min-h-[48px] rounded-xl border border-m3-outline-variant/40 bg-m3-surface-container-high px-4 flex-row items-center justify-between active:opacity-70"
                             >
                                 <Text className="text-m3-on-surface text-sm font-semibold">
@@ -351,18 +362,7 @@ export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => 
                     <PrimaryButton title="Save changes" onPress={() => void save()} loading={saving} />
                 </View>
             </KeyboardAvoidingView>
-            <DateSelector
-                visible={birthDateSelectorVisible}
-                value={selectedBirthDate}
-                minimumDate={dateBounds.earliest}
-                maximumDate={dateBounds.latest}
-                onCancel={() => setBirthDateSelectorVisible(false)}
-                onConfirm={(date) => {
-                    setBirthDate(formatLocalISO(date));
-                    setError(null);
-                    setBirthDateSelectorVisible(false);
-                }}
-            />
+            <SheetDialogOverlay host={birthDateDialog} />
         </Screen>
     );
 }

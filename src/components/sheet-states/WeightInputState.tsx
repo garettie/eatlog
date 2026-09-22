@@ -17,7 +17,7 @@ import {
 import PrimaryButton from '../PrimaryButton';
 import SegmentedControl from '../SegmentedControl';
 import { type ShowSheetDialog, useSheetDialog } from '../SheetDialog';
-import { showLogDatePicker } from '../LogDatePicker';
+import { showDatePicker } from '../DatePicker';
 import { formatLocalISO, formatLogDateLabel, parseLocalISO, todayISO } from '../../utils/calendar';
 import { formatWeight, fromKilograms, parseWeightInput, toKilograms } from '../../utils/weightUnits';
 import { M3 } from '../../theme/tokens';
@@ -230,7 +230,8 @@ export default function WeightInputState({ onLogComplete, onBack, onContentHeigh
       </View>
 
       <Pressable
-        onPress={() => showLogDatePicker(showDialog, {
+        onPress={() => showDatePicker(showDialog, {
+          title: 'Log date',
           value: effectiveDate,
           today,
           minDate: formatLocalISO(birthDate),

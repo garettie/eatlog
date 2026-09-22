@@ -27,7 +27,7 @@ import PortionStepper from '../PortionStepper';
 import PrimaryButton from '../PrimaryButton';
 import SheetBackButton from './SheetBackButton';
 import { useSheetDialog } from '../SheetDialog';
-import { showLogDatePicker } from '../LogDatePicker';
+import { showDatePicker } from '../DatePicker';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import { M3 } from '../../theme/tokens';
 import { useResponsiveLayout } from '../../theme/layout';
@@ -133,7 +133,7 @@ export default function SingleFoodReviewState({
   }, [effectiveLogDate]);
 
   const openLogDatePicker = useCallback(() => {
-    showLogDatePicker(showDialog, { value: effectiveLogDate, today, onSelect: selectLogDate });
+    showDatePicker(showDialog, { title: 'Log date', value: effectiveLogDate, today, onSelect: selectLogDate });
   }, [effectiveLogDate, selectLogDate, showDialog, today]);
 
   const macros = useMemo(() => {

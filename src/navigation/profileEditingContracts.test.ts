@@ -5,15 +5,6 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const testDirectory = dirname(fileURLToPath(import.meta.url));
-const dateSelectorSource = readFileSync(
-  resolve(testDirectory, '../components/DateSelector.tsx'),
-  'utf8',
-);
-const androidPickerStart = dateSelectorSource.indexOf('DateTimePickerAndroid.open');
-const androidPickerSource = dateSelectorSource.slice(
-  androidPickerStart,
-  dateSelectorSource.indexOf('return () =>', androidPickerStart),
-);
 const profileScreensSource = readFileSync(
   resolve(testDirectory, '../screens/ProfilePlanScreens.tsx'),
   'utf8',
@@ -26,8 +17,12 @@ const reviewStateSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/ReviewState.tsx'),
   'utf8',
 );
-const logDatePickerSource = readFileSync(
-  resolve(testDirectory, '../components/LogDatePicker.tsx'),
+const datePickerSource = readFileSync(
+  resolve(testDirectory, '../components/DatePicker.tsx'),
+  'utf8',
+);
+const onboardingSource = readFileSync(
+  resolve(testDirectory, '../screens/OnboardingScreen.tsx'),
   'utf8',
 );
 const weightInputSource = readFileSync(
@@ -50,46 +45,33 @@ const planPreviewSource = profileScreensSource.slice(
   profileScreensSource.indexOf('export function PlanPreviewScreen'),
 );
 
-test('Android uses native date pickers with explicit visible actions', () => {
-  assert.ok(androidPickerStart >= 0, 'Android should open the imperative native picker');
-  // Every remaining caller is bounded, and OEM spinners flicker at a hard bound.
-  assert.match(androidPickerSource, /display: 'default'/);
-  assert.doesNotMatch(androidPickerSource, /'spinner'/);
-  assert.match(androidPickerSource, /positiveButton: \{ label: 'Set date' \}/);
-  assert.match(androidPickerSource, /negativeButton: \{ label: 'Cancel' \}/);
-  assert.match(androidPickerSource, /event\.type === 'set'/);
-  assert.match(
-    androidPickerSource,
-    /onConfirmRef\.current\(clampDate\(dateOnly\(date\), minDate, maxDate\)\)/,
-  );
-});
-
-test('Android never combines the bounded date maximum with the spinner display', () => {
-  assert.doesNotMatch(androidPickerSource, /display: 'spinner'/);
-  assert.match(androidPickerSource, /maximumDate: maxDate/);
-});
-
-test('Android does not fall back to JavaScript scroll-wheel snapping', () => {
-  assert.doesNotMatch(dateSelectorSource, /function DateWheel/);
-  assert.doesNotMatch(dateSelectorSource, /snapToOffsets/);
-});
-
-test('meal and weight dates share one modal picker with a Today action', () => {
-  // Birthday pickers keep the bounded native dialog; logging dates never use it.
-  assert.match(dateSelectorSource, /maximumDate\?: Date/);
-  assert.doesNotMatch(dateSelectorSource, /showTodayAction/);
-  assert.doesNotMatch(reviewStateSource, /<DateSelector/);
-  assert.doesNotMatch(weightInputSource, /<DateSelector/);
-  assert.match(reviewStateSource, /showLogDatePicker\(showDialog, \{ value: effectiveLogDate, today/);
-  assert.match(weightInputSource, /showLogDatePicker\(showDialog, \{/);
+test('every date the app asks for uses one modal picker', () => {
+  // No native date dialog remains; meals, weight, and birthdays share DatePicker.
+  for (const source of [reviewStateSource, weightInputSource, personalDetailsSource, onboardingSource]) {
+    assert.doesNotMatch(source, /DateSelector|DateTimePicker/);
+  }
+  assert.match(reviewStateSource, /showDatePicker\(showDialog, \{ title: "Log date", value: effectiveLogDate, today/);
+  assert.match(weightInputSource, /showDatePicker\(showDialog, \{\s*title: 'Log date',/);
   // A weigh-in can't precede birth or be in the future; meal dates are unbounded.
   assert.match(weightInputSource, /minDate: formatLocalISO\(birthDate\),\s*maxDate: today,/);
   assert.match(reviewStateSource, /formatLogDateLabel\(effectiveLogDate\)/);
   assert.match(weightInputSource, /formatLogDateLabel\(effectiveDate\)/);
-  // The picker leads with the chosen date and offers Today when another day is set.
-  assert.match(logDatePickerSource, /title: 'Log date',\s*headline:/);
-  assert.match(logDatePickerSource, /label: 'Today', tone: 'neutral'/);
-  assert.match(logDatePickerSource, /getFixedMonthGrid/);
+  // The picker leads with the chosen date and offers Today when it is choosable.
+  assert.match(datePickerSource, /showDialog\(\{\s*title,\s*headline,/);
+  assert.match(datePickerSource, /label: 'Today', tone: 'neutral'/);
+  assert.match(datePickerSource, /getFixedMonthGrid/);
+});
+
+test('birthdays use the picker with its year view and the age bounds', () => {
+  for (const source of [personalDetailsSource, onboardingSource]) {
+    assert.match(source, /showDatePicker\(birthDateDialog\.show, \{\s*title: 'Birth date',/);
+    assert.match(source, /minDate: formatLocalISO\(dateBounds\.earliest\),\s*maxDate: formatLocalISO\(dateBounds\.latest\),/);
+    assert.match(source, /<SheetDialogOverlay host=\{birthDateDialog\} \/>/);
+  }
+  // The month label opens a year grid limited to the bounds.
+  assert.match(datePickerSource, /setView\(\(current\) => \(current === 'days' \? 'years' : 'days'\)\)/);
+  assert.match(datePickerSource, /const first = minDate \? yearOf\(minDate\)/);
+  assert.match(datePickerSource, /clampMonth\(new Date\(year, current\.getMonth\(\), 1\), minDate, maxDate\)/);
 });
 
 test('future meal dates remain selectable and reachable in Diary', () => {
@@ -106,13 +88,13 @@ test('future meal dates remain selectable and reachable in Diary', () => {
 test('future weight measurements remain blocked', () => {
   assert.match(weightInputSource, /maxDate: today,/);
   // Days past the bound can't be tapped, and paging stops at the bound's month.
-  assert.match(logDatePickerSource, /\(maxDate != null && iso > maxDate\)/);
-  assert.match(logDatePickerSource, /disabled=\{disabled\}/);
-  assert.match(logDatePickerSource, /const canGoForward = !maxDate \|\| monthKey < monthKeyOf\(maxDate\);/);
+  assert.match(datePickerSource, /\(maxDate != null && iso > maxDate\)/);
+  assert.match(datePickerSource, /disabled=\{disabled\}/);
+  assert.match(datePickerSource, /const canGoForward = !maxDate \|\| monthKey < monthKeyOf\(maxDate\);/);
 });
 
-test('personal details uses the shared date selector instead of a birth-date text field', () => {
-  assert.match(personalDetailsSource, /<DateSelector/);
+test('personal details uses the shared date picker instead of a birth-date text field', () => {
+  assert.match(personalDetailsSource, /showDatePicker\(/);
   assert.doesNotMatch(personalDetailsSource, /<Field label="Birth date"/);
 });
 
