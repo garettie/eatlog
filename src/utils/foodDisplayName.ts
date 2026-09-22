@@ -9,6 +9,9 @@ const LEADING_PORTION = new RegExp(`^\\s*(?:${AMOUNT}|${WORD_AMOUNT})\\s*${PORTI
 const LEADING_COUNT = new RegExp(`^\\s*(${AMOUNT})\\s+(?=\\p{L}[\\p{L}\\p{M}'’\\-]*s(?:\\s|$))`, 'iu');
 const TRAILING_PORTION = new RegExp(`\\s*[,–—-]?\\s*${AMOUNT}\\s*${PORTION_UNIT}\\s*$`, 'iu');
 const PARENTHETICAL_PORTION = new RegExp(`\\s*\\(\\s*${AMOUNT}\\s*${PORTION_UNIT}\\s*\\)\\s*$`, 'iu');
+const UNIT_AMOUNT_ANYWHERE = new RegExp(`(?<![\\p{L}\\p{N}\\-])(?:${AMOUNT}|${WORD_AMOUNT})\\s*${PORTION_UNIT}(?!\\p{L})`, 'iu');
+// A number glued to a word or symbol ("7-Eleven", "2% milk", "5-spice") is part of the name.
+const BARE_NUMBER = /(?<![\p{L}\p{N}.\-\/%])(\d+(?:\.\d+)?)(?![\p{L}\p{N}.%\-\/])/gu;
 
 /**
  * A bare number ahead of a plural word is a portion count ("2 eggs") only while it reads as a
@@ -29,6 +32,15 @@ export function stripFoodAmount(name: string): string {
     .replace(LEADING_COUNT, (match, amount: string) => (isPortionCount(amount) ? '' : match))
     .replace(TRAILING_PORTION, '')
     .trim();
+}
+
+/**
+ * Whether text states an amount anywhere, not just where `stripFoodAmount` can cut it: a number
+ * with a unit ("150 grams", "3 piece") or a bare count small enough to be a portion ("with 2 eggs").
+ */
+export function hasFoodAmount(text: string): boolean {
+  if (UNIT_AMOUNT_ANYWHERE.test(text)) return true;
+  return Array.from(text.matchAll(BARE_NUMBER), (match) => match[1]).some(isPortionCount);
 }
 
 /** Format display text without losing accents, brand punctuation, or nutrition qualifiers. */

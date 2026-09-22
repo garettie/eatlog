@@ -1,6 +1,6 @@
 import { serviceConfig } from '../config/services';
 import { buildFoodPortions, normalizeFoodName } from './foodSearchCore';
-import { formatFoodDisplayName } from '../utils/foodDisplayName';
+import { formatFoodDisplayName, hasFoodAmount } from '../utils/foodDisplayName';
 import type { FoodResult } from './foodSearch';
 import { getInstallationToken, isInstallationToken } from './installIdentity';
 import { hasRemoteEstimateConsent } from './remoteEstimateConsent';
@@ -412,8 +412,9 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             // A scan title carrying a stated amount ("72g Bear Brand", "2 servings of adobo")
             // is a portion instruction, not a label. The estimate applies the amount and
             // returns a clean name, so echoing the raw title back would restate the quantity.
+            // Numbers that belong to a name ("24 Chicken", "100 Plus") are not amounts.
             const scanTitle = operation === 'scan' ? input.text?.trim() : undefined;
-            const providedMealTitle = scanTitle && !/\d/.test(scanTitle) ? scanTitle : undefined;
+            const providedMealTitle = scanTitle && !hasFoodAmount(scanTitle) ? scanTitle : undefined;
             const originalDescription = operation === 'describe' || operation === 'scan'
                 ? input.text
                 : input.context?.originalDescription;

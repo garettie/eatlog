@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { formatFoodDisplayName, stripFoodAmount } from './foodDisplayName';
+import { formatFoodDisplayName, hasFoodAmount, stripFoodAmount } from './foodDisplayName';
 
 test('food names retain accents, qualifiers, and brand spelling', () => {
   assert.equal(formatFoodDisplayName("  **McDonald's**   stir-fried rice "), "McDonald's Stir-fried Rice");
@@ -52,4 +52,14 @@ test('a stated amount written as a word is removed only ahead of a real portion 
   assert.equal(stripFoodAmount('Three Musketeers'), 'Three Musketeers');
   assert.equal(stripFoodAmount('Seven Up'), 'Seven Up');
   assert.equal(stripFoodAmount('Two-bite brownies'), 'Two-bite brownies');
+});
+
+test('an amount anywhere in a title is detected while name numbers are not', () => {
+  for (const text of ['3 eggs with 150 grams of rice', 'Chicken adobo with 150 grams of rice', 'Adobo and 2 cups rice',
+    'Rice with 2 eggs', '24 Chicken 3 piece yangnyeom', 'Jollibee 2pc chickenjoy', 'Rice with ½ cup beans', 'Milk 250ml']) {
+    assert.equal(hasFoodAmount(text), true, text);
+  }
+  for (const text of ['24 Chicken yangnyeom', '100 Plus', '7-Eleven hotdog', '2% milk', '5-spice chicken', 'Chicken adobo']) {
+    assert.equal(hasFoodAmount(text), false, text);
+  }
 });

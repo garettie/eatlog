@@ -118,6 +118,45 @@ test('a scan title stating an amount sends the amount but keeps the estimated me
     assert.equal(result.ok && result.result.mealName, 'Bear Brand milk');
 });
 
+test('a scan title whose numbers belong to a name keeps the user title', async () => {
+    const client = createAcceptedClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async () => jsonResponse({ ...recognizedEstimate(), mealName: 'Chicken yangneom with garlic rice' })) as typeof fetch,
+    });
+
+    const titles = ['24 Chicken yangnyeom with garlic rice', '100 Plus', '7-Eleven hotdog'];
+    const names = [];
+    for (const title of titles) {
+        const result = await client.scanFood('c3ludGhldGlj', title);
+        names.push(result.ok && result.result.mealName);
+    }
+
+    assert.deepEqual(names, titles);
+});
+
+test('a scan title stating an amount anywhere keeps the estimated meal name', async () => {
+    const client = createAcceptedClient({
+        workerUrl: 'https://food.example.workers.dev',
+        getInstallationToken: () => TOKEN,
+        fetchImpl: (async () => jsonResponse({ ...recognizedEstimate(), mealName: 'Chicken adobo' })) as typeof fetch,
+    });
+
+    const titles = [
+        '2 cups chicken adobo',
+        '24 Chicken 3 piece yangnyeom with garlic rice',
+        'Chicken adobo with 150 grams of rice',
+        'Rice with 2 eggs',
+    ];
+    const names = [];
+    for (const title of titles) {
+        const result = await client.scanFood('c3ludGhldGlj', title);
+        names.push(result.ok && result.result.mealName);
+    }
+
+    assert.deepEqual(names, titles.map(() => 'Chicken adobo'));
+});
+
 test('component names keep apostrophes, hyphens, and deliberate inner capitals', async () => {
     const client = createAcceptedClient({
         workerUrl: 'https://food.example.workers.dev',
