@@ -13,10 +13,12 @@ import Reanimated, {
 import { M3 } from '../theme/tokens';
 import { targetOverflowProgress } from '../utils/calculations';
 import { DURATION, EASING } from '../theme/motion';
+import { CALENDAR_DAY } from '../theme/calendarDay';
 
-const RING_R = 15;
-const RING_STROKE = 2;
-const CIRCUMFERENCE = 2 * Math.PI * RING_R;
+const DAY_SIZE = CALENDAR_DAY.size;
+const DAY_CENTER = DAY_SIZE / 2;
+const DISC_SIZE = CALENDAR_DAY.discRadius * 2;
+const CIRCUMFERENCE = 2 * Math.PI * CALENDAR_DAY.ringRadius;
 const DEFAULT_CELL_WIDTH = 48;
 const CELL_GAP = 4;
 const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -69,18 +71,15 @@ const DayButton = React.memo(function DayButton({
     });
   }, [isSelected, reduced, selectedProgress]);
 
-  const selectionStyle = useAnimatedStyle(() => ({
-    borderColor: interpolateColor(
-      selectedProgress.value,
-      [0, 1],
-      [day.isToday ? M3.primary : 'transparent', M3.primary],
-    ),
-    backgroundColor: interpolateColor(
-      selectedProgress.value,
-      [0, 1],
-      ['transparent', M3.surfaceContainerHighest],
-    ),
-  }), [day.isToday]);
+  const baseNumberColor = day.isToday
+    ? M3.primary
+    : day.isFuture
+      ? M3.onSurfaceVariant
+      : M3.onSurface;
+  const discStyle = useAnimatedStyle(() => ({ opacity: selectedProgress.value }));
+  const numberStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(selectedProgress.value, [0, 1], [baseNumberColor, M3.onPrimary]),
+  }), [baseNumberColor]);
 
   const fraction = day.isFuture || day.targetCalories <= 0
     ? 0
@@ -120,74 +119,76 @@ const DayButton = React.memo(function DayButton({
         {day.dayLetter}
       </Text>
 
-      <Reanimated.View
-        className="items-center justify-center rounded-full"
-        style={[{ width: 36, height: 36, borderWidth: 1.5 }, selectionStyle]}
-      >
+      <View className="items-center justify-center" style={{ width: DAY_SIZE, height: DAY_SIZE }}>
+        {day.isToday && (
+          <View
+            className="absolute rounded-full bg-m3-primary"
+            style={{ width: DISC_SIZE, height: DISC_SIZE, opacity: CALENDAR_DAY.todayDiscOpacity }}
+          />
+        )}
+        <Reanimated.View
+          className="absolute rounded-full bg-m3-primary"
+          style={[{ width: DISC_SIZE, height: DISC_SIZE }, discStyle]}
+        />
         {fraction === 0 && (
           <View
             className="absolute rounded-full"
-            style={{ width: 32, height: 32, borderWidth: RING_STROKE, borderColor: M3.outline, opacity: 0.5 }}
+            style={{
+              width: DAY_SIZE,
+              height: DAY_SIZE,
+              borderWidth: CALENDAR_DAY.ringStroke,
+              borderColor: M3.outline,
+              opacity: CALENDAR_DAY.trackOpacity,
+            }}
           />
         )}
         {fraction > 0 && (
-          <Svg width={36} height={36} viewBox="0 0 36 36" style={{ position: 'absolute' }}>
+          <Svg width={DAY_SIZE} height={DAY_SIZE} viewBox={`0 0 ${DAY_SIZE} ${DAY_SIZE}`} style={{ position: 'absolute' }}>
             <Circle
-              cx={18}
-              cy={18}
-              r={RING_R}
+              cx={DAY_CENTER}
+              cy={DAY_CENTER}
+              r={CALENDAR_DAY.ringRadius}
               fill="none"
               stroke={M3.outline}
-              strokeWidth={RING_STROKE}
-              opacity={0.5}
+              strokeWidth={CALENDAR_DAY.ringStroke}
+              opacity={CALENDAR_DAY.trackOpacity}
             />
             <Circle
-              cx={18}
-              cy={18}
-              r={RING_R}
+              cx={DAY_CENTER}
+              cy={DAY_CENTER}
+              r={CALENDAR_DAY.ringRadius}
               fill="none"
               stroke={M3.calories}
-              strokeWidth={RING_STROKE}
+              strokeWidth={CALENDAR_DAY.ringStroke}
               strokeLinecap="round"
               strokeDasharray={CIRCUMFERENCE}
               strokeDashoffset={offset}
               rotation={-90}
-              originX={18}
-              originY={18}
+              originX={DAY_CENTER}
+              originY={DAY_CENTER}
             />
             {overflowFraction > 0 ? (
               <Circle
-                cx={18}
-                cy={18}
-                r={RING_R}
+                cx={DAY_CENTER}
+                cy={DAY_CENTER}
+                r={CALENDAR_DAY.ringRadius}
                 fill="none"
                 stroke={M3.caloriesOverflow}
-                strokeWidth={RING_STROKE}
+                strokeWidth={CALENDAR_DAY.ringStroke}
                 strokeLinecap="round"
                 strokeDasharray={CIRCUMFERENCE}
                 strokeDashoffset={overflowOffset}
                 rotation={-90}
-                originX={18}
-                originY={18}
+                originX={DAY_CENTER}
+                originY={DAY_CENTER}
               />
             ) : null}
           </Svg>
         )}
-        <Text
-          className="text-xs font-bold tabular-nums"
-          style={{
-            color: isSelected
-              ? M3.onSurface
-              : day.isToday
-                ? M3.primary
-                : day.isFuture
-                  ? M3.onSurfaceVariant
-                  : M3.onSurface,
-          }}
-        >
+        <Reanimated.Text className="text-xs font-bold tabular-nums" style={numberStyle}>
           {day.dayNumber}
-        </Text>
-      </Reanimated.View>
+        </Reanimated.Text>
+      </View>
     </Pressable>
   );
 });

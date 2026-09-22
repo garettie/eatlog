@@ -6,15 +6,13 @@ import Svg, { Circle, G, Text as SvgText } from 'react-native-svg';
 import { M3, TYPE } from '../theme/tokens';
 import { todayISO, parseLocalISO } from '../utils/calendar';
 import { targetOverflowProgress } from '../utils/calculations';
+import { CALENDAR_DAY } from '../theme/calendarDay';
 import {
   CalorieCalendarDay,
   CalorieCalendarMonth,
   CalorieCalendarWeek,
 } from '../utils/energyHistory';
 
-const RING_R = 15;
-const RING_STROKE = 2;
-const RING_VIEWBOX_SIZE = 36;
 const CALENDAR_ROW_HEIGHT = 40;
 const WEEKDAYS = [
   { short: 'M', long: 'Monday' },
@@ -113,9 +111,10 @@ function WeekRow({
     ? M3.caloriesOverflow
     : M3.calories;
   const cellWidth = dayAreaWidth / 7;
-  const ringScale = size / RING_VIEWBOX_SIZE;
-  const ringRadius = RING_R * ringScale;
-  const ringStroke = RING_STROKE * ringScale;
+  const ringScale = size / CALENDAR_DAY.size;
+  const ringRadius = CALENDAR_DAY.ringRadius * ringScale;
+  const ringStroke = CALENDAR_DAY.ringStroke * ringScale;
+  const discRadius = CALENDAR_DAY.discRadius * ringScale;
   const circumference = 2 * Math.PI * ringRadius;
   const centerY = CALENDAR_ROW_HEIGHT / 2;
 
@@ -137,22 +136,13 @@ function WeekRow({
 
             return (
               <React.Fragment key={day.date}>
-                {selected ? (
+                {selected || isToday ? (
                   <Circle
                     cx={centerX}
                     cy={centerY}
-                    r={size / 2}
-                    fill={M3.surfaceContainerHighest}
-                  />
-                ) : null}
-                {isToday ? (
-                  <Circle
-                    cx={centerX}
-                    cy={centerY}
-                    r={Math.max(0, (size - 1) / 2)}
-                    fill="none"
-                    stroke={M3.primary}
-                    strokeWidth={1}
+                    r={discRadius}
+                    fill={M3.primary}
+                    fillOpacity={selected ? 1 : CALENDAR_DAY.todayDiscOpacity}
                   />
                 ) : null}
                 <G opacity={ringOpacity}>
@@ -163,8 +153,8 @@ function WeekRow({
                     fill="none"
                     stroke={targetUnavailable ? M3.onSurfaceVariant : M3.outline}
                     strokeWidth={ringStroke}
-                    strokeDasharray={targetUnavailable ? `${2 * ringScale} ${3 * ringScale}` : undefined}
-                    opacity={targetUnavailable ? 0.85 : 0.5}
+                    strokeDasharray={targetUnavailable ? `${3 * ringScale} ${4 * ringScale}` : undefined}
+                    opacity={targetUnavailable ? 0.85 : CALENDAR_DAY.trackOpacity}
                   />
                   {day.progress > 0 ? (
                     <Circle
@@ -202,7 +192,11 @@ function WeekRow({
                 <SvgText
                   x={centerX}
                   y={centerY + 4}
-                  fill={isToday ? M3.primary : muted || future ? M3.onSurfaceVariant : M3.onSurface}
+                  fill={selected
+                    ? M3.onPrimary
+                    : isToday
+                      ? M3.primary
+                      : muted || future ? M3.onSurfaceVariant : M3.onSurface}
                   fontSize={12}
                   fontFamily={TYPE.family.bold}
                   fontWeight="400"

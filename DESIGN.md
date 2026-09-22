@@ -132,7 +132,7 @@ Profile is the fourth tab. It groups plan settings, preferences, owned data, and
 Eatlog uses a near-black neutral stack for structure and reserves named macro colors for nutritional meaning only.
 
 ### Primary
-- **White Action**: primary actions, selected dashboard state, the active FAB, and the dashboard calorie ring.
+- **White Action**: primary actions, selected dashboard state, the active FAB, the dashboard calorie ring, and the selected calendar day.
 - **Calorie Blue**: calorie analytics and calendar completion rings.
 
 ### Secondary
@@ -233,6 +233,7 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 
 ### Signature Components
 - **Calorie Ring and Toggle:** white ring on a tonal track, darker off-white overflow refill, numeric center, and a measured two-segment consumed/remaining thumb that never renders from a fallback width.
+- **Calendar Day:** one mark for the Diary strip, the Analytics calendar, and the log-date picker (`src/theme/calendarDay.ts`). The 3dp calorie ring runs along the outer edge of the 36dp day; the selected day is a solid White Action disc inset 2dp inside the ring with the number inverted, and today is the same disc at 18% opacity. The ring never sits on the disc, so calorie blue keeps its contrast in every state. The picker has no rings and uses the same selected and today discs.
 - **Ruler Slider:** horizontal-only gesture capture; height uses 8px per unit and tenths use 20px per unit; direct entry is always available; adjustable accessibility actions increment/decrement by the configured step.
 
 ### Motion and haptics

@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import type { ShowSheetDialog } from './SheetDialog';
+import { CALENDAR_DAY } from '../theme/calendarDay';
 import { M3 } from '../theme/tokens';
 import {
   formatLocalISO,
@@ -111,10 +112,14 @@ function LogDatePicker({ value, today, minDate, maxDate, onSelect }: LogDatePick
                 className="h-12 flex-1 items-center justify-center active:opacity-60"
               >
                 <View
-                  className={`h-10 w-10 items-center justify-center rounded-full ${
-                    selected ? 'bg-m3-primary' : isToday ? 'border border-m3-primary' : ''
-                  }`}
+                  className={`h-10 w-10 items-center justify-center rounded-full ${selected ? 'bg-m3-primary' : ''}`}
                 >
+                  {isToday && !selected ? (
+                    <View
+                      className="absolute inset-0 rounded-full bg-m3-primary"
+                      style={{ opacity: CALENDAR_DAY.todayDiscOpacity }}
+                    />
+                  ) : null}
                   <Text
                     className={`text-sm tabular-nums ${
                       selected
