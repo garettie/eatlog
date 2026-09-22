@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Animated, { FadeInUp, useReducedMotion } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -26,8 +26,8 @@ import MacroSummaryCard from '../MacroSummaryCard';
 import PortionStepper from '../PortionStepper';
 import PrimaryButton from '../PrimaryButton';
 import SheetBackButton from './SheetBackButton';
-import MealDateView from './MealDateView';
-import { useViewTransition } from './useViewTransition';
+import MealDatePicker from './MealDatePicker';
+import { useSheetDialog } from '../SheetDialog';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import { M3 } from '../../theme/tokens';
 import { useResponsiveLayout } from '../../theme/layout';
@@ -54,11 +54,6 @@ function dataTypeLabel(dt: DataType): string {
       return 'Unknown Source';
   }
 }
-
-type SingleFoodView = 'review' | 'date';
-
-/** The food is the root; the date grid is one step deeper. */
-const singleFoodViewIsForward = (_from: SingleFoodView, to: SingleFoodView) => to === 'date';
 
 interface SingleFoodReviewStateProps {
   food: FoodResult | null;
@@ -92,23 +87,13 @@ export default function SingleFoodReviewState({
   const [meal, setMeal] = useState<MealType>(() => initialMeal ?? defaultMealForNow());
   const [logging, setLogging] = useState(false);
   const [logError, setLogError] = useState<string | null>(null);
-  const [dateOpen, setDateOpen] = useState(false);
   const [logDateOverride, setLogDateOverride] = useState<string | null>(null);
   const dirtyRef = useRef(false);
   const loggedRef = useRef(false);
   const discardGuard = useDiscardGuardContext();
 
   const reducedMotion = useReducedMotion();
-  const { rendered: renderedView, style: viewTransitionStyle } = useViewTransition<SingleFoodView>({
-    target: dateOpen ? 'date' : 'review',
-    reducedMotion,
-    isForward: singleFoodViewIsForward,
-  });
-  // The content fades up when the food first opens, not again on return from the date grid.
-  const enteredRef = useRef(false);
-  useEffect(() => {
-    enteredRef.current = true;
-  }, []);
+  const showDialog = useSheetDialog();
   const { isNarrow } = useResponsiveLayout();
   const today = useToday();
   const effectiveLogDate = logDateOverride ?? logDate ?? today;
@@ -141,22 +126,33 @@ export default function SingleFoodReviewState({
     return unregister;
   }, [discardGuard]);
 
-  // Hardware Back leaves the date grid for the food, not the sheet.
-  useEffect(() => {
-    if (!dateOpen) return;
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      setDateOpen(false);
-      return true;
-    });
-    return () => subscription.remove();
-  }, [dateOpen]);
-
   const selectLogDate = useCallback((nextDate: string) => {
-    setDateOpen(false);
     if (nextDate === effectiveLogDate) return;
     dirtyRef.current = true;
     setLogDateOverride(nextDate);
   }, [effectiveLogDate]);
+
+  const openLogDatePicker = useCallback(() => {
+    showDialog({
+      title: 'Log date',
+      body: (close) => (
+        <MealDatePicker
+          value={effectiveLogDate}
+          today={today}
+          onSelect={(nextDate) => {
+            close();
+            selectLogDate(nextDate);
+          }}
+        />
+      ),
+      actions: [
+        { label: 'Cancel', tone: 'cancel' },
+        ...(effectiveLogDate === today
+          ? []
+          : [{ label: 'Today', tone: 'neutral' as const, onPress: () => selectLogDate(today) }]),
+      ],
+    });
+  }, [effectiveLogDate, selectLogDate, showDialog, today]);
 
   const macros = useMemo(() => {
     if (!food || gramsNum <= 0) return null;
@@ -241,21 +237,8 @@ export default function SingleFoodReviewState({
 
   if (!food) return null;
 
-  if (renderedView === 'date') {
-    return (
-      <Animated.View style={viewTransitionStyle} className="flex-1">
-        <MealDateView
-          value={effectiveLogDate}
-          today={today}
-          onSelect={selectLogDate}
-          onBack={() => setDateOpen(false)}
-        />
-      </Animated.View>
-    );
-  }
-
   return (
-    <Animated.View style={viewTransitionStyle} className="flex-1">
+    <View className="flex-1">
       <View className="px-5 pt-2 pb-3">
         <View className="flex-row items-center gap-1">
           <SheetBackButton onPress={onBack} />
@@ -268,7 +251,7 @@ export default function SingleFoodReviewState({
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View
-          entering={reducedMotion || enteredRef.current ? undefined : FadeInUp.duration(180)}
+          entering={reducedMotion ? undefined : FadeInUp.duration(180)}
           className="gap-6"
         >
           <View className="gap-3">
@@ -333,7 +316,7 @@ export default function SingleFoodReviewState({
       >
         <View className={isNarrow ? 'gap-2' : 'flex-row items-center gap-2'}>
           <Pressable
-            onPress={() => setDateOpen(true)}
+            onPress={openLogDatePicker}
             disabled={logging}
             accessibilityRole="button"
             accessibilityLabel={`Log date, ${compactLogDateLabel}`}
@@ -375,6 +358,6 @@ export default function SingleFoodReviewState({
         )}
       </View>
 
-    </Animated.View>
+    </View>
   );
 }

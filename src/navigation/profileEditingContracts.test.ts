@@ -26,8 +26,8 @@ const reviewStateSource = readFileSync(
   resolve(testDirectory, '../components/sheet-states/ReviewState.tsx'),
   'utf8',
 );
-const mealDateViewSource = readFileSync(
-  resolve(testDirectory, '../components/sheet-states/MealDateView.tsx'),
+const mealDatePickerSource = readFileSync(
+  resolve(testDirectory, '../components/sheet-states/MealDatePicker.tsx'),
   'utf8',
 );
 const weightInputSource = readFileSync(
@@ -81,13 +81,13 @@ test('logging date pickers offer a weekday-aware Today action', () => {
   assert.match(androidPickerSource, /neutralButtonPressed/);
   assert.match(weightInputSource, /showTodayAction/);
   assert.match(weightInputSource, /formatLogDateLabel\(effectiveDate\)/);
-  // Meal dates use the in-sheet month grid instead of a native dialog.
-  assert.match(reviewStateSource, /<MealDateView/);
+  // Meal dates open an in-sheet dialog with the Diary's calorie-ring month grid.
+  assert.match(reviewStateSource, /title: "Log date",\s*body: \(close\) => \(\s*<MealDatePicker/);
   assert.doesNotMatch(reviewStateSource, /<DateSelector/);
   assert.match(reviewStateSource, /formatLogDateLabel\(effectiveLogDate\)/);
-  assert.match(mealDateViewSource, /onSelect\(today\)/);
-  assert.match(mealDateViewSource, /formatLogDateLabel\(value, parseLocalISO\(today\)\)/);
-  assert.match(mealDateViewSource, /getFixedMonthGrid/);
+  assert.match(reviewStateSource, /label: "Today", tone: "neutral"/);
+  assert.match(mealDatePickerSource, /getFixedMonthGrid/);
+  assert.match(mealDatePickerSource, /<CalorieDayRing/);
 });
 
 test('future meal dates remain selectable and reachable in Diary', () => {

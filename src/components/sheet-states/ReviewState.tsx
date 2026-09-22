@@ -44,7 +44,7 @@ import { useToday } from "../../hooks/useToday";
 import { useDiscardGuardContext } from "./useDiscardGuard";
 import SheetBackButton from "./SheetBackButton";
 import AddComponentView from "./AddComponentView";
-import MealDateView from "./MealDateView";
+import MealDatePicker from "./MealDatePicker";
 import { useViewTransition } from "./useViewTransition";
 import MealSelector from "../MealSelector";
 import { useResponsiveLayout } from "../../theme/layout";
@@ -116,9 +116,9 @@ function servingCountUnit(label: string | null): string {
 }
 
 /** The internal views of the review sheet: the meal, one food's editor, add food. */
-type ReviewView = "list" | "editor" | "add" | "date";
+type ReviewView = "list" | "editor" | "add";
 
-/** The meal is the root; the editor, the add flow, and the date grid are one step deeper. */
+/** The meal is the root; the editor and the add flow are one step deeper. */
 const reviewViewIsForward = (_from: ReviewView, to: ReviewView) => to !== "list";
 
 function DisclosureChevron({ expanded }: { expanded: boolean }) {
@@ -260,7 +260,6 @@ export default function ReviewState({
 		() => initialMeal ?? defaultMealForNow(),
 	);
 	const [logDate, setLogDate] = useState(() => logDateProp ?? todayISO());
-	const [dateOpen, setDateOpen] = useState(false);
 	const [logging, setLogging] = useState(false);
 	const [logError, setLogError] = useState<string | null>(null);
 	const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
@@ -309,7 +308,7 @@ export default function ReviewState({
 		style: viewTransitionStyle,
 		jumpTo: jumpToView,
 	} = useViewTransition<ReviewView>({
-		target: editorOpen ? "editor" : addOpen ? "add" : dateOpen ? "date" : "list",
+		target: editorOpen ? "editor" : addOpen ? "add" : "list",
 		reducedMotion,
 		isForward: reviewViewIsForward,
 		onCommit: handleViewCommit,
@@ -983,23 +982,34 @@ export default function ReviewState({
 		return () => subscription.remove();
 	}, [editorOpen, requestCloseEditor]);
 
-	// Hardware Back leaves the date grid for the meal, not the sheet.
-	useEffect(() => {
-		if (!dateOpen) return;
-		const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-			setDateOpen(false);
-			return true;
-		});
-		return () => subscription.remove();
-	}, [dateOpen]);
-
 	const selectLogDate = useCallback((nextDate: string) => {
-		setDateOpen(false);
 		logDateOverrideRef.current = true;
 		if (nextDate === logDate) return;
 		dirtyRef.current = true;
 		setLogDate(nextDate);
 	}, [logDate]);
+
+	const openLogDatePicker = useCallback(() => {
+		showDialog({
+			title: "Log date",
+			body: (close) => (
+				<MealDatePicker
+					value={effectiveLogDate}
+					today={today}
+					onSelect={(nextDate) => {
+						close();
+						selectLogDate(nextDate);
+					}}
+				/>
+			),
+			actions: [
+				{ label: "Cancel", tone: "cancel" },
+				...(effectiveLogDate === today
+					? []
+					: [{ label: "Today", tone: "neutral" as const, onPress: () => selectLogDate(today) }]),
+			],
+		});
+	}, [effectiveLogDate, selectLogDate, showDialog, today]);
 
 	// The unsaved editor buffer counts as unsaved sheet work: pan-down and backdrop
 	// dismissal must warn before dropping it.
@@ -1043,19 +1053,6 @@ export default function ReviewState({
 					onAcknowledgeNutrition={acknowledgeNutrition}
 					onRedo={() => void handleClarifyComponent(editDraft)}
 					onRemove={() => removeComponent(editingIndex)}
-				/>
-			</Animated.View>
-		);
-	}
-
-	if (renderedView === "date") {
-		return (
-			<Animated.View style={viewTransitionStyle} className="flex-1">
-				<MealDateView
-					value={effectiveLogDate}
-					today={today}
-					onSelect={selectLogDate}
-					onBack={() => setDateOpen(false)}
 				/>
 			</Animated.View>
 		);
@@ -1325,7 +1322,7 @@ export default function ReviewState({
 				) : null}
 				<View className={isNarrow ? 'gap-2' : 'flex-row items-center gap-2'}>
 					<Pressable
-						onPress={() => setDateOpen(true)}
+						onPress={openLogDatePicker}
 						disabled={logging}
 						accessibilityRole="button"
 						accessibilityLabel={`Log date, ${formatLogDateLabel(effectiveLogDate)}`}

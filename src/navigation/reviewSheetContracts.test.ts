@@ -286,7 +286,7 @@ test('per-food review status stays on the food rows, with no summary line', () =
 test('single-food review guards edits against dismissal and matches the meal footer', () => {
   assert.match(singleFoodReviewSource, /discardGuard\.register/);
   assert.match(singleFoodReviewSource, /dirtyRef\.current && !loggedRef\.current/);
-  assert.match(singleFoodReviewSource, /<MealDateView/);
+  assert.match(singleFoodReviewSource, /<MealDatePicker/);
   assert.match(singleFoodReviewSource, /<MealSelector\s+value=\{meal\}\s+compact/);
   // The direct-entry force-close path must not bypass the discard guard here.
   assert.match(

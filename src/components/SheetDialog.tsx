@@ -14,6 +14,8 @@ export interface SheetDialogAction {
 export interface SheetDialogRequest {
   title: string;
   message?: string;
+  /** Custom content between the heading and the actions, such as a picker. Sheets only. */
+  body?: (close: () => void) => React.ReactNode;
   actions: SheetDialogAction[];
 }
 
@@ -114,36 +116,45 @@ export function SheetDialogOverlay({ host }: { host: SheetDialogHost }) {
           entering={reduced ? undefined : FadeInDown.duration(DURATION.enter).easing(EASING.emphasizedDecelerate)}
           exiting={reduced ? undefined : FadeOutDown.duration(DURATION.exit).easing(EASING.emphasizedAccelerate)}
           accessibilityViewIsModal
-          accessibilityRole="alert"
+          accessibilityRole={request.body ? undefined : 'alert'}
           className="mx-4 mb-4 gap-4 rounded-3xl border border-m3-outline-variant/40 bg-m3-surface-container-high px-5 pb-4 pt-5"
         >
           <View className="gap-1">
-            <Text accessibilityRole="header" className="text-base font-semibold text-m3-on-surface">
+            {/* With a body, the title labels the content that follows rather than asking a question. */}
+            <Text
+              accessibilityRole="header"
+              className={request.body
+                ? 'text-sm font-semibold text-m3-on-surface-variant'
+                : 'text-base font-semibold text-m3-on-surface'}
+            >
               {request.title}
             </Text>
             {request.message ? (
               <Text className="text-sm text-m3-on-surface-variant">{request.message}</Text>
             ) : null}
           </View>
-          <View className={stacked ? 'gap-2' : 'flex-row gap-2'}>
-            {request.actions.map((action) => {
-              const tone = ACTION_CLASS[action.tone ?? 'neutral'];
-            // In a stacked list of choices, Cancel reads as a quiet way out rather than a choice.
-            const buttonClass = stacked && action.tone === 'cancel' ? '' : tone.button;
-              return (
-                <Pressable
-                  key={action.label}
-                  onPress={() => run(action)}
-                  accessibilityRole="button"
-                  className={`min-h-[48px] items-center justify-center rounded-full px-4 active:opacity-70 ${stacked ? '' : 'flex-1'} ${buttonClass}`}
-                >
-                  <Text numberOfLines={1} className={`text-sm font-semibold ${tone.text}`}>
-                    {action.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {request.body?.(close)}
+          {request.actions.length ? (
+            <View className={stacked ? 'gap-2' : 'flex-row gap-2'}>
+              {request.actions.map((action) => {
+                const tone = ACTION_CLASS[action.tone ?? 'neutral'];
+                // In a stacked list of choices, Cancel reads as a quiet way out rather than a choice.
+                const buttonClass = stacked && action.tone === 'cancel' ? '' : tone.button;
+                return (
+                  <Pressable
+                    key={action.label}
+                    onPress={() => run(action)}
+                    accessibilityRole="button"
+                    className={`min-h-[48px] items-center justify-center rounded-full px-4 active:opacity-70 ${stacked ? '' : 'flex-1'} ${buttonClass}`}
+                  >
+                    <Text numberOfLines={1} className={`text-sm font-semibold ${tone.text}`}>
+                      {action.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
         </Animated.View>
       ) : null}
     </View>
