@@ -59,10 +59,8 @@ function LogDatePicker({ value, today, minDate, maxDate, onSelect }: LogDatePick
 
   return (
     <View>
-      <View className="-mr-3 flex-row items-center">
-        <Text accessibilityRole="header" className="flex-1 text-sm font-bold text-m3-on-surface">
-          {formatMonthLabel(monthStart)}
-        </Text>
+      {/* Same month header as the Diary strip and the Analytics calendar. */}
+      <View className="-mx-3 flex-row items-center justify-between">
         <Pressable
           onPress={() => shiftMonth(-1)}
           disabled={!canGoBack}
@@ -73,6 +71,9 @@ function LogDatePicker({ value, today, minDate, maxDate, onSelect }: LogDatePick
         >
           <MaterialIcons name="chevron-left" size={24} color={canGoBack ? M3.onSurfaceVariant : M3.outlineVariant} />
         </Pressable>
+        <Text accessibilityRole="header" className="text-sm font-bold text-m3-on-surface">
+          {formatMonthLabel(monthStart)}
+        </Text>
         <Pressable
           onPress={() => shiftMonth(1)}
           disabled={!canGoForward}
@@ -100,6 +101,7 @@ function LogDatePicker({ value, today, minDate, maxDate, onSelect }: LogDatePick
             const selected = iso === value;
             const isToday = iso === today;
             const inMonth = date.getMonth() === monthStart.getMonth();
+            const isFuture = iso > today;
             const disabled = (minDate != null && iso < minDate) || (maxDate != null && iso > maxDate);
             return (
               <Pressable
@@ -111,8 +113,10 @@ function LogDatePicker({ value, today, minDate, maxDate, onSelect }: LogDatePick
                 accessibilityState={{ selected, disabled }}
                 className="h-12 flex-1 items-center justify-center active:opacity-60"
               >
+                {/* The calendar day mark without a ring: the discs fill the day's full footprint. */}
                 <View
-                  className={`h-10 w-10 items-center justify-center rounded-full ${selected ? 'bg-m3-primary' : ''}`}
+                  className={`items-center justify-center rounded-full ${selected ? 'bg-m3-primary' : ''}`}
+                  style={{ width: CALENDAR_DAY.size, height: CALENDAR_DAY.size }}
                 >
                   {isToday && !selected ? (
                     <View
@@ -121,16 +125,16 @@ function LogDatePicker({ value, today, minDate, maxDate, onSelect }: LogDatePick
                     />
                   ) : null}
                   <Text
-                    className={`text-sm tabular-nums ${
+                    className={`text-xs font-bold tabular-nums ${
                       selected
-                        ? 'font-bold text-m3-on-primary'
+                        ? 'text-m3-on-primary'
                         : disabled
-                          ? 'font-medium text-m3-on-surface-variant/30'
-                          : !inMonth
-                            ? 'font-medium text-m3-on-surface-variant/50'
-                            : isToday
-                              ? 'font-bold text-m3-primary'
-                              : 'font-medium text-m3-on-surface'
+                          ? 'text-m3-on-surface-variant/30'
+                          : isToday
+                            ? 'text-m3-primary'
+                            : !inMonth || isFuture
+                              ? 'text-m3-on-surface-variant'
+                              : 'text-m3-on-surface'
                     }`}
                   >
                     {date.getDate()}
