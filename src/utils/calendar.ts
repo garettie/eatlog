@@ -175,15 +175,17 @@ function isSameDay(a: Date, b: Date): boolean {
   return a.toDateString() === b.toDateString();
 }
 
+const SHORT_DATE_LABEL = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+const SAME_YEAR_LOG_DATE = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+const OTHER_YEAR_LOG_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+/** The one label for a chosen log date: `Today, Sep 23`, `Thursday, Sep 24`, or `Sep 24, 2025`. */
 export function formatLogDateLabel(isoDate: string, referenceDate: Date = new Date()): string {
   const date = parseLocalISO(isoDate);
-  const label = date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-  return isSameDay(date, referenceDate) ? `Today · ${label}` : label;
+  if (isSameDay(date, referenceDate)) return `Today, ${SHORT_DATE_LABEL.format(date)}`;
+  return date.getFullYear() === referenceDate.getFullYear()
+    ? SAME_YEAR_LOG_DATE.format(date)
+    : OTHER_YEAR_LOG_DATE.format(date);
 }
 
 export function isToday(d: Date): boolean {
@@ -209,7 +211,7 @@ export function formatDayHeader(isoDate: string): string {
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${dayNames[d.getDay()]} ${monthNames[d.getMonth()]} ${d.getDate()}`;
+  return `${dayNames[d.getDay()]}, ${monthNames[d.getMonth()]} ${d.getDate()}`;
 }
 
 function formatWeekRange(weekDates: Date[]): string {

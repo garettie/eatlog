@@ -1404,6 +1404,7 @@ export interface LastEntry {
   logDate: string;
   isMeal: boolean;
   mealId: number | null;
+  photoUri: string | null;
 }
 
 export async function getMostRecentEntry(): Promise<LastEntry | null> {
@@ -1414,8 +1415,8 @@ export async function getMostRecentEntry(): Promise<LastEntry | null> {
   if (!recent) return null;
 
   if (recent.meal_id) {
-    const meal = await db.getFirstAsync<{ name: string }>(
-      'SELECT name FROM meals WHERE id = ?',
+    const meal = await db.getFirstAsync<{ name: string; photo_uri: string | null }>(
+      'SELECT name, photo_uri FROM meals WHERE id = ?',
       [recent.meal_id]
     );
     const totals = await db.getFirstAsync<{ calories: number; logged_at: string }>(
@@ -1430,6 +1431,7 @@ export async function getMostRecentEntry(): Promise<LastEntry | null> {
       logDate: recent.log_date,
       isMeal: true,
       mealId: recent.meal_id,
+      photoUri: meal?.photo_uri ?? null,
     };
   }
 
@@ -1440,6 +1442,7 @@ export async function getMostRecentEntry(): Promise<LastEntry | null> {
     logDate: recent.log_date,
     isMeal: false,
     mealId: null,
+    photoUri: null,
   };
 }
 

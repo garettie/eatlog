@@ -19,10 +19,17 @@ const remote = createFoodSearchRemoteProviders({
   openFoodFactsUserAgent: serviceConfig.openFoodFactsUserAgent,
 });
 
-export async function searchLocalFoods(query: string): Promise<FoodResult[]> {
+export async function loadPersonalFoods(): Promise<FoodResult[]> {
   const [rows, pinnedKeys] = await Promise.all([getFoodHistoryRows(), getPinnedFoodKeys()]);
-  const personal = buildPersonalFoodResults(rows, pinnedKeys);
+  return buildPersonalFoodResults(rows, pinnedKeys);
+}
+
+export function rankLocalFoods(personal: FoodResult[], query: string): FoodResult[] {
   return rankAndDeduplicateFoodResults([...personal, ...searchCommonFoods(query)], query, 'common').items;
+}
+
+export async function searchLocalFoods(query: string): Promise<FoodResult[]> {
+  return rankLocalFoods(await loadPersonalFoods(), query);
 }
 
 const engine = new FoodSearchEngine({

@@ -113,9 +113,9 @@ export default function PortionStepper({
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 accessibilityLabel={optionLabel.replace(' · ', ', ')}
-                className={`max-w-full min-h-[48px] justify-center rounded-full px-4 border active:opacity-60 ${selected ? 'border-m3-primary/50 bg-m3-primary-container' : 'border-m3-outline-variant/40 bg-m3-surface-container'}`}
+                className={`max-w-full min-h-[48px] justify-center rounded-full px-4 border active:opacity-60 ${selected ? 'border-2 border-m3-primary bg-m3-surface-container-high' : 'border-m3-outline-variant/40 bg-m3-surface-container'}`}
               >
-                <Text numberOfLines={2} className={`text-xs font-semibold ${selected ? 'text-m3-on-primary-container' : 'text-m3-on-surface-variant'}`}>
+                <Text numberOfLines={2} className={`text-xs font-semibold ${selected ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}>
                   {optionLabel}
                 </Text>
               </Pressable>

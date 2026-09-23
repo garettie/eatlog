@@ -24,6 +24,9 @@ interface SegmentedControlProps<T extends string> {
   onChange: (v: T) => void;
   disabled?: boolean;
   tone?: 'default' | 'inset';
+  /** Compact fits four or more segments beside other controls, such as the meal bar. */
+  density?: 'default' | 'compact';
+  accessibilityLabel?: string;
 }
 
 /**
@@ -35,7 +38,10 @@ export default function SegmentedControl<T extends string>({
   onChange,
   disabled = false,
   tone = 'default',
+  density = 'default',
+  accessibilityLabel,
 }: SegmentedControlProps<T>) {
+  const compact = density === 'compact';
   const reduced = useReducedMotion();
   const selectedIndex = Math.max(
     0,
@@ -74,6 +80,7 @@ export default function SegmentedControl<T extends string>({
   return (
     <View
       accessibilityRole="radiogroup"
+      accessibilityLabel={accessibilityLabel}
       className={`${tone === 'inset' ? 'bg-m3-surface-container border-m3-outline-variant/50' : 'bg-m3-surface-container-high border-m3-outline-variant/30'} p-0.5 rounded-full border overflow-hidden`}
       style={disabled ? { opacity: 0.38 } : undefined}
     >
@@ -123,7 +130,7 @@ export default function SegmentedControl<T extends string>({
               accessibilityRole="radio"
               accessibilityLabel={opt.accessibilityLabel ?? opt.label}
               accessibilityState={{ checked: selected, disabled }}
-              className="flex-1 min-h-[48px] px-2 rounded-full flex-row items-center justify-center gap-2 active:opacity-70"
+              className={`flex-1 min-h-[48px] ${compact ? 'px-1' : 'px-2'} rounded-full flex-row items-center justify-center gap-2 active:opacity-70`}
             >
               {opt.icon && (
                 <MaterialIcons
@@ -134,7 +141,7 @@ export default function SegmentedControl<T extends string>({
               )}
               <Text
                 numberOfLines={1}
-                className={`text-sm ${
+                className={`${compact ? 'text-xs' : 'text-sm'} ${
                   selected
                     ? 'font-semibold text-m3-on-primary'
                     : 'font-medium text-m3-on-surface-variant'

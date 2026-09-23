@@ -50,6 +50,7 @@ import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { useToday } from '../hooks/useToday';
 import { buildCalorieCalendar, CalorieCalendarMonth } from '../utils/energyHistory';
+import { DURATION } from '../theme/motion';
 
 type RangeKey = '1M' | '3M' | '6M' | '1Y';
 
@@ -127,8 +128,10 @@ function displayDate(dateISO: string): string {
 }
 
 function signedWeight(valueKg: number, unit: Profile['weight_unit']): string {
-  const sign = valueKg > 0 ? '+' : valueKg < 0 ? '-' : '';
-  return `${sign}${formatWeight(Math.abs(valueKg), unit)} ${unit}`;
+  const magnitude = formatWeight(Math.abs(valueKg), unit);
+  // Sign the shown figure, not the raw value, so -0.02 kg reads 0.0 rather than -0.0.
+  const sign = Number(magnitude) === 0 ? '' : valueKg > 0 ? '+' : '-';
+  return `${sign}${magnitude} ${unit}`;
 }
 
 function signedRate(valueKg: number, unit: Profile['weight_unit']): string {
@@ -204,37 +207,37 @@ function progressCopy(kind: ProgressKind) {
       return {
         title: 'On pace',
         icon: 'check-circle-outline' as const,
-        color: M3.goalRateSafe,
+        color: M3.onSurface,
       };
     case 'moving-away':
       return {
         title: 'Moving away from plan',
         icon: 'warning-amber' as const,
-        color: M3.goalRateCaution,
+        color: M3.onSurface,
       };
     case 'faster':
       return {
         title: 'Faster than planned',
         icon: 'speed' as const,
-        color: M3.goalRateCaution,
+        color: M3.onSurface,
       };
     case 'outside-maintenance':
       return {
         title: 'Outside maintenance range',
         icon: 'swap-vert' as const,
-        color: M3.goalRateCaution,
+        color: M3.onSurface,
       };
     case 'reached':
       return {
         title: 'Goal reached',
         icon: 'flag' as const,
-        color: M3.goalRateSafe,
+        color: M3.onSurface,
       };
     default:
       return {
         title: 'Slower than planned',
         icon: 'trending-flat' as const,
-        color: M3.goalRateCaution,
+        color: M3.onSurface,
       };
   }
 }
@@ -743,15 +746,6 @@ function AnalyticsScreen({
     && recommendation.reason === 'intake_confirmation_required'
     ? recommendation.confirmationDays[0]
     : undefined;
-  const compactPlanLine = recommendationError
-    ? 'Plan update unavailable.'
-    : recommendation?.kind === 'holding'
-      ? recommendation.reason === 'insufficient_evidence'
-        ? 'Gathering evidence for your next plan update.'
-        : 'Checking recent intake before your next plan update.'
-      : recommendation?.kind === 'next-review'
-        ? `Next plan check ${displayDate(recommendation.nextReviewDate)}.`
-        : null;
   const recommendationCard = entitlementStatus === 'checking' ? (
     <View className="min-h-[112px] items-center justify-center gap-3 rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5">
       <ActivityIndicator color={M3.onSurfaceVariant} />
@@ -1134,7 +1128,7 @@ function AnalyticsScreen({
         disableScrollViewPanResponder
       >
         <ResponsiveContent maxWidth={APP_MAX_WIDTH}>
-        <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} className="gap-6">
+        <Animated.View entering={reduced ? undefined : FadeIn.duration(DURATION.short)} className="gap-6">
           <View className="gap-4">
             <Text className="text-m3-on-surface text-2xl font-bold">Analytics</Text>
             <SegmentedControl
@@ -1145,11 +1139,6 @@ function AnalyticsScreen({
           </View>
 
           {recommendationCard}
-          {compactPlanLine != null ? (
-            <Text className="text-m3-on-surface-variant text-sm -mt-3" accessibilityLiveRegion="polite">
-              {compactPlanLine}
-            </Text>
-          ) : null}
 
           {isTwoPane ? (
             <View className="flex-row items-start gap-4">

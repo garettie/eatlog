@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import Reanimated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { DURATION, EASING } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 
 interface MacroCell {
@@ -20,6 +22,17 @@ interface MacroRailProps {
 function MacroCellView({ icon, letter, consumed, target, barColor, unit }: MacroCell) {
   const fraction = target > 0 ? Math.min(1, consumed / target) : 0;
   const overflow = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
+  const reduced = useReducedMotion();
+  // Bars settle from the previous day's values instead of jumping when the day changes.
+  const fill = useSharedValue(fraction);
+  const overflowFill = useSharedValue(overflow);
+  useEffect(() => {
+    const settle = { duration: reduced ? 0 : DURATION.bar, easing: EASING.decelerate };
+    fill.value = withTiming(fraction, settle);
+    overflowFill.value = withTiming(overflow, settle);
+  }, [fill, fraction, overflow, overflowFill, reduced]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
+  const overflowStyle = useAnimatedStyle(() => ({ width: `${overflowFill.value * 100}%` }));
 
   return (
     <View className="flex-1 min-w-0 gap-1" accessibilityLabel={`${unit === 'kcal' ? 'Calories' : letter === 'P' ? 'Protein' : letter === 'C' ? 'Carbohydrates' : 'Fat'}: ${Math.round(consumed)} of ${Math.round(target)} ${unit}`} accessibilityRole="text">
@@ -42,14 +55,12 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
         </Text>
       </View>
       <View className="h-1 bg-m3-surface-container-highest rounded-full overflow-hidden">
-        <View
+        <Reanimated.View
           className="h-full rounded-full"
-          style={{ width: `${fraction * 100}%`, backgroundColor: barColor }}
+          style={[{ backgroundColor: barColor }, fillStyle]}
         >
-          {overflow > 0 && (
-            <View className="absolute right-0 h-full bg-black/25" style={{ width: `${overflow * 100}%` }} />
-          )}
-        </View>
+          <Reanimated.View className="absolute right-0 h-full bg-black/25" style={overflowStyle} />
+        </Reanimated.View>
       </View>
     </View>
   );

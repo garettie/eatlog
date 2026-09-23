@@ -37,7 +37,6 @@ export const M3 = {
   caloriesOverflow: '#6eaefc',
   expenditure: '#d0bcff',
   goalRateSafe: '#8ed9aa',
-  goalRateCaution: '#f0cc72',
   goalRateExtreme: '#ff9f96',
 
   // Placeholder text — ≥4.5:1 on surface-container-high inputs

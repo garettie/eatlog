@@ -1,15 +1,9 @@
-import React, { startTransition, useEffect, useRef, useState } from 'react';
+import React, { startTransition } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { MealType } from '../db/database';
-import { DURATION, EASING } from '../theme/motion';
 import { useResponsiveLayout } from '../theme/layout';
+import SegmentedControl from './SegmentedControl';
 
 const MEALS: { label: string; compactLabel: string; value: MealType }[] = [
   { label: 'Breakfast', compactLabel: 'Bfast', value: 'breakfast' },
@@ -26,40 +20,7 @@ interface MealSelectorProps {
 }
 
 export default function MealSelector({ value, onChange, compact = false, disabled = false }: MealSelectorProps) {
-  const reduced = useReducedMotion();
   const { isNarrow } = useResponsiveLayout();
-  const selectedIndex = Math.max(0, MEALS.findIndex((meal) => meal.value === value));
-  const trackWidth = useSharedValue(0);
-  const measuredRef = useRef(false);
-  const requestedIndexRef = useRef(selectedIndex);
-  const pendingValueRef = useRef<MealType | null>(null);
-  const [visualIndex, setVisualIndex] = useState(selectedIndex);
-  const selection = useSharedValue(selectedIndex);
-
-  useEffect(() => {
-    if (pendingValueRef.current != null) {
-      if (value !== pendingValueRef.current) return;
-      pendingValueRef.current = null;
-    }
-    setVisualIndex((currentIndex) => currentIndex === selectedIndex ? currentIndex : selectedIndex);
-    if (!measuredRef.current) return;
-    if (requestedIndexRef.current === selectedIndex) return;
-    requestedIndexRef.current = selectedIndex;
-    selection.value = withTiming(selectedIndex, {
-      duration: reduced ? 0 : DURATION.short,
-      easing: EASING.emphasized,
-    });
-  }, [reduced, selectedIndex, value]);
-
-  const pillStyle = useAnimatedStyle(() => {
-    const segmentWidth = Math.max(0, (trackWidth.value - 4) / MEALS.length);
-    return {
-      width: segmentWidth,
-      opacity: trackWidth.value > 0 ? 1 : 0,
-      transform: [{ translateX: selection.value * segmentWidth }],
-    };
-  });
-
   if (isNarrow) {
     return (
       <View
@@ -100,57 +61,17 @@ export default function MealSelector({ value, onChange, compact = false, disable
   }
 
   return (
-    <View
-      accessibilityRole="radiogroup"
+    <SegmentedControl
+      options={MEALS.map((m) => ({
+        value: m.value,
+        label: compact ? m.compactLabel : m.label,
+        accessibilityLabel: m.label,
+      }))}
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      density="compact"
       accessibilityLabel="Meal"
-      style={disabled ? { opacity: 0.38 } : undefined}
-      className="flex-row bg-m3-surface-container-high rounded-full p-0.5 border border-m3-outline-variant/30 relative overflow-hidden"
-      onLayout={(event) => {
-        const nextWidth = event.nativeEvent.layout.width;
-        if (!measuredRef.current) {
-          selection.value = selectedIndex;
-          requestedIndexRef.current = selectedIndex;
-          measuredRef.current = true;
-        }
-        trackWidth.value = nextWidth;
-      }}
-    >
-      <Animated.View
-        pointerEvents="none"
-        className="absolute bg-m3-primary rounded-full"
-        style={[pillStyle, { top: 2, bottom: 2, left: 2 }]}
-      />
-      {MEALS.map((m, mealIndex) => {
-        const selected = mealIndex === visualIndex;
-        return (
-          <Pressable
-            key={m.value}
-            onPress={() => {
-              if (mealIndex === requestedIndexRef.current) return;
-              requestedIndexRef.current = mealIndex;
-              pendingValueRef.current = m.value;
-              setVisualIndex(mealIndex);
-              selection.value = withTiming(mealIndex, {
-                duration: reduced ? 0 : DURATION.short,
-                easing: EASING.emphasized,
-              });
-              startTransition(() => onChange(m.value));
-            }}
-            disabled={disabled}
-            accessibilityRole="radio"
-            accessibilityLabel={m.label}
-            accessibilityState={{ checked: selected, disabled }}
-            className="flex-1 min-h-[48px] px-1 rounded-full items-center justify-center z-10 active:opacity-70"
-          >
-            <Text
-              numberOfLines={1}
-              className={`text-xs font-semibold ${selected ? 'text-m3-on-primary' : 'text-m3-on-surface-variant'}`}
-            >
-              {compact ? m.compactLabel : m.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    />
   );
 }

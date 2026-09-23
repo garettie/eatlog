@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
@@ -37,6 +37,7 @@ import ResponsiveContent from '../components/ResponsiveContent';
 import UpdateBanner from '../components/UpdateBanner';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { DURATION, EASING } from '../theme/motion';
+import { useMealPhotoThumbnail } from '../utils/mealPhotoThumbnails';
 import { haptics } from '../utils/haptics';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -307,6 +308,8 @@ function DashboardScreen({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [target, setTarget] = useState<DailyTarget | null>(null);
   const [recentFood, setRecentFood] = useState<LastEntry | null>(null);
+  const [failedRecentPhotoUri, setFailedRecentPhotoUri] = useState<string | null>(null);
+  const recentPhotoUri = useMealPhotoThumbnail(recentFood?.photoUri ?? null);
   const [todayMacros, setTodayMacros] = useState<{
     calories: number;
     protein_g: number;
@@ -715,8 +718,19 @@ function DashboardScreen({
             >
               <Card className="p-4 flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3 flex-1 min-w-0">
-                  <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center shrink-0">
-                    <MaterialCommunityIcons name={foodIcon(recentFood.name)} size={18} color={M3.onSurfaceVariant} />
+                  <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center shrink-0 overflow-hidden">
+                    {/* Same media rule as the Diary: the meal's own photo, with the food icon as fallback. */}
+                    {recentPhotoUri && recentPhotoUri !== failedRecentPhotoUri ? (
+                      <Image
+                        source={{ uri: recentPhotoUri }}
+                        style={{ width: 40, height: 40 }}
+                        resizeMode="cover"
+                        fadeDuration={reduced ? 0 : DURATION.enter}
+                        onError={() => setFailedRecentPhotoUri(recentPhotoUri)}
+                      />
+                    ) : (
+                      <MaterialCommunityIcons name={foodIcon(recentFood.name)} size={18} color={M3.onSurfaceVariant} />
+                    )}
                   </View>
                   <View className="flex-1 min-w-0">
                     <Text className="text-m3-on-surface font-bold text-sm leading-4" numberOfLines={2}>

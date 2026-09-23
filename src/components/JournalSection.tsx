@@ -13,6 +13,7 @@ import { FoodLog } from '../db/database';
 import { M3 } from '../theme/tokens';
 import { foodIcon } from '../utils/foodIcons';
 import NutritionCard from './NutritionCard';
+import { DURATION, EASING } from '../theme/motion';
 
 function kcalLabel(calories: number): string {
   return `${Math.round(calories)} kcal`;
@@ -51,7 +52,7 @@ function Chevron({ open }: { open: boolean }) {
   const rot = useSharedValue(open ? 1 : 0);
 
   useEffect(() => {
-    rot.value = withTiming(open ? 1 : 0, { duration: reduced ? 0 : 200 });
+    rot.value = withTiming(open ? 1 : 0, { duration: reduced ? 0 : DURATION.short, easing: EASING.standard });
   }, [open, reduced]);
 
   const style = useAnimatedStyle(() => ({

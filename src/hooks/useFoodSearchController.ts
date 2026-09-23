@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   combineFoodSearchResults,
-  searchLocalFoods,
+  loadPersonalFoods,
+  rankLocalFoods,
   searchRemoteFood,
   type FoodResult,
   type FoodSearchMode,
@@ -13,7 +14,8 @@ type RemoteSearchState = 'idle' | 'loading' | FoodSearchOutcome['kind'];
 
 export function useFoodSearchController(initialQuery = '') {
   const [query, setQuery] = useState(initialQuery);
-  const [localResults, setLocalResults] = useState<FoodResult[]>([]);
+  // History is read once per open (and after a pin change); typing only re-ranks it in memory.
+  const [personalFoods, setPersonalFoods] = useState<FoodResult[] | null>(null);
   const [remoteResults, setRemoteResults] = useState<FoodResult[]>([]);
   const [remoteState, setRemoteState] = useState<RemoteSearchState>('idle');
   const [localLoading, setLocalLoading] = useState(true);
@@ -29,18 +31,23 @@ export function useFoodSearchController(initialQuery = '') {
     const sequence = ++localSequence.current;
     setLocalLoading(true);
     setLocalError(false);
-    void searchLocalFoods(query).then((items) => {
-      if (sequence === localSequence.current) setLocalResults(items);
+    void loadPersonalFoods().then((items) => {
+      if (sequence === localSequence.current) setPersonalFoods(items);
     }).catch((error) => {
       console.error('[FoodSearch] local search failed', error);
       if (sequence === localSequence.current) {
-        setLocalResults([]);
+        setPersonalFoods([]);
         setLocalError(true);
       }
     }).finally(() => {
       if (sequence === localSequence.current) setLocalLoading(false);
     });
-  }, [query, refreshVersion]);
+  }, [refreshVersion]);
+
+  const localResults = useMemo(
+    () => (personalFoods ? rankLocalFoods(personalFoods, query) : []),
+    [personalFoods, query],
+  );
 
   const runRemote = useCallback(async (searchMode: FoodSearchMode) => {
     const trimmed = query.trim();

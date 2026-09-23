@@ -16,6 +16,7 @@ import { M3 } from '../theme/tokens';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { WELLNESS_DISCLAIMER } from '../utils/nutritionSafety';
+import { DURATION } from '../theme/motion';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SetupComplete'>;
 
@@ -42,7 +43,7 @@ export default function SetupCompleteScreen({ route, navigation }: Props) {
         <View className="gap-7">
           <View className="items-center gap-4">
             <Reanimated.View
-              entering={reduced ? undefined : ZoomIn.duration(400).springify()}
+              entering={reduced ? undefined : ZoomIn.duration(DURATION.long).springify()}
               className="w-16 h-16 rounded-full bg-m3-primary-container items-center justify-center"
             >
               <MaterialIcons name="check" size={32} color={M3.primary} />

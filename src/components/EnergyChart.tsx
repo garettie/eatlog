@@ -134,7 +134,8 @@ function EnergyChart({
     point.targetCalories,
     point.expenditureCalories,
   ]).filter((value): value is number => value != null);
-  const yMax = Math.max(1000, ...values) * 1.08;
+  // Round the ceiling up to a whole thousand so both labelled gridlines read as round figures.
+  const yMax = Math.ceil(Math.max(1000, ...values) * 1.08 / 1000) * 1000;
   const left = 42;
   const right = 8;
   const top = 8;

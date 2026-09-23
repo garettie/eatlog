@@ -31,6 +31,7 @@ import { showDatePicker } from '../DatePicker';
 import { useDiscardGuardContext } from './useDiscardGuard';
 import { M3 } from '../../theme/tokens';
 import { useResponsiveLayout } from '../../theme/layout';
+import { DURATION } from '../../theme/motion';
 
 function dataTypeLabel(dt: DataType): string {
   switch (dt) {
@@ -233,7 +234,7 @@ export default function SingleFoodReviewState({
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View
-          entering={reducedMotion ? undefined : FadeInUp.duration(180)}
+          entering={reducedMotion ? undefined : FadeInUp.duration(DURATION.enter)}
           className="gap-6"
         >
           <View className="gap-3">

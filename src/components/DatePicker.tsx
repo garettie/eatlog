@@ -15,6 +15,7 @@ import { DURATION, EASING } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 import {
   formatLocalISO,
+  formatLogDateLabel,
   formatMonthLabel,
   getFixedMonthGrid,
   getMonthStart,
@@ -23,9 +24,6 @@ import {
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const SAME_YEAR_HEADLINE = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-const OTHER_YEAR_HEADLINE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
 const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('en-US', {
   weekday: 'long',
   month: 'long',
@@ -461,12 +459,7 @@ export function showDatePicker(
   { title, value, today, minDate, maxDate, startView = 'days', onSelect }: ShowDatePickerOptions,
 ) {
   const todayChoosable = (!minDate || today >= minDate) && (!maxDate || today <= maxDate);
-  const valueDate = parseLocalISO(value);
-  const headline = value === today
-    ? `Today, ${SHORT_DATE_FORMATTER.format(valueDate)}`
-    : yearOf(value) === yearOf(today)
-      ? SAME_YEAR_HEADLINE.format(valueDate)
-      : OTHER_YEAR_HEADLINE.format(valueDate);
+  const headline = formatLogDateLabel(value, parseLocalISO(today));
   showDialog({
     title,
     headline,

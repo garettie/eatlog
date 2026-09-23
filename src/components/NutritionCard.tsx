@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useReducedMotion } from 'react-native-reanimated';
 
+import { DURATION } from '../theme/motion';
 import { M3 } from '../theme/tokens';
 import { foodIcon } from '../utils/foodIcons';
+import { useMealPhotoThumbnail } from '../utils/mealPhotoThumbnails';
+
+const NO_FAILURES: ReadonlySet<string> = new Set();
 
 function MacroPill({ letter, grams, color }: { letter: string; grams: number; color: string }) {
   return (
@@ -48,11 +53,14 @@ export default function NutritionCard({
   mediaAccessibilityLabel,
   action,
 }: NutritionCardProps) {
-  const [failedPhotoUri, setFailedPhotoUri] = useState<string | null>(null);
-  const photoUri = sourcePhotoUri && sourcePhotoUri !== failedPhotoUri ? sourcePhotoUri : null;
+  const reduced = useReducedMotion();
+  const thumbnailUri = useMealPhotoThumbnail(sourcePhotoUri ?? null);
+  const [failedPhotoUris, setFailedPhotoUris] = useState<ReadonlySet<string>>(NO_FAILURES);
+  // A thumbnail that fails (a purged cache) falls back to the full photo, and only then to the icon.
+  const photoUri = [thumbnailUri, sourcePhotoUri].find((uri) => uri && !failedPhotoUris.has(uri)) ?? null;
 
   useEffect(() => {
-    setFailedPhotoUri(null);
+    setFailedPhotoUris(NO_FAILURES);
   }, [sourcePhotoUri]);
 
   const media = photoUri ? (
@@ -60,8 +68,9 @@ export default function NutritionCard({
       source={{ uri: photoUri }}
       style={{ width: 112, flex: 1, objectFit: 'cover' }}
       resizeMode="cover"
-      fadeDuration={0}
-      onError={() => setFailedPhotoUri(photoUri)}
+      // Android fades only photos that are still decoding; cached ones appear at once.
+      fadeDuration={reduced ? 0 : DURATION.enter}
+      onError={() => setFailedPhotoUris((failed) => new Set(failed).add(photoUri))}
     />
   ) : (
     <View className="flex-1 items-center justify-center">

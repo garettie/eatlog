@@ -2,6 +2,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 const PHOTO_DIR = `${FileSystem.documentDirectory}meal-photos/`;
+// Small copies for list rails. A cache, never data: not backed up, rebuilt on demand.
+const THUMBNAIL_DIR = `${FileSystem.cacheDirectory}meal-photo-thumbnails/`;
 const MAX_PHOTO_DIMENSION = 1600;
 const PHOTO_QUALITY = 0.75;
 const ESTIMATE_QUALITY = 0.65;
@@ -9,6 +11,17 @@ const MAX_ESTIMATE_BYTES = 4 * 1024 * 1024;
 
 export function getMealPhotoDirectory(): string {
   return PHOTO_DIR;
+}
+
+export function getMealPhotoThumbnailDirectory(): string {
+  return THUMBNAIL_DIR;
+}
+
+/** Where a stored meal photo's thumbnail lives, or null for photos Eatlog does not own. */
+export function mealPhotoThumbnailPath(photoUri: string): string | null {
+  if (!photoUri.startsWith(PHOTO_DIR)) return null;
+  const name = photoUri.slice(PHOTO_DIR.length);
+  return name && !name.includes('/') ? THUMBNAIL_DIR + name : null;
 }
 
 export async function prepareFoodEstimateImage(
@@ -39,6 +52,7 @@ export async function prepareFoodEstimateImage(
 
 export async function deleteAllMealPhotos(): Promise<void> {
   await FileSystem.deleteAsync(PHOTO_DIR, { idempotent: true });
+  await FileSystem.deleteAsync(THUMBNAIL_DIR, { idempotent: true }).catch(() => {});
 }
 
 async function ensureDir(): Promise<void> {
@@ -103,9 +117,10 @@ export async function cleanupOrphanMealPhotos(
           return !active.has(PHOTO_DIR + f)
             && (!Number.isFinite(createdAt) || createdAt < createdBefore);
         })
-        .map((f) =>
-          FileSystem.deleteAsync(PHOTO_DIR + f, { idempotent: true }).catch(() => {})
-        )
+        .flatMap((f) => [
+          FileSystem.deleteAsync(PHOTO_DIR + f, { idempotent: true }).catch(() => {}),
+          FileSystem.deleteAsync(THUMBNAIL_DIR + f, { idempotent: true }).catch(() => {}),
+        ])
     );
   } catch (e) {
     console.error('[mealPhotos] orphan cleanup failed', e);

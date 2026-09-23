@@ -134,11 +134,11 @@ export default function MealPortionSelector({
                   accessibilityRole="radio"
                   accessibilityState={{ checked: selected, disabled }}
                   accessibilityLabel={`${shortcut.label}, ${formatMealPortion(shortcut.value, scale)}`}
-                  className={`min-h-[48px] flex-1 items-center justify-center rounded-full border px-3 active:opacity-60 disabled:opacity-40 ${selected ? 'border-m3-primary/50 bg-m3-primary-container' : 'border-m3-outline-variant/40 bg-m3-surface-container-high'}`}
+                  className={`min-h-[48px] flex-1 items-center justify-center rounded-full border px-3 active:opacity-60 disabled:opacity-40 ${selected ? 'border-2 border-m3-primary bg-m3-surface-container-highest' : 'border-m3-outline-variant/40 bg-m3-surface-container-high'}`}
                 >
                   <Text
                     numberOfLines={1}
-                    className={`text-xs font-semibold ${selected ? 'text-m3-on-primary-container' : 'text-m3-on-surface-variant'}`}
+                    className={`text-xs font-semibold ${selected ? 'text-m3-on-surface' : 'text-m3-on-surface-variant'}`}
                   >
                     {shortcut.label}
                   </Text>

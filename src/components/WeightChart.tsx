@@ -259,13 +259,13 @@ function WeightChart({
     if (planStartWeight != null && planEndWeight != null) {
       domainValues.push(planStartWeight, planEndWeight);
     }
-    const domain = getWeightChartDomain(domainValues, targetWeightKg);
+    const domain = getWeightChartDomain(domainValues, targetWeightKg, unit);
     return {
       nextYMin: domain.min,
       nextYMax: domain.max,
       yTicks: domain.ticks,
     };
-  }, [planEndWeight, planStartWeight, targetWeightKg, visible]);
+  }, [planEndWeight, planStartWeight, targetWeightKg, unit, visible]);
 
   const animatedStartDay = useSharedValue(nextStartDay);
   const animatedEndDay = useSharedValue(nextEndDay);
@@ -559,7 +559,7 @@ function WeightChart({
                   fontFamily={TYPE.family.regular}
                   textAnchor="end"
                 >
-                  {fromKilograms(tick, unit).toFixed(1)}
+                  {Math.round(fromKilograms(tick, unit))}
                 </SvgText>
               </React.Fragment>
             );

@@ -1,9 +1,10 @@
-import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Reanimated, {
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -31,6 +32,7 @@ import { todayISO, isoFromDate, getMonthStart, getMonthDates, isToday, isFuture,
 import { useToday } from '../hooks/useToday';
 import { M3 } from '../theme/tokens';
 import WeekStrip from '../components/WeekStrip';
+import { warmMealPhotoThumbnails } from '../utils/mealPhotoThumbnails';
 import MacroRail from '../components/MacroRail';
 import { JournalEntryKind, JournalEntryRow, JournalSectionHeader, MealGroup } from '../components/JournalSection';
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
@@ -41,6 +43,9 @@ import {
   buildMealShareData,
   type MealShareData,
 } from '../utils/shareCards';
+
+/** How far day content travels along the time axis when the selected day changes. */
+const DAY_SHIFT = 24;
 
 const MEAL_ORDER: { meal: MealType; label: string }[] = [
   { meal: 'breakfast', label: 'Breakfast' },
@@ -137,23 +142,79 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const handledDateRequestRef = useRef<number | null>(requestedDate?.requestId ?? null);
   const dayContentOpacity = useSharedValue(1);
   const dayContentOffset = useSharedValue(0);
+  // Day changes move along the calendar's time axis: the old day leaves toward the past or future,
+  // the new day's content is swapped in while invisible, then enters from the side it lives on.
+  const dayDirectionRef = useRef(1);
+  const dayExitingRef = useRef(false);
+  const dayEnterPendingRef = useRef(false);
+  const pendingDayRef = useRef<{ date: string; summary: DaySummary } | null>(null);
 
-  useEffect(() => {
-    if (previousDisplayedDateRef.current === displayedDate) return;
-    previousDisplayedDateRef.current = displayedDate;
-    if (reduced) {
-      dayContentOpacity.value = 1;
-      dayContentOffset.value = 0;
-      return;
-    }
-    dayContentOpacity.value = 0.72;
-    dayContentOffset.value = 8;
-    dayContentOpacity.value = withTiming(1, { duration: DURATION.short });
+  const commitDay = useCallback((date: string, summary: DaySummary) => {
+    setFoodLogs(summary.foodLogs);
+    setMealRows(summary.mealRows);
+    setDisplayedDate(date);
+    setDayLoadError(false);
+  }, []);
+
+  const enterDay = useCallback(() => {
+    dayEnterPendingRef.current = false;
+    dayContentOffset.value = DAY_SHIFT * dayDirectionRef.current;
     dayContentOffset.value = withTiming(0, {
       duration: DURATION.medium,
       easing: EASING.emphasizedDecelerate,
     });
-  }, [dayContentOffset, dayContentOpacity, displayedDate, reduced]);
+    dayContentOpacity.value = withTiming(1, {
+      duration: DURATION.enter,
+      easing: EASING.emphasizedDecelerate,
+    });
+  }, [dayContentOffset, dayContentOpacity]);
+
+  const finishDayExit = useCallback(() => {
+    dayExitingRef.current = false;
+    const pending = pendingDayRef.current;
+    pendingDayRef.current = null;
+    dayEnterPendingRef.current = true;
+    if (!pending) return; // The day is still loading; it enters when it arrives.
+    if (pending.date === previousDisplayedDateRef.current) {
+      commitDay(pending.date, pending.summary);
+      enterDay();
+      return;
+    }
+    commitDay(pending.date, pending.summary);
+  }, [commitDay, enterDay]);
+
+  const beginDayExit = useCallback((direction: number) => {
+    dayDirectionRef.current = direction;
+    if (reduced) return;
+    dayExitingRef.current = true;
+    const exit = { duration: DURATION.exit, easing: EASING.emphasizedAccelerate };
+    dayContentOffset.value = withTiming(-DAY_SHIFT * direction, exit);
+    dayContentOpacity.value = withTiming(0, exit, (finished) => {
+      if (finished) runOnJS(finishDayExit)();
+    });
+  }, [dayContentOffset, dayContentOpacity, finishDayExit, reduced]);
+
+  // Runs after the new day commits and before it paints, so the entrance never starts on old content.
+  useLayoutEffect(() => {
+    if (previousDisplayedDateRef.current === displayedDate) return;
+    previousDisplayedDateRef.current = displayedDate;
+    if (!reduced && dayEnterPendingRef.current) {
+      enterDay();
+      return;
+    }
+    dayContentOpacity.value = 1;
+    dayContentOffset.value = 0;
+  }, [dayContentOffset, dayContentOpacity, displayedDate, enterDay, reduced]);
+
+  useEffect(() => {
+    // A failed load still has to be visible, even mid-transition.
+    if (!dayLoadError) return;
+    dayExitingRef.current = false;
+    dayEnterPendingRef.current = false;
+    pendingDayRef.current = null;
+    dayContentOpacity.value = 1;
+    dayContentOffset.value = 0;
+  }, [dayContentOffset, dayContentOpacity, dayLoadError]);
 
   const dayContentStyle = useAnimatedStyle(() => ({
     opacity: dayContentOpacity.value,
@@ -161,11 +222,17 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   }));
 
   const applyDaySummary = useCallback((date: string, summary: DaySummary) => {
-    setFoodLogs(summary.foodLogs);
-    setMealRows(summary.mealRows);
-    setDisplayedDate(date);
-    setDayLoadError(false);
-  }, []);
+    if (dayExitingRef.current) {
+      pendingDayRef.current = { date, summary };
+      return;
+    }
+    if (dayEnterPendingRef.current && date === previousDisplayedDateRef.current) {
+      commitDay(date, summary);
+      enterDay();
+      return;
+    }
+    commitDay(date, summary);
+  }, [commitDay, enterDay]);
 
   const loadDay = useCallback((date: string, showLoading = false) => {
     const requestId = ++dayRequestRef.current;
@@ -249,6 +316,8 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
 
         const allMealRows = new Map<number, MealRow>();
         meals.forEach((meal) => allMealRows.set(meal.id, meal));
+        // Build rail thumbnails ahead of the days the user is about to open.
+        warmMealPhotoThumbnails(meals.map((meal) => meal.photo_uri));
         const logsByDate = new Map<string, FoodLog[]>();
         const macrosByDate = new Map<string, DayMacros>();
         for (const log of logs) {
@@ -389,30 +458,12 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       };
     }), [dayTargetMap, monthDates, monthMacroMap, today]);
 
-  const shiftMonth = useCallback((delta: number) => {
-    const next = new Date(monthAnchorRef.current);
-    next.setMonth(next.getMonth() + delta);
-    monthAnchorRef.current = next;
-    setMonthLoadError(false);
-    setMonthAnchor(next);
-
-    const cached = monthCacheRef.current.get(getMonthRange(next).key);
-    if (cached) {
-      setMonthMacros(cached.macros);
-      setDayTargetMap(cached.targets);
-      prefetchAdjacentMonths(next);
-    } else {
-      void loadMonth(next);
-    }
-  }, [loadMonth, prefetchAdjacentMonths]);
-
-  const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
-  const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
-
   const selectDate = useCallback((iso: string) => {
     if (iso === selectedDateRef.current) return;
+    const previousSelected = selectedDateRef.current;
     selectedDateRef.current = iso;
 
+    beginDayExit(iso > previousSelected ? 1 : -1);
     onSelectedDateChange(iso);
     setSelectedDate(iso);
     startTransition(() => {
@@ -434,7 +485,44 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
         void loadMonth(monthStart);
       }
     }
-  }, [loadDay, loadMonth, onSelectedDateChange, prefetchAdjacentMonths]);
+  }, [beginDayExit, loadDay, loadMonth, onSelectedDateChange, prefetchAdjacentMonths]);
+
+  // The month chevrons move the selection too, so the strip and the journal always show the same
+  // month: today when that month holds it, otherwise its latest logged day, otherwise its edge.
+  const dayForMonth = useCallback((anchor: Date, summary: MonthSummary | undefined) => {
+    const { startISO, endISO } = getMonthRange(anchor);
+    const todayIso = todayISO();
+    if (todayIso >= startISO && todayIso <= endISO) return todayIso;
+    const logged = (summary?.macros ?? [])
+      .filter((day) => day.calories > 0)
+      .map((day) => day.log_date)
+      .sort();
+    if (logged.length > 0) return logged[logged.length - 1];
+    return startISO > todayIso ? startISO : endISO;
+  }, []);
+
+  const shiftMonth = useCallback((delta: number) => {
+    const next = new Date(monthAnchorRef.current);
+    next.setMonth(next.getMonth() + delta);
+
+    const cached = monthCacheRef.current.get(getMonthRange(next).key);
+    if (cached) {
+      selectDate(dayForMonth(next, cached));
+      return;
+    }
+
+    // Uncached: show the month at once, then select its day when the month's logs arrive.
+    monthAnchorRef.current = next;
+    setMonthLoadError(false);
+    setMonthAnchor(next);
+    void loadMonth(next).then(() => {
+      if (monthAnchorRef.current.getTime() !== next.getTime()) return;
+      selectDate(dayForMonth(next, monthCacheRef.current.get(getMonthRange(next).key)));
+    });
+  }, [dayForMonth, loadMonth, selectDate]);
+
+  const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
+  const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
 
   useEffect(() => {
     if (!requestedDate || handledDateRequestRef.current === requestedDate.requestId) return;

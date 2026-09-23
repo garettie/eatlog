@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Keyboard, Modal, Pressable, Text, View } from 'react-native';
 import Animated, {
+  Extrapolation,
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
@@ -119,8 +121,10 @@ export function SheetDialogOverlay({ host }: { host: SheetDialogHost }) {
   }, [run]);
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  // The card turns opaque in the first third of the scrim's travel, so the sheet's text never
+  // shows through the dialog's text on the way in or out.
   const cardStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
+    opacity: interpolate(progress.value, [0, 0.35], [0, 1], Extrapolation.CLAMP),
     transform: [{ scale: 0.94 + progress.value * 0.06 }],
   }));
 

@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import ProfileScreen from '../screens/ProfileScreen';
-import { TYPE } from '../theme/tokens';
+import { M3, TYPE } from '../theme/tokens';
 import {
   GoalAndRateScreen,
   NutritionTargetsScreen,
@@ -25,9 +25,9 @@ interface ProfileNavigatorProps {
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 const PROFILE_SCREEN_OPTIONS = {
-  contentStyle: { backgroundColor: '#111318' },
-  headerStyle: { backgroundColor: '#111318' },
-  headerTintColor: '#e2e2e9',
+  contentStyle: { backgroundColor: M3.surface },
+  headerStyle: { backgroundColor: M3.surface },
+  headerTintColor: M3.onSurface,
   headerTitleStyle: { fontFamily: TYPE.family.semibold, fontSize: 18 },
 } as const;
 const PROFILE_HOME_OPTIONS = { headerShown: false } as const;

@@ -16,11 +16,15 @@ test('log date labels identify today and show the selected weekday', () => {
   const today = parseLocalISO('2026-08-16');
   assert.equal(
     formatLogDateLabel('2026-08-16', today),
-    'Today · Sunday, August 16, 2026',
+    'Today, Aug 16',
   );
   assert.equal(
     formatLogDateLabel('2026-08-17', today),
-    'Monday, August 17, 2026',
+    'Monday, Aug 17',
+  );
+  assert.equal(
+    formatLogDateLabel('2025-12-31', today),
+    'Dec 31, 2025',
   );
 });
 

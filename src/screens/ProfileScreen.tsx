@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, ScrollView, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -164,10 +164,17 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     }, [runDataMaintenance]);
 
     if (loading && !profile && !target) {
+        // A local read takes a moment; hold the screen's own header in place instead of a spinner.
         return (
-            <SafeAreaView className="flex-1 bg-m3-surface items-center justify-center gap-3" edges={['top', 'left', 'right']} accessibilityLabel="Loading profile">
-                <ActivityIndicator color={M3.primary} />
-                <Text className="text-m3-on-surface-variant text-sm">Loading profile</Text>
+            <SafeAreaView className="flex-1 bg-m3-surface" edges={['top', 'left', 'right']} accessibilityLabel="Loading profile" accessibilityState={{ busy: true }}>
+                <View style={{ paddingHorizontal: horizontalPadding, paddingTop: 24 }}>
+                    <ResponsiveContent maxWidth={APP_MAX_WIDTH}>
+                        <View className="gap-1">
+                            <Text className="text-m3-on-surface text-2xl font-bold">Profile</Text>
+                            <Text className="text-m3-on-surface-variant text-sm">Plan, preferences, and data</Text>
+                        </View>
+                    </ResponsiveContent>
+                </View>
             </SafeAreaView>
         );
     }

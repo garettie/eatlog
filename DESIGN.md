@@ -149,7 +149,7 @@ Eatlog uses a near-black neutral stack for structure and reserves named macro co
 - **Ink and Muted Ink**: primary text is high-contrast; secondary text remains readable, never ghosted.
 - **Placeholder Gray**: placeholders stay distinct from entered values while retaining AA contrast.
 
-**The Nutrient Meaning Rule.** Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen. Never reuse these colors as decoration or generic success/error states.
+**The Nutrient Meaning Rule.** Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen. Never reuse these colors, or near matches of them, as decoration or generic success/error states. Goal-progress states (on pace, slower, faster, reached) are ink with a distinguishing icon. The pinned heart is the one deliberate Error Coral use outside errors.
 
 **The Nutrient Overflow Rule.** The first full ring or bar uses the nutrient's base color. Intake above target refills from the start in a slightly darker same-hue token, capped at one additional full cycle. The dashboard calorie ring uses White Action with an Ink overflow arc. Error Coral remains reserved for errors and destructive actions.
 
@@ -191,7 +191,7 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 
 ### Chips
 - **Style:** compact rounded pills; macro pills use their named nutrient color at low-opacity background.
-- **State:** selected segmented states use the highest surface; unselected states are ghosted on the track. Dashboard’s consumed/remaining toggle is the deliberate white-primary exception.
+- **Two selection controls, two looks.** A *segmented control* switches between a few adjacent modes or values (meal period, Consumed/Remaining, 1M–1Y, kg/lb, sex, Servings/Grams) and shows a sliding white thumb on a tonal track (`SegmentedControl`, `density="compact"` for the meal bar). A *choice list* asks the user to pick one item (activity level, goal, portion shortcuts, serving options): the selected card or chip steps up one surface tone with a 2dp White Action outline and ink text. Never give a choice list the sliding thumb or a segmented control outlined chips.
 
 ### Cards / Containers
 - **Corner Style:** screen cards use the surface radius; diary entries use the card radius.
@@ -242,6 +242,9 @@ Eatlog is flat by default. Depth comes from the surface stack, hairline outline-
 - **Ranges.** Normal transitions 200–400ms; the calorie ring is the signature 550ms exception. All motion is reduced-motion gated (snaps to the end state).
 - **Charts morph.** Analytics charts morph their coordinate domain in place on range change; never fade, slide, or remount. Applies to both WeightChart and EnergyChart.
 - **Calorie ring.** White arc on a tonal track with animated dashoffset and a UI-thread count-up center number. No gradient, no celebration.
+- **Diary time axis.** Later days live to the right. One selection disc slides between days (300ms emphasized) and inverts each number it covers; day content exits 90ms toward the old day, swaps while invisible, and enters 150ms/300ms from the new day's side; macro rail bars settle from the old day's values; a month change runs the same exit/enter on the strip and its label.
+- **Dialogs.** The scrim fades with the dialog's progress, but the card is opaque within its first third, so sheet text never shows through dialog text.
+- **Navigation.** Bottom tabs switch instantly, following the Android convention. The Profile stack keeps Android's system push transition rather than a custom one.
 - **Haptic vocabulary** (`src/utils/haptics.ts`, functional only, never celebratory): `select` (scrub/toggle/ruler), `tap` (navigation/open-sheet/FAB/undo), `confirm` (entry logged/saved — a Medium impact, not a notification fanfare), `warn` (recoverable error).
 
 ## Profile and Settings

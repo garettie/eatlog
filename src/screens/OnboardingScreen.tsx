@@ -248,7 +248,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   const [progressTrackW, setProgressTrackW] = useState(0);
   const progress = useSharedValue(1 / TOTAL_STEPS);
   useEffect(() => {
-    progress.value = withTiming(step / TOTAL_STEPS, { duration: reduced ? 0 : 300 });
+    progress.value = withTiming(step / TOTAL_STEPS, { duration: reduced ? 0 : DURATION.medium, easing: EASING.emphasized });
   }, [step]);
   const progressStyle = useAnimatedStyle(() => ({
     width: progress.value * progressTrackW,
@@ -894,7 +894,7 @@ export default function OnboardingScreen({ navigation }: Props) {
 
                   {goalType !== 'maintain' && (
                     <Reanimated.View
-                      entering={reduced ? undefined : FadeIn.duration(250)}
+                      entering={reduced ? undefined : FadeIn.duration(DURATION.short)}
                       className="gap-7"
                     >
                       {/* Target Weight */}
@@ -1055,7 +1055,7 @@ export default function OnboardingScreen({ navigation }: Props) {
               <ResponsiveContent maxWidth={FORM_MAX_WIDTH} className="px-7 py-5 gap-3">
               {stepError && (
                 <Reanimated.View
-                  entering={reduced ? undefined : FadeIn.duration(200)}
+                  entering={reduced ? undefined : FadeIn.duration(DURATION.short)}
                   className="flex-row items-center gap-2"
                   accessibilityLiveRegion="assertive"
                 >
