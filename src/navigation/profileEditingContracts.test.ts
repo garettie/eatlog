@@ -62,15 +62,18 @@ test('every date the app asks for uses one modal picker', () => {
   assert.match(datePickerSource, /getFixedMonthGrid/);
 });
 
-test('birthdays use the picker with its year view and the age bounds', () => {
+test('birthdays use the picker with the age bounds, opening on a set birthday\'s month', () => {
   for (const source of [personalDetailsSource, onboardingSource]) {
-    assert.match(source, /showDatePicker\(birthDateDialog\.show, \{\s*title: 'Birth date',\s*startView: 'years',/);
+    assert.match(source, /showDatePicker\(birthDateDialog\.show, \{\s*title: 'Birth date',/);
     assert.match(source, /minDate: formatLocalISO\(dateBounds\.earliest\),\s*maxDate: formatLocalISO\(dateBounds\.latest\),/);
     assert.match(source, /<SheetDialogOverlay host=\{birthDateDialog\} \/>/);
   }
-  // Birthdays open on the year grid, limited to the bounds, then drill into months and days.
+  // Settings edits a real birthday, so it opens on its month; onboarding walks year, month,
+  // day only until the placeholder has been replaced.
+  assert.doesNotMatch(personalDetailsSource, /startView: 'years'/);
+  assert.match(onboardingSource, /startView: birthDateChosen \? 'days' : 'years',/);
   assert.match(datePickerSource, /const first = minDate \? yearOf\(minDate\)/);
-  assert.match(datePickerSource, /go\(\{ view: 'months', month: clampMonth\(new Date\(year, month\.getMonth\(\), 1\), minDate, maxDate\) \}\)/);
+  assert.match(datePickerSource, /view: guided \? 'months' : 'days',/);
   assert.match(datePickerSource, /go\(\{ view: 'days', month: new Date\(shownYear, monthIndex, 1\) \}\)/);
 });
 
@@ -90,7 +93,7 @@ test('future weight measurements remain blocked', () => {
   // Days past the bound can't be tapped, and paging stops at the bound's month.
   assert.match(datePickerSource, /\(maxDate != null && iso > maxDate\)/);
   assert.match(datePickerSource, /disabled=\{disabled\}/);
-  assert.match(datePickerSource, /const canPageForward = view === 'days'\s*\? !maxDate \|\| monthKey < monthKeyOf\(maxDate\)\s*: !maxDate \|\| shownYear < yearOf\(maxDate\);/);
+  assert.match(datePickerSource, /const canPageForward = !maxDate \|\| monthKey < monthKeyOf\(maxDate\);/);
 });
 
 test('personal details uses the shared date picker instead of a birth-date text field', () => {

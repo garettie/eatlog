@@ -23,12 +23,12 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 import { showDatePicker } from '../components/DatePicker';
+import ChoiceCards, { type ChoiceCardOption } from '../components/ChoiceCards';
 import GoalRateControl from '../components/GoalRateControl';
 import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
 import { SheetDialogOverlay, useSheetDialogHost } from '../components/SheetDialog';
 import RulerSlider from '../components/RulerSlider';
-import SegmentedControl from '../components/SegmentedControl';
 import TappableRow from '../components/TappableRow';
 import type {
   ActivityLevel,
@@ -73,6 +73,15 @@ import { FORM_MAX_WIDTH } from '../theme/layout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
 type UnitSystem = 'metric' | 'imperial';
+
+const SEX_CHOICES: ChoiceCardOption<Sex>[] = [
+  { value: 'male', icon: 'male', title: 'Male' },
+  { value: 'female', icon: 'female', title: 'Female' },
+];
+const UNIT_CHOICES: ChoiceCardOption<'metric' | 'imperial'>[] = [
+  { value: 'metric', icon: 'straighten', title: 'Metric', subtitle: 'kg · cm' },
+  { value: 'imperial', icon: 'public', title: 'Imperial', subtitle: 'lb · ft, in' },
+];
 
 const CALCULATION_STEP = 6;
 const HAS_REMOTE_ESTIMATE_CONSENT = serviceConfig.availability.gemini;
@@ -153,6 +162,8 @@ export default function OnboardingScreen({ navigation }: Props) {
   const [displayName, setDisplayName] = useState('');
 
   const [birthDate, setBirthDate] = useState<Date>(new Date(1995, 5, 15));
+  // The default is a placeholder: walk year, month, day until the user has chosen a real date.
+  const [birthDateChosen, setBirthDateChosen] = useState(false);
   const birthDateDialog = useSheetDialogHost();
 
   // Height is canonical in cm; imperial surfaces derive inches from it.
@@ -635,13 +646,11 @@ export default function OnboardingScreen({ navigation }: Props) {
 
                   <View className="gap-3">
                     <SectionLabel>Biological Sex</SectionLabel>
-                    <SegmentedControl
-                      options={[
-                        { value: 'male', label: 'Male', icon: 'male' },
-                        { value: 'female', label: 'Female', icon: 'female' },
-                      ]}
+                    <ChoiceCards
+                      options={SEX_CHOICES}
                       value={sex}
                       onChange={setSex}
+                      accessibilityLabel="Biological sex"
                     />
                   </View>
 
@@ -664,13 +673,14 @@ export default function OnboardingScreen({ navigation }: Props) {
                     <Pressable
                       onPress={() => showDatePicker(birthDateDialog.show, {
                         title: 'Birth date',
-                        startView: 'years',
+                        startView: birthDateChosen ? 'days' : 'years',
                         value: formatLocalISO(birthDate),
                         today: todayISO(),
                         minDate: formatLocalISO(dateBounds.earliest),
                         maxDate: formatLocalISO(dateBounds.latest),
                         onSelect: (dateISO) => {
                           setBirthDate(parseLocalISO(dateISO));
+                          setBirthDateChosen(true);
                           setStepError(null);
                         },
                       })}
@@ -703,13 +713,11 @@ export default function OnboardingScreen({ navigation }: Props) {
                     subtitle="Your starting point for the trend engine."
                   />
 
-                  <SegmentedControl
-                    options={[
-                      { value: 'metric', label: 'Metric', icon: 'straighten' },
-                      { value: 'imperial', label: 'Imperial', icon: 'public' },
-                    ]}
+                  <ChoiceCards
+                    options={UNIT_CHOICES}
                     value={units}
                     onChange={switchUnits}
+                    accessibilityLabel="Units"
                   />
 
                   <View className="bg-m3-surface-container p-6 rounded-3xl border border-m3-outline-variant/30 gap-5">

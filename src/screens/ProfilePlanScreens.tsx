@@ -12,6 +12,7 @@ import GoalRateControl from '../components/GoalRateControl';
 import GoalTypeSelector from '../components/GoalTypeSelector';
 import PrimaryButton from '../components/PrimaryButton';
 import RulerSlider from '../components/RulerSlider';
+import ChoiceCards, { type ChoiceCardOption } from '../components/ChoiceCards';
 import SegmentedControl from '../components/SegmentedControl';
 import TappableRow from '../components/TappableRow';
 import {
@@ -26,6 +27,7 @@ import {
     type Profile,
     type ProfileUpdate,
     type Sex,
+    type WeightUnit,
     type WeightLog,
     updateProfileAndPlan,
     updateProfilePresentation,
@@ -66,6 +68,16 @@ export type ProfileStackParamList = {
 };
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'PlanPreview'> & { onDataChanged: () => void };
+
+// Same choice cards as onboarding.
+const SEX_CHOICES: ChoiceCardOption<Sex>[] = [
+    { value: 'male', icon: 'male', title: 'Male' },
+    { value: 'female', icon: 'female', title: 'Female' },
+];
+const UNIT_CHOICES: ChoiceCardOption<WeightUnit>[] = [
+    { value: 'kg', icon: 'straighten', title: 'Metric', subtitle: 'kg · cm' },
+    { value: 'lb', icon: 'public', title: 'Imperial', subtitle: 'lb · ft, in' },
+];
 
 const ACTIVITY_LEVEL_OPTIONS: Array<{ value: ActivityLevel; title: string; subtitle: string }> = [
     { value: 'sedentary', title: 'Sedentary', subtitle: 'Desk job, little formal exercise' },
@@ -316,7 +328,7 @@ export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => 
                 >
                     <Card className="p-5 gap-5">
                         <Field label="Display name" value={name} onChangeText={setName} />
-                        <SegmentedControl options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} value={sex} onChange={setSex} />
+                        <ChoiceCards options={SEX_CHOICES} value={sex} onChange={setSex} accessibilityLabel="Biological sex" />
                         <View className="gap-2">
                             <Text className="text-m3-on-surface-variant text-xs font-semibold">Birth date</Text>
                             <Pressable
@@ -325,7 +337,6 @@ export function PersonalDetailsScreen({ onDataChanged }: { onDataChanged: () => 
                                 accessibilityHint="Opens the date selector"
                                 onPress={() => showDatePicker(birthDateDialog.show, {
                                     title: 'Birth date',
-                                    startView: 'years',
                                     value: formatLocalISO(selectedBirthDate),
                                     today: todayISO(),
                                     minDate: formatLocalISO(dateBounds.earliest),
@@ -393,7 +404,7 @@ export function UnitsScreen({ onDataChanged }: { onDataChanged: () => void }) {
         }
     }, [navigation, onDataChanged, profile, unit]);
     if (!profile) return <ProfileLoadState error={loadError} onRetry={retry} />;
-    return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><SegmentedControl options={[{ value: 'kg', label: 'Metric' }, { value: 'lb', label: 'Imperial' }]} value={unit} onChange={setUnit} /><Card className="p-5 gap-4"><Text className="text-m3-on-surface font-semibold">Preview</Text><View className="gap-3"><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Height</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{formatHeight(profile.height_cm, unit)}</Text></View><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Weight</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{weightKg == null ? 'Not logged' : `${fromKilograms(weightKg, unit).toFixed(1)} ${unit}`}</Text></View></View></Card>{saveError ? <Text accessibilityLiveRegion="assertive" className="text-m3-error text-sm">{saveError}</Text> : null}<PrimaryButton title="Save units" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
+    return <Screen><ScrollView contentContainerClassName="p-6 gap-5"><ChoiceCards options={UNIT_CHOICES} value={unit} onChange={setUnit} accessibilityLabel="Units" /><Card className="p-5 gap-4"><Text className="text-m3-on-surface font-semibold">Preview</Text><View className="gap-3"><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Height</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{formatHeight(profile.height_cm, unit)}</Text></View><View className="flex-row justify-between gap-4"><Text className="text-m3-on-surface-variant text-sm">Weight</Text><Text className="text-m3-on-surface text-sm font-semibold tabular-nums">{weightKg == null ? 'Not logged' : `${fromKilograms(weightKg, unit).toFixed(1)} ${unit}`}</Text></View></View></Card>{saveError ? <Text accessibilityLiveRegion="assertive" className="text-m3-error text-sm">{saveError}</Text> : null}<PrimaryButton title="Save units" onPress={() => void save()} loading={saving} /></ScrollView></Screen>;
 }
 
 export function GoalAndRateScreen() {

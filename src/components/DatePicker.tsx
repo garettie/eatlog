@@ -24,6 +24,11 @@ import {
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_FULL_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const CHOICE_HEIGHT = 40;
 const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('en-US', {
   weekday: 'long',
   month: 'long',
@@ -185,11 +190,15 @@ function ChoiceChip({
       accessibilityState={{ selected, disabled }}
       className="flex-1 items-center justify-center active:opacity-60"
     >
-      <View className={`h-10 w-20 items-center justify-center rounded-full ${selected ? 'bg-m3-primary' : ''}`}>
+      {/* An explicit radius: Android can square a `rounded-full` pill while its frame scales. */}
+      <View
+        className={`w-20 items-center justify-center ${selected ? 'bg-m3-primary' : ''}`}
+        style={{ height: CHOICE_HEIGHT, borderRadius: CHOICE_HEIGHT / 2 }}
+      >
         {current && !selected ? (
           <View
-            className="absolute inset-0 rounded-full bg-m3-primary"
-            style={{ opacity: CALENDAR_DAY.todayDiscOpacity }}
+            className="absolute inset-0 bg-m3-primary"
+            style={{ borderRadius: CHOICE_HEIGHT / 2, opacity: CALENDAR_DAY.todayDiscOpacity }}
           />
         ) : null}
         <Text
@@ -211,8 +220,50 @@ function ChoiceChip({
 }
 
 /**
- * The app's date picker: a tap-only day grid with a months and years drill-down behind the
- * header label. Choosing a day is the whole interaction.
+ * One half of the header: a month or year that opens its own grid, and closes it again. A tonal pill
+ * reads as a button without a dropdown glyph; the open one turns white, the picker's selected mark.
+ */
+function HeaderPill({
+  label,
+  open,
+  onPress,
+  accessibilityLabel,
+  labelStyle,
+}: {
+  label: string;
+  open: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+  labelStyle: ReturnType<typeof useAnimatedStyle>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={{ top: 4, bottom: 4 }}
+      className="min-h-[48px] justify-center active:opacity-70"
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ expanded: open }}
+    >
+      <View
+        className={`justify-center px-4 ${open ? 'bg-m3-primary' : 'bg-m3-surface-container-highest'}`}
+        style={{ height: CHOICE_HEIGHT, borderRadius: CHOICE_HEIGHT / 2 }}
+      >
+        <Animated.Text
+          style={labelStyle}
+          className={`text-sm font-bold tabular-nums ${open ? 'text-m3-on-primary' : 'text-m3-on-surface'}`}
+        >
+          {label}
+        </Animated.Text>
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * The app's date picker: a tap-only day grid with separate month and year choosers in the header.
+ * Each chooser opens its own grid and returns to the days once a choice is made. A picker that
+ * starts on the years (a birthday not yet set) walks year, then month, then day.
  */
 function DatePicker({ value, today, minDate, maxDate, startView, onSelect }: DatePickerProps) {
   const reduced = useReducedMotion();
@@ -221,11 +272,11 @@ function DatePicker({ value, today, minDate, maxDate, startView, onSelect }: Dat
     month: getMonthStart(parseLocalISO(value)),
   }));
   const { shown, style, labelStyle } = useFrameTransition(target, reduced);
+  // Guided entry (year, month, day) lasts until the user takes over through the header.
+  const [guided, setGuided] = useState(startView === 'years');
   const { view, month } = shown;
   const shownYear = month.getFullYear();
   const todayYear = yearOf(today);
-  const valueYear = yearOf(value);
-  const valueMonthKey = monthKeyOf(value);
   const todayMonthKey = monthKeyOf(today);
 
   const weeks = useMemo(() => getFixedMonthGrid(month), [month]);
@@ -247,38 +298,22 @@ function DatePicker({ value, today, minDate, maxDate, startView, onSelect }: Dat
       - GRID_HEIGHT / 2 + YEAR_ROW_HEIGHT / 2,
   );
   const monthKey = monthKeyOf(formatLocalISO(month));
-  const canPageBack = view === 'days'
-    ? !minDate || monthKey > monthKeyOf(minDate)
-    : !minDate || shownYear > yearOf(minDate);
-  const canPageForward = view === 'days'
-    ? !maxDate || monthKey < monthKeyOf(maxDate)
-    : !maxDate || shownYear < yearOf(maxDate);
+  const canPageBack = !minDate || monthKey > monthKeyOf(minDate);
+  const canPageForward = !maxDate || monthKey < monthKeyOf(maxDate);
 
   const go = (next: PickerFrame) => setTarget(next);
   const page = (direction: -1 | 1) => {
-    go({ view, month: clampMonth(addMonths(month, view === 'days' ? direction : direction * 12), minDate, maxDate) });
+    go({ view, month: clampMonth(addMonths(month, direction), minDate, maxDate) });
   };
-  const climb = () => {
-    if (view === 'days') go({ view: 'months', month });
-    else if (view === 'months') go({ view: 'years', month });
-    else go({ view: 'days', month });
+  // Each header half toggles its own grid; nothing cycles.
+  const toggle = (next: 'months' | 'years') => {
+    setGuided(false);
+    go({ view: target.view === next ? 'days' : next, month: target.month });
   };
 
-  const arrowTurn = useSharedValue(view === 'years' ? 1 : 0);
-  useEffect(() => {
-    arrowTurn.value = withTiming(target.view === 'years' ? 1 : 0, {
-      duration: reduced ? 0 : DURATION.short,
-      easing: EASING.emphasized,
-    });
-  }, [arrowTurn, reduced, target.view]);
-  const arrowStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${arrowTurn.value * 180}deg` }] }));
-
-  const headerLabel = view === 'days'
-    ? formatMonthLabel(month)
-    : view === 'months'
-      ? String(shownYear)
-      : `${years[0]}–${years[years.length - 1]}`;
-  const pagingHidden = view === 'years';
+  const headerLabel = formatMonthLabel(month);
+  // Arrows page months in the day grid; the choosers replace them elsewhere, still laid out.
+  const pagingHidden = view !== 'days';
 
   const pageArrow = (direction: -1 | 1, enabled: boolean) => (
     <Pressable
@@ -286,7 +321,7 @@ function DatePicker({ value, today, minDate, maxDate, startView, onSelect }: Dat
       disabled={!enabled || pagingHidden}
       className="h-12 w-12 items-center justify-center active:opacity-50"
       accessibilityRole="button"
-      accessibilityLabel={`${direction < 0 ? 'Previous' : 'Next'} ${view === 'days' ? 'month' : 'year'}`}
+      accessibilityLabel={`${direction < 0 ? 'Previous' : 'Next'} month`}
       accessibilityState={{ disabled: !enabled }}
       // Hidden in the year view but still laid out, so the label never shifts.
       style={{ opacity: pagingHidden ? 0 : 1 }}
@@ -305,25 +340,22 @@ function DatePicker({ value, today, minDate, maxDate, startView, onSelect }: Dat
       {/* Same month header as the Diary strip and the Analytics calendar. */}
       <View className="-mx-3 flex-row items-center justify-between">
         {pageArrow(-1, canPageBack)}
-        <Pressable
-          onPress={climb}
-          className="min-h-[48px] flex-row items-center gap-0.5 rounded-full pl-3 pr-1.5 active:opacity-60"
-          accessibilityRole="button"
-          accessibilityLabel={
-            view === 'days'
-              ? `${headerLabel}, choose month`
-              : view === 'months'
-                ? `${headerLabel}, choose year`
-                : 'Back to days'
-          }
-        >
-          <Animated.Text style={labelStyle} className="text-sm font-bold tabular-nums text-m3-on-surface">
-            {headerLabel}
-          </Animated.Text>
-          <Animated.View style={arrowStyle}>
-            <MaterialIcons name="arrow-drop-down" size={20} color={M3.onSurfaceVariant} />
-          </Animated.View>
-        </Pressable>
+        <View className="flex-row items-center gap-2" accessibilityLabel={headerLabel}>
+          <HeaderPill
+            label={MONTH_FULL_NAMES[month.getMonth()]}
+            open={target.view === 'months'}
+            onPress={() => toggle('months')}
+            accessibilityLabel={target.view === 'months' ? 'Back to days' : `${MONTH_FULL_NAMES[month.getMonth()]}, choose month`}
+            labelStyle={labelStyle}
+          />
+          <HeaderPill
+            label={String(shownYear)}
+            open={target.view === 'years'}
+            onPress={() => toggle('years')}
+            accessibilityLabel={target.view === 'years' ? 'Back to days' : `${shownYear}, choose year`}
+            labelStyle={labelStyle}
+          />
+        </View>
         {pageArrow(1, canPageForward)}
       </View>
 
@@ -342,10 +374,13 @@ function DatePicker({ value, today, minDate, maxDate, startView, onSelect }: Dat
                     <ChoiceChip
                       key={year}
                       label={String(year)}
-                      selected={year === valueYear}
+                      selected={year === shownYear}
                       current={year === todayYear}
                       disabled={false}
-                      onPress={() => go({ view: 'months', month: clampMonth(new Date(year, month.getMonth(), 1), minDate, maxDate) })}
+                      onPress={() => go({
+                        view: guided ? 'months' : 'days',
+                        month: clampMonth(new Date(year, month.getMonth(), 1), minDate, maxDate),
+                      })}
                     />
                   ))}
                   {/* A short last row keeps its columns aligned with the rows above. */}
@@ -368,10 +403,13 @@ function DatePicker({ value, today, minDate, maxDate, startView, onSelect }: Dat
                       <ChoiceChip
                         key={name}
                         label={name}
-                        selected={key === valueMonthKey}
+                        selected={monthIndex === month.getMonth()}
                         current={key === todayMonthKey}
                         disabled={disabled}
-                        onPress={() => go({ view: 'days', month: new Date(shownYear, monthIndex, 1) })}
+                        onPress={() => {
+                          setGuided(false);
+                          go({ view: 'days', month: new Date(shownYear, monthIndex, 1) });
+                        }}
                       />
                     );
                   })}
