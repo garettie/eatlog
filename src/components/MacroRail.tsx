@@ -31,8 +31,16 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
     fill.value = withTiming(fraction, settle);
     overflowFill.value = withTiming(overflow, settle);
   }, [fill, fraction, overflow, overflowFill, reduced]);
-  const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
-  const overflowStyle = useAnimatedStyle(() => ({ width: `${overflowFill.value * 100}%` }));
+  // Full-width bars slid by transform, which stays on the UI thread's fast path; animating width
+  // would re-run layout on every frame of the settle.
+  const trackWidth = useSharedValue(0);
+  const fillStyle = useAnimatedStyle(() => ({
+    opacity: trackWidth.value > 0 ? 1 : 0,
+    transform: [{ translateX: (fill.value - 1) * trackWidth.value }],
+  }));
+  const overflowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: (1 - overflowFill.value) * trackWidth.value }],
+  }));
 
   return (
     <View className="flex-1 min-w-0 gap-1" accessibilityLabel={`${unit === 'kcal' ? 'Calories' : letter === 'P' ? 'Protein' : letter === 'C' ? 'Carbohydrates' : 'Fat'}: ${Math.round(consumed)} of ${Math.round(target)} ${unit}`} accessibilityRole="text">
@@ -54,12 +62,15 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
           <Text className="text-m3-on-surface-variant/60"> / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}</Text>
         </Text>
       </View>
-      <View className="h-1 bg-m3-surface-container-highest rounded-full overflow-hidden">
+      <View
+        className="h-1 bg-m3-surface-container-highest rounded-full overflow-hidden"
+        onLayout={(event) => { trackWidth.value = event.nativeEvent.layout.width; }}
+      >
         <Reanimated.View
-          className="h-full rounded-full"
+          className="h-full w-full rounded-full overflow-hidden"
           style={[{ backgroundColor: barColor }, fillStyle]}
         >
-          <Reanimated.View className="absolute right-0 h-full bg-black/25" style={overflowStyle} />
+          <Reanimated.View className="absolute inset-0 bg-black/25" style={overflowStyle} />
         </Reanimated.View>
       </View>
     </View>

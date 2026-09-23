@@ -620,10 +620,11 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     for (const section of journalSections) {
       items.push({ kind: 'section', key: `section-${section.meal}`, section });
       if (collapsedSections.has(section.meal)) continue;
+      // Positional keys: switching days reuses the mounted cards (and their Swipeables, which reset
+      // by identity) instead of unmounting every row and mounting the new day's mid-transition.
+      const typeCounts = { food: 0, meal: 0 };
       for (const entry of section.entries) {
-        const key = entry.type === 'food'
-          ? `food-${entry.foodLog?.id}`
-          : `meal-${entry.mealGroup?.id}`;
+        const key = `${section.meal}-${entry.type}-${typeCounts[entry.type]++}`;
         items.push({ kind: 'entry', key, entry, sectionMeal: section.meal });
       }
     }

@@ -3,7 +3,6 @@ import { LayoutChangeEvent, Pressable, ScrollView, Text, View } from 'react-nati
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import Reanimated, {
-  interpolateColor,
   runOnJS,
   type SharedValue,
   useAnimatedStyle,
@@ -83,12 +82,11 @@ const DayButton = React.memo(function DayButton({
       ? M3.onSurfaceVariant
       : M3.onSurface;
   // The number inverts wherever the sliding disc covers it, so it reads through the whole slide.
-  const numberStyle = useAnimatedStyle(() => {
-    const cover = Math.max(0, 1 - Math.abs(indicatorX.value - center.value) / (DISC_SIZE * 0.75));
-    return {
-      color: interpolateColor(cover * indicatorOpacity.value, [0, 1], [baseNumberColor, M3.onPrimary]),
-    };
-  }, [baseNumberColor]);
+  // A dark copy fades in over the base number: opacity stays on the UI thread's fast path, where an
+  // animated text color would re-render text every frame.
+  const invertedStyle = useAnimatedStyle(() => ({
+    opacity: Math.max(0, 1 - Math.abs(indicatorX.value - center.value) / (DISC_SIZE * 0.75)) * indicatorOpacity.value,
+  }));
 
   const reportLayout = () => {
     const { x, width, discTop } = layoutRef.current;
@@ -206,9 +204,17 @@ const DayButton = React.memo(function DayButton({
             ) : null}
           </Svg>
         )}
-        <Reanimated.Text className="text-xs font-bold tabular-nums" style={numberStyle}>
+        <Text className="text-xs font-bold tabular-nums" style={{ color: baseNumberColor }}>
           {day.dayNumber}
-        </Reanimated.Text>
+        </Text>
+        <Reanimated.View
+          pointerEvents="none"
+          className="absolute inset-0 items-center justify-center"
+          style={invertedStyle}
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Text className="text-xs font-bold tabular-nums text-m3-on-primary">{day.dayNumber}</Text>
+        </Reanimated.View>
       </View>
     </Pressable>
   );
