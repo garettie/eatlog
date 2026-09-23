@@ -599,7 +599,7 @@ function WeightChart({
           <AnimatedPath
             animatedProps={trendPathProps}
             fill="none"
-            stroke={M3.onSurface}
+            stroke={M3.expenditure}
             strokeWidth={2.75}
             strokeLinecap="round"
             strokeLinejoin="round"

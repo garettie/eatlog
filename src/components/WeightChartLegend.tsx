@@ -20,7 +20,7 @@ export default function WeightChartLegend({
         <Text className="text-m3-on-surface-variant text-compact font-medium">Scale</Text>
       </View>
       <View className="flex-row items-center gap-1.5">
-        <View className="w-3.5 border-t-2 border-m3-on-surface" />
+        <View className="w-3.5 border-t-2 border-m3-expenditure" />
         <Text className="text-m3-on-surface-variant text-compact font-medium">Trend</Text>
       </View>
       {showPlan ? (

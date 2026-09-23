@@ -17,7 +17,7 @@ const CHART_COPY = {
     },
     weight: {
         title: 'Weight check-ins',
-        filledClassName: 'bg-m3-on-surface',
+        filledClassName: 'bg-m3-expenditure',
     },
 } as const;
 

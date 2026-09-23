@@ -207,37 +207,37 @@ function progressCopy(kind: ProgressKind) {
       return {
         title: 'On pace',
         icon: 'check-circle-outline' as const,
-        color: M3.onSurface,
+        color: M3.goalRateSafe,
       };
     case 'moving-away':
       return {
         title: 'Moving away from plan',
         icon: 'warning-amber' as const,
-        color: M3.onSurface,
+        color: M3.goalRateCaution,
       };
     case 'faster':
       return {
         title: 'Faster than planned',
         icon: 'speed' as const,
-        color: M3.onSurface,
+        color: M3.goalRateCaution,
       };
     case 'outside-maintenance':
       return {
         title: 'Outside maintenance range',
         icon: 'swap-vert' as const,
-        color: M3.onSurface,
+        color: M3.goalRateCaution,
       };
     case 'reached':
       return {
         title: 'Goal reached',
         icon: 'flag' as const,
-        color: M3.onSurface,
+        color: M3.goalRateSafe,
       };
     default:
       return {
         title: 'Slower than planned',
         icon: 'trending-flat' as const,
-        color: M3.onSurface,
+        color: M3.goalRateCaution,
       };
   }
 }
