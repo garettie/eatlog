@@ -649,7 +649,11 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       };
     }), [dayTargetMap, monthDates, monthMacroMap, today]);
 
+  /** The month a chevron asked for while its logs are still loading. */
+  const pendingMonthRef = useRef<Date | null>(null);
+
   const selectDate = useCallback((iso: string) => {
+    pendingMonthRef.current = null;
     if (iso === selectedDateRef.current) return;
     const direction = iso > selectedDateRef.current ? 1 : -1;
     selectedDateRef.current = iso;
@@ -702,7 +706,8 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   }, []);
 
   const shiftMonth = useCallback((delta: number) => {
-    const next = new Date(monthAnchorRef.current);
+    // Repeated taps step on from the month still loading, not from the one on screen.
+    const next = new Date(pendingMonthRef.current ?? monthAnchorRef.current);
     next.setMonth(next.getMonth() + delta);
 
     const cached = monthCacheRef.current.get(getMonthRange(next).key);
@@ -711,15 +716,21 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       return;
     }
 
-    // Uncached: show the month at once, then select its day when the month's logs arrive.
-    monthAnchorRef.current = next;
-    setMonthLoadError(false);
-    setMonthAnchor(next);
-    void loadMonth(next).then(() => {
-      if (monthAnchorRef.current.getTime() !== next.getTime()) return;
-      selectDate(dayForMonth(next, monthCacheRef.current.get(getMonthRange(next).key)));
+    // Uncached: wait for the month's logs, then change month and day in one commit. Showing the
+    // empty month first would re-render the strip and start a second day change mid-animation.
+    pendingMonthRef.current = next;
+    fetchMonth(next).then((summary) => {
+      if (pendingMonthRef.current !== next) return;
+      selectDate(dayForMonth(next, summary));
+    }, (error) => {
+      if (pendingMonthRef.current !== next) return;
+      pendingMonthRef.current = null;
+      console.error('[Diary] month load failed', error);
+      monthAnchorRef.current = next;
+      setMonthAnchor(next);
+      setMonthLoadError(true);
     });
-  }, [dayForMonth, loadMonth, selectDate]);
+  }, [dayForMonth, fetchMonth, selectDate]);
 
   const prevMonth = useCallback(() => shiftMonth(-1), [shiftMonth]);
   const nextMonth = useCallback(() => shiftMonth(1), [shiftMonth]);
