@@ -23,8 +23,6 @@ const DISC_SIZE = CALENDAR_DAY.discRadius * 2;
 const CIRCUMFERENCE = 2 * Math.PI * CALENDAR_DAY.ringRadius;
 const DEFAULT_CELL_WIDTH = 48;
 const CELL_GAP = 4;
-/** The scroll content's `px-2` inset, where the first day starts. */
-const STRIP_INSET = 8;
 /** How far the strip travels along the time axis when the month changes. */
 const MONTH_SHIFT = 24;
 const DAY_LABEL_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -59,11 +57,11 @@ interface DayButtonProps {
   index: number;
   isSelected: boolean;
   onSelectDate: (isoDate: string) => void;
-  onFirstLayout?: (width: number, discTop: number) => void;
-  /** Center x of the sliding selection disc, in scroll-content coordinates. */
+  /** Reports this day's measured center and disc top, in the day row's coordinates. */
+  onMeasure: (index: number, width: number, center: number, discTop: number) => void;
+  /** Center x of the sliding selection disc, in the day row's coordinates. */
   indicatorX: SharedValue<number>;
   indicatorOpacity: SharedValue<number>;
-  slotStep: SharedValue<number>;
 }
 
 const DayButton = React.memo(function DayButton({
@@ -71,12 +69,13 @@ const DayButton = React.memo(function DayButton({
   index,
   isSelected,
   onSelectDate,
-  onFirstLayout,
+  onMeasure,
   indicatorX,
   indicatorOpacity,
-  slotStep,
 }: DayButtonProps) {
-  const layoutRef = useRef({ width: 0, discTop: 0 });
+  // Measured, not computed: the disc lines up with wherever layout actually put this day.
+  const layoutRef = useRef({ x: 0, width: 0, discTop: 0 });
+  const center = useSharedValue(Number.NEGATIVE_INFINITY);
 
   const baseNumberColor = day.isToday
     ? M3.primary
@@ -85,16 +84,18 @@ const DayButton = React.memo(function DayButton({
       : M3.onSurface;
   // The number inverts wherever the sliding disc covers it, so it reads through the whole slide.
   const numberStyle = useAnimatedStyle(() => {
-    const center = STRIP_INSET + index * slotStep.value + (slotStep.value - CELL_GAP) / 2;
-    const cover = Math.max(0, 1 - Math.abs(indicatorX.value - center) / (DISC_SIZE * 0.75));
+    const cover = Math.max(0, 1 - Math.abs(indicatorX.value - center.value) / (DISC_SIZE * 0.75));
     return {
       color: interpolateColor(cover * indicatorOpacity.value, [0, 1], [baseNumberColor, M3.onPrimary]),
     };
-  }, [baseNumberColor, index]);
+  }, [baseNumberColor]);
 
-  const reportLayout = onFirstLayout
-    ? () => onFirstLayout(layoutRef.current.width, layoutRef.current.discTop)
-    : undefined;
+  const reportLayout = () => {
+    const { x, width, discTop } = layoutRef.current;
+    if (width <= 0) return;
+    center.value = x + width / 2;
+    onMeasure(index, width, x + width / 2, discTop);
+  };
 
   const fraction = day.isFuture || day.targetCalories <= 0
     ? 0
@@ -114,12 +115,11 @@ const DayButton = React.memo(function DayButton({
 
   return (
     <Pressable
-      onLayout={reportLayout
-        ? (event) => {
-          layoutRef.current.width = event.nativeEvent.layout.width;
-          reportLayout();
-        }
-        : undefined}
+      onLayout={(event) => {
+        layoutRef.current.x = event.nativeEvent.layout.x;
+        layoutRef.current.width = event.nativeEvent.layout.width;
+        reportLayout();
+      }}
       onPress={() => onSelectDate(day.isoDate)}
       className="items-center py-1 px-1.5 active:opacity-70"
       accessibilityRole="button"
@@ -140,12 +140,10 @@ const DayButton = React.memo(function DayButton({
       <View
         className="items-center justify-center"
         style={{ width: DAY_SIZE, height: DAY_SIZE }}
-        onLayout={reportLayout
-          ? (event) => {
-            layoutRef.current.discTop = event.nativeEvent.layout.y + (DAY_SIZE - DISC_SIZE) / 2;
-            reportLayout();
-          }
-          : undefined}
+        onLayout={(event) => {
+          layoutRef.current.discTop = event.nativeEvent.layout.y + (DAY_SIZE - DISC_SIZE) / 2;
+          reportLayout();
+        }}
       >
         {day.isToday && (
           <View
@@ -262,8 +260,12 @@ export default function DayStrip({
 
   const indicatorX = useSharedValue(-DISC_SIZE);
   const indicatorOpacity = useSharedValue(0);
-  const slotStep = useSharedValue(cellWidth + CELL_GAP);
-  const placedRef = useRef<{ key: string; cellWidth: number } | null>(null);
+  const placedRef = useRef<string | null>(null);
+  const centersRef = useRef<number[]>([]);
+  const selectedIndex = shown.days.findIndex((d) => d.isoDate === selectedDate);
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
+  const [selectedMeasure, setSelectedMeasure] = useState(0);
   const indicatorStyle = useAnimatedStyle(() => ({
     opacity: indicatorOpacity.value,
     transform: [{ translateX: indicatorX.value - DISC_SIZE / 2 }],
@@ -316,25 +318,23 @@ export default function DayStrip({
     periodOpacity.value = withTiming(1, { duration: DURATION.enter, easing: EASING.emphasizedDecelerate });
   });
 
-  // One disc slides between days; it jumps only when the month or the measured cell width changes.
+  // One disc slides between days within a month; it jumps when the month changes.
   useLayoutEffect(() => {
-    slotStep.value = cellWidth + CELL_GAP;
     if (leaving) return;
-    const index = shown.days.findIndex((d) => d.isoDate === selectedDate);
-    if (index < 0) {
+    const x = selectedIndex < 0 ? undefined : centersRef.current[selectedIndex];
+    if (x == null) {
+      // Not in this month, or not measured yet; a measurement re-runs this.
       placedRef.current = null;
       indicatorOpacity.value = 0;
       return;
     }
-    const x = STRIP_INSET + index * (cellWidth + CELL_GAP) + cellWidth / 2;
-    const placed = placedRef.current;
-    const slide = !reduced && placed != null && placed.key === shown.key && placed.cellWidth === cellWidth;
-    placedRef.current = { key: shown.key, cellWidth };
+    const slide = !reduced && placedRef.current === shown.key;
+    placedRef.current = shown.key;
     indicatorX.value = slide
       ? withTiming(x, { duration: DURATION.medium, easing: EASING.emphasized })
       : x;
     indicatorOpacity.value = 1;
-  }, [cellWidth, indicatorOpacity, indicatorX, leaving, reduced, selectedDate, shown.days, shown.key, slotStep]);
+  }, [indicatorOpacity, indicatorX, leaving, reduced, selectedIndex, selectedMeasure, shown.key]);
 
   const handleLayout = useCallback((event: LayoutChangeEvent) => {
     const w = event.nativeEvent.layout.width;
@@ -345,10 +345,13 @@ export default function DayStrip({
     }
   }, [scrollToSelected, selectedDate]);
 
-  const handleFirstLayout = useCallback((measuredWidth: number, measuredDiscTop: number) => {
-    if (measuredWidth > 0 && Math.abs(measuredWidth - cellWidth) > 0.5) setCellWidth(measuredWidth);
-    if (measuredDiscTop > 0 && measuredDiscTop !== discTop) setDiscTop(measuredDiscTop);
-  }, [cellWidth, discTop]);
+  const handleMeasure = useCallback((index: number, width: number, center: number, measuredDiscTop: number) => {
+    if (index === 0) setCellWidth((current) => (Math.abs(width - current) > 0.5 ? width : current));
+    if (measuredDiscTop > 0) setDiscTop((current) => (current === measuredDiscTop ? current : measuredDiscTop));
+    if (centersRef.current[index] === center) return;
+    centersRef.current[index] = center;
+    if (index === selectedIndexRef.current) setSelectedMeasure((count) => count + 1);
+  }, []);
 
   return (
     <View className="overflow-hidden">
@@ -385,29 +388,33 @@ export default function DayStrip({
           ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="px-2 pb-2 gap-1"
+          contentContainerClassName="px-2 pb-2"
           onLayout={handleLayout}
         >
-          {discTop != null ? (
-            <Reanimated.View
-              pointerEvents="none"
-              className="absolute rounded-full bg-m3-primary"
-              style={[{ left: 0, top: discTop, width: DISC_SIZE, height: DISC_SIZE }, indicatorStyle]}
-            />
-          ) : null}
-          {shown.days.map((day, index) => (
-            <DayButton
-              key={`month-slot-${index}`}
-              day={day}
-              index={index}
-              isSelected={day.isoDate === selectedDate}
-              onSelectDate={onSelectDate}
-              onFirstLayout={index === 0 ? handleFirstLayout : undefined}
-              indicatorX={indicatorX}
-              indicatorOpacity={indicatorOpacity}
-              slotStep={slotStep}
-            />
-          ))}
+          {/* No padding on this wrapper, so the disc and the day row share one origin. */}
+          <View>
+            {discTop != null ? (
+              <Reanimated.View
+                pointerEvents="none"
+                className="absolute rounded-full bg-m3-primary"
+                style={[{ left: 0, top: discTop, width: DISC_SIZE, height: DISC_SIZE }, indicatorStyle]}
+              />
+            ) : null}
+            <View className="flex-row gap-1">
+              {shown.days.map((day, index) => (
+                <DayButton
+                  key={`month-slot-${index}`}
+                  day={day}
+                  index={index}
+                  isSelected={day.isoDate === selectedDate}
+                  onSelectDate={onSelectDate}
+                  onMeasure={handleMeasure}
+                  indicatorX={indicatorX}
+                  indicatorOpacity={indicatorOpacity}
+                />
+              ))}
+            </View>
+          </View>
         </ScrollView>
       </Reanimated.View>
     </View>

@@ -100,19 +100,23 @@ function useFrameTransition(target: PickerFrame, reduced: boolean) {
   const shownRef = useRef(shown);
   shownRef.current = shown;
   const requestRef = useRef(0);
+  // The frame holds a Date, which cannot cross into a worklet, so only the request id does.
+  const pendingFrameRef = useRef<PickerFrame | null>(null);
   const enterRef = useRef<{ x: number; scale: number } | null>(null);
   const opacity = useSharedValue(1);
   const x = useSharedValue(0);
   const scale = useSharedValue(1);
 
-  const commit = useCallback((frame: PickerFrame, request: number) => {
-    if (request === requestRef.current) setShown(frame);
+  const commit = useCallback((request: number) => {
+    const frame = pendingFrameRef.current;
+    if (request === requestRef.current && frame) setShown(frame);
   }, []);
 
   useEffect(() => {
     const from = shownRef.current;
     if (frameKey(from) === frameKey(target)) return;
     const request = ++requestRef.current;
+    pendingFrameRef.current = target;
     if (reduced) {
       enterRef.current = null;
       setShown(target);
@@ -134,7 +138,7 @@ function useFrameTransition(target: PickerFrame, reduced: boolean) {
     x.value = withTiming(exit.x, out);
     scale.value = withTiming(exit.scale, out);
     opacity.value = withTiming(0, out, (finished) => {
-      if (finished) runOnJS(commit)(target, request);
+      if (finished) runOnJS(commit)(request);
     });
   }, [commit, opacity, reduced, scale, target, x]);
 
