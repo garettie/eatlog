@@ -384,7 +384,10 @@ function MonthLabel({ label, active, opacity, offset }: {
     transform: [{ translateX: offset.value }],
   }));
   return (
+    // Never a touch target: a label that left sits translated over a chevron, and a touch that
+    // lands on it would never reach the chevron's Pressable.
     <Reanimated.View
+      pointerEvents="none"
       className="absolute inset-0 items-center justify-center"
       style={style}
       accessibilityElementsHidden={!active}
