@@ -68,6 +68,9 @@ function Chevron({ open }: { open: boolean }) {
 
 // ── Swipeable Row ────────────────────────────────────────────────────────
 
+/** False while a Diary day pane is hidden, so a row left swiped open is closed when it returns. */
+export const SwipeRowsActiveContext = React.createContext(true);
+
 function SwipeRow({
   children,
   identity,
@@ -82,11 +85,14 @@ function SwipeRow({
   const ref = React.useRef<Swipeable>(null);
   const hasActiveSwipe = React.useRef(false);
 
+  const active = React.useContext(SwipeRowsActiveContext);
+
+  // Reset while the row is invisible: when it switches entries, or when its hidden pane comes back.
   useLayoutEffect(() => {
-    if (!hasActiveSwipe.current) return;
+    if (!active || !hasActiveSwipe.current) return;
     ref.current?.reset();
     hasActiveSwipe.current = false;
-  }, [identity]);
+  }, [active, identity]);
 
   const renderRightActions = () => (
     <View className="flex-row">

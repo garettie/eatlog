@@ -3,11 +3,11 @@ import { LayoutChangeEvent, Pressable, ScrollView, Text, View } from 'react-nati
 import { MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import Reanimated, {
-  runOnJS,
   type SharedValue,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -223,7 +223,188 @@ const DayButton = React.memo(function DayButton({
 interface StripSnapshot {
   days: DayCell[];
   monthLabel: string;
-  key: string;
+  selectedDate: string;
+}
+
+interface MonthLayerProps {
+  days: DayCell[];
+  selectedDate: string;
+  active: boolean;
+  /** The second layer sits over the first, so the two months share one position. */
+  stacked: boolean;
+  onSelectDate: (isoDate: string) => void;
+  opacity: SharedValue<number>;
+  offset: SharedValue<number>;
+}
+
+/** One month of days with its own sliding disc. */
+const MonthLayer = React.memo(function MonthLayer({
+  days,
+  selectedDate,
+  active,
+  stacked,
+  onSelectDate,
+  opacity,
+  offset,
+}: MonthLayerProps) {
+  const reduced = useReducedMotion();
+  const scrollRef = useRef<ScrollView>(null);
+  const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
+  const [discTop, setDiscTop] = useState<number | null>(null);
+  const viewportWidthRef = useRef(0);
+  const scrolledKeyRef = useRef<string | null>(null);
+  const monthKey = days[0]?.isoDate ?? '';
+
+  const layerStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: offset.value }],
+  }));
+
+  const indicatorX = useSharedValue(-DISC_SIZE);
+  const indicatorOpacity = useSharedValue(0);
+  const placedRef = useRef<string | null>(null);
+  const centersRef = useRef<number[]>([]);
+  const selectedIndex = days.findIndex((d) => d.isoDate === selectedDate);
+  const selectedIndexRef = useRef(selectedIndex);
+  selectedIndexRef.current = selectedIndex;
+  const [selectedMeasure, setSelectedMeasure] = useState(0);
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: indicatorOpacity.value,
+    transform: [{ translateX: indicatorX.value - DISC_SIZE / 2 }],
+  }));
+
+  const scrollToSelected = useCallback((monthDays: DayCell[], date: string) => {
+    const scroll = scrollRef.current;
+    const viewport = viewportWidthRef.current;
+    if (!scroll || viewport <= 0) return false;
+    let idx = monthDays.findIndex((d) => d.isoDate === date);
+    if (idx === -1) {
+      const today = monthDays.find((d) => d.isToday);
+      idx = today ? monthDays.indexOf(today) : monthDays.length - 1;
+    }
+    if (idx < 0) return false;
+    const step = cellWidth + CELL_GAP;
+    const maxScroll = Math.max(0, monthDays.length * step - viewport);
+    scroll.scrollTo({ x: Math.min(Math.max(0, idx * step - 20), maxScroll), animated: false });
+    return true;
+  }, [cellWidth]);
+
+  // A new month opens on the selected day. The layer is invisible until it enters, so the jump is free.
+  useLayoutEffect(() => {
+    if (monthKey !== scrolledKeyRef.current && scrollToSelected(days, selectedDate)) {
+      scrolledKeyRef.current = monthKey;
+    }
+  }, [days, monthKey, scrollToSelected, selectedDate]);
+
+  // One disc slides between days within a month; it jumps when the month changes.
+  useLayoutEffect(() => {
+    const x = selectedIndex < 0 ? undefined : centersRef.current[selectedIndex];
+    if (x == null) {
+      // Not in this month, or not measured yet; a measurement re-runs this.
+      placedRef.current = null;
+      indicatorOpacity.value = 0;
+      return;
+    }
+    const slide = !reduced && placedRef.current === monthKey;
+    placedRef.current = monthKey;
+    indicatorX.value = slide
+      ? withTiming(x, { duration: DURATION.medium, easing: EASING.emphasized })
+      : x;
+    indicatorOpacity.value = 1;
+  }, [indicatorOpacity, indicatorX, monthKey, reduced, selectedIndex, selectedMeasure]);
+
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const w = event.nativeEvent.layout.width;
+    if (w > 0) viewportWidthRef.current = w;
+    if (monthKey !== scrolledKeyRef.current && scrollToSelected(days, selectedDate)) {
+      scrolledKeyRef.current = monthKey;
+    }
+  }, [days, monthKey, scrollToSelected, selectedDate]);
+
+  const handleMeasure = useCallback((index: number, width: number, center: number, measuredDiscTop: number) => {
+    if (index === 0) setCellWidth((current) => (Math.abs(width - current) > 0.5 ? width : current));
+    if (measuredDiscTop > 0) setDiscTop((current) => (current === measuredDiscTop ? current : measuredDiscTop));
+    if (centersRef.current[index] === center) return;
+    centersRef.current[index] = center;
+    if (index === selectedIndexRef.current) setSelectedMeasure((count) => count + 1);
+  }, []);
+
+  return (
+    <Reanimated.View
+      pointerEvents={active ? 'auto' : 'none'}
+      accessibilityElementsHidden={!active}
+      importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
+      className={stacked ? 'absolute top-0 left-0 right-0' : undefined}
+      style={layerStyle}
+    >
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="px-2 pb-2"
+        onLayout={handleLayout}
+      >
+        {/* No padding on this wrapper, so the disc and the day row share one origin. */}
+        <View>
+          {discTop != null ? (
+            <Reanimated.View
+              pointerEvents="none"
+              className="absolute rounded-full bg-m3-primary"
+              style={[{ left: 0, top: discTop, width: DISC_SIZE, height: DISC_SIZE }, indicatorStyle]}
+            />
+          ) : null}
+          <View className="flex-row gap-1">
+            {days.map((day, index) => (
+              <DayButton
+                key={`month-slot-${index}`}
+                day={day}
+                index={index}
+                isSelected={day.isoDate === selectedDate}
+                onSelectDate={onSelectDate}
+                onMeasure={handleMeasure}
+                indicatorX={indicatorX}
+                indicatorOpacity={indicatorOpacity}
+              />
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </Reanimated.View>
+  );
+});
+
+function MonthLabel({ label, active, opacity, offset }: {
+  label: string;
+  active: boolean;
+  opacity: SharedValue<number>;
+  offset: SharedValue<number>;
+}) {
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: offset.value }],
+  }));
+  return (
+    <Reanimated.View
+      className="absolute inset-0 items-center justify-center"
+      style={style}
+      accessibilityElementsHidden={!active}
+      importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
+    >
+      <Text accessibilityRole="header" className="text-m3-on-surface text-sm font-bold">
+        {label}
+      </Text>
+    </Reanimated.View>
+  );
+}
+
+interface StripState {
+  /** The layer showing the current month; the other holds the month that is leaving. */
+  front: 0 | 1;
+  frontKey: string;
+  back: StripSnapshot;
+  direction: number;
+  /** Bumps per month change; that commit's layout effect plays the exit and entrance. */
+  transition: number;
 }
 
 export default function DayStrip({
@@ -236,128 +417,84 @@ export default function DayStrip({
   canGoNext = true,
 }: DayStripProps) {
   const reduced = useReducedMotion();
-  const scrollRef = useRef<ScrollView>(null);
-  const [cellWidth, setCellWidth] = useState(DEFAULT_CELL_WIDTH);
-  const [discTop, setDiscTop] = useState<number | null>(null);
-  const viewportWidthRef = useRef(0);
-  const scrolledKeyRef = useRef<string | null>(null);
   const monthKey = days[0]?.isoDate ?? '';
-  const latestKeyRef = useRef(monthKey);
-  latestKeyRef.current = monthKey;
 
-  // A month change runs along the same time axis as a day change: the old month stays on screen
-  // while it leaves, the new one swaps in while invisible, then enters from the side it lives on.
-  const [leaving, setLeaving] = useState<StripSnapshot | null>(null);
-  const [shownKey, setShownKey] = useState(monthKey);
-  const lastShownRef = useRef<StripSnapshot>({ days, monthLabel, key: monthKey });
-  const enterDirectionRef = useRef(0);
-  if (monthKey !== shownKey && leaving == null) {
-    if (reduced) setShownKey(monthKey);
-    else setLeaving(lastShownRef.current);
-  }
-  const shown: StripSnapshot = leaving ?? { days, monthLabel, key: monthKey };
-
-  const periodOffset = useSharedValue(0);
-  const periodOpacity = useSharedValue(1);
-  const periodStyle = useAnimatedStyle(() => ({
-    opacity: periodOpacity.value,
-    transform: [{ translateX: periodOffset.value }],
+  // A month change runs along the same time axis as a day change. The new month commits into the
+  // hidden layer in the same render as the tap, so the swap after the exit is a hand-off on the UI
+  // thread rather than a React commit, which would stall every running animation until it mounted.
+  const lastFrontRef = useRef<StripSnapshot>({ days, monthLabel, selectedDate });
+  const transitionAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const [strip, setStrip] = useState<StripState>(() => ({
+    front: 0,
+    frontKey: monthKey,
+    // Both layers start with real content, so a first scroll in the hidden layer has a real width.
+    back: lastFrontRef.current,
+    direction: 0,
+    transition: 0,
   }));
-
-  const indicatorX = useSharedValue(-DISC_SIZE);
-  const indicatorOpacity = useSharedValue(0);
-  const placedRef = useRef<string | null>(null);
-  const centersRef = useRef<number[]>([]);
-  const selectedIndex = shown.days.findIndex((d) => d.isoDate === selectedDate);
-  const selectedIndexRef = useRef(selectedIndex);
-  selectedIndexRef.current = selectedIndex;
-  const [selectedMeasure, setSelectedMeasure] = useState(0);
-  const indicatorStyle = useAnimatedStyle(() => ({
-    opacity: indicatorOpacity.value,
-    transform: [{ translateX: indicatorX.value - DISC_SIZE / 2 }],
-  }));
-
-  const scrollToSelected = useCallback((snapshot: StripSnapshot, date: string) => {
-    const scroll = scrollRef.current;
-    const viewport = viewportWidthRef.current;
-    if (!scroll || viewport <= 0) return false;
-    let idx = snapshot.days.findIndex((d) => d.isoDate === date);
-    if (idx === -1) {
-      const today = snapshot.days.find((d) => d.isToday);
-      idx = today ? snapshot.days.indexOf(today) : snapshot.days.length - 1;
-    }
-    if (idx < 0) return false;
-    const step = cellWidth + CELL_GAP;
-    const maxScroll = Math.max(0, snapshot.days.length * step - viewport);
-    scroll.scrollTo({ x: Math.min(Math.max(0, idx * step - 20), maxScroll), animated: false });
-    return true;
-  }, [cellWidth]);
-
-  const finishMonthExit = useCallback((direction: number) => {
-    enterDirectionRef.current = direction;
-    setLeaving(null);
-    setShownKey(latestKeyRef.current);
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!leaving) return;
-    const direction = latestKeyRef.current > leaving.key ? 1 : -1;
-    const exit = { duration: DURATION.exit, easing: EASING.emphasizedAccelerate };
-    periodOffset.value = withTiming(-MONTH_SHIFT * direction, exit);
-    periodOpacity.value = withTiming(0, exit, (finished) => {
-      if (finished) runOnJS(finishMonthExit)(direction);
+  if (monthKey !== strip.frontKey) {
+    // A change that lands before the pending month began entering reuses its still-invisible layer,
+    // so the month already leaving keeps leaving instead of being overwritten mid-exit.
+    const reuse = !reduced && performance.now() - transitionAtRef.current < DURATION.exit;
+    setStrip({
+      front: reuse ? strip.front : strip.front === 0 ? 1 : 0,
+      frontKey: monthKey,
+      back: reuse ? strip.back : lastFrontRef.current,
+      direction: monthKey > strip.frontKey ? 1 : -1,
+      transition: strip.transition + 1,
     });
-  }, [finishMonthExit, leaving, periodOffset, periodOpacity]);
+  }
 
   useLayoutEffect(() => {
-    if (leaving) return;
-    lastShownRef.current = shown;
-    // A new month opens on the selected day. Mid-transition it is still invisible, so the jump is free.
-    if (shown.key !== scrolledKeyRef.current && scrollToSelected(shown, selectedDate)) {
-      scrolledKeyRef.current = shown.key;
-    }
-    const direction = enterDirectionRef.current;
-    if (direction === 0) return;
-    enterDirectionRef.current = 0;
-    periodOffset.value = MONTH_SHIFT * direction;
-    periodOffset.value = withTiming(0, { duration: DURATION.medium, easing: EASING.emphasizedDecelerate });
-    periodOpacity.value = withTiming(1, { duration: DURATION.enter, easing: EASING.emphasizedDecelerate });
+    lastFrontRef.current = { days, monthLabel, selectedDate };
   });
 
-  // One disc slides between days within a month; it jumps when the month changes.
+  const opacityA = useSharedValue(1);
+  const opacityB = useSharedValue(0);
+  const offsetA = useSharedValue(0);
+  const offsetB = useSharedValue(0);
+  const opacities = [opacityA, opacityB];
+  const offsets = [offsetA, offsetB];
+
   useLayoutEffect(() => {
-    if (leaving) return;
-    const x = selectedIndex < 0 ? undefined : centersRef.current[selectedIndex];
-    if (x == null) {
-      // Not in this month, or not measured yet; a measurement re-runs this.
-      placedRef.current = null;
-      indicatorOpacity.value = 0;
+    if (strip.transition === 0) return;
+    const front = strip.front;
+    const back = front === 0 ? 1 : 0;
+    if (reduced) {
+      opacities[front].value = 1;
+      offsets[front].value = 0;
+      opacities[back].value = 0;
       return;
     }
-    const slide = !reduced && placedRef.current === shown.key;
-    placedRef.current = shown.key;
-    indicatorX.value = slide
-      ? withTiming(x, { duration: DURATION.medium, easing: EASING.emphasized })
-      : x;
-    indicatorOpacity.value = 1;
-  }, [indicatorOpacity, indicatorX, leaving, reduced, selectedIndex, selectedMeasure, shown.key]);
+    transitionAtRef.current = performance.now();
+    const exit = { duration: DURATION.exit, easing: EASING.emphasizedAccelerate };
+    offsets[back].value = withTiming(-MONTH_SHIFT * strip.direction, exit);
+    opacities[back].value = withTiming(0, exit);
+    offsets[front].value = MONTH_SHIFT * strip.direction;
+    offsets[front].value = withDelay(DURATION.exit, withTiming(0, {
+      duration: DURATION.medium,
+      easing: EASING.emphasizedDecelerate,
+    }));
+    opacities[front].value = 0;
+    opacities[front].value = withDelay(DURATION.exit, withTiming(1, {
+      duration: DURATION.enter,
+      easing: EASING.emphasizedDecelerate,
+    }));
+    // Shared values are stable; the transition counter is the only trigger.
+  }, [strip.transition]);
 
-  const handleLayout = useCallback((event: LayoutChangeEvent) => {
-    const w = event.nativeEvent.layout.width;
-    if (w > 0) viewportWidthRef.current = w;
-    const current = lastShownRef.current;
-    if (current.key !== scrolledKeyRef.current && scrollToSelected(current, selectedDate)) {
-      scrolledKeyRef.current = current.key;
-    }
-  }, [scrollToSelected, selectedDate]);
-
-  const handleMeasure = useCallback((index: number, width: number, center: number, measuredDiscTop: number) => {
-    if (index === 0) setCellWidth((current) => (Math.abs(width - current) > 0.5 ? width : current));
-    if (measuredDiscTop > 0) setDiscTop((current) => (current === measuredDiscTop ? current : measuredDiscTop));
-    if (centersRef.current[index] === center) return;
-    centersRef.current[index] = center;
-    if (index === selectedIndexRef.current) setSelectedMeasure((count) => count + 1);
-  }, []);
+  const layer = (index: 0 | 1) => {
+    const active = index === strip.front;
+    return {
+      days: active ? days : strip.back.days,
+      selectedDate: active ? selectedDate : strip.back.selectedDate,
+      monthLabel: active ? monthLabel : strip.back.monthLabel,
+      active,
+      opacity: opacities[index],
+      offset: offsets[index],
+    };
+  };
+  const layers = [layer(0), layer(1)];
 
   return (
     <View className="overflow-hidden">
@@ -371,11 +508,11 @@ export default function DayStrip({
           <MaterialIcons name="chevron-left" size={24} color={M3.onSurfaceVariant} />
         </Pressable>
 
-        <Reanimated.View style={periodStyle}>
-          <Text accessibilityRole="header" className="text-m3-on-surface text-sm font-bold">
-            {shown.monthLabel}
-          </Text>
-        </Reanimated.View>
+        <View className="flex-1 self-stretch">
+          {layers.map((l, index) => (
+            <MonthLabel key={index} label={l.monthLabel} active={l.active} opacity={l.opacity} offset={l.offset} />
+          ))}
+        </View>
 
         <Pressable
           onPress={onNextMonth}
@@ -389,40 +526,20 @@ export default function DayStrip({
         </Pressable>
       </View>
 
-      <Reanimated.View style={periodStyle}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="px-2 pb-2"
-          onLayout={handleLayout}
-        >
-          {/* No padding on this wrapper, so the disc and the day row share one origin. */}
-          <View>
-            {discTop != null ? (
-              <Reanimated.View
-                pointerEvents="none"
-                className="absolute rounded-full bg-m3-primary"
-                style={[{ left: 0, top: discTop, width: DISC_SIZE, height: DISC_SIZE }, indicatorStyle]}
-              />
-            ) : null}
-            <View className="flex-row gap-1">
-              {shown.days.map((day, index) => (
-                <DayButton
-                  key={`month-slot-${index}`}
-                  day={day}
-                  index={index}
-                  isSelected={day.isoDate === selectedDate}
-                  onSelectDate={onSelectDate}
-                  onMeasure={handleMeasure}
-                  indicatorX={indicatorX}
-                  indicatorOpacity={indicatorOpacity}
-                />
-              ))}
-            </View>
-          </View>
-        </ScrollView>
-      </Reanimated.View>
+      <View>
+        {layers.map((l, index) => (
+          <MonthLayer
+            key={index}
+            days={l.days}
+            selectedDate={l.selectedDate}
+            active={l.active}
+            stacked={index === 1}
+            onSelectDate={onSelectDate}
+            opacity={l.opacity}
+            offset={l.offset}
+          />
+        ))}
+      </View>
     </View>
   );
 }

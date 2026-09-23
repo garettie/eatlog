@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -55,13 +55,14 @@ export default function NutritionCard({
 }: NutritionCardProps) {
   const reduced = useReducedMotion();
   const thumbnailUri = useMealPhotoThumbnail(sourcePhotoUri ?? null);
-  const [failedPhotoUris, setFailedPhotoUris] = useState<ReadonlySet<string>>(NO_FAILURES);
+  // Failures belong to the photo they were recorded for. Deriving that, rather than clearing them in
+  // an effect, keeps a reused Diary row from committing a second time after it switches meals.
+  const [failures, setFailures] = useState<{ source: string | null | undefined; uris: ReadonlySet<string> }>(
+    () => ({ source: sourcePhotoUri, uris: NO_FAILURES }),
+  );
+  const failedPhotoUris = failures.source === sourcePhotoUri ? failures.uris : NO_FAILURES;
   // A thumbnail that fails (a purged cache) falls back to the full photo, and only then to the icon.
   const photoUri = [thumbnailUri, sourcePhotoUri].find((uri) => uri && !failedPhotoUris.has(uri)) ?? null;
-
-  useEffect(() => {
-    setFailedPhotoUris(NO_FAILURES);
-  }, [sourcePhotoUri]);
 
   const media = photoUri ? (
     <Image
@@ -70,7 +71,10 @@ export default function NutritionCard({
       resizeMode="cover"
       // Android fades only photos that are still decoding; cached ones appear at once.
       fadeDuration={reduced ? 0 : DURATION.enter}
-      onError={() => setFailedPhotoUris((failed) => new Set(failed).add(photoUri))}
+      onError={() => setFailures((current) => ({
+        source: sourcePhotoUri,
+        uris: new Set(current.source === sourcePhotoUri ? current.uris : NO_FAILURES).add(photoUri),
+      }))}
     />
   ) : (
     <View className="flex-1 items-center justify-center">

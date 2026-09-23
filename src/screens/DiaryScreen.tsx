@@ -1,13 +1,14 @@
-import React, { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Reanimated, {
-  runOnJS,
+  type SharedValue,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -34,7 +35,13 @@ import { M3 } from '../theme/tokens';
 import WeekStrip from '../components/WeekStrip';
 import { warmMealPhotoThumbnails } from '../utils/mealPhotoThumbnails';
 import MacroRail from '../components/MacroRail';
-import { JournalEntryKind, JournalEntryRow, JournalSectionHeader, MealGroup } from '../components/JournalSection';
+import {
+  JournalEntryKind,
+  JournalEntryRow,
+  JournalSectionHeader,
+  MealGroup,
+  SwipeRowsActiveContext,
+} from '../components/JournalSection';
 import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
 import { DURATION, EASING } from '../theme/motion';
 import ResponsiveContent from '../components/ResponsiveContent';
@@ -80,6 +87,26 @@ type DiaryListItem =
   | { kind: 'section'; key: string; section: JournalSectionModel }
   | { kind: 'entry'; key: string; entry: JournalEntryKind; sectionMeal: MealType };
 
+interface DayContent {
+  date: string;
+  summary: DaySummary;
+}
+
+const NO_DAY: DayContent = { date: '', summary: { foodLogs: [], mealRows: new Map() } };
+
+interface DayView {
+  /** Two stacked panes. The selected day commits into the hidden one, so the swap needs no render. */
+  panes: [DayContent, DayContent];
+  front: 0 | 1;
+  /** The latest day applied, which the macro rail and row actions describe. */
+  shown: DayContent;
+  direction: number;
+  /** Bumps per day change; that commit's layout effect plays the exit and entrance. */
+  transition: number;
+}
+
+const INITIAL_VIEW: DayView = { panes: [NO_DAY, NO_DAY], front: 0, shown: NO_DAY, direction: 1, transition: 0 };
+
 function getMonthRange(anchor: Date) {
   const dates = getMonthDates(anchor);
   const startISO = isoFromDate(dates[0]);
@@ -91,6 +118,187 @@ function getMonthRange(anchor: Date) {
     key: `${startISO}:${endISO}`,
   };
 }
+
+interface DiaryDayPaneProps {
+  content: DayContent;
+  interactive: boolean;
+  opacity: SharedValue<number>;
+  offset: SharedValue<number>;
+  listRef: React.RefObject<FlatList<DiaryListItem> | null>;
+  collapsedSections: Set<MealType>;
+  onToggleSection: (meal: MealType) => void;
+  onOpenEntry: (logDate?: string) => void;
+  onEditFood: (food: FoodLog) => void;
+  onEditMeal: (meal: MealGroup) => void;
+  onDeleteFood: (food: FoodLog) => void;
+  onDeleteMeal: (mealId: number) => void;
+  onShareMeal: (meal: MealGroup) => void;
+}
+
+const LIST_CONTENT_STYLE = { paddingBottom: 16 };
+const NO_ITEMS: DiaryListItem[] = [];
+const diaryItemKey = (item: DiaryListItem) => item.key;
+
+/** One day's journal. Two of these stack, so a day change renders only the hidden one. */
+const DiaryDayPane = React.memo(function DiaryDayPane({
+  content,
+  interactive,
+  opacity,
+  offset,
+  listRef,
+  collapsedSections,
+  onToggleSection,
+  onOpenEntry,
+  onEditFood,
+  onEditMeal,
+  onDeleteFood,
+  onDeleteMeal,
+  onShareMeal,
+}: DiaryDayPaneProps) {
+  const { foodLogs, mealRows } = content.summary;
+  const paneStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: offset.value }],
+  }));
+
+  const journalSections = useMemo(() => {
+    const componentsByMealId = new Map<number, FoodLog[]>();
+    for (const log of foodLogs) {
+      if (log.meal_id == null) continue;
+      const components = componentsByMealId.get(log.meal_id) ?? [];
+      components.push(log);
+      componentsByMealId.set(log.meal_id, components);
+    }
+
+    return MEAL_ORDER.map(({ meal, label }) => {
+    const sectionLogs = foodLogs.filter((l) => l.meal === meal);
+    const entries: JournalEntryKind[] = [];
+    const seenMealIds = new Set<number>();
+    for (const log of sectionLogs) {
+      if (log.meal_id == null) {
+        entries.push({ type: 'food', foodLog: log });
+      } else if (!seenMealIds.has(log.meal_id)) {
+        seenMealIds.add(log.meal_id);
+        const components = componentsByMealId.get(log.meal_id) ?? [];
+        const mealRow = mealRows.get(log.meal_id);
+        entries.push({
+          type: 'meal',
+          mealGroup: {
+            id: log.meal_id,
+            name: mealRow?.name ?? 'Meal',
+            photoUri: mealRow?.photo_uri ?? null,
+            createdAt: mealRow?.created_at ?? log.logged_at,
+            components,
+          },
+        });
+      }
+    }
+
+    const sectionCals = sectionLogs.reduce((s, l) => s + l.calories, 0);
+
+    return {
+      meal,
+      label,
+      entries,
+      totalCalories: sectionCals,
+    };
+    });
+  }, [foodLogs, mealRows]);
+
+  const journalListItems = useMemo<DiaryListItem[]>(() => {
+    const items: DiaryListItem[] = [];
+    for (const section of journalSections) {
+      items.push({ kind: 'section', key: `section-${section.meal}`, section });
+      if (collapsedSections.has(section.meal)) continue;
+      // Positional keys: switching days reuses the mounted cards (and their Swipeables, which reset
+      // by identity) instead of unmounting every row and mounting the new day's.
+      const typeCounts = { food: 0, meal: 0 };
+      for (const entry of section.entries) {
+        const key = `${section.meal}-${entry.type}-${typeCounts[entry.type]++}`;
+        items.push({ kind: 'entry', key, entry, sectionMeal: section.meal });
+      }
+    }
+    return items;
+  }, [collapsedSections, journalSections]);
+
+  const renderDiaryItem = useCallback(({ item }: { item: DiaryListItem }) => item.kind === 'section' ? (
+    <JournalSectionHeader
+      label={item.section.label}
+      hasEntries={item.section.entries.length > 0}
+      collapsed={collapsedSections.has(item.section.meal)}
+      totalCalories={item.section.totalCalories}
+      onToggle={() => onToggleSection(item.section.meal)}
+    />
+  ) : (
+    <JournalEntryRow
+      entry={item.entry}
+      onEditFood={onEditFood}
+      onEditMeal={onEditMeal}
+      onDeleteFood={onDeleteFood}
+      onDeleteMeal={onDeleteMeal}
+      onShareMeal={onShareMeal}
+    />
+  ), [collapsedSections, onDeleteFood, onDeleteMeal, onEditFood, onEditMeal, onShareMeal, onToggleSection]);
+
+  const diaryListHeader = useMemo(() => (
+    <View className="min-h-[48px] justify-center px-4 pb-1">
+      <Text className="text-m3-on-surface text-sm font-bold">{formatDayHeader(content.date)}</Text>
+    </View>
+  ), [content.date]);
+
+  const isEmpty = foodLogs.length === 0;
+  const emptyDiaryState = useMemo(() => isEmpty ? (
+    <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">
+      <View className="w-11 h-11 rounded-full bg-m3-surface-container-high items-center justify-center">
+        <MaterialIcons name="restaurant" size={20} color={M3.onSurfaceVariant} />
+      </View>
+      <View className="items-center gap-1 px-6">
+        <Text className="text-m3-on-surface text-sm font-semibold">Nothing logged yet</Text>
+        <Text className="text-m3-on-surface-variant text-sm text-center">Add an entry when you're ready.</Text>
+      </View>
+      <Pressable
+        onPress={() => onOpenEntry(content.date)}
+        accessibilityRole="button"
+        accessibilityLabel="Add entry"
+        accessibilityHint="Opens food logging options"
+        className="min-h-[48px] px-5 rounded-full bg-white items-center justify-center active:opacity-80"
+      >
+        <Text className="text-m3-on-primary text-sm font-semibold">Add entry</Text>
+      </Pressable>
+    </View>
+  ) : null, [content.date, isEmpty, onOpenEntry]);
+
+  const data = isEmpty ? NO_ITEMS : journalListItems;
+
+  return (
+    <Reanimated.View
+      className="absolute inset-0"
+      style={paneStyle}
+      pointerEvents={interactive ? 'auto' : 'none'}
+      accessibilityElementsHidden={!interactive}
+      importantForAccessibility={interactive ? 'auto' : 'no-hide-descendants'}
+    >
+      {content.date ? (
+        <SwipeRowsActiveContext.Provider value={interactive}>
+        <FlatList
+          ref={listRef}
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={LIST_CONTENT_STYLE}
+          data={data}
+          renderItem={renderDiaryItem}
+          keyExtractor={diaryItemKey}
+          // The whole day renders in the commit that fills the pane, never in a later batch that
+          // would land mid-entrance.
+          initialNumToRender={Math.max(10, data.length)}
+          ListHeaderComponent={diaryListHeader}
+          ListEmptyComponent={emptyDiaryState}
+        />
+        </SwipeRowsActiveContext.Provider>
+      ) : null}
+    </Reanimated.View>
+  );
+});
 
 interface DiaryScreenProps {
   requestedDate?: { date: string; requestId: number };
@@ -109,15 +317,13 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const today = useToday();
   const initialDateRef = useRef(requestedDate?.date ?? todayISO());
   const [selectedDate, setSelectedDate] = useState(() => initialDateRef.current);
-  const [displayedDate, setDisplayedDate] = useState(() => initialDateRef.current);
   const [monthAnchor, setMonthAnchor] = useState(() => getMonthStart(new Date(`${initialDateRef.current}T12:00:00`)));
   const [loading, setLoading] = useState(true);
   const [dayLoadError, setDayLoadError] = useState(false);
   const [monthLoadError, setMonthLoadError] = useState(false);
-  const [foodLogs, setFoodLogs] = useState<FoodLog[]>([]);
+  const [view, setView] = useState<DayView>(INITIAL_VIEW);
   const [dayTargetMap, setDayTargetMap] = useState<Map<string, DailyTarget>>(new Map());
   const [monthMacros, setMonthMacros] = useState<DayMacros[]>([]);
-  const [mealRows, setMealRows] = useState<Map<number, MealRow>>(new Map());
   const [edit, setEdit] = useState<EditState>({ food: null, saving: false });
   useEffect(() => () => {
     onEditSheetVisibilityChange(false);
@@ -138,101 +344,86 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const monthCacheRef = useRef(new Map<string, MonthSummary>());
   const monthLoadPromiseRef = useRef(new Map<string, Promise<MonthSummary>>());
   const cacheGenerationRef = useRef(0);
-  const previousDisplayedDateRef = useRef(displayedDate);
   const handledDateRequestRef = useRef<number | null>(requestedDate?.requestId ?? null);
-  const dayContentOpacity = useSharedValue(1);
-  const dayContentOffset = useSharedValue(0);
   // Day changes move along the calendar's time axis: the old day leaves toward the past or future,
-  // the new day's content is swapped in while invisible, then enters from the side it lives on.
-  const dayDirectionRef = useRef(1);
-  const dayExitingRef = useRef(false);
-  const dayEnterPendingRef = useRef(false);
-  const pendingDayRef = useRef<{ date: string; summary: DaySummary } | null>(null);
+  // then the new day enters from the side it lives on. The new day renders into the hidden pane in
+  // the same commit as the tap, before any motion starts, so nothing renders while the disc slides:
+  // a React commit mid-slide stalls every running animation until its views are mounted.
+  const paneOpacityA = useSharedValue(1);
+  const paneOpacityB = useSharedValue(0);
+  const paneOffsetA = useSharedValue(0);
+  const paneOffsetB = useSharedValue(0);
+  const paneOpacities = useMemo(() => [paneOpacityA, paneOpacityB], [paneOpacityA, paneOpacityB]);
+  const paneOffsets = useMemo(() => [paneOffsetA, paneOffsetB], [paneOffsetA, paneOffsetB]);
+  const listRefA = useRef<FlatList<DiaryListItem>>(null);
+  const listRefB = useRef<FlatList<DiaryListItem>>(null);
+  /** The day the front pane is waiting for before it enters. */
+  const pendingEnterRef = useRef<string | null>(null);
+  const transitionAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const lastTransitionRef = useRef(0);
+  const shownRef = useRef(view.shown);
+  shownRef.current = view.shown;
 
-  const commitDay = useCallback((date: string, summary: DaySummary) => {
-    setFoodLogs(summary.foodLogs);
-    setMealRows(summary.mealRows);
-    setDisplayedDate(date);
-    setDayLoadError(false);
-  }, []);
-
-  const enterDay = useCallback(() => {
-    dayEnterPendingRef.current = false;
-    dayContentOffset.value = DAY_SHIFT * dayDirectionRef.current;
-    dayContentOffset.value = withTiming(0, {
+  useLayoutEffect(() => {
+    const front = view.front;
+    const other = front === 0 ? 1 : 0;
+    if (view.transition !== lastTransitionRef.current) {
+      lastTransitionRef.current = view.transition;
+      if (!reduced) {
+        transitionAtRef.current = performance.now();
+        const exit = { duration: DURATION.exit, easing: EASING.emphasizedAccelerate };
+        paneOffsets[other].value = withTiming(-DAY_SHIFT * view.direction, exit);
+        paneOpacities[other].value = withTiming(0, exit);
+      }
+      (front === 0 ? listRefA : listRefB).current?.scrollToOffset({ offset: 0, animated: false });
+    }
+    const pending = pendingEnterRef.current;
+    if (pending == null || view.panes[front].date !== pending) return;
+    pendingEnterRef.current = null;
+    if (reduced) {
+      paneOpacities[front].value = 1;
+      paneOffsets[front].value = 0;
+      paneOpacities[other].value = 0;
+      return;
+    }
+    // Enters once the old day is gone: 90ms after the tap, or at once when the day loaded late.
+    const delay = Math.max(0, DURATION.exit - (performance.now() - transitionAtRef.current));
+    paneOffsets[front].value = DAY_SHIFT * view.direction;
+    paneOffsets[front].value = withDelay(delay, withTiming(0, {
       duration: DURATION.medium,
       easing: EASING.emphasizedDecelerate,
-    });
-    dayContentOpacity.value = withTiming(1, {
+    }));
+    paneOpacities[front].value = 0;
+    paneOpacities[front].value = withDelay(delay, withTiming(1, {
       duration: DURATION.enter,
       easing: EASING.emphasizedDecelerate,
-    });
-  }, [dayContentOffset, dayContentOpacity]);
-
-  const finishDayExit = useCallback(() => {
-    dayExitingRef.current = false;
-    const pending = pendingDayRef.current;
-    pendingDayRef.current = null;
-    dayEnterPendingRef.current = true;
-    if (!pending) return; // The day is still loading; it enters when it arrives.
-    if (pending.date === previousDisplayedDateRef.current) {
-      commitDay(pending.date, pending.summary);
-      enterDay();
-      return;
-    }
-    commitDay(pending.date, pending.summary);
-  }, [commitDay, enterDay]);
-
-  const beginDayExit = useCallback((direction: number) => {
-    dayDirectionRef.current = direction;
-    if (reduced) return;
-    dayExitingRef.current = true;
-    const exit = { duration: DURATION.exit, easing: EASING.emphasizedAccelerate };
-    dayContentOffset.value = withTiming(-DAY_SHIFT * direction, exit);
-    dayContentOpacity.value = withTiming(0, exit, (finished) => {
-      if (finished) runOnJS(finishDayExit)();
-    });
-  }, [dayContentOffset, dayContentOpacity, finishDayExit, reduced]);
-
-  // Runs after the new day commits and before it paints, so the entrance never starts on old content.
-  useLayoutEffect(() => {
-    if (previousDisplayedDateRef.current === displayedDate) return;
-    previousDisplayedDateRef.current = displayedDate;
-    if (!reduced && dayEnterPendingRef.current) {
-      enterDay();
-      return;
-    }
-    dayContentOpacity.value = 1;
-    dayContentOffset.value = 0;
-  }, [dayContentOffset, dayContentOpacity, displayedDate, enterDay, reduced]);
+    }));
+  }, [paneOffsets, paneOpacities, reduced, view]);
 
   useEffect(() => {
     // A failed load still has to be visible, even mid-transition.
     if (!dayLoadError) return;
-    dayExitingRef.current = false;
-    dayEnterPendingRef.current = false;
-    pendingDayRef.current = null;
-    dayContentOpacity.value = 1;
-    dayContentOffset.value = 0;
-  }, [dayContentOffset, dayContentOpacity, dayLoadError]);
-
-  const dayContentStyle = useAnimatedStyle(() => ({
-    opacity: dayContentOpacity.value,
-    transform: [{ translateX: dayContentOffset.value }],
-  }));
+    pendingEnterRef.current = null;
+    const other = view.front === 0 ? 1 : 0;
+    paneOpacities[view.front].value = 1;
+    paneOffsets[view.front].value = 0;
+    paneOpacities[other].value = 0;
+  }, [dayLoadError, paneOffsets, paneOpacities, view.front]);
 
   const applyDaySummary = useCallback((date: string, summary: DaySummary) => {
-    if (dayExitingRef.current) {
-      pendingDayRef.current = { date, summary };
-      return;
-    }
-    if (dayEnterPendingRef.current && date === previousDisplayedDateRef.current) {
-      commitDay(date, summary);
-      enterDay();
-      return;
-    }
-    commitDay(date, summary);
-  }, [commitDay, enterDay]);
+    setView((current) => {
+      const pane = current.panes[current.front];
+      // Returning to the day a pane still holds renders nothing at all.
+      if (pane.date === date && pane.summary === summary) {
+        return current.shown === pane ? current : { ...current, shown: pane };
+      }
+      const content = { date, summary };
+      const panes: [DayContent, DayContent] = [...current.panes];
+      panes[current.front] = content;
+      return { ...current, panes, shown: content };
+    });
+    setDayLoadError(false);
+  }, []);
 
   const loadDay = useCallback((date: string, showLoading = false) => {
     const requestId = ++dayRequestRef.current;
@@ -460,15 +651,24 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
 
   const selectDate = useCallback((iso: string) => {
     if (iso === selectedDateRef.current) return;
-    const previousSelected = selectedDateRef.current;
+    const direction = iso > selectedDateRef.current ? 1 : -1;
     selectedDateRef.current = iso;
 
-    beginDayExit(iso > previousSelected ? 1 : -1);
     onSelectedDateChange(iso);
     setSelectedDate(iso);
-    startTransition(() => {
-      void loadDay(iso);
-    });
+    // A change that lands before the pending day began entering reuses its still-invisible pane, so
+    // the day already leaving keeps leaving instead of being overwritten mid-exit.
+    const reuse = pendingEnterRef.current != null
+      || performance.now() - transitionAtRef.current < DURATION.exit;
+    pendingEnterRef.current = iso;
+    setView((current) => ({
+      ...current,
+      front: reuse ? current.front : current.front === 0 ? 1 : 0,
+      direction,
+      transition: current.transition + 1,
+    }));
+    // A cached day applies synchronously, so it lands in this same commit.
+    void loadDay(iso);
 
     const d = new Date(iso + 'T12:00:00');
     const monthStart = getMonthStart(d);
@@ -485,7 +685,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
         void loadMonth(monthStart);
       }
     }
-  }, [beginDayExit, loadDay, loadMonth, onSelectedDateChange, prefetchAdjacentMonths]);
+  }, [loadDay, loadMonth, onSelectedDateChange, prefetchAdjacentMonths]);
 
   // The month chevrons move the selection too, so the strip and the journal always show the same
   // month: today when that month holds it, otherwise its latest logged day, otherwise its edge.
@@ -544,16 +744,17 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     onSelectedDateChange(selectedDate);
   }, [onSelectedDateChange, selectedDate]);
 
-  const todayTarget = dayTargetMap.get(displayedDate);
+  const shownLogs = view.shown.summary.foodLogs;
+  const todayTarget = dayTargetMap.get(view.shown.date);
   const targetCalories = todayTarget?.target_calories ?? 0;
   const targetProtein = todayTarget?.target_protein_g ?? 0;
   const targetCarbs = todayTarget?.target_carbs_g ?? 0;
   const targetFat = todayTarget?.target_fat_g ?? 0;
 
-  const consumedCals = foodLogs.reduce((s, l) => s + l.calories, 0);
-  const consumedProtein = foodLogs.reduce((s, l) => s + l.protein_g, 0);
-  const consumedCarbs = foodLogs.reduce((s, l) => s + l.carbs_g, 0);
-  const consumedFat = foodLogs.reduce((s, l) => s + l.fat_g, 0);
+  const consumedCals = shownLogs.reduce((s, l) => s + l.calories, 0);
+  const consumedProtein = shownLogs.reduce((s, l) => s + l.protein_g, 0);
+  const consumedCarbs = shownLogs.reduce((s, l) => s + l.carbs_g, 0);
+  const consumedFat = shownLogs.reduce((s, l) => s + l.fat_g, 0);
 
   const macroCells = useMemo(() => [
     { icon: 'local-fire-department', consumed: consumedCals, target: targetCalories, barColor: M3.calories, unit: 'kcal' as const },
@@ -571,66 +772,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     targetProtein,
   ]);
 
-  const journalSections = useMemo(() => {
-    const componentsByMealId = new Map<number, FoodLog[]>();
-    for (const log of foodLogs) {
-      if (log.meal_id == null) continue;
-      const components = componentsByMealId.get(log.meal_id) ?? [];
-      components.push(log);
-      componentsByMealId.set(log.meal_id, components);
-    }
-
-    return MEAL_ORDER.map(({ meal, label }) => {
-    const sectionLogs = foodLogs.filter((l) => l.meal === meal);
-    const entries: JournalEntryKind[] = [];
-    const seenMealIds = new Set<number>();
-    for (const log of sectionLogs) {
-      if (log.meal_id == null) {
-        entries.push({ type: 'food', foodLog: log });
-      } else if (!seenMealIds.has(log.meal_id)) {
-        seenMealIds.add(log.meal_id);
-        const components = componentsByMealId.get(log.meal_id) ?? [];
-        const mealRow = mealRows.get(log.meal_id);
-        entries.push({
-          type: 'meal',
-          mealGroup: {
-            id: log.meal_id,
-            name: mealRow?.name ?? 'Meal',
-            photoUri: mealRow?.photo_uri ?? null,
-            createdAt: mealRow?.created_at ?? log.logged_at,
-            components,
-          },
-        });
-      }
-    }
-
-    const sectionCals = sectionLogs.reduce((s, l) => s + l.calories, 0);
-
-    return {
-      meal,
-      label,
-      entries,
-      totalCalories: sectionCals,
-    };
-    });
-  }, [foodLogs, mealRows]);
-
-  const journalListItems = useMemo<DiaryListItem[]>(() => {
-    const items: DiaryListItem[] = [];
-    for (const section of journalSections) {
-      items.push({ kind: 'section', key: `section-${section.meal}`, section });
-      if (collapsedSections.has(section.meal)) continue;
-      // Positional keys: switching days reuses the mounted cards (and their Swipeables, which reset
-      // by identity) instead of unmounting every row and mounting the new day's mid-transition.
-      const typeCounts = { food: 0, meal: 0 };
-      for (const entry of section.entries) {
-        const key = `${section.meal}-${entry.type}-${typeCounts[entry.type]++}`;
-        items.push({ kind: 'entry', key, entry, sectionMeal: section.meal });
-      }
-    }
-    return items;
-  }, [collapsedSections, journalSections]);
-
   const handleEditFood = useCallback((food: FoodLog) => {
     onEditSheetVisibilityChange(true);
     setEdit({ food, saving: false });
@@ -640,10 +781,13 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     onEditMeal(meal);
   }, [onEditMeal]);
 
+  // Row actions read the shown day through refs, so a day change never re-renders the leaving pane.
+  const dayTargetMapRef = useRef(dayTargetMap);
+  dayTargetMapRef.current = dayTargetMap;
   const buildMealPayload = useCallback((meal: MealGroup) => {
-    const logDate = meal.components[0]?.log_date ?? displayedDate;
-    return buildMealShareData(meal, dayTargetMap.get(logDate) ?? null);
-  }, [dayTargetMap, displayedDate]);
+    const logDate = meal.components[0]?.log_date ?? shownRef.current.date;
+    return buildMealShareData(meal, dayTargetMapRef.current.get(logDate) ?? null);
+  }, []);
 
   const handleShareMeal = useCallback((meal: MealGroup) => {
     const payload = buildMealPayload(meal);
@@ -659,33 +803,6 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       return next;
     });
   }, []);
-
-  const diaryListHeader = useMemo(() => (
-    <View className="min-h-[48px] justify-center px-4 pb-1">
-      <Text className="text-m3-on-surface text-sm font-bold">{formatDayHeader(displayedDate)}</Text>
-    </View>
-  ), [displayedDate]);
-
-  const emptyDiaryState = foodLogs.length === 0 ? (
-    <View className="mx-4 my-4 py-7 items-center gap-3 rounded-3xl bg-m3-surface-container border border-m3-outline-variant/30">
-      <View className="w-11 h-11 rounded-full bg-m3-surface-container-high items-center justify-center">
-        <MaterialIcons name="restaurant" size={20} color={M3.onSurfaceVariant} />
-      </View>
-      <View className="items-center gap-1 px-6">
-        <Text className="text-m3-on-surface text-sm font-semibold">Nothing logged yet</Text>
-        <Text className="text-m3-on-surface-variant text-sm text-center">Add an entry when you're ready.</Text>
-      </View>
-      <Pressable
-        onPress={() => onOpenEntry(selectedDate)}
-        accessibilityRole="button"
-        accessibilityLabel="Add entry"
-        accessibilityHint="Opens food logging options"
-        className="min-h-[48px] px-5 rounded-full bg-white items-center justify-center active:opacity-80"
-      >
-        <Text className="text-m3-on-primary text-sm font-semibold">Add entry</Text>
-      </Pressable>
-    </View>
-  ) : null;
 
   const handleDeleteFood = useCallback(async (food: FoodLog) => {
     try {
@@ -730,8 +847,9 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   }, [onDataChanged, showToast]);
 
   const handleDeleteMeal = useCallback(async (mealId: number) => {
-    const mealRow = mealRows.get(mealId);
-    const components = foodLogs.filter((l) => l.meal_id === mealId);
+    const { summary } = shownRef.current;
+    const mealRow = summary.mealRows.get(mealId);
+    const components = summary.foodLogs.filter((l) => l.meal_id === mealId);
     const mealName = mealRow?.name ?? 'Meal';
     try {
       await deleteMeal(mealId);
@@ -742,7 +860,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
         (async () => {
           const newMealId = await insertMeal({
             name: mealName,
-            log_date: mealRow?.log_date ?? selectedDate,
+            log_date: mealRow?.log_date ?? selectedDateRef.current,
             meal_type: mealRow?.meal_type ?? components[0]?.meal ?? 'snack',
           });
           for (const c of components) {
@@ -778,26 +896,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
       console.error('[Diary] deleteMeal failed', e);
       Alert.alert('Delete failed', 'The meal could not be deleted. Please try again.');
     }
-  }, [foodLogs, mealRows, onDataChanged, selectedDate, showToast]);
-
-  const renderDiaryItem = useCallback(({ item }: { item: DiaryListItem }) => item.kind === 'section' ? (
-    <JournalSectionHeader
-      label={item.section.label}
-      hasEntries={item.section.entries.length > 0}
-      collapsed={collapsedSections.has(item.section.meal)}
-      totalCalories={item.section.totalCalories}
-      onToggle={() => toggleSection(item.section.meal)}
-    />
-  ) : (
-    <JournalEntryRow
-      entry={item.entry}
-      onEditFood={handleEditFood}
-      onEditMeal={handleEditMeal}
-      onDeleteFood={handleDeleteFood}
-      onDeleteMeal={handleDeleteMeal}
-      onShareMeal={handleShareMeal}
-    />
-  ), [collapsedSections, handleDeleteFood, handleDeleteMeal, handleEditFood, handleEditMeal, handleShareMeal, toggleSection]);
+  }, [onDataChanged, showToast]);
 
   const handleSaveEdit = useCallback(async (grams: number): Promise<boolean> => {
     const food = edit.food;
@@ -885,7 +984,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
         </>
       )}
 
-      <Reanimated.View className="flex-1" style={dayContentStyle}>
+      <View className="flex-1">
       {loading ? (
         <View className="flex-1 items-center justify-center" accessibilityLiveRegion="polite">
           <ActivityIndicator accessibilityLabel="Loading diary" color={M3.onSurfaceVariant} />
@@ -905,20 +1004,26 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
           </Pressable>
         </View>
       ) : (
-        <Reanimated.FlatList
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 16 }}
-          data={foodLogs.length > 0 ? journalListItems : []}
-          renderItem={renderDiaryItem}
-          keyExtractor={(item) => item.key}
-          ListHeaderComponent={diaryListHeader}
-          ListEmptyComponent={emptyDiaryState}
-          accessibilityElementsHidden={displayedDate !== selectedDate}
-          importantForAccessibility={displayedDate === selectedDate ? 'auto' : 'no-hide-descendants'}
-        />
+        ([0, 1] as const).map((index) => (
+          <DiaryDayPane
+            key={index}
+            content={view.panes[index]}
+            interactive={index === view.front && view.panes[index].date === selectedDate}
+            opacity={paneOpacities[index]}
+            offset={paneOffsets[index]}
+            listRef={index === 0 ? listRefA : listRefB}
+            collapsedSections={collapsedSections}
+            onToggleSection={toggleSection}
+            onOpenEntry={onOpenEntry}
+            onEditFood={handleEditFood}
+            onEditMeal={handleEditMeal}
+            onDeleteFood={handleDeleteFood}
+            onDeleteMeal={handleDeleteMeal}
+            onShareMeal={handleShareMeal}
+          />
+        ))
       )}
-      </Reanimated.View>
+      </View>
       </ResponsiveContent>
       </View>
 
