@@ -7,19 +7,19 @@ import type {
 } from 'react-native-purchases';
 
 import { getInstallationToken } from './installIdentity';
-import { isRevenueCatTestStoreKey } from './publicReleaseConfig';
 import {
   canBuyItik,
   EATLOG_ENTITLEMENT_ID,
   EATLOG_OFFERING_ID,
-  ITIK_PRODUCT_ID,
-  MANOK_PRODUCT_IDS,
+  hasItik,
   normalizeAccess,
   type BillingActionResult,
   type BillingOffering,
+  type BillingPackage,
   type EatlogAccess,
   type RevenueCatCustomerSnapshot,
 } from './billing.types';
+import { TIER_NAMES } from './tierNames';
 
 interface BillingOperationResult extends BillingActionResult {
   access: EatlogAccess;
@@ -44,7 +44,7 @@ export interface BillingClientOptions {
   now?: () => Date;
 }
 
-const PUGO_UNAVAILABLE = 'Billing is unavailable on this installed build. Eatlog Pugo remains available.';
+const BILLING_UNAVAILABLE = 'Billing is unavailable on this installed build. Your logbook still works.';
 
 function snapshot(info: CustomerInfo): RevenueCatCustomerSnapshot {
   return {
@@ -53,45 +53,29 @@ function snapshot(info: CustomerInfo): RevenueCatCustomerSnapshot {
   };
 }
 
-function pugoUnavailable(now: Date): EatlogAccess {
-  return { kind: 'pugo', checkedAt: now.toISOString(), reason: 'unavailable' };
+function noAccessUnavailable(now: Date): EatlogAccess {
+  return { kind: 'none', checkedAt: now.toISOString(), reason: 'unavailable' };
 }
 
-function isManokProduct(productId: string): boolean {
-  return (MANOK_PRODUCT_IDS as readonly string[]).includes(productId);
+function itikOffering(offerings: { current: PurchasesOffering | null; all: Record<string, PurchasesOffering> }): PurchasesOffering | null {
+  return offerings.all[EATLOG_OFFERING_ID]
+    ?? (offerings.current?.identifier === EATLOG_OFFERING_ID ? offerings.current : null);
 }
 
-function packageFor(offering: PurchasesOffering, tier: 'manok' | 'itik'): PurchasesPackage | null {
-  const preferred = tier === 'manok' ? offering.monthly : offering.lifetime;
-  if (preferred) return preferred;
-  return offering.availablePackages.find((item) => tier === 'itik'
-    ? item.product.identifier === ITIK_PRODUCT_ID
-    : isManokProduct(item.product.identifier)) ?? null;
-}
-
-function trialEligible(pkg: PurchasesPackage): boolean {
-  return pkg.product.defaultOption?.freePhase != null || pkg.product.introPrice?.price === 0;
-}
-
-function publicOffering(offering: PurchasesOffering): BillingOffering {
-  const manok = packageFor(offering, 'manok');
-  const itik = packageFor(offering, 'itik');
+/** The store's own terms for a package, so a new cadence or trial needs no app change. */
+function publicPackage(pkg: PurchasesPackage): BillingPackage {
+  const { product } = pkg;
+  const period = product.subscriptionPeriod?.trim() || null;
+  const freeTrial = period === null
+    ? null
+    : product.defaultOption?.freePhase?.billingPeriod.iso8601
+      ?? (product.introPrice?.price === 0 ? product.introPrice.period : null);
   return {
-    identifier: EATLOG_OFFERING_ID,
-    manok: manok ? {
-      tier: 'manok',
-      packageIdentifier: manok.identifier,
-      productIdentifier: manok.product.identifier,
-      priceString: manok.product.priceString,
-      trialEligible: trialEligible(manok),
-    } : null,
-    itik: itik ? {
-      tier: 'itik',
-      packageIdentifier: itik.identifier,
-      productIdentifier: itik.product.identifier,
-      priceString: itik.product.priceString,
-      trialEligible: false,
-    } : null,
+    packageIdentifier: pkg.identifier,
+    productIdentifier: product.identifier,
+    priceString: product.priceString,
+    period,
+    freeTrial,
   };
 }
 
@@ -132,7 +116,6 @@ export function createBillingClient(options: BillingClientOptions) {
   const now = options.now ?? (() => new Date());
   const loadInstallationToken = options.getInstallationToken ?? getInstallationToken;
   const openURL = options.openURL ?? defaultOpenURL;
-  const testStore = isRevenueCatTestStoreKey(options.apiKey);
   let adapterPromise: Promise<PurchasesAdapter> | null = options.purchases
     ? Promise.resolve(options.purchases)
     : null;
@@ -144,7 +127,7 @@ export function createBillingClient(options: BillingClientOptions) {
   }
 
   async function configure(): Promise<string> {
-    if (!options.apiKey.trim()) throw new Error(PUGO_UNAVAILABLE);
+    if (!options.apiKey.trim()) throw new Error(BILLING_UNAVAILABLE);
     if (!configurePromise) {
       configurePromise = (async () => {
         const appUserID = await loadInstallationToken();
@@ -165,54 +148,49 @@ export function createBillingClient(options: BillingClientOptions) {
       if (force) await sdk.invalidateCustomerInfoCache();
       return normalizeAccess(snapshot(await sdk.getCustomerInfo()), now());
     } catch {
-      return pugoUnavailable(now());
+      return noAccessUnavailable(now());
     }
   }
 
   async function offering(): Promise<BillingOffering | null> {
     try {
       await configure();
-      const offerings = await (await adapter()).getOfferings();
-      const selected = offerings.all[EATLOG_OFFERING_ID]
-        ?? (offerings.current?.identifier === EATLOG_OFFERING_ID ? offerings.current : null);
-      return selected ? publicOffering(selected) : null;
+      const selected = itikOffering(await (await adapter()).getOfferings());
+      return selected
+        ? { identifier: EATLOG_OFFERING_ID, packages: selected.availablePackages.map(publicPackage) }
+        : null;
     } catch {
       return null;
     }
   }
 
-  async function purchase(tier: 'manok' | 'itik', currentAccess: EatlogAccess): Promise<BillingOperationResult> {
-    if (tier === 'itik' && currentAccess.kind === 'itik') {
-      return { state: 'success', message: 'Eatlog Itik is already active.', access: currentAccess };
+  async function purchase(packageIdentifier: string, currentAccess: EatlogAccess): Promise<BillingOperationResult> {
+    if (currentAccess.kind === 'purchase') {
+      return { state: 'success', message: `Eatlog ${TIER_NAMES.itik} is already active.`, access: currentAccess };
     }
-    if (tier === 'itik' && !testStore && !canBuyItik(currentAccess)) {
+    if (!canBuyItik(currentAccess)) {
       return {
         state: 'failed',
-        message: "Cancel Manok before buying Itik. The store won't refund unused Manok time.",
+        message: `Your ${TIER_NAMES.itik} subscription still renews. Cancel it in the store before buying another option.`,
         access: currentAccess,
       };
     }
     try {
       await configure();
       const sdk = await adapter();
-      const offerings = await sdk.getOfferings();
-      const selected = offerings.all[EATLOG_OFFERING_ID]
-        ?? (offerings.current?.identifier === EATLOG_OFFERING_ID ? offerings.current : null);
-      const pkg = selected ? packageFor(selected, tier) : null;
+      const selected = itikOffering(await sdk.getOfferings());
+      const pkg = selected?.availablePackages.find((item) => item.identifier === packageIdentifier) ?? null;
       if (!pkg) return { state: 'failed', message: "This plan isn't available in this build.", access: currentAccess };
       const result = await sdk.purchasePackage(pkg);
       const access = normalizeAccess(snapshot(result.customerInfo), now());
-      const requestedTierActive = tier === 'itik'
-        ? access.kind === 'itik'
-        : access.kind === 'manok' || access.kind === 'manok-trial' || access.kind === 'itik';
-      if (!requestedTierActive) {
+      if (!hasItik(access, now())) {
         return {
           state: 'entitlement-pending',
           message: 'Purchase complete. Access is still updating. Tap Refresh plan in a moment.',
           access: currentAccess,
         };
       }
-      return { state: 'success', message: `${access.kind === 'itik' ? 'Eatlog Itik' : 'Eatlog Manok'} is active.`, access };
+      return { state: 'success', message: `Eatlog ${TIER_NAMES.itik} is active.`, access };
     } catch (error) {
       return { ...purchaseFailure(error), access: currentAccess };
     }
@@ -222,10 +200,10 @@ export function createBillingClient(options: BillingClientOptions) {
     try {
       await configure();
       const access = normalizeAccess(snapshot(await (await adapter()).restorePurchases()), now());
-      if (access.kind === 'pugo') {
-        return { state: 'no-purchase', message: 'No active Manok or Itik purchase was found on this store account.', access };
+      if (access.kind === 'none') {
+        return { state: 'no-purchase', message: `No active ${TIER_NAMES.itik} purchase was found on this store account.`, access };
       }
-      return { state: 'success', message: `${access.kind === 'itik' ? 'Eatlog Itik' : 'Paid access'} was restored.`, access };
+      return { state: 'success', message: `Eatlog ${TIER_NAMES.itik} was restored.`, access };
     } catch {
       return { state: 'failed', message: "Couldn't restore purchases. Check the store account and try again.", access: currentAccess };
     }

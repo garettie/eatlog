@@ -6,6 +6,7 @@ import AiChoiceContent from '../components/ai/AiChoiceContent';
 import KeySetupContent, { type KeySetupMode } from '../components/ai/KeySetupContent';
 import { useSheetDialog } from '../components/SheetDialog';
 import { clearFoodEstimateActions } from '../services/foodScan';
+import { TIER_NAMES } from '../services/tierNames';
 import { decideAiGate, userApiKeyStore, type AiRoute, type UserKeyState } from '../services/userApiKey';
 import { useEntitlement } from './EntitlementContext';
 import { useRemoteEstimateConsent } from './RemoteEstimateConsentContext';
@@ -30,7 +31,7 @@ type Presented =
 const AiSetupContext = createContext<AiSetupContextValue | null>(null);
 
 export function AiSetupProvider({ children }: { children: React.ReactNode }) {
-  const { status, hasPaidFeatures } = useEntitlement();
+  const { status, hasItik } = useEntitlement();
   const [keyState, setKeyState] = useState<UserKeyState>(userApiKeyStore.getState());
   const [presented, setPresented] = useState<Presented | null>(null);
   const presentedRef = useRef<Presented | null>(null);
@@ -44,8 +45,8 @@ export function AiSetupProvider({ children }: { children: React.ReactNode }) {
   // Gaining Itik moves a saved key's route to Eatlog AI. An unsettled plan says nothing either way.
   useEffect(() => {
     if (status === 'checking') return;
-    void userApiKeyStore.observeItik(hasPaidFeatures);
-  }, [hasPaidFeatures, status]);
+    void userApiKeyStore.observeItik(hasItik);
+  }, [hasItik, status]);
 
   const present = useCallback((next: Presented | null) => {
     presentedRef.current = next;
@@ -133,7 +134,7 @@ export function AiSetupProvider({ children }: { children: React.ReactNode }) {
           ) : presented?.kind === 'setup' ? (
             <KeySetupContent
               mode={presented.mode}
-              itik={hasPaidFeatures}
+              itik={hasItik}
               onSaved={() => finishSetup(true)}
               onCancel={() => finishSetup(false)}
             />
@@ -176,8 +177,8 @@ export function useAiGate(): () => Promise<boolean> {
     }
     const choice = await new Promise<'key' | 'plans' | 'none'>((resolve) => {
       showDialog({
-        title: 'Itik has ended',
-        message: 'Keep estimating with your Google key, or get Itik again.',
+        title: `${TIER_NAMES.itik} has ended`,
+        message: `Keep estimating with your Google key, or get ${TIER_NAMES.itik} again.`,
         actions: [
           { label: 'Use my key', tone: 'primary', onPress: () => resolve('key') },
           { label: 'See plans', tone: 'neutral', onPress: () => resolve('plans') },

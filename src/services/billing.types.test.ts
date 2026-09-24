@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   canBuyItik,
   entitlementStatus,
-  hasPaidFeatures,
+  hasItik,
   normalizeAccess,
   shouldApplyAccessUpdate,
   type EatlogAccess,
@@ -31,21 +31,29 @@ function access(overrides: Partial<RevenueCatEntitlementSnapshot> = {}) {
   }, NOW);
 }
 
-test('normalizes Pugo, trial, Manok, Itik, complimentary, and grace access', () => {
+test('classifies every active entitlement as Itik by its shape: subscription, trial, purchase, complimentary, grace', () => {
   assert.deepEqual(normalizeAccess({ requestDate: NOW.toISOString(), entitlement: null }, NOW), {
-    kind: 'pugo', checkedAt: NOW.toISOString(), reason: 'none',
+    kind: 'none', checkedAt: NOW.toISOString(), reason: 'none',
   });
-  assert.equal(access({ periodType: 'TRIAL' }).kind, 'manok-trial');
-  assert.equal(access().kind, 'manok');
+  assert.deepEqual(access(), {
+    kind: 'subscription',
+    expiresAt: '2026-09-01T00:00:00.000Z',
+    willRenew: true,
+    productId: 'eatlog_manok:monthly',
+    checkedAt: NOW.toISOString(),
+    billingState: 'active',
+    trial: false,
+  });
+  const trial = access({ periodType: 'TRIAL' });
+  assert.equal(trial.kind === 'subscription' && trial.trial, true);
   const grace = access({ billingIssueDetectedAt: '2026-08-20T00:00:00Z' });
-  assert.equal(grace.kind, 'manok');
-  assert.equal(grace.kind === 'manok' ? grace.billingState : null, 'grace');
+  assert.equal(grace.kind === 'subscription' ? grace.billingState : null, 'grace');
   assert.deepEqual(access({
     productIdentifier: 'eatlog_itik',
     expirationDate: null,
     willRenew: false,
   }), {
-    kind: 'itik',
+    kind: 'purchase',
     productId: 'eatlog_itik',
     purchasedAt: '2026-08-01T00:00:00.000Z',
     checkedAt: NOW.toISOString(),
@@ -61,33 +69,41 @@ test('normalizes Pugo, trial, Manok, Itik, complimentary, and grace access', () 
   });
 });
 
-test('expired, refunded, revoked, unknown, and malformed access fail closed to Pugo', () => {
-  assert.deepEqual(access({ isActive: false, expirationDate: '2026-08-21T23:59:59Z' }), {
-    kind: 'pugo', checkedAt: NOW.toISOString(), reason: 'expired',
-  });
-  assert.deepEqual(access({ isActive: false }), {
-    kind: 'pugo', checkedAt: NOW.toISOString(), reason: 'revoked',
-  });
-  assert.equal(access({ productIdentifier: 'unknown_product' }).kind, 'pugo');
-  assert.equal(access({ identifier: 'wrong' }).kind, 'pugo');
-  assert.equal(access({ expirationDate: 'not-a-date' }).kind, 'pugo');
-  assert.equal(normalizeAccess(undefined, NOW).kind, 'pugo');
+test('a new product or cadence behind the entitlement is Itik with no app change', () => {
+  assert.equal(access({ productIdentifier: 'eatlog_itik_yearly' }).kind, 'subscription');
+  assert.equal(access({ productIdentifier: 'eatlog_itik', expirationDate: '2026-09-01T00:00:00Z' }).kind, 'subscription');
+  assert.equal(access({ productIdentifier: 'eatlog_itik_once', expirationDate: null }).kind, 'purchase');
 });
 
-test('paid feature and Manok-to-Itik predicates preserve transition rules', () => {
-  const pugo = normalizeAccess({ entitlement: null }, NOW);
-  const renewingManok = access();
-  const cancelledManok = access({ willRenew: false });
-  const itik = access({ productIdentifier: 'eatlog_itik', expirationDate: null, willRenew: false });
-  assert.equal(hasPaidFeatures(pugo), false);
-  assert.equal(hasPaidFeatures(renewingManok, NOW), true);
-  assert.equal(canBuyItik(renewingManok), false);
-  assert.equal(canBuyItik(cancelledManok), true);
-  assert.equal(canBuyItik(itik), false);
+test('expired, refunded, revoked, and malformed access resolve to no entitlement', () => {
+  assert.deepEqual(access({ isActive: false, expirationDate: '2026-08-21T23:59:59Z' }), {
+    kind: 'none', checkedAt: NOW.toISOString(), reason: 'expired',
+  });
+  assert.deepEqual(access({ isActive: false }), {
+    kind: 'none', checkedAt: NOW.toISOString(), reason: 'revoked',
+  });
+  assert.equal(access({ identifier: 'wrong' }).kind, 'none');
+  assert.equal(access({ expirationDate: 'not-a-date' }).kind, 'none');
+  assert.equal(access({ periodType: 'PREPAID' }).kind, 'none');
+  assert.equal(access({ willRenew: undefined }).kind, 'none');
+  assert.equal(normalizeAccess(undefined, NOW).kind, 'none');
+});
+
+test('the double-payment guard blocks a second Itik product only while paying twice', () => {
+  const none = normalizeAccess({ entitlement: null }, NOW);
+  const renewing = access();
+  const cancelled = access({ willRenew: false });
+  const purchase = access({ productIdentifier: 'eatlog_itik', expirationDate: null, willRenew: false });
+  assert.equal(hasItik(none), false);
+  assert.equal(hasItik(renewing, NOW), true);
+  assert.equal(canBuyItik(none), true);
+  assert.equal(canBuyItik(renewing), false);
+  assert.equal(canBuyItik(cancelled), true);
+  assert.equal(canBuyItik(purchase), false);
 });
 
 test('unresolved and transient access are checking rather than confirmed free', () => {
-  const pugo = normalizeAccess({ entitlement: null }, NOW);
+  const none = normalizeAccess({ entitlement: null }, NOW);
   const unavailable = normalizeAccess(undefined, NOW);
   const malformed = access({ identifier: 'wrong' });
   const trial = access({ periodType: 'TRIAL' });
@@ -95,7 +111,7 @@ test('unresolved and transient access are checking rather than confirmed free', 
   assert.equal(entitlementStatus(null), 'checking');
   assert.equal(entitlementStatus(unavailable), 'checking');
   assert.equal(entitlementStatus(malformed), 'checking');
-  assert.equal(entitlementStatus(pugo), 'free');
+  assert.equal(entitlementStatus(none), 'free');
   assert.equal(entitlementStatus(trial, NOW), 'paid');
 });
 
@@ -103,12 +119,12 @@ test('access updates resolve authoritative startup states and reject transient o
   const paid = access();
   const free = normalizeAccess({ requestDate: NOW.toISOString(), entitlement: null }, NOW);
   const staleRevocation = {
-    kind: 'pugo' as const,
+    kind: 'none' as const,
     checkedAt: '2026-08-21T23:59:59.000Z',
     reason: 'revoked' as const,
   };
   const lookupFailure = {
-    kind: 'pugo' as const,
+    kind: 'none' as const,
     checkedAt: '2026-08-22T00:01:00.000Z',
     reason: 'unavailable' as const,
   };
@@ -133,12 +149,12 @@ test('locally expired paid access stays gated and may settle as unavailable pend
   const paid = access();
   const afterExpiry = new Date('2026-09-01T00:00:01.000Z');
   const lookupFailure: EatlogAccess = {
-    kind: 'pugo',
+    kind: 'none',
     checkedAt: afterExpiry.toISOString(),
     reason: 'unavailable',
   };
 
-  assert.equal(hasPaidFeatures(paid, afterExpiry), false);
+  assert.equal(hasItik(paid, afterExpiry), false);
   assert.equal(entitlementStatus(paid, afterExpiry), 'checking');
   assert.equal(shouldApplyAccessUpdate(paid, lookupFailure, afterExpiry), true);
 });
@@ -156,11 +172,11 @@ test('a lifetime-duration complimentary grant has no expiration date and behaves
     expiresAt: null,
     checkedAt: NOW.toISOString(),
   });
-  assert.equal(hasPaidFeatures(lifetime, new Date('2099-01-01T00:00:00Z')), true);
+  assert.equal(hasItik(lifetime, new Date('2099-01-01T00:00:00Z')), true);
   assert.equal(canBuyItik(lifetime), true);
 
   const laterUnavailable: EatlogAccess = {
-    kind: 'pugo',
+    kind: 'none',
     checkedAt: '2026-08-23T00:00:00.000Z',
     reason: 'unavailable',
   };

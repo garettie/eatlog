@@ -154,7 +154,7 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
 export default function OnboardingScreen({ navigation }: Props) {
   const reduced = useReducedMotion();
   const { openKeySetup } = useAiSetup();
-  const { hasPaidFeatures } = useEntitlement();
+  const { hasItik } = useEntitlement();
   const plansOpenedRef = useRef(false);
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
@@ -536,8 +536,8 @@ export default function OnboardingScreen({ navigation }: Props) {
 
   // Coming back from the plans with Itik finishes onboarding; coming back without it keeps the choice.
   useEffect(() => {
-    if (step === TOTAL_STEPS && plansOpenedRef.current && hasPaidFeatures) void handleSave();
-  }, [hasPaidFeatures, step]);
+    if (step === TOTAL_STEPS && plansOpenedRef.current && hasItik) void handleSave();
+  }, [hasItik, step]);
 
   async function handleSave() {
     if (savedRef.current || !computedTargets) return;

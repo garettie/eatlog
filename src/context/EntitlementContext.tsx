@@ -5,7 +5,7 @@ import { serviceConfig } from '../config/services';
 import { createBillingClient } from '../services/billing';
 import {
   entitlementStatus,
-  hasPaidFeatures,
+  hasItik,
   needsRevalidation,
   PAID_ACCESS_UNAVAILABLE_MESSAGE,
   paidAndSettled,
@@ -18,7 +18,6 @@ import {
   type PaidAccessDecision,
 } from '../services/billing.types';
 import { getInstallationToken } from '../services/installIdentity';
-import { setAdaptiveAccess } from '../services/adaptiveAccess';
 import {
   createSubscriptionApi,
   documentPaidAccessStore,
@@ -44,11 +43,11 @@ interface EntitlementContextValue {
   supportId: string | null;
   loadingProducts: boolean;
   refreshing: boolean;
-  hasPaidFeatures: boolean;
+  hasItik: boolean;
   ensurePaidAccess(): Promise<PaidAccessDecision>;
   warmEntitlement(): void;
   refresh(): Promise<RefreshOutcome>;
-  purchase(tier: 'manok' | 'itik'): Promise<BillingActionResult>;
+  purchase(packageIdentifier: string): Promise<BillingActionResult>;
   restore(): Promise<BillingActionResult>;
   manageSubscription(): Promise<BillingActionResult>;
 }
@@ -79,7 +78,6 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     accessRef.current = value;
     setAccess(value);
     setLocalAccessForAi(value);
-    setAdaptiveAccess(hasPaidFeatures(value));
     return true;
   }, []);
 
@@ -87,7 +85,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     if (accessPromise.current) return accessPromise.current;
     const pending = (async () => {
       const local = await billing.customerInfo(forceStore);
-      const transient = local.kind === 'pugo'
+      const transient = local.kind === 'none'
         && (local.reason === 'unavailable' || local.reason === 'malformed');
       if (!transient) accessConfirmed.current = true;
       applyAccess(local);
@@ -136,15 +134,14 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
    */
   const ensurePaidAccess = useCallback(async (): Promise<PaidAccessDecision> => {
     const stored = accessRef.current;
-    if (stored !== null && hasPaidFeatures(stored)) return 'paid';
+    if (stored !== null && hasItik(stored)) return 'paid';
     if (needsRevalidation(stored, accessConfirmed.current)) await resolveAccess(false);
     const status = entitlementStatus(accessRef.current);
     return status === 'checking' ? 'unavailable' : status;
   }, [resolveAccess]);
 
-  // Initial estimates never gate on entitlement: Pugo includes them and the Worker owns the
-  // quota. This only starts an unresolved lookup so the re-estimate path and the plan screen
-  // have an answer ready.
+  // Starts an unresolved lookup early so the AI gate and the plan screen have an answer ready.
+  // It never gates anything itself.
   const warmEntitlement = useCallback((): void => {
     if (needsRevalidation(accessRef.current, accessConfirmed.current)) void resolveAccess(false);
   }, [resolveAccess]);
@@ -204,12 +201,12 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     return () => { unsubscribe?.(); appState.remove(); };
   }, [applyAccess, billing, refreshAccess]);
 
-  const purchase = useCallback(async (tier: 'manok' | 'itik') => {
+  const purchase = useCallback(async (packageIdentifier: string) => {
     const current = accessRef.current;
     if (current === null || entitlementStatus(current) === 'checking') {
       return { state: 'failed' as const, message: PAID_ACCESS_UNAVAILABLE_MESSAGE };
     }
-    const result = await billing.purchase(tier, current);
+    const result = await billing.purchase(packageIdentifier, current);
     applyAccess(result.access);
     if (result.state === 'success' || result.state === 'entitlement-pending') await refreshAccess(true);
     return { state: result.state, message: result.message };
@@ -234,7 +231,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
     supportId,
     loadingProducts,
     refreshing,
-    hasPaidFeatures: access !== null && hasPaidFeatures(access),
+    hasItik: access !== null && hasItik(access),
     ensurePaidAccess,
     warmEntitlement,
     refresh,

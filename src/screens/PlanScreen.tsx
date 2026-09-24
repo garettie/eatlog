@@ -6,17 +6,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import PrimaryButton from '../components/PrimaryButton';
 import ResponsiveContent from '../components/ResponsiveContent';
-import {
-  CurrentPlanCard,
-  PlanOption,
-  PlanOptionGroup,
-  QuotaCard,
-  UpgradeOption,
-  ValueSummary,
-} from '../components/plan/PlanParts';
+import { CurrentPlanCard, OfferChoice, ValueSummary } from '../components/plan/PlanParts';
 import { usePlanPurchase } from '../components/plan/usePlanPurchase';
 import { serviceConfig } from '../config/services';
+import { useAiSetup } from '../context/AiSetupContext';
 import { useEntitlement, type RefreshOutcome } from '../context/EntitlementContext';
+import { tierOf } from '../services/userApiKey';
 import { APP_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
@@ -24,21 +19,23 @@ type UtilityAction = 'restore' | 'manage' | 'copy' | null;
 
 // Typed by the outcome union so a new outcome cannot ship without copy to explain it.
 const REFRESH_MESSAGES: Record<RefreshOutcome, string> = {
-  ok: 'Plan and usage are up to date.',
-  partial: "Your plan is up to date. We couldn't refresh the request counters.",
-  failed: "We couldn't reach the store. Your logbook and free estimates still work.",
+  ok: 'Your plan is up to date.',
+  partial: "Your plan is up to date. Eatlog AI couldn't be reached.",
+  failed: "We couldn't reach the store. Your logbook still works.",
 };
 
 function PlanContent() {
   const {
-    access, usage, supportId, refreshing, refresh, restore, manageSubscription,
+    access, supportId, refreshing, refresh, restore, manageSubscription,
   } = useEntitlement();
+  const { keyState } = useAiSetup();
   const plan = usePlanPurchase(access);
+  const tier = tierOf(plan.itik, keyState.hasKey);
   const [busy, setBusy] = useState<UtilityAction>(null);
   const [utilityMessage, setUtilityMessage] = useState<string | null>(null);
 
   const utilityBusy = busy !== null || plan.busy;
-  const subscription = access?.kind === 'manok' || access?.kind === 'manok-trial';
+  const subscription = access?.kind === 'subscription';
 
   const run = useCallback(async (
     action: Exclude<UtilityAction, null>,
@@ -93,66 +90,20 @@ function PlanContent() {
       )}
     >
       <ResponsiveContent maxWidth={Math.min(APP_MAX_WIDTH, 600)} className="gap-5">
-        <QuotaCard usage={usage} />
-        <CurrentPlanCard access={access} />
+        <CurrentPlanCard access={access} tier={tier} />
 
-        {plan.paid ? null : <ValueSummary />}
+        {plan.itik ? null : <ValueSummary />}
 
-        {access?.kind === 'itik' ? null : plan.manokActive ? (
-          <View className="gap-3">
-            <Text accessibilityRole="header" className="text-base font-bold text-m3-on-surface">Switch to lifetime</Text>
-            <UpgradeOption
-              price={plan.itikPrice}
-              description="One payment. No renewal."
-              onPress={() => { void plan.run(); }}
-              disabled={plan.disabled}
-            />
-            {plan.itikBlocked ? (
-              <Text className="text-sm text-m3-on-surface-variant">
-                Cancel your monthly plan in the store first. You can buy lifetime access when the current billing period ends.
-              </Text>
-            ) : null}
-            {serviceConfig.revenueCatTestStore ? (
-              <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container-low px-4 py-3">
-                <MaterialIcons name="science" size={19} color={M3.onSurfaceVariant} />
-                <Text className="flex-1 text-sm text-m3-on-surface-variant">
-                  Preview mode: choose Lifetime above to switch plans. Test purchases never charge you.
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        ) : (
+        {plan.canBuy ? (
           <>
-            <PlanOptionGroup label="Choose a plan">
-              <PlanOption
-                tier="manok"
-                title="Manok"
-                cadence="Monthly"
-                price={plan.manokPrice}
-                description={plan.manokDescription}
-                selected={plan.selected === 'manok'}
-                onPress={() => plan.setSelected('manok')}
-              />
-              <PlanOption
-                tier="itik"
-                title="Itik"
-                cadence="Lifetime"
-                badge="Pay once"
-                price={plan.itikPrice}
-                description="One payment. No renewal."
-                selected={plan.selected === 'itik'}
-                onPress={() => plan.setSelected('itik')}
-              />
-            </PlanOptionGroup>
+            <OfferChoice options={plan.options} selectedId={plan.selectedId} onSelect={plan.setSelected} />
 
-            {plan.storeUnreachable || plan.onePriceMissing ? (
+            {plan.storeUnreachable ? (
               <View accessibilityRole="alert" className="flex-row items-start gap-3 px-1">
                 <MaterialIcons name="cloud-off" size={20} color={M3.error} />
                 <View className="min-w-0 flex-1 gap-2">
                   <Text className="text-sm text-m3-on-surface-variant">
-                    {plan.onePriceMissing
-                      ? 'One plan price did not load. You can still choose the other plan.'
-                      : "We couldn't reach the store, so prices and checkout didn't load. Your logbook still works."}
+                    We couldn't reach the store, so prices and checkout didn't load. Your logbook still works.
                   </Text>
                   <Pressable
                     onPress={plan.retryStore}
@@ -173,7 +124,7 @@ function PlanContent() {
               onPress={() => { void plan.run(); }}
             />
           </>
-        )}
+        ) : null}
 
         {plan.message ? (
           <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container px-4 py-3">

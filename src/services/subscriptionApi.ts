@@ -1,4 +1,4 @@
-import { hasPaidFeatures, type EatlogAccess, type EatlogUsage } from './billing.types';
+import { hasItik, type EatlogAccess, type EatlogUsage } from './billing.types';
 
 export type AiAuthorizationFailure = 'paid-access-required' | 'entitlement-unavailable';
 
@@ -39,11 +39,11 @@ function isAccess(value: unknown): value is EatlogAccess {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   return typeof record.checkedAt === 'string'
-    && ['pugo', 'manok-trial', 'manok', 'itik', 'complimentary'].includes(String(record.kind));
+    && ['none', 'subscription', 'purchase', 'complimentary'].includes(String(record.kind));
 }
 
-function isResolvedPugo(access: EatlogAccess): boolean {
-  return access.kind === 'pugo'
+function isResolvedNone(access: EatlogAccess): boolean {
+  return access.kind === 'none'
     && access.reason !== 'unavailable'
     && access.reason !== 'malformed';
 }
@@ -69,10 +69,6 @@ function isUsage(value: unknown): value is EatlogUsage {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   if (record.kind === 'none') return true;
-  if (record.kind === 'free') {
-    return isCount(record.remaining24Hours)
-      && isNullableDate(record.nextEligibleAt);
-  }
   return record.kind === 'paid'
     && isCount(record.remaining24Hours)
     && isCount(record.remaining30Days)
@@ -101,14 +97,14 @@ function persistPaidAccess(): void {
   const store = accessStore;
   if (!store || activeAccess === null) return;
   // A transient failure is not an answer, so it never overwrites a stored one. A resolved
-  // Pugo is: persisting it lets a cold start open on an honest free state instead of a
-  // spinner, and Pugo is the least-privileged state so restoring it can only narrow access.
-  if (activeAccess.kind === 'pugo' && !isResolvedPugo(activeAccess)) return;
+  // "no entitlement" is: persisting it lets a cold start open on an honest state instead of a
+  // spinner, and it is the least-privileged state so restoring it can only narrow access.
+  if (activeAccess.kind === 'none' && !isResolvedNone(activeAccess)) return;
   void store.write(JSON.stringify({ access: activeAccess })).catch(() => {});
 }
 
 function isRestorable(access: EatlogAccess, now: number): boolean {
-  return access.kind === 'pugo' ? isResolvedPugo(access) : hasPaidFeatures(access, new Date(now));
+  return access.kind === 'none' ? isResolvedNone(access) : hasItik(access, new Date(now));
 }
 
 export async function restorePaidAccess(now = Date.now()): Promise<EatlogAccess | null> {
@@ -131,7 +127,7 @@ export function setLocalAccessForAi(access: EatlogAccess | null): void {
   const previous = activeAccess;
   activeAccess = access;
   if (access === null
-    || access.kind === 'pugo' && !isResolvedPugo(access)
+    || access.kind === 'none' && !isResolvedNone(access)
     || previous?.kind !== access.kind) {
     activeGrant = null;
   }
@@ -155,10 +151,10 @@ export function getAiAuthorization(now = Date.now()):
   | { ok: true; grant: string }
   | { ok: false; kind: AiAuthorizationFailure } {
   if (activeAccess === null) return { ok: false, kind: 'entitlement-unavailable' };
-  if (activeAccess.kind === 'pugo' && !isResolvedPugo(activeAccess)) {
+  if (activeAccess.kind === 'none' && !isResolvedNone(activeAccess)) {
     return { ok: false, kind: 'entitlement-unavailable' };
   }
-  if (activeAccess.kind !== 'pugo' && !hasPaidFeatures(activeAccess, new Date(now))) {
+  if (activeAccess.kind !== 'none' && !hasItik(activeAccess, new Date(now))) {
     return { ok: false, kind: 'entitlement-unavailable' };
   }
   if (!activeGrant || new Date(activeGrant.expiresAt).getTime() <= now) {
@@ -201,22 +197,20 @@ export function createSubscriptionApi(options: SubscriptionApiOptions) {
     }
     const value = await response.json() as Partial<WorkerAccessRefreshResponse>;
     if (!isAccess(value.access)) throw new Error('Subscription service unavailable.');
-    const grantMatchesResolvedAccess = value.access.kind !== 'pugo' || isResolvedPugo(value.access);
-    const offered = grantMatchesResolvedAccess
+    // Hosted AI is Itik only, so a grant beside "no entitlement" authorizes nothing.
+    const offered = value.access.kind !== 'none'
       && isGrant(value.grant)
       && new Date(value.grant.expiresAt).getTime() > now()
       ? value.grant
       : null;
-    // The Worker synthesizes free access whenever RevenueCat is unreachable, and that answer is
-    // shaped exactly like a confirmed "no purchase". Applying it to a device holding unexpired
-    // paid access would drop a subscriber to free limits for reasons that have nothing to do
-    // with them. The device's own store record wins: keep a grant that is still valid, and
-    // otherwise hold none, so the app reports the estimate as unavailable rather than quietly
-    // enforcing the free allowance on someone who paid.
-    if (value.access.kind === 'pugo'
+    // The Worker's view of RevenueCat can lag the device's, as when a purchase has not reached
+    // it yet. A "no entitlement" answer must not take Itik from a device whose own store record
+    // still holds it: keep a grant that is still valid, and otherwise hold none, so the app
+    // reports the estimate as unavailable rather than turning away someone who paid.
+    if (value.access.kind === 'none'
       && activeAccess !== null
-      && activeAccess.kind !== 'pugo'
-      && hasPaidFeatures(activeAccess, new Date(now()))) {
+      && activeAccess.kind !== 'none'
+      && hasItik(activeAccess, new Date(now()))) {
       if (activeGrant !== null && new Date(activeGrant.expiresAt).getTime() <= now()) activeGrant = null;
       persistPaidAccess();
       return { usage: { kind: 'none' } };

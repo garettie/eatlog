@@ -41,15 +41,20 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(planScreen, /Restore purchases/);
   assert.match(planScreen, /Manage subscription/);
   assert.match(planParts, /What you get/);
-  assert.match(planPurchase, /offering\?\.manok\?\.trialEligible === true/);
-  assert.match(planPurchase, /1 month free, then .* until canceled in Google Play[.]/);
-  assert.match(planCopy, /Free logging plus 3 AI estimates per rolling 24 hours[.]/);
+  // Package labels come from the store's terms, and trial copy only from a trial the store offers.
+  assert.match(planCopy, /\$\{item\.priceString\} once/);
+  assert.match(planCopy, /if \(trial\) return `\$\{trial\}, then \$\{packagePrice\(item\)\} until canceled\.`/);
+  assert.match(planPurchase, /if \(trial\) return 'Start free trial'/);
+  assert.match(planPurchase, /badge: packageTrial\(item\) \? 'Free trial' : null/);
+  // The store-default offering belongs to the closed-testing build; this app reads only `itik`.
+  assert.match(read('../services/billing.types.ts'), /EATLOG_OFFERING_ID = 'itik'/);
   for (const source of [paywall, planScreen]) {
     assert.match(source, /Terms of Use/);
     assert.match(source, /We couldn't reach the store, so prices and checkout didn't load\. Your logbook still works\./);
     assert.doesNotMatch(source, /Compare plans/);
     assert.doesNotMatch(source, /AI actions|AI use left|AI use limits/);
     assert.doesNotMatch(source, /Your logbook stays yours on every plan/);
+    assert.doesNotMatch(source, /estimates a day|free estimates|Manok|Lifetime|lifetime/);
   }
   for (const source of [paywall, planScreen, profile, foodSheet]) {
     assert.doesNotMatch(source, /Trial active|Monthly trial|Manok trial|Trial requests left|Trial total|trial allowance/i);
@@ -60,50 +65,69 @@ test('the plan surfaces lead with value, then price, then the purchase action', 
   // Reasons to buy must precede the prices, and the prices must precede the commitment.
   for (const source of [paywall, planScreen]) {
     const value = source.indexOf('<ValueSummary />');
-    const options = source.indexOf('<PlanOptionGroup');
+    const options = source.indexOf('<OfferChoice');
     const cta = source.indexOf('<PrimaryButton');
     assert.ok(value >= 0 && options > value, 'plan options must follow the value summary');
     assert.ok(cta > options, 'the purchase button must follow the plan options');
   }
-  // The comparison is the offer, so it is open rather than behind a disclosure.
-  assert.match(planParts, /Photos and descriptions/);
-  assert.match(planParts, /Redo after edits/);
+  // The comparison is the offer, so it is open rather than behind a disclosure: every local
+  // feature is free, and Itik is everything in free with no setup.
+  assert.match(planParts, /Weekly target updates from your trend/);
+  assert.match(planParts, /AI estimates with your own Google key/);
+  assert.match(planParts, /Everything in free/);
+  assert.match(planParts, /AI estimates with no setup/);
   assert.doesNotMatch(planParts, /Usage limits/);
   assert.doesNotMatch(planScreen, /Usage limits/);
 });
 
-test('paid tiers read as unlimited under fair use and never show a request counter', () => {
-  // The caps are abuse protection, not a budget the customer watches. Advertising them beside
-  // the free tier's, or metering a subscriber, both make a paid plan feel small.
-  assert.match(planParts, /if \(usage\.kind !== 'free'\) return null/);
-  assert.doesNotMatch(planParts, /usage\.kind === 'trial'|usage\.kind === 'paid'/);
-  assert.doesNotMatch(planParts, /remaining30Days|initialRemainingTrial|clarificationRemaining/);
-  assert.match(planParts, /paid="Unlimited"/);
-  assert.doesNotMatch(planParts, /paid="30"|paid="250"/);
+test('Itik reads as fair use and no screen shows a request counter', () => {
+  // The caps are abuse protection, not a budget the customer watches, and there is no free
+  // hosted allowance left to count.
+  assert.doesNotMatch(planParts, /QuotaCard|remaining24Hours|remaining30Days|usage\.kind/);
   assert.match(planParts, /subject to fair use/);
-  assert.match(planCopy, /usage\.kind !== 'free'/);
   for (const source of [planScreen, paywall]) {
-    assert.doesNotMatch(source, /30 requests per 24 hours|250 per 30 days/);
+    assert.doesNotMatch(source, /usage|30 requests per 24 hours|250 per 30 days/);
   }
 });
 
 test('the plan screen keeps no manage mode and no control competing with Back', () => {
-  assert.match(planScreen, /<QuotaCard usage=\{usage\} \/>/);
-  assert.doesNotMatch(planParts, /remaining24Hours <= 5|remaining30Days <= 25/);
   // The Profile route exits through the navigator's back affordance alone.
   assert.doesNotMatch(planScreen, /managingPlan|Manage plan|accessibilityLabel="Close plans"/);
   assert.doesNotMatch(planScreen, /name="close"/);
-  // A settled selection is a card, not a radio the user cannot deselect.
+  // A single package is a card, not a radio the user cannot deselect; several are a radio group.
+  assert.match(planParts, /if \(options\.length === 1\)[\s\S]*<OfferCard/);
   assert.match(planParts, /accessibilityRole="radiogroup"/);
-  assert.match(planScreen, /<UpgradeOption/);
+  // The double-payment guard hides the offer instead of offering a second Itik product.
+  for (const source of [paywall, planScreen]) assert.match(source, /\{plan\.canBuy \? \(/);
 });
 
 test('subscription tiers use the requested bird identities', () => {
-  assert.match(paywall, /tier="manok"/);
-  assert.match(paywall, /tier="itik"/);
+  assert.match(planParts, /<TierBirdIcon tier="itik"/);
+  assert.match(planParts, /<TierBirdIcon tier=\{tier\}/);
   assert.match(tierBirdIcon, /tier === 'pugo'/);
   assert.match(tierBirdIcon, /tier === 'manok'/);
   assert.match(tierBirdIcon, /return \([\s\S]*fill="#203431"/);
+});
+
+test('every displayed tier name comes from one module', () => {
+  const tierNames = read('../services/tierNames.ts');
+  assert.match(tierNames, /pugo: 'Pugo'/);
+  assert.match(tierNames, /manok: 'Manok'/);
+  assert.match(tierNames, /itik: 'Itik'/);
+  const shown = [
+    profile, paywall, planScreen, planParts, planPurchase, planCopy, aiSetup, foodSheet, foodScan,
+    read('../services/billing.ts'),
+    read('../screens/AiEstimatesScreen.tsx'),
+    read('../components/ai/AiChoiceContent.tsx'),
+    read('../components/ai/KeySetupContent.tsx'),
+  ];
+  for (const source of shown) {
+    // Comments may name tiers; strings and JSX text may not.
+    const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+    assert.doesNotMatch(code, /['"`>][^'"`<]*\b(Pugo|Manok|Itik)\b/);
+  }
+  // The Profile Plan row names the derived tier, never an old Manok purchase.
+  assert.match(profile, /`Eatlog \$\{TIER_NAMES\[tierOf\(hasItik, keyState\.hasKey\)\]\}`/);
 });
 
 test('purchase support controls keep their layout stable and expose the Support ID', () => {
@@ -166,14 +190,15 @@ test('an unresolved plan still renders the plan surfaces instead of a blocking s
   const navigation = app.slice(app.indexOf('<NavigationContainer'), app.indexOf('</NavigationContainer>'));
   assert.doesNotMatch(navigation, /EntitlementProvider/);
   assert.match(profile, /entitlementStatus === 'checking' \? 'Checking plan…'/);
-  assert.match(analytics, /entitlementStatus === 'checking'[\s\S]*Checking your plan…/);
+  // Adaptive plans are free, so Analytics never waits on the plan.
+  assert.doesNotMatch(analytics, /entitlementStatus|Checking your plan/);
   // Neither plan surface replaces itself with a checking state: the plans are content, and
   // only the current-plan card carries the unknown.
   for (const source of [paywall, planScreen]) {
     assert.doesNotMatch(source, /Checking your plan/);
     assert.doesNotMatch(source, /entitlementStatus === 'checking'/);
   }
-  assert.match(planParts, /access \? accessName\(access\.kind\) : 'Unconfirmed'/);
+  assert.match(planParts, /access \? TIER_NAMES\[tier\] : 'Unconfirmed'/);
 });
 
 test('AI estimate submission authorizes inline during the Worker request without a blocking preflight', () => {
@@ -207,11 +232,6 @@ test('unresolved purchase and restore stop before the billing client', () => {
   assert.match(restore, /entitlementStatus\(current\) === 'checking'[\s\S]*return[\s\S]*billing\.restore/);
 });
 
-test('Test Store preview can replace Manok with Itik without exposing fake cancellation controls', () => {
-  assert.match(planScreen, /serviceConfig\.revenueCatTestStore/);
-  assert.match(planScreen, /Preview mode: choose Lifetime above to switch plans[.] Test purchases never charge you[.]/);
-});
-
 test('initial estimates proceed while re-estimates gate before private content collection', () => {
   const warmEntitlement = entitlementProvider.slice(
     entitlementProvider.indexOf('const warmEntitlement ='),
@@ -229,7 +249,7 @@ test('initial estimates proceed while re-estimates gate before private content c
   assert.match(ensure, /'checking' \? 'unavailable' : status/);
   // A stored paid plan answers from its own expiry date, with no network call in front of a
   // user who opened the app to take one photo.
-  assert.match(ensure, /if \(stored !== null && hasPaidFeatures\(stored\)\) return 'paid'/);
+  assert.match(ensure, /if \(stored !== null && hasItik\(stored\)\) return 'paid'/);
   assert.ok(
     ensure.indexOf("return 'paid'") < ensure.indexOf('await resolveAccess'),
     'a valid paid plan must answer before any refresh is awaited',
@@ -271,11 +291,12 @@ test('initial estimates proceed while re-estimates gate before private content c
   assert.match(foodScan, /acceptAiGrant/);
 });
 
-test('adaptive reads and mutations have UI and service-boundary gates', () => {
-  assert.match(analytics, /hasPaidFeatures \? await getAdaptiveReviewState/);
-  assert.match(analytics, /Adaptive plan/);
-  assert.match(adaptive, /requireAdaptiveAccess\(\)/);
-  assert.equal((adaptive.match(/requireAdaptiveAccess\(\)/g) ?? []).length, 4);
+test('adaptive plans are free: no UI, entitlement, or service-boundary gate', () => {
+  assert.match(analytics, /nextRecommendation = await getAdaptiveReviewState\(endDate\)/);
+  assert.doesNotMatch(analytics, /useEntitlement|ensurePaidAccess|hasItik|navigate\('Paywall'\)/);
+  assert.match(profile, /nextProfile && nextTarget \? await getAdaptiveReviewState\(today\)/);
+  assert.doesNotMatch(adaptive, /requireAdaptiveAccess|adaptiveAccess/);
+  assert.doesNotMatch(entitlementProvider, /setAdaptiveAccess/);
 });
 
 test('entitlement state remains outside SQLite, exports, and restorable backups', () => {

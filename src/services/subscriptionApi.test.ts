@@ -10,19 +10,20 @@ import {
   setLocalAccessForAi,
   setPaidAccessStore,
 } from './subscriptionApi';
-import { hasPaidFeatures } from './billing.types';
+import { hasItik } from './billing.types';
 
 const PAID = {
-  kind: 'manok' as const,
+  kind: 'subscription' as const,
   checkedAt: '2026-08-22T00:00:00Z',
   expiresAt: '2026-09-22T00:00:00Z',
   willRenew: true,
   productId: 'eatlog_manok',
   billingState: 'active' as const,
+  trial: false,
 };
 
-const PUGO = {
-  kind: 'pugo' as const,
+const NONE = {
+  kind: 'none' as const,
   checkedAt: '2026-08-22T00:00:00Z',
   reason: 'none' as const,
 };
@@ -41,14 +42,14 @@ test('inline response grants authorize until expiry and reject malformed or expi
   assert.deepEqual(getAiAuthorization(Date.parse(expiresAt)), { ok: false, kind: 'entitlement-unavailable' });
 });
 
-test('remote AI fails closed without a Pugo grant, during Worker outage, and after grant expiry', async () => {
+test('remote AI fails closed without an entitlement, during Worker outage, and after grant expiry', async () => {
   setLocalAccessForAi(null);
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
-  setLocalAccessForAi(PUGO);
+  setLocalAccessForAi(NONE);
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
-  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:00:00Z', reason: 'unavailable' });
+  setLocalAccessForAi({ kind: 'none', checkedAt: '2026-08-22T00:00:00Z', reason: 'unavailable' });
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
-  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:00:00Z', reason: 'malformed' });
+  setLocalAccessForAi({ kind: 'none', checkedAt: '2026-08-22T00:00:00Z', reason: 'malformed' });
   assert.deepEqual(getAiAuthorization(), { ok: false, kind: 'entitlement-unavailable' });
   setLocalAccessForAi(PAID);
   clearAiGrant();
@@ -76,45 +77,24 @@ test('refresh keeps the signed grant only in memory and authorizes until expiry'
   assert.deepEqual(getAiAuthorization(Date.parse(expiresAt)), { ok: false, kind: 'entitlement-unavailable' });
 });
 
-test('refresh accepts a Pugo grant and validates free usage without persisting the grant', async () => {
-  const store = memoryAccessStore();
-  setPaidAccessStore(store);
-  setLocalAccessForAi(PUGO);
+test('refresh refuses a grant offered beside no entitlement, since hosted AI is Itik only', async () => {
+  setLocalAccessForAi(NONE);
   const now = Date.parse('2026-08-22T00:00:00Z');
-  const expiresAt = '2026-08-23T00:00:00.000Z';
   const api = createSubscriptionApi({
     workerUrl: 'https://staging.example',
     now: () => now,
     fetchImpl: (async () => new Response(JSON.stringify({
-      access: PUGO,
-      grant: { token: 'signed.pugo.payload-value', expiresAt },
-      usage: { kind: 'free', remaining24Hours: 5, nextEligibleAt: null },
+      access: NONE,
+      grant: { token: 'signed.none.payload-value', expiresAt: '2026-08-23T00:00:00.000Z' },
+      usage: { kind: 'none' },
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })) as typeof fetch,
   });
 
-  assert.deepEqual(await api.refresh('a'.repeat(32)), {
-    usage: { kind: 'free', remaining24Hours: 5, nextEligibleAt: null },
-  });
-  assert.deepEqual(getAiAuthorization(now + 60_000), {
-    ok: true,
-    grant: 'signed.pugo.payload-value',
-  });
-  assert.equal(store.current()?.includes('signed.pugo.payload-value'), false);
-
-  setLocalAccessForAi({ ...PUGO, checkedAt: '2026-08-22T00:01:00Z' });
-  assert.deepEqual(getAiAuthorization(now + 60_000), {
-    ok: true,
-    grant: 'signed.pugo.payload-value',
-  });
-  setLocalAccessForAi(PAID);
-  assert.deepEqual(getAiAuthorization(now + 60_000), {
-    ok: false,
-    kind: 'entitlement-unavailable',
-  });
-  setPaidAccessStore(null);
+  assert.deepEqual(await api.refresh('a'.repeat(32)), { usage: { kind: 'none' } });
+  assert.deepEqual(getAiAuthorization(now + 60_000), { ok: false, kind: 'entitlement-unavailable' });
 });
 
 test('manual access refresh sends force while automatic refresh stays cache-first', async () => {
@@ -134,19 +114,11 @@ test('manual access refresh sends force while automatic refresh stays cache-firs
   assert.deepEqual(bodies.map((body) => JSON.parse(body)), [{}, { force: true }]);
 });
 
-test('a free-tier answer never demotes a device holding unexpired paid access', async () => {
-  // The Worker reports Pugo both when it confirmed no purchase and when RevenueCat was
-  // unreachable, and the two are indistinguishable on the wire. Taking the second at face
-  // value would put a subscriber on three estimates a day for reasons that are not theirs.
+test('a no-entitlement answer never demotes a device holding unexpired Itik', async () => {
+  // The Worker's view of RevenueCat can lag the device's. Taking a stale "none" at face value
+  // would turn away a subscriber for reasons that are not theirs.
   const now = Date.parse('2026-08-22T00:00:00Z');
-  const trial = {
-    kind: 'manok-trial' as const,
-    checkedAt: '2026-08-22T00:00:00Z',
-    expiresAt: '2026-09-22T00:00:00Z',
-    willRenew: true,
-    productId: 'eatlog_manok',
-    billingState: 'active' as const,
-  };
+  const trial = { ...PAID, trial: true };
   setLocalAccessForAi(trial);
   clearAiGrant();
   assert.equal(acceptAiGrant('signed.trial.payload-value', '2026-08-23T00:00:00.000Z', now), true);
@@ -155,28 +127,20 @@ test('a free-tier answer never demotes a device holding unexpired paid access', 
     workerUrl: 'https://staging.example',
     now: () => now,
     fetchImpl: (async () => new Response(JSON.stringify({
-      access: PUGO,
-      grant: { token: 'signed.pugo.payload-value', expiresAt: '2026-08-22T00:01:00.000Z' },
-      usage: { kind: 'free', remaining24Hours: 3, nextEligibleAt: null },
+      access: NONE,
+      usage: { kind: 'none' },
     }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch,
   });
 
-  // The trial grant is kept, and the free-tier counter is not adopted as this device's usage.
+  // The trial grant is kept.
   assert.deepEqual(await api.refresh('a'.repeat(32)), { usage: { kind: 'none' } });
   assert.deepEqual(getAiAuthorization(now + 60_000), { ok: true, grant: 'signed.trial.payload-value' });
 
-  // With no usable grant of its own, the app reports the estimate as unavailable rather than
-  // silently running the subscriber against the free allowance.
+  // With no usable grant of its own, the app reports the estimate as unavailable.
   clearAiGrant();
   await api.refresh('a'.repeat(32));
   assert.deepEqual(getAiAuthorization(now + 60_000), { ok: false, kind: 'entitlement-unavailable' });
 
-  // A genuinely free device still takes the answer it is given.
-  setLocalAccessForAi(PUGO);
-  assert.deepEqual(await api.refresh('a'.repeat(32)), {
-    usage: { kind: 'free', remaining24Hours: 3, nextEligibleAt: null },
-  });
-  assert.deepEqual(getAiAuthorization(now), { ok: true, grant: 'signed.pugo.payload-value' });
 });
 
 test('a locally expired paid snapshot blocks AI before a still-valid grant can authorize', async () => {
@@ -208,7 +172,7 @@ test('a contradictory Worker refresh cannot replace verified local paid access',
   const api = createSubscriptionApi({
     workerUrl: 'https://staging.example',
     fetchImpl: (async () => new Response(JSON.stringify({
-      access: { kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'revoked' },
+      access: { kind: 'none', checkedAt: '2026-08-22T00:01:00Z', reason: 'revoked' },
       usage: { kind: 'none' },
     }), {
       status: 200, headers: { 'Content-Type': 'application/json' },
@@ -245,40 +209,34 @@ test('a hung refresh request times out instead of stalling forever, and does not
   });
 });
 
-test('any tier change clears the cached AI grant, including a trial converting to paid', async () => {
+test('any change in access kind clears the cached AI grant', async () => {
   const now = Date.parse('2026-08-22T00:00:00Z');
   const grantExpiresAt = '2026-08-23T00:00:00.000Z';
-  const TRIAL = {
-    kind: 'manok-trial' as const,
-    checkedAt: '2026-08-22T00:00:00Z',
-    expiresAt: '2026-09-05T00:00:00Z',
-    willRenew: true,
-    productId: 'eatlog_manok',
-    billingState: 'active' as const,
-  };
-  const ITIK = {
-    kind: 'itik' as const,
+  const TRIAL = { ...PAID, expiresAt: '2026-09-05T00:00:00Z', trial: true };
+  const PURCHASE = {
+    kind: 'purchase' as const,
     checkedAt: '2026-08-22T00:00:00Z',
     productId: 'eatlog_itik',
     purchasedAt: '2026-08-22T00:00:00Z',
   };
 
-  // Trial converting to paid must not keep the trial's stale grant.
+  // A trial converting to paid stays a subscription, which is what the Worker signed, so the
+  // grant still speaks for it.
   setLocalAccessForAi(TRIAL);
   assert.equal(acceptAiGrant('signed.header.payload-value', grantExpiresAt, now), true);
   setLocalAccessForAi(PAID);
-  assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
+  assert.deepEqual(getAiAuthorization(now), { ok: true, grant: 'signed.header.payload-value' });
 
-  // manok -> itik crosses a tier boundary and must also clear.
+  // subscription -> purchase changes the signed access kind and must clear.
   setLocalAccessForAi(PAID);
   assert.equal(acceptAiGrant('signed.header.payload-value', grantExpiresAt, now), true);
-  setLocalAccessForAi(ITIK);
+  setLocalAccessForAi(PURCHASE);
   assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
 
-  // manok -> manok-trial (downgrade path) must also clear.
-  setLocalAccessForAi(PAID);
+  // purchase -> complimentary must also clear.
+  setLocalAccessForAi(PURCHASE);
   assert.equal(acceptAiGrant('signed.header.payload-value', grantExpiresAt, now), true);
-  setLocalAccessForAi(TRIAL);
+  setLocalAccessForAi({ kind: 'complimentary', checkedAt: '2026-08-22T00:00:00Z', expiresAt: null });
   assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
 
   // Settled behavior: staying on the same paid kind keeps the grant.
@@ -334,20 +292,20 @@ test('the AI grant is never written to disk, even immediately after being accept
   setPaidAccessStore(null);
 });
 
-test('a revoked plan is restored as Pugo, never as paid access', async () => {
+test('a revoked plan is restored as no entitlement, never as Itik', async () => {
   const store = memoryAccessStore();
   setPaidAccessStore(store);
   const now = Date.parse('2026-08-22T00:02:00Z');
 
   setLocalAccessForAi(PAID);
-  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'revoked' });
+  setLocalAccessForAi({ kind: 'none', checkedAt: '2026-08-22T00:01:00Z', reason: 'revoked' });
   setLocalAccessForAi(null);
 
-  // Persisting a resolved Pugo lets a cold start open on an honest free state, and restoring
+  // Persisting a resolved no-entitlement lets a cold start open on an honest state, and restoring
   // it can only narrow access: the paid snapshot it replaced is unreachable afterwards.
   const restored = await restorePaidAccess(now);
-  assert.equal(restored?.kind, 'pugo');
-  assert.equal(hasPaidFeatures(restored!, new Date(now)), false);
+  assert.equal(restored?.kind, 'none');
+  assert.equal(hasItik(restored!, new Date(now)), false);
   assert.deepEqual(getAiAuthorization(now), { ok: false, kind: 'entitlement-unavailable' });
   setPaidAccessStore(null);
 });
@@ -356,10 +314,10 @@ test('an unresolved plan is never persisted, so a transient failure cannot outli
   const store = memoryAccessStore();
   setPaidAccessStore(store);
 
-  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'unavailable' });
+  setLocalAccessForAi({ kind: 'none', checkedAt: '2026-08-22T00:01:00Z', reason: 'unavailable' });
   assert.equal(store.current(), null);
 
-  setLocalAccessForAi({ kind: 'pugo', checkedAt: '2026-08-22T00:01:00Z', reason: 'malformed' });
+  setLocalAccessForAi({ kind: 'none', checkedAt: '2026-08-22T00:01:00Z', reason: 'malformed' });
   assert.equal(store.current(), null);
 
   setLocalAccessForAi(null);

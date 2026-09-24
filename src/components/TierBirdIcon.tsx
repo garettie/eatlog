@@ -1,7 +1,7 @@
 import React from 'react';
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 
-export type EatlogTier = 'pugo' | 'manok' | 'itik';
+type EatlogTier = 'pugo' | 'manok' | 'itik';
 
 interface TierBirdIconProps {
   tier: EatlogTier;

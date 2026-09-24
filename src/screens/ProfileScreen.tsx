@@ -19,7 +19,8 @@ import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { useEntitlement } from '../context/EntitlementContext';
 import { useAiSetup } from '../context/AiSetupContext';
-import type { UserKeyState } from '../services/userApiKey';
+import { tierOf, type UserKeyState } from '../services/userApiKey';
+import { TIER_NAMES } from '../services/tierNames';
 import { serviceConfig } from '../config/services';
 
 interface ProfileScreenProps {
@@ -81,7 +82,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     const navigation = useNavigation<any>();
     const { runDataMaintenance } = useDataMaintenance();
-    const { access, hasPaidFeatures, status: entitlementStatus } = useEntitlement();
+    const { hasItik, status: entitlementStatus } = useEntitlement();
     const { keyState } = useAiSetup();
     const { isTwoPane, horizontalPadding } = useResponsiveLayout();
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -98,7 +99,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                 const today = todayISO();
                 const nextProfile = await getProfile();
                 const nextTarget = nextProfile ? await getDailyTargetForDate(today) : null;
-                const nextAdaptiveState = nextProfile && nextTarget && hasPaidFeatures ? await getAdaptiveReviewState(today) : null;
+                const nextAdaptiveState = nextProfile && nextTarget ? await getAdaptiveReviewState(today) : null;
 
                 setProfile(nextProfile);
                 setTarget(nextTarget);
@@ -113,7 +114,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
         });
         loadQueueRef.current = queued;
         return queued;
-    }, [hasPaidFeatures]);
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
@@ -303,9 +304,9 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
                 <View className={isTwoPane ? 'flex-[3] min-w-0 gap-6' : 'gap-6'}>
                     <Section title="Eatlog">
-                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : access?.kind === 'pugo' ? 'Eatlog Pugo' : access?.kind === 'manok-trial' || access?.kind === 'manok' ? 'Eatlog Manok' : access?.kind === 'itik' ? 'Eatlog Itik · Lifetime' : 'Complimentary access'} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={serviceConfig.availability.gemini} />
+                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : `Eatlog ${TIER_NAMES[tierOf(hasItik, keyState.hasKey)]}`} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={serviceConfig.availability.gemini} />
                         {serviceConfig.availability.gemini ? (
-                            <ProfileSettingRow icon="auto-awesome" title="AI estimates" detail={aiEstimatesDetail(hasPaidFeatures, keyState)} onPress={() => navigation.navigate('AiEstimates')} showDivider={false} />
+                            <ProfileSettingRow icon="auto-awesome" title="AI estimates" detail={aiEstimatesDetail(hasItik, keyState)} onPress={() => navigation.navigate('AiEstimates')} showDivider={false} />
                         ) : null}
                     </Section>
                     <Section title="Plan">

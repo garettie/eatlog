@@ -6,31 +6,20 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import PrimaryButton from '../components/PrimaryButton';
 import ResponsiveContent from '../components/ResponsiveContent';
-import {
-  PlanOption,
-  PlanOptionGroup,
-  UpgradeOption,
-  ValueSummary,
-} from '../components/plan/PlanParts';
-import { quotaResetLabel } from '../components/plan/planCopy';
+import { OfferChoice, ValueSummary } from '../components/plan/PlanParts';
 import { usePlanPurchase } from '../components/plan/usePlanPurchase';
 import { serviceConfig } from '../config/services';
 import { useEntitlement } from '../context/EntitlementContext';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { TIER_NAMES } from '../services/tierNames';
 import { APP_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
 export default function PaywallScreen({ navigation }: NativeStackScreenProps<RootStackParamList, 'Paywall'>) {
-  const { access, usage, restore } = useEntitlement();
+  const { access, restore } = useEntitlement();
   const plan = usePlanPurchase(access);
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
-
-  // Zero remaining free estimates is proof enough of the wall the user just hit, so callers
-  // do not have to announce it. This also lets the sheet's own failure paths keep their
-  // inline errors, which preserve the photo and the search and manual fallbacks.
-  const outOfQuota = usage.kind === 'free' && usage.remaining24Hours === 0;
-  const resetLabel = quotaResetLabel(usage);
 
   const runRestore = useCallback(async () => {
     if (restoring) return;
@@ -59,18 +48,11 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
           <View className="flex-row items-start gap-3">
             <View className="min-w-0 flex-1 gap-1">
               <Text accessibilityRole="header" className="text-2xl font-bold text-m3-on-surface">
-                {outOfQuota ? "You're out of free estimates" : 'Unlock more AI estimates'}
+                Get {TIER_NAMES.itik}
               </Text>
-              {outOfQuota ? (
-                <Text className="text-sm text-m3-on-surface-variant">
-                  {resetLabel ?? 'Your free estimates reset on a rolling 24-hour window.'}
-                  {' '}Logging by search or by hand stays free and unlimited.
-                </Text>
-              ) : (
-                <Text className="text-sm text-m3-on-surface-variant">
-                  Logging, your data, and 3 estimates a day stay free on Eatlog Pugo.
-                </Text>
-              )}
+              <Text className="text-sm text-m3-on-surface-variant">
+                AI estimates from photos and descriptions, with no key to set up.
+              </Text>
             </View>
             <Pressable
               onPress={() => navigation.goBack()}
@@ -84,70 +66,39 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
 
           <ValueSummary />
 
-          {plan.manokActive ? (
-            <UpgradeOption
-              price={plan.itikPrice}
-              description="One payment. No renewal."
-              onPress={() => { void plan.run(); }}
-              disabled={plan.disabled}
-            />
+          {plan.canBuy ? (
+            <>
+              <OfferChoice options={plan.options} selectedId={plan.selectedId} onSelect={plan.setSelected} />
+
+              {plan.storeUnreachable ? (
+                <View accessibilityRole="alert" className="flex-row items-start gap-3 px-1">
+                  <MaterialIcons name="cloud-off" size={20} color={M3.error} />
+                  <View className="min-w-0 flex-1 gap-2">
+                    <Text className="text-sm text-m3-on-surface-variant">
+                      We couldn't reach the store, so prices and checkout didn't load. Your logbook still works.
+                    </Text>
+                    <Pressable
+                      onPress={plan.retryStore}
+                      accessibilityRole="button"
+                      accessibilityLabel="Check the store again"
+                      className="min-h-[48px] justify-center self-start"
+                    >
+                      <Text className="text-sm font-semibold text-m3-on-surface">Check the store again</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+
+              <PrimaryButton
+                title={plan.title}
+                disabled={plan.disabled}
+                loading={plan.busy || plan.loadingProducts}
+                onPress={() => { void plan.run(); }}
+              />
+            </>
           ) : (
-            <PlanOptionGroup label="Choose a plan">
-              <PlanOption
-                tier="manok"
-                title="Manok"
-                cadence="Monthly"
-                price={plan.manokPrice}
-                description={plan.manokDescription}
-                selected={plan.selected === 'manok'}
-                onPress={() => plan.setSelected('manok')}
-              />
-              <PlanOption
-                tier="itik"
-                title="Itik"
-                cadence="Lifetime"
-                badge="Pay once"
-                price={plan.itikPrice}
-                description="One payment. No renewal."
-                selected={plan.selected === 'itik'}
-                onPress={() => plan.setSelected('itik')}
-              />
-            </PlanOptionGroup>
+            <Text className="px-1 text-sm text-m3-on-surface-variant">Eatlog {TIER_NAMES.itik} is already active.</Text>
           )}
-
-          {plan.storeUnreachable || plan.onePriceMissing ? (
-            <View accessibilityRole="alert" className="flex-row items-start gap-3 px-1">
-              <MaterialIcons name="cloud-off" size={20} color={M3.error} />
-              <View className="min-w-0 flex-1 gap-2">
-                <Text className="text-sm text-m3-on-surface-variant">
-                  {plan.onePriceMissing
-                    ? 'One plan price did not load. You can still choose the other plan.'
-                    : "We couldn't reach the store, so prices and checkout didn't load. Your logbook still works."}
-                </Text>
-                <Pressable
-                  onPress={plan.retryStore}
-                  accessibilityRole="button"
-                  accessibilityLabel="Check the store again"
-                  className="min-h-[48px] justify-center self-start"
-                >
-                  <Text className="text-sm font-semibold text-m3-on-surface">Check the store again</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          <PrimaryButton
-            title={plan.title}
-            disabled={plan.disabled}
-            loading={plan.busy || plan.loadingProducts}
-            onPress={() => { void plan.run(); }}
-          />
-
-          {plan.itikBlocked ? (
-            <Text className="text-sm text-m3-on-surface-variant">
-              Cancel your monthly plan in the store first. You can buy lifetime access when the current billing period ends.
-            </Text>
-          ) : null}
 
           {plan.message || restoreMessage ? (
             <View className="flex-row items-start gap-3 rounded-2xl bg-m3-surface-container px-4 py-3">

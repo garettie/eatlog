@@ -26,6 +26,7 @@ import {
 } from './foodEstimateCore';
 import { requestDirectEstimate } from './foodEstimateDirect';
 import { userApiKeyStore, type AiRoute } from './userApiKey';
+import { TIER_NAMES } from './tierNames';
 
 export type { AiRoute };
 
@@ -63,7 +64,6 @@ export type FoodEstimationFailureKind =
     | 'unavailable'
     | 'consent-required'
     | 'paid-access-required'
-    | 'pugo-daily-limit'
     | 'fair-use-daily-limit'
     | 'fair-use-30-day-limit'
     | 'refund-daily-limit'
@@ -110,7 +110,6 @@ export interface FoodEstimateClientOptions {
 }
 
 const RESET_KINDS = new Set<FoodEstimationFailureKind>([
-    'pugo-daily-limit',
     'fair-use-daily-limit',
 ]);
 
@@ -125,8 +124,7 @@ function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null
     const messages: Record<FoodEstimationFailureKind, string> = {
         unavailable: 'Estimates are unavailable in this build.',
         'consent-required': 'Enable online estimates to use this.',
-        'paid-access-required': 'Eatlog Manok or Itik is required for AI estimates.',
-        'pugo-daily-limit': "You've used your 3 free estimates for this 24-hour window. Try again after it resets.",
+        'paid-access-required': `Eatlog AI needs ${TIER_NAMES.itik}.`,
         'fair-use-daily-limit': 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when it resets.',
         'fair-use-30-day-limit': 'The 250-operation rolling 30-day fair-use limit is reached. Try again when it resets.',
         'refund-daily-limit': 'Too many recent estimate attempts could not be completed. Try again when the window resets.',
@@ -401,7 +399,6 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
                     } catch { code = null; }
                     const mapping: Record<string, FoodEstimationFailureKind> = {
                         PAID_ACCESS_REQUIRED: 'paid-access-required',
-                        PUGO_DAILY_LIMIT: 'pugo-daily-limit',
                         FAIR_USE_DAILY_LIMIT: 'fair-use-daily-limit',
                         FAIR_USE_30_DAY_LIMIT: 'fair-use-30-day-limit',
                         REFUND_DAILY_LIMIT: 'refund-daily-limit',

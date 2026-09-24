@@ -1,59 +1,51 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { serviceConfig } from '../../config/services';
 import { useEntitlement } from '../../context/EntitlementContext';
-import { canBuyItik, hasPaidFeatures, type EatlogAccess } from '../../services/billing.types';
-
-type PlanTier = 'manok' | 'itik';
+import { canBuyItik, hasItik, type EatlogAccess } from '../../services/billing.types';
+import { TIER_NAMES } from '../../services/tierNames';
+import { packageCadence, packageDescription, packagePrice, packageTrial } from './planCopy';
 
 /**
- * Purchase state shared by the interrupt paywall and the Profile plan screen.
+ * Purchase state shared by the interrupt paywall and the Profile plan screen. Every package in
+ * the `itik` offering is Itik; they differ only in the store's terms, which label them.
  *
- * The CTA label depends on the selected tier and its price and on nothing else. Transient
+ * The CTA label depends on the selected package and its price and on nothing else. Transient
  * conditions drive `busy` and the status line instead, so the button never renames itself
  * mid-decision, and a background refresh never disables it.
  */
 export function usePlanPurchase(access: EatlogAccess | null) {
   const { offering, loadingProducts, purchase, refresh } = useEntitlement();
-  const [selected, setSelected] = useState<PlanTier>('manok');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const manokActive = access?.kind === 'manok' || access?.kind === 'manok-trial';
-  const paid = access !== null && hasPaidFeatures(access);
-  // An active Manok subscriber can only move to Itik, so the selection is already settled.
-  const selectedTier: PlanTier = manokActive ? 'itik' : selected;
-  const product = selectedTier === 'manok' ? offering?.manok : offering?.itik;
+  const packages = useMemo(() => offering?.packages ?? [], [offering]);
+  const product = packages.find((item) => item.packageIdentifier === selectedId) ?? packages[0] ?? null;
+  const itik = access !== null && hasItik(access);
+  // Anyone can open the offer; the double-payment guard only hides it from someone who would
+  // be paying twice.
+  const canBuy = access === null || canBuyItik(access);
+  const trial = product ? packageTrial(product) : null;
 
-  const itikBlocked = selectedTier === 'itik'
-    && !serviceConfig.revenueCatTestStore
-    && access !== null
-    && !canBuyItik(access);
-  const alreadyActive = selectedTier === 'itik' ? access?.kind === 'itik' : manokActive;
-  const trialEligible = offering?.manok?.trialEligible === true;
-
-  // Named by tier, priced when the price is known. The label never becomes a status line and
-  // never becomes a retry control, so the button means the same thing every time it is read.
   const title = useMemo(() => {
-    if (selectedTier === 'itik') return product ? `Buy lifetime · ${product.priceString}` : 'Buy lifetime';
-    if (trialEligible) return 'Start free month';
-    return product ? `Start monthly · ${product.priceString}` : 'Start monthly';
-  }, [product, selectedTier, trialEligible]);
+    if (trial) return 'Start free trial';
+    return product ? `Get ${TIER_NAMES.itik} · ${product.priceString}` : `Get ${TIER_NAMES.itik}`;
+  }, [product, trial]);
 
-  const disabled = busy || loadingProducts || !product || alreadyActive || itikBlocked;
+  const disabled = busy || loadingProducts || !product || !canBuy;
 
   const run = useCallback(async () => {
     if (busy || !product) return;
     setBusy(true);
     setMessage(null);
     try {
-      setMessage((await purchase(selectedTier)).message);
+      setMessage((await purchase(product.packageIdentifier)).message);
     } catch {
       setMessage("The purchase didn't finish. Try again.");
     } finally {
       setBusy(false);
     }
-  }, [busy, product, purchase, selectedTier]);
+  }, [busy, product, purchase]);
 
   const retryStore = useCallback(() => {
     setMessage(null);
@@ -61,14 +53,18 @@ export function usePlanPurchase(access: EatlogAccess | null) {
   }, [refresh]);
 
   return {
-    selected: selectedTier,
-    setSelected,
-    manokActive,
-    paid,
-    product,
-    trialEligible,
-    itikBlocked,
-    alreadyActive,
+    options: packages.map((item) => ({
+      id: item.packageIdentifier,
+      title: TIER_NAMES.itik,
+      cadence: packageCadence(item),
+      badge: packageTrial(item) ? 'Free trial' : null,
+      price: packagePrice(item),
+      description: packageDescription(item),
+    })),
+    selectedId: product?.packageIdentifier ?? null,
+    setSelected: setSelectedId,
+    itik,
+    canBuy,
     title,
     disabled,
     busy,
@@ -77,16 +73,6 @@ export function usePlanPurchase(access: EatlogAccess | null) {
     setMessage,
     run,
     retryStore,
-    storeUnreachable: !loadingProducts && !offering?.manok && !offering?.itik,
-    onePriceMissing: !loadingProducts && (!offering?.manok || !offering?.itik) && (!!offering?.manok || !!offering?.itik),
-    manokPrice: offering?.manok
-      ? `${offering.manok.priceString} / month`
-      : loadingProducts ? 'Checking price…' : 'Price unavailable',
-    manokDescription: trialEligible && offering?.manok
-      ? `1 month free, then ${offering.manok.priceString} / month until canceled in Google Play.`
-      : 'Renews monthly.',
-    itikPrice: offering?.itik
-      ? `${offering.itik.priceString} once`
-      : loadingProducts ? 'Checking price…' : 'Price unavailable',
+    storeUnreachable: !loadingProducts && packages.length === 0,
   };
 }

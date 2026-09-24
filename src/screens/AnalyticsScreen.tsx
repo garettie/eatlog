@@ -5,7 +5,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useEntitlement } from '../context/EntitlementContext';
 
 import Card from '../components/Card';
 import EnergyChart from '../components/EnergyChart';
@@ -294,7 +293,6 @@ function AnalyticsScreen({
   const reduced = useReducedMotion();
   const today = useToday();
   const navigation = useNavigation<any>();
-  const { ensurePaidAccess, hasPaidFeatures, status: entitlementStatus } = useEntitlement();
   const { isNarrow, isTwoPane, horizontalPadding } = useResponsiveLayout();
   const [selectedRange, setSelectedRange] = useState<RangeKey>('1M');
   const [selectedCalorieMonthStart, setSelectedCalorieMonthStart] = useState(() => monthStartISO(todayISO()));
@@ -446,7 +444,7 @@ function AnalyticsScreen({
         let nextRecommendation: AdaptiveReviewState | null = null;
         let nextRecommendationError = false;
         try {
-          nextRecommendation = hasPaidFeatures ? await getAdaptiveReviewState(endDate) : null;
+          nextRecommendation = await getAdaptiveReviewState(endDate);
         } catch (error) {
           console.error('[Analytics] recommendation load failed', error);
           nextRecommendationError = true;
@@ -469,7 +467,7 @@ function AnalyticsScreen({
         setInitialLoading(false);
       }
     });
-  }, [enqueue, hasPaidFeatures]);
+  }, [enqueue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -577,15 +575,6 @@ function AnalyticsScreen({
 
   const retryRecommendation = useCallback(async () => {
     if (recommendationLoading) return;
-    const decision = await ensurePaidAccess();
-    if (decision === 'free') {
-      navigation.navigate('Paywall');
-      return;
-    }
-    if (decision === 'unavailable') {
-      setRecommendationError(true);
-      return;
-    }
     setRecommendationLoading(true);
     await enqueue(async () => {
       try {
@@ -601,19 +590,10 @@ function AnalyticsScreen({
         if (mountedRef.current) setRecommendationLoading(false);
       }
     });
-  }, [enqueue, ensurePaidAccess, navigation, recommendationLoading]);
+  }, [enqueue, recommendationLoading]);
 
   const resolveRecommendation = useCallback(async (action: 'accept' | 'keep') => {
     if (resolving || recommendation?.kind !== 'ready') return;
-    const decision = await ensurePaidAccess();
-    if (decision === 'free') {
-      navigation.navigate('Paywall');
-      return;
-    }
-    if (decision === 'unavailable') {
-      setRecommendationError(true);
-      return;
-    }
     setResolving(action);
     setStaleMessage(false);
     let resolved = false;
@@ -644,22 +624,13 @@ function AnalyticsScreen({
     } finally {
       if (mountedRef.current) setResolving(null);
     }
-  }, [enqueue, ensurePaidAccess, navigation, onDataChanged, recommendation, resolving]);
+  }, [enqueue, onDataChanged, recommendation, resolving]);
 
   const confirmIntakeDay = useCallback(async (
     logDate: string,
     status: 'complete' | 'partial' | 'intentional_fast',
   ) => {
     if (confirmingIntakeDate || recommendation?.kind !== 'holding') return;
-    const decision = await ensurePaidAccess();
-    if (decision === 'free') {
-      navigation.navigate('Paywall');
-      return;
-    }
-    if (decision === 'unavailable') {
-      setRecommendationError(true);
-      return;
-    }
     setConfirmingIntakeDate(logDate);
     try {
       await enqueue(async () => {
@@ -674,7 +645,7 @@ function AnalyticsScreen({
     } finally {
       if (mountedRef.current) setConfirmingIntakeDate(null);
     }
-  }, [confirmingIntakeDate, enqueue, ensurePaidAccess, navigation, recommendation]);
+  }, [confirmingIntakeDate, enqueue, recommendation]);
 
   if (initialLoading && !data) {
     return (
@@ -746,32 +717,7 @@ function AnalyticsScreen({
     && recommendation.reason === 'intake_confirmation_required'
     ? recommendation.confirmationDays[0]
     : undefined;
-  const recommendationCard = entitlementStatus === 'checking' ? (
-    <View className="min-h-[112px] items-center justify-center gap-3 rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5">
-      <ActivityIndicator color={M3.onSurfaceVariant} />
-      <Text accessibilityLiveRegion="polite" className="text-m3-on-surface-variant text-sm">Checking your plan…</Text>
-    </View>
-  ) : !hasPaidFeatures ? (
-    <View className="rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5 gap-3">
-      <View className="flex-row items-center gap-3">
-        <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
-          <MaterialIcons name="lock-outline" size={20} color={M3.onSurfaceVariant} />
-        </View>
-        <View className="flex-1 gap-0.5">
-          <Text className="text-m3-on-surface font-bold text-base">Adaptive plan</Text>
-          <Text className="text-m3-on-surface-variant text-sm">Weekly target updates are included with Manok and Itik.</Text>
-        </View>
-      </View>
-      <Pressable
-        onPress={() => navigation.navigate('Paywall')}
-        accessibilityRole="button"
-        accessibilityLabel="View Eatlog plans"
-        className="min-h-[48px] rounded-full bg-white items-center justify-center active:opacity-80"
-      >
-        <Text className="text-m3-on-primary text-sm font-semibold">View plans</Text>
-      </Pressable>
-    </View>
-  ) : (
+  const recommendationCard = (
     <View className="rounded-3xl border border-m3-outline-variant/30 bg-m3-surface-container-highest p-5 gap-4">
       {recommendationError ? (
         <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite">

@@ -1,7 +1,5 @@
 export const EATLOG_ENTITLEMENT_ID = 'eatlog_paid';
-export const EATLOG_OFFERING_ID = 'default';
-export const MANOK_PRODUCT_IDS = ['eatlog_manok', 'eatlog_manok:monthly', 'eatlog_manok_monthly'] as const;
-export const ITIK_PRODUCT_ID = 'eatlog_itik';
+export const EATLOG_OFFERING_ID = 'itik';
 
 export type AccessReason =
   | 'none'
@@ -14,24 +12,23 @@ interface AccessBase {
   checkedAt: string;
 }
 
+/**
+ * Every active `eatlog_paid` entitlement is Itik. The kind records how it was obtained, read
+ * from the shape of the entitlement rather than from product identifiers, matching the Worker,
+ * so a new Itik product or cadence needs no app change.
+ */
 export type EatlogAccess =
-  | (AccessBase & { kind: 'pugo'; reason?: AccessReason })
+  | (AccessBase & { kind: 'none'; reason?: AccessReason })
   | (AccessBase & {
-      kind: 'manok-trial';
+      kind: 'subscription';
       expiresAt: string;
       willRenew: boolean;
       productId: string;
       billingState: 'active' | 'grace';
+      trial: boolean;
     })
   | (AccessBase & {
-      kind: 'manok';
-      expiresAt: string | null;
-      willRenew: boolean;
-      productId: string;
-      billingState: 'active' | 'grace';
-    })
-  | (AccessBase & {
-      kind: 'itik';
+      kind: 'purchase';
       productId: string;
       purchasedAt: string | null;
     })
@@ -57,23 +54,19 @@ export interface RevenueCatCustomerSnapshot {
   entitlement?: RevenueCatEntitlementSnapshot | null;
 }
 
-export interface BillingProduct {
-  tier: 'manok' | 'itik';
+export interface BillingPackage {
   packageIdentifier: string;
   productIdentifier: string;
   priceString: string;
-  trialEligible: boolean;
+  /** The store's billing period in ISO 8601, such as `P1M`, or null for a one-time purchase. */
+  period: string | null;
+  /** The length of a free trial the store offers this user, in ISO 8601, or null for none. */
+  freeTrial: string | null;
 }
 
 export interface BillingOffering {
   identifier: typeof EATLOG_OFFERING_ID;
-  manok: BillingProduct | null;
-  itik: BillingProduct | null;
-}
-
-export interface FreeUsage {
-  remaining24Hours: number;
-  nextEligibleAt: string | null;
+  packages: BillingPackage[];
 }
 
 export interface PaidUsage {
@@ -84,7 +77,6 @@ export interface PaidUsage {
 
 export type EatlogUsage =
   | { kind: 'none' }
-  | ({ kind: 'free' } & FreeUsage)
   | ({ kind: 'paid' } & PaidUsage);
 
 export type BillingActionState =
@@ -115,22 +107,18 @@ function checkedAt(snapshot: RevenueCatCustomerSnapshot, now: Date): string {
   return iso(snapshot.requestDate) ?? now.toISOString();
 }
 
-function isManokProduct(value: string): boolean {
-  return (MANOK_PRODUCT_IDS as readonly string[]).includes(value);
-}
-
-export function hasPaidFeatures(access: EatlogAccess, now = new Date()): boolean {
-  if (access.kind === 'pugo') return false;
+export function hasItik(access: EatlogAccess, now = new Date()): boolean {
+  if (access.kind === 'none') return false;
   const expiry = accessExpiresAt(access);
   return expiry === null || Date.parse(expiry) > now.getTime();
 }
 
 export function entitlementStatus(access: EatlogAccess | null, now = new Date()): EntitlementStatus {
   if (access === null) return 'checking';
-  if (access.kind === 'pugo') {
+  if (access.kind === 'none') {
     return access.reason === 'unavailable' || access.reason === 'malformed' ? 'checking' : 'free';
   }
-  return hasPaidFeatures(access, now) ? 'paid' : 'checking';
+  return hasItik(access, now) ? 'paid' : 'checking';
 }
 
 /** How close to expiry a paid plan must be before automatic re-verification resumes. */
@@ -142,7 +130,7 @@ export const PAID_REVERIFY_MARGIN_MS = 24 * 60 * 60 * 1000;
  * reasons to re-verify are that date approaching or the store pushing a change.
  */
 export function paidAndSettled(access: EatlogAccess | null, now = new Date()): boolean {
-  if (access === null || !hasPaidFeatures(access, now)) return false;
+  if (access === null || !hasItik(access, now)) return false;
   const expiry = accessExpiresAt(access);
   return expiry === null || Date.parse(expiry) - now.getTime() > PAID_REVERIFY_MARGIN_MS;
 }
@@ -160,14 +148,18 @@ export function needsRevalidation(
   return !confirmedThisSession || entitlementStatus(access, now) === 'checking';
 }
 
+/**
+ * The double-payment guard: a one-time purchase already covers Itik, and a subscription that
+ * still renews would keep charging beside a second product. A cancelled subscription or a
+ * complimentary grant can still buy.
+ */
 export function canBuyItik(access: EatlogAccess): boolean {
-  return access.kind !== 'itik' && (access.kind !== 'manok' && access.kind !== 'manok-trial' || !access.willRenew);
+  if (access.kind === 'purchase') return false;
+  return access.kind !== 'subscription' || !access.willRenew;
 }
 
 function accessExpiresAt(access: EatlogAccess): string | null {
-  if (access.kind === 'manok' || access.kind === 'manok-trial' || access.kind === 'complimentary') {
-    return access.expiresAt;
-  }
+  if (access.kind === 'subscription' || access.kind === 'complimentary') return access.expiresAt;
   return null;
 }
 
@@ -178,7 +170,7 @@ export function shouldApplyAccessUpdate(
 ): boolean {
   const nextCheckedAt = Date.parse(next.checkedAt);
   if (!Number.isFinite(nextCheckedAt)) return false;
-  const transient = next.kind === 'pugo'
+  const transient = next.kind === 'none'
     && (next.reason === 'unavailable' || next.reason === 'malformed');
   if (current === null) return !transient;
 
@@ -187,7 +179,7 @@ export function shouldApplyAccessUpdate(
 
   if (transient) {
     const expiry = accessExpiresAt(current);
-    return current.kind !== 'pugo' && expiry !== null && Date.parse(expiry) <= now.getTime();
+    return current.kind !== 'none' && expiry !== null && Date.parse(expiry) <= now.getTime();
   }
   return true;
 }
@@ -197,66 +189,52 @@ export function normalizeAccess(
   now = new Date(),
 ): EatlogAccess {
   if (!snapshot || typeof snapshot !== 'object') {
-    return { kind: 'pugo', checkedAt: now.toISOString(), reason: 'unavailable' };
+    return { kind: 'none', checkedAt: now.toISOString(), reason: 'unavailable' };
   }
   const checked = checkedAt(snapshot, now);
   const entitlement = snapshot.entitlement;
   if (!entitlement || typeof entitlement !== 'object') {
-    return { kind: 'pugo', checkedAt: checked, reason: 'none' };
+    return { kind: 'none', checkedAt: checked, reason: 'none' };
   }
   if (entitlement.identifier !== EATLOG_ENTITLEMENT_ID
     || typeof entitlement.isActive !== 'boolean'
     || typeof entitlement.productIdentifier !== 'string') {
-    return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
+    return { kind: 'none', checkedAt: checked, reason: 'malformed' };
   }
   const productId = entitlement.productIdentifier;
   const expiry = entitlement.expirationDate == null ? null : iso(entitlement.expirationDate);
   if (entitlement.expirationDate != null && !expiry) {
-    return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
+    return { kind: 'none', checkedAt: checked, reason: 'malformed' };
   }
   if (expiry && new Date(expiry).getTime() <= now.getTime()) {
-    return { kind: 'pugo', checkedAt: checked, reason: 'expired' };
+    return { kind: 'none', checkedAt: checked, reason: 'expired' };
   }
   if (!entitlement.isActive) {
-    return { kind: 'pugo', checkedAt: checked, reason: 'revoked' };
+    return { kind: 'none', checkedAt: checked, reason: 'revoked' };
   }
 
-  if (productId === ITIK_PRODUCT_ID) {
-    if (expiry !== null) return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
+  if (entitlement.store === 'PROMOTIONAL') {
+    return { kind: 'complimentary', expiresAt: expiry, checkedAt: checked };
+  }
+  if (expiry === null) {
     return {
-      kind: 'itik',
+      kind: 'purchase',
       productId,
       purchasedAt: iso(entitlement.latestPurchaseDate),
       checkedAt: checked,
     };
   }
-  if (entitlement.store === 'PROMOTIONAL') {
-    return { kind: 'complimentary', expiresAt: expiry, checkedAt: checked };
-  }
-  if (!isManokProduct(productId) || typeof entitlement.willRenew !== 'boolean') {
-    return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
-  }
-  if (!expiry) return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
-  const billingState = entitlement.billingIssueDetectedAt == null ? 'active' : 'grace';
-  if (entitlement.periodType === 'TRIAL') {
-    return {
-      kind: 'manok-trial',
-      expiresAt: expiry,
-      willRenew: entitlement.willRenew,
-      productId,
-      checkedAt: checked,
-      billingState,
-    };
-  }
-  if (entitlement.periodType !== 'NORMAL' && entitlement.periodType !== 'INTRO') {
-    return { kind: 'pugo', checkedAt: checked, reason: 'malformed' };
+  if (typeof entitlement.willRenew !== 'boolean'
+    || (entitlement.periodType !== 'TRIAL' && entitlement.periodType !== 'NORMAL' && entitlement.periodType !== 'INTRO')) {
+    return { kind: 'none', checkedAt: checked, reason: 'malformed' };
   }
   return {
-    kind: 'manok',
+    kind: 'subscription',
     expiresAt: expiry,
     willRenew: entitlement.willRenew,
     productId,
     checkedAt: checked,
-    billingState,
+    billingState: entitlement.billingIssueDetectedAt == null ? 'active' : 'grace',
+    trial: entitlement.periodType === 'TRIAL',
   };
 }

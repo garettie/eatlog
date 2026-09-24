@@ -8,6 +8,7 @@ import SegmentedControl from '../components/SegmentedControl';
 import { useAiSetup } from '../context/AiSetupContext';
 import { useEntitlement } from '../context/EntitlementContext';
 import { tierOf, type AiRoute } from '../services/userApiKey';
+import { TIER_NAMES } from '../services/tierNames';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 const ROUTE_OPTIONS: { value: AiRoute; label: string }[] = [
@@ -16,9 +17,9 @@ const ROUTE_OPTIONS: { value: AiRoute; label: string }[] = [
 ];
 
 const TIER_DETAIL = {
-  itik: 'Itik. Eatlog AI is included.',
-  manok: 'Manok. Free estimates on your own Google key.',
-  pugo: 'Pugo. Add a Google key for free estimates, or get Itik.',
+  itik: `${TIER_NAMES.itik}. Eatlog AI is included.`,
+  manok: `${TIER_NAMES.manok}. Free estimates on your own Google key.`,
+  pugo: `${TIER_NAMES.pugo}. Add a Google key for free estimates, or get ${TIER_NAMES.itik}.`,
 } as const;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -32,10 +33,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function AiEstimatesScreen() {
   const { horizontalPadding } = useResponsiveLayout();
-  const { hasPaidFeatures } = useEntitlement();
+  const { hasItik } = useEntitlement();
   const { keyState, openKeySetup, removeKey, setRoute } = useAiSetup();
   const [removing, setRemoving] = useState(false);
-  const tier = tierOf(hasPaidFeatures, keyState.hasKey);
+  const tier = tierOf(hasItik, keyState.hasKey);
 
   const changeRoute = useCallback((route: AiRoute) => {
     setRoute(route).catch(() => {
@@ -61,15 +62,15 @@ export function AiEstimatesScreen() {
   const confirmRemove = useCallback(() => {
     Alert.alert(
       'Remove your key?',
-      hasPaidFeatures
+      hasItik
         ? 'Estimates go back to Eatlog AI.'
-        : 'AI estimates stop until you add a key or get Itik. Your meals stay.',
+        : `AI estimates stop until you add a key or get ${TIER_NAMES.itik}. Your meals stay.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Remove', style: 'destructive', onPress: () => { void remove(); } },
       ],
     );
-  }, [hasPaidFeatures, remove]);
+  }, [hasItik, remove]);
 
   return (
     <SafeAreaView edges={['bottom', 'left', 'right']} className="flex-1 bg-m3-surface">
@@ -84,7 +85,7 @@ export function AiEstimatesScreen() {
             <Text className="text-sm text-m3-on-surface-variant">{TIER_DETAIL[tier]}</Text>
           </View>
 
-          {hasPaidFeatures && keyState.hasKey ? (
+          {hasItik && keyState.hasKey ? (
             <View className="gap-3">
               <Text className="px-1 text-sm font-semibold text-m3-on-surface-variant">Estimates use</Text>
               <SegmentedControl
@@ -124,7 +125,7 @@ export function AiEstimatesScreen() {
               <ProfileSettingRow
                 icon="key"
                 title="Add a Google key"
-                detail="Free AI estimates with Manok"
+                detail={`Free AI estimates with ${TIER_NAMES.manok}`}
                 onPress={() => { void openKeySetup('add'); }}
                 showDivider={false}
               />

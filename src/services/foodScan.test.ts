@@ -341,7 +341,7 @@ test('paid access gates every AI operation before consent, identity loading, or 
     assert.deepEqual(result, {
         ok: false,
         kind: 'paid-access-required',
-        message: 'Eatlog Manok or Itik is required for AI estimates.',
+        message: 'Eatlog AI needs Itik.',
     });
     assert.deepEqual({ consentReads, tokenReads, fetches }, { consentReads: 0, tokenReads: 0, fetches: 0 });
 });
@@ -407,7 +407,6 @@ test('a grant that lands while consent, install token, and request hashing await
 test('maps each known Worker entitlement and quota code to specific redacted copy', async () => {
     const cases = [
         ['PAID_ACCESS_REQUIRED', 'paid-access-required'],
-        ['PUGO_DAILY_LIMIT', 'pugo-daily-limit'],
         ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
         ['FAIR_USE_30_DAY_LIMIT', 'fair-use-30-day-limit'],
         ['REFUND_DAILY_LIMIT', 'refund-daily-limit'],
@@ -424,9 +423,7 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
         if (!result.ok) {
             assert.equal(result.kind, kind);
             assert.equal(result.message.includes('raw provider'), false);
-            if (kind === 'pugo-daily-limit') {
-                assert.equal(result.message, "You've used your 3 free estimates for this 24-hour window. Try again after it resets.");
-            }
+            if (kind === 'paid-access-required') assert.equal(result.message, 'Eatlog AI needs Itik.');
         }
     }
 });
@@ -455,7 +452,6 @@ test('an upstream timeout or malformed provider reply is named rather than shown
 
 test('a rolling daily limit surfaces the actual reset time from the Worker instead of a static string', async () => {
     const cases = [
-        ['PUGO_DAILY_LIMIT', 'pugo-daily-limit'],
         ['FAIR_USE_DAILY_LIMIT', 'fair-use-daily-limit'],
     ] as const;
     const nextEligibleAt = new Date('2026-08-22T21:00:00.000Z').toISOString();

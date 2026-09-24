@@ -31,7 +31,6 @@ function render(recommendation: unknown, overrides: Record<string, unknown> = {}
     React, View: 'View', Text: 'Text', Pressable: 'Pressable', ActivityIndicator: 'ActivityIndicator',
     EvidenceTile: 'EvidenceTile', MaterialIcons: 'MaterialIcons', M3: {},
     recommendation, recommendationError: false, recommendationLoading: false,
-    entitlementStatus: 'paid', hasPaidFeatures: true,
     displayDate: (value: string) => value, target: { target_calories: 2000 },
     confirmingIntakeDate: null, onOpenWeight: () => {}, navigation: { navigate: () => {} },
     card: null,
@@ -94,7 +93,7 @@ test('scheduled reviews and intake confirmations still render their completed st
   }
 });
 
-test('an unresolved review or entitlement check still shows loading', () => {
+test('an unresolved review still shows loading, and no plan check stands in front of it', () => {
   assert.equal(render(null).some(node => node.type === 'ActivityIndicator'), true);
-  assert.equal(render(holding, { entitlementStatus: 'checking' }).some(node => node.type === 'ActivityIndicator'), true);
+  assert.equal(render(holding).some(node => node.type === 'Text' && /Checking your plan/.test(String(node.props.children))), false);
 });
