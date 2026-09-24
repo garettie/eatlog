@@ -102,6 +102,17 @@ test('saving as Pugo is Manok on My key; saving as Itik stays on Eatlog AI', asy
   assert.equal(itik.currentRoute(), 'eatlog-ai');
 });
 
+test('a key saved after the first load is seen by the next load, as when onboarding saves one', async () => {
+  const store = createUserApiKeyStore(memorySecure().storage, memoryRecords().storage);
+  assert.equal((await store.load()).hasKey, false);
+  await store.save(KEY, false);
+  const state = await store.load();
+  assert.equal(state.hasKey, true);
+  assert.equal(state.route, 'my-key');
+  await store.remove();
+  assert.equal((await store.load()).hasKey, false);
+});
+
 test('a key whose consent cannot be recorded is taken back out', async () => {
   const secure = memorySecure();
   const records = memoryRecords();

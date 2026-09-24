@@ -117,8 +117,16 @@ export function createUserApiKeyStore(secure: SecureKeyStorage, records: KeyReco
     return { version: MANOK_CONSENT_VERSION, consent: 'accepted', route: current.route, itikSeen: current.itikSeen };
   }
 
+  /**
+   * Resolves to the state as it is now, not as it was when the first read finished: a key saved
+   * or removed since then must be seen by the next caller without a restart.
+   */
   async function load(): Promise<UserKeyState> {
-    if (loadPromise) return loadPromise;
+    await (loadPromise ?? readOnce());
+    return state;
+  }
+
+  function readOnce(): Promise<UserKeyState> {
     loadPromise = (async () => {
       let record: ManokKeyRecord | null;
       try {
