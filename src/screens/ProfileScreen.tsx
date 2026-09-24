@@ -66,8 +66,8 @@ function adaptiveLabel(state: AdaptiveReviewState): string {
 
 function aiEstimatesDetail(itik: boolean, keyState: UserKeyState): string {
     if (!keyState.hasKey) return itik ? 'Eatlog AI' : 'Not set up';
-    const key = keyState.keyHint ?? 'Saved key';
-    return itik && keyState.route === 'eatlog-ai' ? `Eatlog AI · ${key} saved` : `My key · ${key}`;
+    // The key hint belongs on the AI estimates screen only, never on the Profile overview.
+    return itik && keyState.route === 'eatlog-ai' ? 'Eatlog AI · Key saved' : 'My key';
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

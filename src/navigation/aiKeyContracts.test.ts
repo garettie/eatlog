@@ -14,6 +14,7 @@ const foodScan = read('../services/foodScan.ts');
 const dataReset = read('../services/dataReset.ts');
 const onboarding = read('../screens/OnboardingScreen.tsx');
 const aiEstimates = read('../screens/AiEstimatesScreen.tsx');
+const profile = read('../screens/ProfileScreen.tsx');
 
 test('the key lives only in the platform credential store, loaded lazily', () => {
   assert.ok(appJson.expo.plugins.includes('expo-secure-store'));
@@ -35,6 +36,11 @@ test('the key never reaches SQLite, backups, exports, logs, or the Worker', () =
   assert.doesNotMatch(hosted, /loadUserApiKey|getKey|x-goog-api-key/);
   // Shown only as a hint; the screen never renders or copies the key itself.
   assert.doesNotMatch(aiEstimates, /getKey|Clipboard/);
+});
+
+test('the key hint appears only on the AI estimates screen, never on the Profile overview', () => {
+  assert.match(aiEstimates, /keyState\.keyHint/);
+  assert.doesNotMatch(profile, /keyHint/);
 });
 
 test('removing the key discards estimates still running on it', () => {
