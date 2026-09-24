@@ -97,3 +97,11 @@ test('an unresolved review still shows loading, and no plan check stands in fron
   assert.equal(render(null).some(node => node.type === 'ActivityIndicator'), true);
   assert.equal(render(holding).some(node => node.type === 'Text' && /Checking your plan/.test(String(node.props.children))), false);
 });
+
+test('evidence tiles keep their height outside a row and show an empty track on the decision card', () => {
+  const tile = source.slice(source.indexOf('function EvidenceTile'), source.indexOf('function MacroRow'));
+  // flex-1 on the tile collapsed the standalone Days covered tile to zero height in a column.
+  assert.doesNotMatch(tile.slice(0, tile.indexOf('gap-2">') + 6), /flex-1/);
+  // A track in the card's own tone was invisible at 0 of N.
+  assert.doesNotMatch(tile, /bg-m3-surface-container-highest/);
+});

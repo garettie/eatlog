@@ -254,12 +254,13 @@ function InlineMetric({ label, value, detail }: { label: string; value: string; 
 function EvidenceTile({ label, value, total }: { label: string; value: number; total: number }) {
   const percent = total > 0 ? Math.min(100, value / total * 100) : 0;
   return (
-    <View className="flex-1 min-w-0 gap-2">
+    <View className="min-w-0 gap-2">
       <View className="flex-row items-baseline justify-between gap-2">
         <Text className="text-m3-on-surface-variant text-xs font-semibold">{label}</Text>
         <Text className="text-m3-on-surface text-sm font-bold tabular-nums">{value}/{total}</Text>
       </View>
-      <View className="h-1 rounded-full bg-m3-surface-container-highest overflow-hidden">
+      {/* Two tones below the decision card, so an empty track still reads as a track. */}
+      <View className="h-1 rounded-full bg-m3-surface-container overflow-hidden">
         <View className="h-full rounded-full bg-m3-expenditure" style={{ width: `${percent}%` }} />
       </View>
     </View>
@@ -786,9 +787,14 @@ function AnalyticsScreen({
       ) : recommendation?.kind === 'holding' ? (
         <View className="gap-4" accessibilityLiveRegion="polite">
           <Text className="text-m3-on-surface text-lg font-bold">More data needed</Text>
+          {/* flex-1 belongs on the row's cells only: in a column it collapses a tile to zero height. */}
           <View className="flex-row gap-5">
-            <EvidenceTile label="Food days" value={recommendation.eligibility.intakeDayCount} total={recommendation.eligibility.requiredIntakeDayCount} />
-            <EvidenceTile label="Weigh-ins" value={recommendation.eligibility.weightLogCount} total={recommendation.eligibility.requiredWeightLogCount} />
+            <View className="flex-1 min-w-0">
+              <EvidenceTile label="Food days" value={recommendation.eligibility.intakeDayCount} total={recommendation.eligibility.requiredIntakeDayCount} />
+            </View>
+            <View className="flex-1 min-w-0">
+              <EvidenceTile label="Weigh-ins" value={recommendation.eligibility.weightLogCount} total={recommendation.eligibility.requiredWeightLogCount} />
+            </View>
           </View>
           <EvidenceTile label="Days covered" value={recommendation.eligibility.endpointSpanDays} total={recommendation.eligibility.requiredEndpointSpanDays} />
           {!recommendation.eligibility.hasRecentWeight ? (
