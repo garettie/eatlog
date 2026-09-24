@@ -20,8 +20,8 @@ No real person, meal, photo, or health record may be used.
 
 ## Core smoke flow
 
-1. Install fresh and launch. Complete About You, Height & Weight, Activity Level, Goal & Target Rate, and Protein Preference with the seed above. Select Calculate and review the result. If the build has an estimate Worker, confirm the final `AI meal estimates` screen shows the exact disclosure and `Okay` / `Not now` actions; select `Okay` for this accepted-consent run. If the Worker is not configured, the existing six-step flow completes without the consent step.
-   Expected: onboarding completes without clipping or keyboard obstruction; Today opens with zero intake and the calculated target. Kill and reopen the app; the profile remains and an accepted consent does not prompt again.
+1. Install fresh and launch. Complete About You, Height & Weight, Activity Level, Goal & Target Rate, and Protein Preference with the seed above. Select Calculate and review the result. If AI is configured, the final choice offers a personal Google key, Eatlog Omelette, and Not now. Select Not now for the free run.
+   Expected: onboarding completes without clipping or keyboard obstruction; Today opens with zero intake and the calculated target. Kill and reopen the app; the profile remains. No key or purchase is required to use local features.
 2. On Today, open the center Add control. Select Search foods, then Enter manually. Enter the synthetic rice bowl and select Log Entry.
    Expected: the entry appears once; Today calories and macros increase by the entered values; the Add sheet closes. Capture Today.
 3. Open Diary and select today. Open the synthetic entry, change its amount, and save.
@@ -50,23 +50,23 @@ No real person, meal, photo, or health record may be used.
    Expected: logging consistency, calorie history, weight state, and plan state render without invalid numbers, overlap, or stale data. Empty or insufficient-evidence states are direct and actionable. Capture Analytics.
 14. Open Profile. Visit Personal details, Goal and rate, Nutrition targets, Units, How Eatlog works, Privacy, About, Licenses and attributions, Backup and restore, and Export data.
     Expected: every back action returns correctly; long copy scrolls; links appear only when valid release URLs are configured; no placeholder contact or URL appears. On iOS, no Health Connect control or wording appears. On Android, Health Connect appears only in its Android locations.
-15. Open Profile → Plan as confirmed Pugo.
-    Expected: the ordinary Pugo detail says `Free logging plus 3 AI estimates per rolling 24 hours.` Benefits say `Higher AI estimate limits` and `Meal and component re-estimates`. The limit says `3 photo or description estimates per rolling 24 hours · no follow-up re-estimates`. The free card says `Free estimates left`, `Next 24 hours`, and the current value out of three. Capture the Plan screen at the smallest and largest target widths.
-16. With owner-approved staging provider calls, mix Scan, Photo, and Describe until the Pugo allowance is exhausted.
-    Expected: the third initial estimate succeeds; the fourth stays in the existing recovery flow and says `You've used your 3 free estimates for this 24-hour window. Try again after it resets.` No automatic retry occurs. Without owner approval, record this step as blocked rather than issuing a request.
-17. From a confirmed Pugo meal review, invoke meal and component re-estimation.
-    Expected: the plan screen opens before consent, image preparation, installation-token loading, or a Worker request; current edits and undo state remain.
+15. Open Profile → Plan as a free user with no key, then open Profile → AI estimates.
+    Expected: Plan shows free Eatlog with all local features, plus the optional one-time Omelette offer using the store-localized price. AI estimates offers the personal-key route without requiring it. No free hosted counter, paid adaptive benefit, or monthly offer appears. Capture both screens at the smallest and largest target widths.
+16. From an existing meal, invoke meal and component re-estimation with no key or purchase.
+    Expected: AI setup appears before private-content construction or transmission; choosing Not now leaves current edits and undo intact. Save a test Google key, then repeat Scan, Photo, Describe, and both re-estimates with approved synthetic inputs. Key validation calls Google's model list without meal content; estimates go directly to Google without a Worker grant or hosted quota. If provider calls are not approved, record them as unverified.
+17. In the preview Test Store, choose Success for Omelette without supplying a personal key. Repeat the AI operations after accepting hosted consent. Add a key and select each route explicitly.
+    Expected: Eatlog AI goes through the staging Worker and follows its 30-per-24-hour and 250-per-30-day rolling allowance; My key goes directly to Google. Restart and confirm the route choice remains. Cancel and restore a Test Store purchase, then check the paid icon, offer, and legacy management state. No real charge occurs in Test Store.
 18. Open Privacy.
-    Expected: local storage, Google Gemini estimate consent and withdrawal, initial Scan/Describe, paid clarification/re-estimation, USDA, explicit Open Food Facts search, installation-token/IP rate limiting, backup/export, and deletion behavior match the release policy. The screen shows `Enabled` or `Off`; enabling opens the same full-screen consent UI, and turning estimates off does not disable food search. Ordinary logging screens contain no recurring privacy paragraph.
-19. With paid/Test Store estimates enabled, turn online estimates off in Privacy, open an existing meal, and choose re-estimation. Decline the consent screen.
-    Expected: no network error is shown, all meal/component edits and undo state remain, and a later explicit allowed AI action may ask again. Create a CSV export and dismiss or save the share sheet as directed by the platform run.
+    Expected: the screen distinguishes hosted Eatlog AI consent from the separate My key controls. It explains selected AI payloads leaving the device, USDA through the Worker, direct Open Food Facts search, local diary storage, backup/export, and deletion. Withdrawing hosted consent stops hosted requests; it does not erase the key or disable food search.
+19. Withdraw hosted consent in Privacy, open an existing meal, and choose Eatlog AI re-estimation. Decline the disclosure. Then inspect the My key settings and create a CSV export.
+    Expected: no hosted request is sent before consent; edits and undo remain. The saved key and selected route do not change merely from opening Privacy. Export cancellation does not claim completion. A saved CSV archive is readable and cannot be restored as a backup.
     Expected: cancellation does not claim a completed export. A saved archive contains readable CSV files and is rejected if selected as a restore source.
 20. Create an `.eatlog-backup`; first run with no meal photo, then with at least two synthetic meal photos where the device case permits.
     Expected: cancellation during a cancellable stage reports cancellation. A completed archive previews the correct row/photo counts and restores only after both confirmations.
 21. Restore the backup, then verify Today, Diary, Analytics, Profile, weights, targets, and photos.
     Expected: restored values match the source; no prior-device Health Connect sync state is active. Run the corrupt and rollback cases from `DEVICE_MATRIX.md` before signing off.
 22. Open Profile → Delete all data. Cancel each confirmation once, then repeat and complete deletion.
-    Expected: cancellation preserves all data. Completion returns Eatlog to onboarding and removes profile, logs, weights, targets, reviews, meal photos, and the consent decision. iOS shows no Health Connect wording; Android reports its Health Connect cleanup result accurately. Onboarding requests a fresh consent decision.
+    Expected: cancellation preserves all data. Completion returns Eatlog to onboarding and removes profile, logs, weights, targets, reviews, meal photos, the saved Google key, and both local consent decisions. It does not revoke the key at Google or undo a store purchase. iOS shows no Health Connect wording; Android reports its Health Connect cleanup result accurately.
 
 ## Visual and accessibility pass
 

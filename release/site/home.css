@@ -799,14 +799,14 @@
   background: #0d0f13;
 }
 
-.mog-birds {
+.mog-plan-cards {
   margin-top: 78px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   border-block: 1px solid #363941;
 }
 
-.mog-birds article {
+.mog-plan-cards article {
   min-width: 0;
   padding: 34px clamp(20px, 3vw, 42px);
   display: grid;
@@ -816,32 +816,32 @@
   align-items: center;
 }
 
-.mog-birds article + article {
+.mog-plan-cards article + article {
   border-left: 1px solid #363941;
 }
 
-.mog-birds img {
+.mog-plan-cards img {
   grid-row: 1 / 3;
   width: clamp(58px, 5vw, 76px);
   height: auto;
 }
 
-.mog-birds h3,
-.mog-birds p {
+.mog-plan-cards h3,
+.mog-plan-cards p {
   margin: 0;
 }
 
-.mog-birds h3 {
+.mog-plan-cards h3 {
   color: var(--mog-white);
   font-size: 1.35rem;
 }
 
-.mog-birds p {
+.mog-plan-cards p {
   color: #8f929c;
   font-size: 0.8rem;
 }
 
-.mog-birds article > strong {
+.mog-plan-cards article > strong {
   grid-column: 1 / -1;
   margin-top: 18px;
   color: var(--mog-white);
@@ -850,8 +850,8 @@
   line-height: 1;
 }
 
-.mog-birds article > strong span,
-.mog-birds article > strong small {
+.mog-plan-cards article > strong span,
+.mog-plan-cards article > strong small {
   color: #8f929c;
   font-size: 0.76rem;
   font-weight: 600;
@@ -890,7 +890,7 @@
 
 .home-page .mog-plan-table thead th:not(:first-child),
 .home-page .mog-plan-table td {
-  width: 20%;
+  width: 30%;
   text-align: center;
 }
 
@@ -1026,7 +1026,7 @@
     gap: 60px;
   }
 
-  .mog-birds article {
+  .mog-plan-cards article {
     padding-inline: 22px;
   }
 }
@@ -1279,25 +1279,25 @@
     margin-inline: auto;
   }
 
-  .mog-birds {
+  .mog-plan-cards {
     grid-template-columns: 1fr;
   }
 
-  .mog-birds article {
+  .mog-plan-cards article {
     grid-template-columns: auto 1fr auto;
     grid-template-rows: auto;
   }
 
-  .mog-birds article + article {
+  .mog-plan-cards article + article {
     border-top: 1px solid #363941;
     border-left: 0;
   }
 
-  .mog-birds img {
+  .mog-plan-cards img {
     grid-row: auto;
   }
 
-  .mog-birds article > strong {
+  .mog-plan-cards article > strong {
     grid-column: auto;
     margin-top: 0;
     font-size: 2.4rem;
@@ -1531,16 +1531,16 @@
     text-align: left;
   }
 
-  .mog-birds article {
+  .mog-plan-cards article {
     grid-template-columns: 54px 1fr;
     gap: 12px 16px;
   }
 
-  .mog-birds img {
+  .mog-plan-cards img {
     width: 54px;
   }
 
-  .mog-birds article > strong {
+  .mog-plan-cards article > strong {
     grid-column: 1 / -1;
     text-align: left;
   }
@@ -1946,39 +1946,26 @@ html.js .mog-receipt[data-reveal].is-revealed {
 }
 
 /* ---- Plans: premium density ---- */
-.mog-birds article {
+.mog-plan-cards article {
   position: relative;
   transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), background 280ms ease-out;
 }
 
-.mog-birds article:hover {
+.mog-plan-cards article:hover {
   transform: translateY(-6px);
   background: #14161c;
 }
 
-.mog-birds img {
+.mog-plan-cards img {
   transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.mog-birds article:hover img {
+.mog-plan-cards article:hover img {
   transform: translateY(-4px) rotate(-7deg) scale(1.07);
 }
 
-.mog-birds article > strong {
+.mog-plan-cards article > strong {
   font-variant-numeric: tabular-nums;
-}
-
-.mog-bird__chip {
-  position: absolute;
-  top: 16px;
-  right: 18px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--mog-coral);
-  color: #08090c;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
 }
 
 .home-page .mog-plan-table {
@@ -2148,8 +2135,8 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
   }
 
   .mog-receipt,
-  .mog-birds article,
-  .mog-birds img,
+  .mog-plan-cards article,
+  .mog-plan-cards img,
   .mog-story__step-number {
     transition: none;
   }
@@ -2176,24 +2163,12 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
     display: none;
   }
 
-  .mog-bird__chip {
-    top: 12px;
-    right: 14px;
-  }
-
   .mog-final__inner {
     gap: 26px;
   }
 }
 
 @media (max-width: 520px) {
-
-  .mog-bird__chip {
-    top: 8px;
-    right: 10px;
-    padding: 5px 10px;
-    font-size: 0.56rem;
-  }
 
   .home-page .mog-plan-table {
     border-radius: 18px;

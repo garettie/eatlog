@@ -1,6 +1,6 @@
 # Eatlog Pricing and Entitlement Implementation Plan
 
-**Status:** Billing and Test Store implementation complete; Android production rollout preparation in progress; lifetime AI economics remain a launch gate
+**Status:** Historical implementation record, superseded for public plans by the 2026-09-24 free/open-source BYOK and Omelette brief. Do not follow its three-tier sales, trial, price, or paid-local-feature instructions. Current rollout steps are in `release/OWNER_RELEASE_CHECKLIST.md`; compatibility identifiers and legacy access remain in code.
 
 **Last updated:** 2026-08-28
 

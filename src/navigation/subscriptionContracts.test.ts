@@ -16,9 +16,11 @@ const planScreen = read('../screens/PlanScreen.tsx');
 const planParts = read('../components/plan/PlanParts.tsx');
 const planPurchase = read('../components/plan/usePlanPurchase.ts');
 const planCopy = read('../components/plan/planCopy.ts');
-const tierBirdIcon = read('../components/TierBirdIcon.tsx');
+const tierPlanIcon = read('../components/TierPlanIcon.tsx');
 const entitlementProvider = read('../context/EntitlementContext.tsx');
 const aiSetup = read('../context/AiSetupContext.tsx');
+const privacy = read('../screens/ProfileInfoScreens.tsx');
+const hostedConsent = read('../components/RemoteEstimateConsentContent.tsx');
 const foodSheet = read('../components/sheet-states/FoodSheetContent.tsx');
 const foodScan = read('../services/foodScan.ts');
 const search = read('../components/sheet-states/SearchInputState.tsx');
@@ -41,16 +43,16 @@ test('entitlement provider owns paywall and Profile plan routes', () => {
   assert.match(planScreen, /Restore purchases/);
   assert.match(planScreen, /Manage subscription/);
   assert.match(planParts, /What you get/);
-  // Package labels come from the store's terms, and trial copy only from a trial the store offers.
+  // Only the one-time product is advertised, with its localized store price.
   assert.match(planCopy, /\$\{item\.priceString\} once/);
-  assert.match(planCopy, /if \(trial\) return `\$\{trial\}, then \$\{packagePrice\(item\)\} until canceled\.`/);
-  assert.match(planPurchase, /if \(trial\) return 'Start free trial'/);
-  assert.match(planPurchase, /badge: packageTrial\(item\) \? 'Free trial' : null/);
+  assert.match(planCopy, /One payment\. No renewal/);
+  assert.match(read('../services/billing.ts'), /item\.product\.identifier === EATLOG_LIFETIME_PRODUCT_ID/);
+  assert.doesNotMatch(planPurchase, /freeTrial|Start free trial|packageTrial/);
   // The store-default offering belongs to the closed-testing build; this app reads only `itik`.
   assert.match(read('../services/billing.types.ts'), /EATLOG_OFFERING_ID = 'itik'/);
   for (const source of [paywall, planScreen]) {
     assert.match(source, /Terms of Use/);
-    assert.match(source, /We couldn't reach the store, so prices and checkout didn't load\. Your logbook still works\./);
+    assert.match(source, /one-time \{PAID_PLAN_NAME\} purchase is unavailable/);
     assert.doesNotMatch(source, /Compare plans/);
     assert.doesNotMatch(source, /AI actions|AI use left|AI use limits/);
     assert.doesNotMatch(source, /Your logbook stays yours on every plan/);
@@ -70,23 +72,22 @@ test('the plan surfaces lead with value, then price, then the purchase action', 
     assert.ok(value >= 0 && options > value, 'plan options must follow the value summary');
     assert.ok(cta > options, 'the purchase button must follow the plan options');
   }
-  // The comparison is the offer, so it is open rather than behind a disclosure: every local
-  // feature is free, and Itik is everything in free with no setup.
-  assert.match(planParts, /Weekly target updates from your trend/);
-  assert.match(planParts, /AI estimates with your own Google key/);
+  // The free app's value is explicit, and the purchase names only hosted AI.
+  assert.match(planParts, /free and open source/);
+  assert.match(planParts, /Log meals and weight, with no key needed/);
+  assert.match(planParts, /Optional AI with your Google key/);
+  assert.match(planParts, /Hosted AI estimates, no personal key needed/);
   assert.match(planParts, /Everything in free/);
-  assert.match(planParts, /AI estimates with no setup/);
   assert.doesNotMatch(planParts, /Usage limits/);
   assert.doesNotMatch(planScreen, /Usage limits/);
 });
 
-test('Itik reads as fair use and no screen shows a request counter', () => {
-  // The caps are abuse protection, not a budget the customer watches, and there is no free
-  // hosted allowance left to count.
+test('Omelette shows its actual hosted allowance without a live request counter', () => {
   assert.doesNotMatch(planParts, /QuotaCard|remaining24Hours|remaining30Days|usage\.kind/);
-  assert.match(planParts, /subject to fair use/);
+  assert.match(planParts, /30 estimate actions per rolling 24 hours and 250 per rolling 30 days/);
+  assert.match(planParts, /including redos/);
   for (const source of [planScreen, paywall]) {
-    assert.doesNotMatch(source, /usage|30 requests per 24 hours|250 per 30 days/);
+    assert.doesNotMatch(source, /QuotaCard|remaining24Hours|remaining30Days/);
   }
 });
 
@@ -101,12 +102,13 @@ test('the plan screen keeps no manage mode and no control competing with Back', 
   for (const source of [paywall, planScreen]) assert.match(source, /\{plan\.canBuy \? \(/);
 });
 
-test('subscription tiers use the requested bird identities', () => {
-  assert.match(planParts, /<TierBirdIcon tier="itik"/);
-  assert.match(planParts, /<TierBirdIcon tier=\{tier\}/);
-  assert.match(tierBirdIcon, /tier === 'pugo'/);
-  assert.match(tierBirdIcon, /tier === 'manok'/);
-  assert.match(tierBirdIcon, /return \([\s\S]*fill="#203431"/);
+test('both free states use one egg icon and paid access uses the omelette', () => {
+  assert.match(planParts, /<TierPlanIcon tier="itik"/);
+  assert.match(planParts, /<TierPlanIcon tier=\{tier\}/);
+  assert.match(tierPlanIcon, /tier === 'itik'/);
+  assert.doesNotMatch(tierPlanIcon, /tier === 'pugo'|tier === 'manok'/);
+  assert.match(tierPlanIcon, /fill="#FFFFFF"/);
+  assert.match(tierPlanIcon, /fill="#F2B94F"/);
 });
 
 test('every displayed plan name comes from one module', () => {
@@ -289,6 +291,16 @@ test('initial estimates proceed while re-estimates gate before private content c
   assert.ok(gateHook.indexOf("keyState.route === 'my-key'") < gateHook.indexOf('await ensurePaidAccess()'));
   assert.match(gateHook, /if \(gate === 'eatlog-ai'\) return requestConsent\(\);/);
   assert.match(foodScan, /acceptAiGrant/);
+});
+
+test('saving a personal key does not consent to hosted estimates', () => {
+  const finishSetup = aiSetup.slice(aiSetup.indexOf('const finishSetup ='), aiSetup.indexOf('const finishChoice ='));
+  assert.doesNotMatch(finishSetup, /acceptHostedConsent|requestConsent|acceptRemoteEstimateConsent/);
+  assert.match(aiSetup.slice(aiSetup.indexOf('export function useAiGate')), /if \(gate === 'eatlog-ai'\) return requestConsent\(\);/);
+  assert.match(privacy, /Withdraw Eatlog AI consent/);
+  assert.match(privacy, /navigation\.navigate\('AiEstimates'\)/);
+  assert.match(hostedConsent, /Use Eatlog AI\?/);
+  assert.doesNotMatch(hostedConsent, /Enable AI meal estimates/);
 });
 
 test('adaptive plans are free: no UI, entitlement, or service-boundary gate', () => {

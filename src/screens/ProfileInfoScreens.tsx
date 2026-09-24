@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Card from '../components/Card';
@@ -8,6 +9,7 @@ import ResponsiveContent from '../components/ResponsiveContent';
 import { serviceConfig } from '../config/services';
 import { getDatabaseVersion } from '../db/database';
 import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
+import { useAiSetup } from '../context/AiSetupContext';
 import { LEGAL_ATTRIBUTIONS } from '../services/legalAttributions';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
@@ -162,22 +164,22 @@ function RemoteEstimateRow({
                     <MaterialIcons name="photo-camera" size={20} color={M3.onSurfaceVariant} />
                 </View>
                 <View className="min-w-0 flex-1 gap-0.5">
-                    <Text className="text-sm font-semibold text-m3-on-surface">Meal estimates</Text>
+                    <Text className="text-sm font-semibold text-m3-on-surface">Eatlog AI consent</Text>
                     <Text className="text-sm text-m3-on-surface-variant">{detail}</Text>
                 </View>
             </View>
             <View className="flex-row items-center justify-between gap-3 pl-[52px]">
-                <Text className="text-sm font-semibold text-m3-on-surface">{enabled ? 'Enabled' : 'Off'}</Text>
+                <Text className="text-sm font-semibold text-m3-on-surface">{enabled ? 'Allowed' : 'Off'}</Text>
                 <Pressable
                     onPress={onPress}
                     disabled={busy}
                     accessibilityRole="button"
-                    accessibilityLabel={enabled ? 'Turn off online estimates' : 'Enable online estimates'}
+                    accessibilityLabel={enabled ? 'Withdraw Eatlog AI consent' : 'Review Eatlog AI consent'}
                     accessibilityState={{ disabled: busy, busy }}
                     className={`min-h-[48px] justify-center rounded-full bg-m3-surface-container-high px-4 active:opacity-60 ${busy ? 'opacity-50' : ''}`}
                 >
                     <Text className="text-xs font-semibold text-m3-on-surface">
-                        {enabled ? 'Turn off online estimates' : 'Enable online estimates'}
+                        {enabled ? 'Withdraw consent' : 'Review consent'}
                     </Text>
                 </Pressable>
             </View>
@@ -287,13 +289,15 @@ export function HowEatlogWorksScreen() {
 }
 
 export function PrivacyScreen() {
+    const navigation = useNavigation<any>();
     const healthConnectAvailable = supportsHealthConnect(Platform.OS);
     const { decision, requestConsent, decline } = useRemoteEstimateConsent();
+    const { keyState } = useAiSetup();
     const [consentBusy, setConsentBusy] = useState(false);
     const estimateEnabled = decision === 'accepted';
-    const estimateCopy = serviceConfig.availability.gemini
-        ? 'Taking or choosing a photo and reusing a past meal stays on your device. When you choose Estimate as new, Describe, or redo an estimate, Eatlog sends the selected photo and any meal title you add, or the text you enter, to Google Gemini. With Eatlog AI it goes through Eatlog’s online service, which uses an app-specific token and your IP address to prevent abuse. With your own Google key it goes straight from this phone to Google, and nothing passes through Eatlog.'
-        : 'This version of Eatlog can’t estimate meals.';
+    const estimateCopy = serviceConfig.availability.hostedGemini
+        ? "This choice controls hosted Eatlog AI only. A selected photo, meal title, description, or re-estimate context goes through Eatlog's service to Google Gemini. Eatlog uses an installation token, purchase status, and usage records to enforce access and fair use. Withdrawing consent stops future hosted estimates; it does not remove your Google key."
+        : 'Eatlog AI is unavailable in this build. My key can still send selected estimates directly to Google.';
 
     const handleEstimatePrivacyAction = async () => {
         if (consentBusy) return;
@@ -306,32 +310,30 @@ export function PrivacyScreen() {
         }
     };
     const searchCopy = serviceConfig.availability.usda && serviceConfig.availability.openFoodFacts
-        ? 'As you type, Eatlog looks for matches from USDA. Tap Search to include Open Food Facts. Eatlog keeps recent results in memory for a short time.'
+        ? 'As you type, Eatlog sends your search to its USDA proxy with an installation ID. Tap Search to also send it directly to Open Food Facts. Recent results are cached briefly in memory.'
         : serviceConfig.availability.usda
-            ? 'As you type, Eatlog looks for matches from USDA and keeps recent results in memory for a short time.'
+            ? 'As you type, Eatlog sends your search to its USDA proxy with an installation ID. Recent results are cached briefly in memory.'
             : serviceConfig.availability.openFoodFacts
-                ? 'Eatlog searches Open Food Facts only after you tap Search, not while you type.'
-                : 'This version of Eatlog can’t search for food online.';
+                ? 'Tap Search to send your query directly to Open Food Facts. Eatlog does not send it while you type.'
+                : "This version of Eatlog can't search for food online.";
 
     return (
         <Screen>
             <PageIntro
                 title="Data storage and sharing"
-                detail="Your profile, logs, and meal photos stay on this phone. You don’t need an account to use Eatlog."
+                detail="Your profile, logs, and meal photos stay on this phone. You don't need an account to use Eatlog."
             />
 
             <Callout
                 icon="verified-user"
                 title="Local by default"
-                detail={healthConnectAvailable
-                    ? 'Eatlog goes online only when you scan, describe, or search for food. You decide what to export and whether to connect Health Connect.'
-                    : 'Eatlog goes online only when you scan, describe, or search for food. You decide what to export or delete.'}
+                detail="Your diary works offline. Selected estimate details and food searches leave the device. Plan checks and app updates can also contact their services."
             />
 
             <View className="gap-3">
                 <SectionTitle title="Network requests" />
                 <Card className="overflow-hidden">
-                    {serviceConfig.availability.gemini ? (
+                    {serviceConfig.availability.hostedGemini ? (
                         <RemoteEstimateRow
                             detail={estimateCopy}
                             enabled={estimateEnabled}
@@ -339,8 +341,28 @@ export function PrivacyScreen() {
                             onPress={() => { void handleEstimatePrivacyAction(); }}
                         />
                     ) : (
-                        <InfoRow icon="photo-camera" title="Meal estimates" detail={estimateCopy} />
+                        <InfoRow icon="photo-camera" title="Eatlog AI" detail={estimateCopy} />
                     )}
+                    <LinkRow
+                        icon="key"
+                        title="My key controls"
+                        detail={keyState.hasKey
+                            ? 'Your key is saved on this phone. Direct estimates go to Google, not through Eatlog. Manage or remove it in AI estimates.'
+                            : 'Optional. Add your Google key in AI estimates. Checking it sends the key to Google without meal content.'}
+                        onPress={() => navigation.navigate('AiEstimates')}
+                    />
+                    <InfoRow
+                        icon="policy"
+                        title="Google key terms"
+                        detail="Eatlog charges nothing for My key. Google sets availability, quotas, billing, and data use. Unpaid Gemini API content may be used to improve Google products and reviewed by people. Billed projects and some regions have different terms. An Eatlog purchase does not change your Google project."
+                    />
+                    <LinkRow
+                        icon="open-in-new"
+                        title="Google Gemini API terms"
+                        detail="Check the current terms for your project and region"
+                        external
+                        onPress={() => openExternalLink('Google Gemini API terms', 'https://ai.google.dev/gemini-api/terms')}
+                    />
                     <InfoRow icon="search" title="Food search" detail={searchCopy} last />
                 </Card>
             </View>
@@ -362,14 +384,14 @@ export function PrivacyScreen() {
             <View className="gap-3">
                 <SectionTitle title="Files and deletion" />
                 <Card className="overflow-hidden">
-                    <InfoRow icon="backup" title="Backups" detail="Your backup contains your Eatlog database and saved meal photos." />
-                    <InfoRow icon="file-download" title="CSV exports" detail="A CSV gives you a readable copy of your history. It doesn’t include photos or sync data." />
+                    <InfoRow icon="backup" title="Backups" detail="Backups contain your local database and saved meal photos. They do not include your Google key." />
+                    <InfoRow icon="file-download" title="CSV exports" detail="CSV files contain readable log data, not photos or your Google key. Files you share or save outside Eatlog remain there until you remove them." />
                     <InfoRow
                         icon="delete-outline"
                         title="Delete all data"
                         detail={healthConnectAvailable
-                            ? 'Delete all data removes everything Eatlog stores on this phone, including meal photos. Eatlog will also try to remove the entries it added to Health Connect.'
-                            : 'Delete all data removes everything Eatlog stores on this phone, including meal photos.'}
+                            ? 'Removes local logs, photos, your saved key, and consent choices. Eatlog also tries to remove weights it added to Health Connect. Store purchases, Google keys at Google, and files shared outside Eatlog remain.'
+                            : 'Removes local logs, photos, your saved key, and consent choices. Store purchases, Google keys at Google, and files shared outside Eatlog remain.'}
                         last
                     />
                 </Card>
@@ -404,7 +426,7 @@ export function AboutScreen() {
                 </View>
                 <View className="items-center gap-1.5">
                     <Text accessibilityRole="header" className="text-2xl font-bold text-m3-on-surface">Eatlog</Text>
-                    <Text className="text-center text-sm text-m3-on-surface-variant">Track nutrition and weight on your phone. Eatlog uses your history to suggest target changes.</Text>
+                    <Text className="text-center text-sm text-m3-on-surface-variant">Free, open-source food logging. Your meals and weight stay on this phone; AI estimates are optional.</Text>
                 </View>
             </View>
 
@@ -416,6 +438,20 @@ export function AboutScreen() {
                     <DetailRow label="Database schema" value={String(getDatabaseVersion())} />
                     <DetailRow label="Platform" value={Platform.OS === 'ios' ? 'iOS' : 'Android'} />
                     <DetailRow label="App license" value="0BSD" last />
+                </Card>
+            </View>
+
+            <View className="gap-3">
+                <SectionTitle title="Open source" detail="Eatlog app code is 0BSD. Hosted AI access is a separate service." />
+                <Card className="overflow-hidden">
+                    <LinkRow
+                        icon="code"
+                        title="Source and contributions"
+                        detail="Read the code, report a bug, or propose a change"
+                        external
+                        last
+                        onPress={() => openExternalLink('Eatlog source', 'https://github.com/garettie/eatlog')}
+                    />
                 </Card>
             </View>
 

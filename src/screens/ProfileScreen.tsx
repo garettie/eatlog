@@ -141,7 +141,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
         };
         Alert.alert(
             'Delete all Eatlog data?',
-            'This will erase your profile, food history, weight history, targets, reviews, and saved meal photos from this device.',
+            'This erases your profile, logs, targets, reviews, meal photos, saved Google key, and AI consent choices from this device. Store purchases, Google keys at Google, and files you exported remain.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -322,7 +322,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                         {supportsHealthConnect(Platform.OS) ? (
                             <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync weight with Android" onPress={() => navigation.navigate('HealthConnect')} />
                         ) : null}
-                        <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase Eatlog data from this device" onPress={deleteAllData} showDivider={false} />
+                        <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase local logs, photos, and saved key" onPress={deleteAllData} showDivider={false} />
                     </Section>
 
                     <Section title="Help & About">

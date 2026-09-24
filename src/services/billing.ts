@@ -11,6 +11,7 @@ import {
   canBuyItik,
   EATLOG_ENTITLEMENT_ID,
   EATLOG_OFFERING_ID,
+  EATLOG_LIFETIME_PRODUCT_ID,
   hasItik,
   normalizeAccess,
   type BillingActionResult,
@@ -62,7 +63,7 @@ function itikOffering(offerings: { current: PurchasesOffering | null; all: Recor
     ?? (offerings.current?.identifier === EATLOG_OFFERING_ID ? offerings.current : null);
 }
 
-/** The store's own terms for a package, so a new cadence or trial needs no app change. */
+/** The store's own terms for a package. */
 function publicPackage(pkg: PurchasesPackage): BillingPackage {
   const { product } = pkg;
   const period = product.subscriptionPeriod?.trim() || null;
@@ -157,7 +158,9 @@ export function createBillingClient(options: BillingClientOptions) {
       await configure();
       const selected = itikOffering(await (await adapter()).getOfferings());
       return selected
-        ? { identifier: EATLOG_OFFERING_ID, packages: selected.availablePackages.map(publicPackage) }
+        ? { identifier: EATLOG_OFFERING_ID, packages: selected.availablePackages
+          .filter((pkg) => pkg.product.identifier === EATLOG_LIFETIME_PRODUCT_ID && !pkg.product.subscriptionPeriod)
+          .map(publicPackage) }
         : null;
     } catch {
       return null;
@@ -179,7 +182,9 @@ export function createBillingClient(options: BillingClientOptions) {
       await configure();
       const sdk = await adapter();
       const selected = itikOffering(await sdk.getOfferings());
-      const pkg = selected?.availablePackages.find((item) => item.identifier === packageIdentifier) ?? null;
+      const pkg = selected?.availablePackages.find((item) => item.identifier === packageIdentifier
+        && item.product.identifier === EATLOG_LIFETIME_PRODUCT_ID
+        && !item.product.subscriptionPeriod) ?? null;
       if (!pkg) return { state: 'failed', message: "This plan isn't available in this build.", access: currentAccess };
       const result = await sdk.purchasePackage(pkg);
       const access = normalizeAccess(snapshot(result.customerInfo), now());

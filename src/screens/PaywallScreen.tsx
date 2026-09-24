@@ -51,7 +51,7 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
                 Get {PAID_PLAN_NAME}
               </Text>
               <Text className="text-sm text-m3-on-surface-variant">
-                AI estimates from photos and descriptions, with no key to set up.
+                A one-time purchase for hosted AI estimates. Your own Google key is still an option in free Eatlog.
               </Text>
             </View>
             <Pressable
@@ -70,12 +70,12 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
             <>
               <OfferChoice options={plan.options} selectedId={plan.selectedId} onSelect={plan.setSelected} />
 
-              {plan.storeUnreachable ? (
+              {plan.purchaseUnavailable ? (
                 <View accessibilityRole="alert" className="flex-row items-start gap-3 px-1">
                   <MaterialIcons name="cloud-off" size={20} color={M3.error} />
                   <View className="min-w-0 flex-1 gap-2">
                     <Text className="text-sm text-m3-on-surface-variant">
-                      We couldn't reach the store, so prices and checkout didn't load. Your logbook still works.
+                      The one-time {PAID_PLAN_NAME} purchase is unavailable here right now. Free Eatlog still works.
                     </Text>
                     <Pressable
                       onPress={plan.retryStore}

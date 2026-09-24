@@ -7,6 +7,7 @@ import ResponsiveContent from '../ResponsiveContent';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../../theme/layout';
 import { M3 } from '../../theme/tokens';
 import { PAID_PLAN_NAME } from '../../services/tierNames';
+import { serviceConfig } from '../../config/services';
 
 interface AiChoiceContentProps {
   onUseKey: () => void;
@@ -106,20 +107,21 @@ export default function AiChoiceContent({
           <ChoiceCard
             icon="key"
             title="Use my Google key"
-            badge="Free"
-            detail="About a minute to set up. Sent from this phone to Google."
+            detail="No Eatlog charge. Google sets limits and billing."
             onPress={onUseKey}
             disabled={busy}
             emphasis="high"
           />
-          <ChoiceCard
-            icon="auto-awesome"
-            title="Eatlog AI"
-            detail={`With ${PAID_PLAN_NAME}. Nothing to set up.`}
-            onPress={onEatlogAi}
-            disabled={busy}
-            emphasis="low"
-          />
+          {serviceConfig.availability.hostedGemini ? (
+            <ChoiceCard
+              icon="auto-awesome"
+              title="Eatlog AI"
+              detail={`With ${PAID_PLAN_NAME}, a one-time purchase. Hosted fair use applies.`}
+              onPress={onEatlogAi}
+              disabled={busy}
+              emphasis="low"
+            />
+          ) : null}
         </View>
         <View className="gap-3">
           <Pressable

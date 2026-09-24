@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -52,6 +52,29 @@ for (const source of ['play-icon.svg', 'play-feature-graphic.svg']) {
   const text = readFileSync(join(root, 'release/artwork/source', source), 'utf8');
   assert.ok(text.includes('../../../assets/icon.png'), `${source} is not linked to the canonical icon.`);
   assert.equal(/<path\b|<text\b/iu.test(text), false, `${source} redraws or adds to the canonical mark.`);
+}
+
+for (const [name, exportName] of [
+  ['eatlog', 'eatlog-free-product-icon-1024.png'],
+  ['omelette', 'eatlog-omelette-product-icon-1024.png'],
+]) {
+  const source = readFileSync(join(root, `release/artwork/source/tier-${name}.svg`), 'utf8');
+  const site = readFileSync(join(root, `release/site/assets/tier-${name}.svg`), 'utf8');
+  const productIcon = read(`release/artwork/export/${exportName}`);
+  assert.equal(site, source, `${name} website icon differs from its source.`);
+  assert.deepEqual([productIcon.width, productIcon.height, productIcon.colorType], [1024, 1024, 6]);
+  assert.ok(source.includes('viewBox="0 0 48 48"'), `${name} source has an unexpected viewBox.`);
+  assert.ok(source.includes('fill="#1A1A1A"'), `${name} lost its shared dark background.`);
+  const center = (512 * productIcon.width + 512) * 4;
+  assert.deepEqual(
+    [...productIcon.rgba.subarray(center, center + 4)],
+    name === 'eatlog' ? [255, 255, 255, 255] : [214, 138, 52, 255],
+    `${name} product icon does not show the expected egg or omelette.`,
+  );
+}
+for (const name of ['pugo', 'manok', 'itik']) {
+  assert.equal(existsSync(join(root, `release/artwork/export/eatlog-${name}-product-icon-1024.png`)), false);
+  assert.equal(existsSync(join(root, `release/site/assets/tier-${name}.svg`)), false);
 }
 
 console.log(JSON.stringify({

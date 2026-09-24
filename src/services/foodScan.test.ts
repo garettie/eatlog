@@ -321,7 +321,7 @@ test('consent-check failure fails closed without logging estimate input', async 
     assert.deepEqual(result, {
         ok: false,
         kind: 'consent-required',
-        message: 'Enable online estimates to use this.',
+        message: 'Allow Eatlog AI to get hosted estimates.',
     });
     assert.equal(JSON.stringify(result).includes(privateInput), false);
 });

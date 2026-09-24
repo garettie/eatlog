@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import Card from '../Card';
-import TierBirdIcon from '../TierBirdIcon';
+import TierPlanIcon from '../TierPlanIcon';
 import { M3 } from '../../theme/tokens';
 import { PAID_PLAN_NAME, planName } from '../../services/tierNames';
 import type { Tier } from '../../services/userApiKey';
@@ -23,7 +23,7 @@ interface PlanOptionProps {
 function OfferHeading({ title, cadence, badge }: { title: string; cadence: string; badge?: string | null }) {
   return (
     <>
-      <TierBirdIcon tier="itik" size={48} />
+      <TierPlanIcon tier="itik" size={48} />
       <View className="min-w-0 flex-1 gap-0.5">
         <View className="flex-row flex-wrap items-center gap-2">
           <Text className="text-lg font-bold text-m3-on-surface">{title}</Text>
@@ -143,7 +143,7 @@ export function CurrentPlanCard({ access, tier }: { access: Access | null; tier:
   return (
     <Card className="flex-row items-center gap-3 p-4">
       {access ? (
-        <TierBirdIcon tier={tier} size={42} />
+        <TierPlanIcon tier={tier} size={42} />
       ) : (
         <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-m3-surface-container-highest">
           <MaterialIcons name="cloud-off" size={20} color={M3.onSurface} />
@@ -178,21 +178,20 @@ function FeatureLine({ icon, children }: { icon: React.ComponentProps<typeof Mat
 }
 
 /**
- * The offer is the difference between the tiers, so it stays open rather than sitting behind
- * a disclosure. Everything local is free; Itik adds hosted estimates with nothing to set up.
+ * The free app stays useful without AI. The one-time purchase adds hosted estimates.
  */
 export function ValueSummary() {
   return (
     <View className="gap-3">
       <Text accessibilityRole="header" className="text-base font-bold text-m3-on-surface">What you get</Text>
-      <Text className="px-1 text-xs font-semibold text-m3-on-surface-variant">Free</Text>
-      <FeatureLine icon="restaurant">Logging, weight, and analytics</FeatureLine>
-      <FeatureLine icon="insights">Weekly target updates from your trend</FeatureLine>
-      <FeatureLine icon="vpn-key">AI estimates with your own Google key</FeatureLine>
-      <Text className="mt-2 px-1 text-xs font-semibold text-m3-on-surface-variant">{PAID_PLAN_NAME}</Text>
+      <Text className="px-1 text-xs font-semibold text-m3-on-surface-variant">Eatlog · free and open source</Text>
+      <FeatureLine icon="restaurant">Log meals and weight, with no key needed</FeatureLine>
+      <FeatureLine icon="insights">Analytics and target suggestions</FeatureLine>
+      <FeatureLine icon="vpn-key">Optional AI with your Google key</FeatureLine>
+      <Text className="mt-2 px-1 text-xs font-semibold text-m3-on-surface-variant">Eatlog {PAID_PLAN_NAME} · one-time purchase</Text>
       <FeatureLine icon="done-all">Everything in free</FeatureLine>
-      <FeatureLine icon="auto-awesome">AI estimates with no setup</FeatureLine>
-      <Text className="px-1 text-xs text-m3-on-surface-variant">Eatlog AI is subject to fair use.</Text>
+      <FeatureLine icon="auto-awesome">Hosted AI estimates, no personal key needed</FeatureLine>
+      <Text className="px-1 text-xs text-m3-on-surface-variant">Fair use: 30 estimate actions per rolling 24 hours and 250 per rolling 30 days, including redos.</Text>
     </View>
   );
 }

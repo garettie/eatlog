@@ -1,37 +1,23 @@
 # Eatlog store review material
 
-Use the `reviewerNotes` fields in `metadata.mjs` as the canonical text. Add the owner-controlled review contact only in the store console. Do not add a demo account: Eatlog has no login.
+Use the `reviewerNotes` fields in [metadata.mjs](metadata.mjs) as the copy source. This file is a preview walkthrough, not a submitted store record. Add review contacts and the license-tester email credentials only in restricted console fields.
 
-## Feature walkthrough
+## Preview walkthrough
 
-1. Launch Eatlog and complete onboarding with the synthetic profile in `SCREENSHOT_PLAN.md`. The plan preview must pass the adult and nutrition-safety rules before it can be accepted.
-2. Open the center Add control. Choose Enter manually, enter the synthetic rice bowl, and save it. Today and Diary update immediately.
-3. As Pugo, Scan, Photo, and Describe proceed and share three initial estimates per rolling 24 hours. The separate full-screen AI consent appears when required; Okay enables that allowed estimate and Not now keeps local Eatlog features usable. After an estimate, a meal or component re-estimate opens the plan screen before another consent prompt or private-content construction. Use only non-sensitive test content.
-4. Review and edit every estimate before saving. The review result is an estimate, not a medical or guaranteed-accuracy result.
-5. In Diary, tap any meal image or food-icon rail, or swipe the meal and select Share immediately left of Delete. Share meal opens directly on a 9:16 preview. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; dots show the current position, and meals without an available photo use Nutrition automatically. The permanent Eatlog mark, Save image, and Share are all visible without vertical scrolling; no mark control or toggle exists. Save image writes one 1080 by 1920 PNG to Photos or Gallery; Share opens the operating-system share menu so the reviewer chooses the destination. Standalone foods do not expose Share.
-6. Open Search foods. Typing uses USDA through the Eatlog Worker when configured. Pressing Search also runs the explicit direct Open Food Facts full search.
-7. Add and update a weight. Pugo Analytics keeps weight, calorie, and logging metrics but shows a locked adaptive card. Paid/Test Store access can calculate a plan review and the user chooses Accept or Keep.
-8. Open Profile → Plan to inspect status, the Pugo free-estimate counter, localized products, paid fair-use counters, Support ID, restore, and management actions. Then open Backup and restore, create an `.eatlog-backup`, inspect a supported archive, and confirm twice before replacement. Open Export data to create readable, non-restorable CSV files without entitlement state.
-9. Open Profile → Delete all data. Cancel each confirmation once, then complete deletion. Eatlog returns to onboarding.
+1. Install the isolated `Eatlog Preview` APK (`com.sgaret.eatlog.preview`, `subscription-preview`). Complete onboarding with synthetic adult data from [SCREENSHOT_PLAN.md](SCREENSHOT_PLAN.md). No login, purchase, or API key is required for local features.
+2. Open Add → Enter manually. Log a synthetic meal. Check Today, Diary, Analytics, weight entry, and adaptive target review. All are free. Search foods locally; online USDA uses the Worker, and explicit full search also contacts Open Food Facts directly.
+3. To review **My key**, only use a reviewer-owned disposable Google project/key. Saving or replacing the key checks it directly with Google before a meal is sent. Select My key, then Scan, Photo, Describe, or re-estimate a meal/component. The selected content goes directly to Google, outside Eatlog's Worker. Google's own quota, billing, region, and data terms apply. A personal key is not required for restricted-feature review.
+4. To review **Eatlog AI without payment or a key**, use a preview build wired to RevenueCat Test Store. Open Profile → Plan, choose Eatlog Omelette, and select **Success** in the Test Store purchase dialog. Return to Profile → AI estimates, select Eatlog AI if a key is also saved, accept the separate hosted consent, then Scan, Describe, and re-estimate. A selected estimate goes through Eatlog's Worker to Google. The Worker enforces 30 combined operations per rolling 24 hours and 250 per rolling 30 days. If the preview offering lacks the one-time product, this path is unavailable and the offering must be fixed before review.
+5. Cancel a Test Store purchase, try Restore purchases, restart, and check that access reflects the actual Test Store state. Existing subscriptions retain restore/manage access but no new monthly package should be offered.
+6. In Diary, tap a meal image or food-icon rail, or swipe the meal and select Share immediately left of Delete. Swipe the preview between Photo, Framed, and Nutrition. The dots, permanent Eatlog mark, Save image, and Share stay visible without vertical scrolling; a photo-less meal uses Nutrition. Save or share the locally rendered 1080 by 1920 PNG through system UI. Standalone foods have no Share action.
+7. In Profile, create a `.eatlog-backup`, preview/restore it with confirmation, export readable CSV, and use Delete all data with its two confirmations. CSV cannot be restored. Removing a key locally does not revoke it at Google. On Android, Health Connect asks for Weight read/write only after Connect; iOS v1 has no Health Connect or Apple Health route.
 
-## Platform differences
+Use synthetic photos and text. Review estimates before saving; their nutrition values can be wrong. The app has no medical function.
 
-- Android: Profile includes optional Health Connect. Eatlog requests Weight read/write only after the reviewer chooses Connect. Imported weights stay in local history; Eatlog tracks and can delete only records it wrote.
-- iOS: no Health Connect row, route, copy, sync, HealthKit, or Apple Health integration exists in v1.
-- Both: camera, photo library, Files/document picker, and sharing permissions or system UI appear only when the related action starts. Saving a share image requests only the platform access needed to add that image; sharing requests no Photos permission.
+## Privacy and access notes
 
-## Provider and privacy explanation
+My key consent is tied to the saved key and route. Hosted consent is a separate versioned choice. Profile → Privacy withdraws hosted consent; Profile → AI estimates removes a key. Capturing a photo or reusing a saved meal locally sends no estimate. Worker/RevenueCat access checks and USDA search can still contact Eatlog even when My key estimates bypass it. Backup/CSV exclude the key, install ID, grants, and quota records.
 
-- Initial AI access is authorized before the separate consent flow. Pugo receives three shared photo or description estimates per rolling 24 hours; meal and component re-estimates require Manok, Itik, or complimentary access and are denied before consent or private-content construction. After the user chooses Okay for an allowed request, Eatlog sends the selected photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini; Describe and allowed re-estimates send user-entered text. Not now and withdrawal block Gemini requests while leaving history reuse, food search, and local logging available.
-- USDA search and detail use the Worker. Open Food Facts is contacted directly only for explicit full search.
-- The app-scoped installation token is sent for throttling and is stored outside SQLite backups. The Worker stores only its salted hash for rate limiting.
-- Saved profile, target, log, meal, photo, and weight data stays local unless the user invokes a named remote feature or shares an export/backup.
-- Share-card images are rendered locally into temporary cache. Eatlog has no sharing backend or social publishing service; only a user-directed Save image or operating-system share destination receives the generated PNG.
-- Google Play and Apple process Manok and Itik purchases. RevenueCat verifies store entitlement metadata using the app-scoped installation token as App User ID; Eatlog receives no card, bank, password, or one-time-code details and grants no cross-store entitlement.
+Production Play review uses license testing. The owner lists the reviewer accounts as Play license testers and gives their email credentials in App access; those accounts buy Omelette without charge, with no personal Google key. The Test Store Success dialog is confined to preview. Never tell a reviewer that all functions are unrestricted or that they must pay.
 
-## Backup, export, reset, and reviewer evidence
-
-- Backup creates `.eatlog-backup`; supported legacy `.marco-backup` files can be restored. CSV and ordinary ZIP exports must be rejected by restore.
-- Restore validates archive paths, sizes, hashes, counts, database integrity, foreign keys, schema version, and photo mappings before replacement. It creates an internal safety copy and attempts automatic rollback on failure.
-- Reset uses two confirmations and removes local profile, targets, logs, weights, reviews, and meal photos. Android reports Health Connect cleanup separately; iOS contains no Health Connect wording.
-- Record the app commit/version/build, Worker version, test device/OS, path results, and real screenshot paths. Store account, signed-binary, provider-console, and physical-device results remain unsigned until actually performed.
+For each executed run, record commit, app version/build, Worker version, device/OS, selected route, Test Store offering/product, outcome, and real screenshot paths. Provider calls and store/account results remain unverified until actually exercised.

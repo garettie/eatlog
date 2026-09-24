@@ -1,5 +1,5 @@
 export const storeMetadata = {
-  sourceVersion: 1,
+  sourceVersion: 2,
   locale: "en-US",
   product: {
     name: "Eatlog",
@@ -12,27 +12,22 @@ export const storeMetadata = {
     releaseOrder: ["Google Play", "Apple App Store"],
     commercial: {
       acquisitionPrice: "free",
-      manok: {
-        currency: "PHP",
-        amount: 79,
-        period: "monthly",
-      },
-      itik: {
-        currency: "PHP",
-        amount: 799,
-        purchaseType: "one-time lifetime entitlement",
-      },
-      subscriptions: true,
+      plans: ["Eatlog", "Eatlog Omelette"],
+      hostedProductId: "eatlog_itik",
+      hostedPurchaseType: "one-time non-consumable",
+      localizedPriceSource: "store purchase sheet",
+      legacySubscriptionProductId: "eatlog_manok",
+      newSubscriptionSales: false,
       inAppPurchases: true,
       crossStoreEntitlement: false,
     },
     accountRequired: false,
     localFirst: true,
     remoteFeatures: [
-      "Scan",
-      "Describe and re-estimation",
+      "My key direct Gemini estimates",
+      "Eatlog AI hosted estimates",
       "USDA search and detail",
-      "Open Food Facts full search",
+      "Open Food Facts explicit full search",
     ],
     deferredFeatures: [
       "HealthKit",
@@ -43,32 +38,23 @@ export const storeMetadata = {
   },
   google: {
     title: "Eatlog",
-    shortDescription: "Before you Eat, Log.",
+    shortDescription: "Free, open-source food logging. Your diary stays yours.",
     fullDescription: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Fast input, editable estimates, useful trends, and none of the usual clutter around them.
+Eatlog is a free, open-source food and weight log. Keep a diary on your phone, with no account to create.
 
-Log it. Eat lunch.
-Photo when you're in a hurry. Manual when you're not. Start from a description, food search, saved food, or past meal when that is faster. Every estimate stays editable before it reaches the diary. The robot does not get the last word.
+Log lunch, then eat it.
+Enter food by hand, search foods, or reuse a past meal. Today shows calories and macros. Diary keeps the details. Analytics shows your weight trend, intake, and logging consistency. Review target suggestions before accepting them. These tools are free.
 
-See the useful part
-Today keeps calories and macros easy to read. Diary holds the full record. Analytics shows weight trend, average intake, calorie history, and logging consistency without turning the numbers into a soap opera.
+AI estimates are optional. Add your own Google Gemini API key to send a selected photo or description directly to Google, then edit the result before saving. Eatlog does not charge for My key. Google sets its own availability, limits, data terms, and possible charges.
 
-The plan has to ask first
-When enough evidence exists, Eatlog can propose a target change. Nothing moves until you accept it.
+Eatlog Omelette is an optional one-time purchase for Eatlog-hosted AI estimates without your own key. It has a rolling allowance of 30 operations per 24 hours and 250 per 30 days. A purchase never changes your local feature access, and you can still choose My key. See the localized price in the store purchase sheet.
 
-Your diary is not the price of using the app
-There is no Eatlog account, no cloud copy of your food or weight history, no ads, and no third-party analytics. Online estimates and full food search run only when you ask. Manual logging, saved meals, history, and analytics keep working without them.
+Make a restorable backup, export readable CSV, share a meal card, or delete local data when you choose. Android also offers optional Weight sync with Health Connect.
 
-Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
-
-Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Pugo includes 3 photo or description estimates per rolling 24 hours. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. Current prices and terms appear in the store purchase sheet.
-
-On Android, optional Health Connect support reads and writes Weight only after you choose to connect it.
-
-Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
+Food entries, nutrition targets, and AI results are estimates. Review them before relying on them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
     releaseNotes:
-      "Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.",
+      "Initial release. Free, open-source food logging with manual entry, saved meals, Diary, Analytics, backups, and optional AI estimates through your own key or Eatlog Omelette.",
     category: "Health & Fitness",
     healthAppsCategory: "Nutrition and Weight Management",
     requiredHealthDisclaimer:
@@ -76,53 +62,46 @@ Nutrition data, calculated targets, trends, and meal results are estimates. Revi
   },
   apple: {
     title: "Eatlog",
-    subtitle: "Food logging, minus the fuss",
+    subtitle: "Free, open-source food log",
     keywords:
       "nutrition,calories,macros,meals,diary,weight,tracker,food log,backup",
     description: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Fast input, editable estimates, useful trends, and none of the usual clutter around them.
+Eatlog is a free, open-source food and weight log. Your diary stays on your phone. No account to create.
 
-LOG IT. EAT LUNCH.
-Photo when you're in a hurry. Manual when you're not. Start from a description, food search, saved food, or past meal when that is faster. Every estimate stays editable before it reaches the diary. The robot does not get the last word.
+LOG LUNCH, THEN EAT IT
+Enter food by hand, search foods, or reuse a past meal. Today shows calories and macros. Diary keeps the details. Analytics shows weight trend, intake, and logging consistency. Target suggestions wait for your decision. All local tools are free.
 
-SEE THE USEFUL PART
-Today keeps calories and macros easy to read. Diary holds the full record. Analytics shows weight trend, average intake, calorie history, and logging consistency without turning the numbers into a soap opera.
+AI estimates are optional. With your own Google Gemini API key, a selected photo or description goes directly to Google. Edit each estimate before saving. Eatlog does not charge for My key; Google controls its limits, billing, and data terms.
 
-THE PLAN HAS TO ASK FIRST
-When enough evidence exists, Eatlog can propose a target change. Nothing moves until you accept it.
+Eatlog Omelette is an optional one-time purchase for Eatlog-hosted AI without your own key. Hosted use allows 30 operations per rolling 24 hours and 250 per rolling 30 days. The store shows the current localized price. You can still choose My key after buying.
 
-YOUR DIARY IS NOT THE PRICE OF USING THE APP
-There is no Eatlog account, no cloud copy of your food or weight history, no ads, and no third-party analytics. Online estimates and full food search run only when you ask. Manual logging, saved meals, history, and analytics keep working without them.
+Create a restorable backup, export readable CSV, share a meal card, or delete local data.
 
-Create a restorable backup, export readable CSV files, delete all local data, or share a meal card through your phone. Eatlog does not publish anything for you.
-
-Eatlog is free to download. Pugo covers food logging, weight tracking, Diary, and Analytics. Pugo includes 3 photo or description estimates per rolling 24 hours. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. Current prices and terms appear in the store purchase sheet.
-
-Nutrition data, calculated targets, trends, and meal results are estimates. Review entries before saving them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
+Food entries, nutrition targets, and AI results are estimates. Review them before relying on them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
     promotionalText:
-      "Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog. Fast, editable food logging with useful trends and no cloud diary.",
+      "Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog. Free, open-source food logging, with optional AI estimates.",
     releaseNotes:
-      "Initial release. Photo when you are in a hurry, manual when you are not. Edit every estimate, reuse saved meals, see calories and macros, track weight trends, accept or keep plan changes, share meal cards, and back up or export your log. No streak mascot will be disappointed in you.",
+      "Initial release. Free, open-source food logging with manual entry, saved meals, Diary, Analytics, backups, and optional AI estimates through your own key or Eatlog Omelette.",
     primaryCategory: "Health & Fitness",
     secondaryCategory: "Food & Drink",
     firstVersionReleaseNotesFieldAvailable: false,
   },
   reviewerNotes: {
-    google: `Eatlog is free to download. Pugo includes three initial photo or description estimates per rolling 24 hours. Manok is a monthly subscription and Itik is a one-time lifetime purchase; both add meal/component re-estimates and adaptive plan recommendations. The build has no login.
+    google: `Eatlog is free and has no login. Manual logging, saved meals, weight, Diary, Analytics, adaptive target suggestions, backups, export, and sharing need no purchase or API key. Eatlog Omelette is a one-time non-consumable hosted-AI purchase. Existing subscribers retain legacy access, but the app does not offer a new subscription.
 
-Complete onboarding with synthetic adult data. Camera/gallery selection opens Identify meal locally. Reusing a listed past meal loads its editable foods and portions with the new photo without consent or network use. Choose Estimate as new or Describe to use a Pugo estimate and request AI consent when required; Not now returns to the same photo, title, and local suggestions without sending anything. After an estimate, use a meal/component re-estimate action to see the paid plan before consent or private-content construction. Only an invoked allowed estimate sends user-selected content to Google Gemini through the Eatlog Worker. Manual food entry works offline. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
+To review Eatlog Omelette, sign in to Google Play with the license-tester account listed in App access. Open Profile > Plan, choose Eatlog Omelette, and complete the purchase with the test payment method. License testers are not charged, and no personal Google key is needed.
 
-Android only: Profile > Health Connect requests read and write access for Weight. Eatlog imports Weight into local history and exports only weights entered in Eatlog. No other Health Connect data type is requested.
+Complete onboarding with synthetic adult data. Use Add for manual entry. For AI, open Profile > AI estimates and choose Eatlog AI after the test purchase, then accept its separate consent. Scan opens the camera; Photo opens the picker; Describe uses typed text. A selected photo and optional meal title, or typed text and limited re-estimate context, go through Eatlog's Worker to Google Gemini. My key sends selected content directly to Google and its setup validates a key with Google before a meal estimate. Review every result before saving. USDA search uses the Worker; explicit full search also contacts Open Food Facts directly. Local logging works offline.
 
-Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.`,
-    apple: `Eatlog is free to download. Pugo includes three initial photo or description estimates per rolling 24 hours. Manok is a monthly subscription and Itik is a one-time lifetime purchase; both add meal/component re-estimates and adaptive plan recommendations. The build has no login. Saved profiles, targets, logs, weights, and meal photos stay on device unless the user exports a file.
+Android only: Profile > Health Connect requests Weight read/write after Connect. Backup and restore uses .eatlog-backup archives; CSV exports cannot be restored. Delete all data has two confirmations.`,
+    apple: `Eatlog is free and has no login. Manual logging, saved meals, weight, Diary, Analytics, adaptive target suggestions, backups, export, and sharing need no purchase or API key. Eatlog Omelette is a one-time non-consumable hosted-AI purchase. Existing subscribers retain legacy access, but the app does not offer a new subscription.
 
-Complete onboarding with synthetic adult data. Use the center Add control for manual entry, Scan a meal, Upload photo, or Describe. Scan opens the camera and Upload photo opens the photo library; selection opens Identify meal locally. Reusing a listed past meal loads its editable foods and portions with the new photo without consent or network use. Choose Estimate as new or Describe to use a Pugo estimate and request AI consent when required; Not now returns to the same photo, title, and suggestions without sending anything. After an estimate, use a meal/component re-estimate action to see the paid plan before consent or private-content construction. Only an invoked allowed estimate sends user-selected content to Google Gemini through the Eatlog Worker. USDA uses the Worker; Open Food Facts is contacted directly only after a full search.
+To review Eatlog Omelette, open Profile > Plan, choose Eatlog Omelette, and complete the purchase with a sandbox account. Sandbox purchases are not charged, and no personal Google key is needed.
 
-Profile > Backup and restore creates or restores .eatlog-backup files. Export data creates readable CSV files that cannot be restored. Delete all data uses two confirmations.
+Complete onboarding with synthetic adult data. Use Add for manual entry. For AI, open Profile > AI estimates and choose Eatlog AI after the sandbox purchase, then accept its separate consent. Scan opens the camera; Photo opens the picker; Describe uses typed text. A selected photo and optional meal title, or typed text and limited re-estimate context, go through Eatlog's Worker to Google Gemini. My key sends selected content directly to Google and its setup validates a key with Google before a meal estimate. Review every result before saving. USDA search uses the Worker; explicit full search also contacts Open Food Facts directly.
 
-iOS v1 has no Health Connect, HealthKit, or Apple Health integration.`,
+Backup and restore uses .eatlog-backup archives; CSV exports cannot be restored. Delete all data has two confirmations. iOS v1 has no Health Connect or Apple Health integration.`,
   },
   artwork: {
     featureGraphicAltText:

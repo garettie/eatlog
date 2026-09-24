@@ -90,16 +90,19 @@ test('an unreadable credential store keeps the saved choice and surfaces on use'
   await assert.rejects(store.getKey());
 });
 
-test('saving as Pugo is Manok on My key; saving as Itik stays on Eatlog AI', async () => {
+test('saving a key selects My key with or without Omelette', async () => {
   const pugo = createUserApiKeyStore(memorySecure().storage, memoryRecords().storage);
   await pugo.save(KEY, false);
   assert.equal(pugo.currentRoute(), 'my-key');
   assert.equal(await pugo.getKey(), KEY);
 
-  const itik = createUserApiKeyStore(memorySecure().storage, memoryRecords().storage);
+  const secure = memorySecure();
+  const records = memoryRecords();
+  const itik = createUserApiKeyStore(secure.storage, records.storage);
   await itik.save(KEY, true);
   assert.equal(itik.getState().hasKey, true);
-  assert.equal(itik.currentRoute(), 'eatlog-ai');
+  assert.equal(itik.currentRoute(), 'my-key');
+  assert.equal((await createUserApiKeyStore(secure.storage, records.storage).load()).route, 'my-key');
 });
 
 test('a key saved after the first load is seen by the next load, as when onboarding saves one', async () => {
@@ -150,25 +153,24 @@ test('a refused erase keeps the key and its consent saved and in use', async () 
   assert.equal(store.currentRoute(), 'eatlog-ai');
 });
 
-test('gaining Itik moves the route to Eatlog AI once; losing it changes nothing', async () => {
+test('Omelette access changes preserve the selected AI route across restarts', async () => {
   const records = memoryRecords(record('my-key'));
-  const store = createUserApiKeyStore(memorySecure(KEY).storage, records.storage);
-  await store.observeItik(true);
-  assert.equal(store.currentRoute(), 'eatlog-ai');
-  assert.deepEqual(records.peek(), { version: 1, consent: 'accepted', route: 'eatlog-ai', itikSeen: true });
-
-  // The user picks their key while Itik is active; staying Itik does not undo it.
-  await store.setRoute('my-key');
+  const secure = memorySecure(KEY);
+  const store = createUserApiKeyStore(secure.storage, records.storage);
   await store.observeItik(true);
   assert.equal(store.currentRoute(), 'my-key');
+  assert.deepEqual(records.peek(), { version: 1, consent: 'accepted', route: 'my-key', itikSeen: true });
 
-  // Itik ends on My key: they continue on their key.
+  await store.setRoute('eatlog-ai');
+  await store.observeItik(true);
+  assert.equal(store.currentRoute(), 'eatlog-ai');
+
   await store.observeItik(false);
-  assert.equal(store.currentRoute(), 'my-key');
+  assert.equal(store.currentRoute(), 'eatlog-ai');
 
-  // Regaining Itik is a new gain.
   await store.observeItik(true);
   assert.equal(store.currentRoute(), 'eatlog-ai');
+  assert.equal((await createUserApiKeyStore(secure.storage, records.storage).load()).route, 'eatlog-ai');
 });
 
 test('without a key, entitlement changes and route choices store nothing', async () => {

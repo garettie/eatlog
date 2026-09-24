@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="robots" content="noindex,nofollow">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0c0e13">
   <meta name="description" content="How Eatlog stores, uses, shares, retains, and deletes app data.">
@@ -24,86 +25,63 @@
   <main id="main" tabindex="-1">
     <header class="legal-hero">
       <div class="legal-hero__inner">
-        <div class="legal-hero__meta"><span>Version 1.2</span><span>Effective September 1, 2026</span></div>
+        <div class="legal-hero__meta"><span>Preview draft 1.3</span><span>Updated September 24, 2026</span></div>
         <h1>Privacy Policy</h1>
         <p>What stays on your phone, what leaves it, which services receive it, and how you can remove it.</p>
       </div>
     </header>
 
     <div class="legal-layout">
-      <nav class="legal-toc" aria-label="Privacy Policy contents">
+      <nav class="legal-toc" aria-label="Privacy contents">
         <p>ON THIS PAGE</p>
         <ul>
-          <li><a href="#device-data">Data on your device</a></li>
-          <li><a href="#online-data">Data sent online</a></li>
-          <li><a href="#purchases">Purchase processing</a></li>
-          <li><a href="#health-connect">Health Connect</a></li>
-          <li><a href="#permissions">Photos, files, sharing</a></li>
-          <li><a href="#retention">Retention and deletion</a></li>
-          <li><a href="#children">Health information</a></li>
-          <li><a href="#licenses">Sources and licenses</a></li>
-          <li><a href="#contact">Contact and changes</a></li>
+          <li><a href="#data-on-your-device">Data on your device</a></li>
+          <li><a href="#optional-ai-estimates">Optional AI estimates</a></li>
+          <li><a href="#food-search-and-other-network-activity">Food search and other network activity</a></li>
+          <li><a href="#android-health-connect">Android Health Connect</a></li>
+          <li><a href="#camera-files-backups-and-sharing">Camera, files, backups, and sharing</a></li>
+          <li><a href="#retention-and-deletion">Retention and deletion</a></li>
+          <li><a href="#health-information-and-licenses">Health information and licenses</a></li>
+          <li><a href="#contact-and-changes">Contact and changes</a></li>
         </ul>
       </nav>
 
       <article class="prose">
-        <p>Eatlog is developed and operated by Sean Garette Gajitos. This Privacy Policy is effective September 1, 2026.</p>
-        <p>Eatlog is an account-free nutrition and weight log. It stores your profile, targets, food history, weight history, adaptive reviews, pins, estimate cache, and saved meal photos in app-private storage on your device. Eatlog has no account, authentication system, cloud database, advertising, or third-party analytics SDK.</p>
-
-        <h2 id="device-data">Data stored on your device</h2>
-        <p>Eatlog stores the information you enter during setup and use, including your display name, birth date, sex, height, activity level, nutrition goal, target weight, preferred units, food logs, meal details, nutrition estimates, targets, weight records, and review decisions. Saved meal photos are stored as app-private files. Recent online search results may stay briefly in memory.</p>
-        <p>Eatlog also stores an app-scoped random installation token outside its database. The token identifies one installation for Pugo's rolling AI allowance, request throttling, and RevenueCat access checks. This file is not included in an Eatlog backup or CSV export.</p>
-        <p>RevenueCat uses that token as its App User ID to check subscription, lifetime, or complimentary access. RevenueCat and the platform store process product, purchase, renewal, refund, and entitlement metadata. Eatlog keeps entitlement, signed grants, and Pugo or paid quota state outside SQLite, backups, and CSV exports.</p>
-        <p>If the build has online meal estimates, Eatlog stores your current Gemini-estimate consent decision in a separate app-private file outside SQLite. The decision is not included in an Eatlog backup or CSV export. Delete all data clears it.</p>
-
-        <h2 id="online-data">When Eatlog sends data online</h2>
-        <p>Eatlog uses online services only for the actions described below.</p>
-
-        <h3>Scan, Describe, and re-estimation</h3>
-        <p>Before an allowed request, Eatlog shows a short choice. You can select Okay to enable online meal estimates or Not now to keep using Eatlog without them. Not now does not disable manual logging, local history, USDA or Open Food Facts search, weight tracking, Analytics, backup, export, or sharing. A later explicit AI action can show the choice again. Pugo allows three initial photo or description estimates per rolling 24 hours. Meal and component re-estimates require Manok, Itik, or complimentary access and are denied before consent or private-content construction. Every allowed estimate still requires the current accepted consent version. Profile &gt; Privacy lets you turn online estimates off.</p>
-        <p>Taking or choosing a meal photo and reusing a past meal stays on the device. After access and consent checks, choosing Estimate as new sends the selected, resized photo and any optional meal title through the Eatlog Cloudflare Worker to Google Gemini. Describe and allowed re-estimates send the meal text you enter. The request includes the app-scoped installation token. Cloudflare processes the connecting IP address and token to deliver the request and apply access-specific limits. Eatlog requires you to review the result before saving it.</p>
-
-        <h3>USDA FoodData Central</h3>
-        <p>Eatlog can send a food search query or selected USDA food ID through the Eatlog Worker to USDA FoodData Central. The Worker may cache normalized USDA responses. Eatlog stores a USDA result in your history only when you log it.</p>
-
-        <h3>Open Food Facts</h3>
-        <p>When you explicitly submit a full food search, Eatlog can send the search text directly to Open Food Facts. Open Food Facts does not run while you type. Requests identify the Eatlog app and its monitored support contact, as required by Open Food Facts. The volunteer-contributed database can be incomplete or inaccurate.</p>
-        <p>Eatlog does not send your nutrition logs, weight history, profile, targets, saved meal photos, backups, or exports to its Worker unless a specific Scan, Describe, re-estimation, or food-search action needs the selected content described above.</p>
-
-        <h2 id="purchases">Purchase processing</h2>
-        <p>Eatlog is free to download. Pugo local logging and its three-estimate rolling allowance remain usable without a purchase. Google Play or Apple's App Store processes the monthly Manok subscription and one-time Itik purchase. RevenueCat verifies the resulting entitlement for the app and Eatlog Worker. Eatlog does not receive your card number, bank details, store password, or one-time codes. Complimentary access creates no store subscription.</p>
-        <p>Short-lived signed AI grants and salted Pugo or paid quota records enforce access-specific limits. They contain no food, photo, weight, or profile content and remain outside SQLite, backups, and CSV exports. Expiry, refund, or revocation removes paid features and returns confirmed installations to Pugo without deleting local food, weight, target, or adaptive history.</p>
-
-        <h2 id="health-connect">Android Health Connect</h2>
-        <p>Health Connect is available only on Android. If you choose to connect it, Eatlog requests permission to read and write Weight records only. Eatlog can import Weight records for local trends and write weights you enter in Eatlog. Connection state and record identifiers stay in the local database and are not sent to Eatlog's Worker. You can disconnect Eatlog or revoke access in Android settings.</p>
-        <p>Eatlog does not use HealthKit or Apple Health in v1.</p>
-
-        <h2 id="permissions">Camera, photos, files, and sharing</h2>
-        <p>Eatlog asks for camera access only when you choose camera Scan. It opens the gallery or system photo picker only when you choose Photo. It opens the document picker only when you choose Restore.</p>
-        <p>When you share a meal card, Eatlog renders one 1080 by 1920 PNG on your device. Save image asks only for the platform access needed to add that image to Photos or Gallery. On current Android versions this does not request photo-read access. On iOS it uses add-only access. Share requests no Photos permission and opens the system share menu so you choose the destination. Eatlog deletes its temporary generated files after the attempt and has no sharing backend, public link, social feed, or share tracking. A destination app or storage provider you choose controls its copy.</p>
-        <p>A restorable Eatlog backup contains a database snapshot and referenced meal photos. A human-readable CSV export contains profile and history tables but no photos or Health Connect synchronization metadata. CSV exports are not restorable. Backup and Export also open the system share sheet only when you choose those actions, and the destination app or storage provider you choose controls its copy.</p>
-
-        <h2 id="retention">Retention and deletion</h2>
-        <p>You can edit and delete individual logs in Eatlog. Delete all data removes the local database, meal photos, remote-estimate consent, and temporary backup or export files. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and warns you if it cannot confirm that removal. Deleting the app removes its app-private storage, subject to operating-system behavior. Files you exported or shared remain in the locations you chose.</p>
-        <p>The Eatlog Worker is designed to log operational fields and aggregate token and cost counts only. It must not log request bodies, images, descriptions, search queries, prompts, provider responses, raw installation tokens, token hashes, transaction IDs, grants, IP addresses, headers, or secrets. Google, Cloudflare, RevenueCat, the platform store, USDA, Open Food Facts, and any share destination process data under their own terms and policies.</p>
-        <p>Provider information: <a href="https://ai.google.dev/gemini-api/terms" rel="noreferrer">Google Gemini</a>, <a href="https://www.cloudflare.com/privacypolicy/" rel="noreferrer">Cloudflare</a>, <a href="https://www.revenuecat.com/privacy/" rel="noreferrer">RevenueCat</a>, <a href="https://fdc.nal.usda.gov/" rel="noreferrer">USDA FoodData Central</a>, and <a href="https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/" rel="noreferrer">Open Food Facts API and reuse terms</a>.</p>
-
-        <h2 id="children">Children and health information</h2>
-        <p>Eatlog is intended for adults and general wellness use. Its nutrition and weight values are estimates. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Seek advice from a qualified health professional for health decisions.</p>
-
-        <h2 id="licenses">Data sources and licenses</h2>
-        <p>Open Food Facts database data is available under the Open Database License. Individual database contents use the Database Contents License, and product images use a Creative Commons Attribution-ShareAlike license. USDA FoodData Central is a U.S. government data source. Eatlog shows attributions for Open Food Facts, USDA, the bundled Onest font, third-party software, and Eatlog's 0BSD license in Profile &gt; Licenses and attributions.</p>
-
-        <h2 id="contact">Contact and policy changes</h2>
-        <p>Contact Sean Garette Gajitos at <a href="mailto:sggajitos@gmail.com">sggajitos@gmail.com</a> about this policy or a privacy request.</p>
-        <p>Material changes to what Eatlog sends, who receives it, or why require a new policy date and updated in-app privacy copy. Older policy versions remain in version control.</p>
+        <p>Preview draft, last updated September 24, 2026. This text is not yet the published policy. Eatlog is developed and operated by Sean Garette Gajitos. Contact <a href="mailto:sggajitos@gmail.com">sggajitos@gmail.com</a>.</p>
+        <p>Eatlog is a free, open-source, account-free food and weight log. Your diary lives in app-private storage on your device. Eatlog has no account system, cloud diary, advertising, or third-party analytics SDK. Optional online actions still contact the services named below.</p>
+        <h2 id="data-on-your-device">Data on your device</h2>
+        <p>Eatlog stores the profile details you enter, targets, food and weight logs, meal details and photos, nutrition estimates, pins, adaptive review decisions, and food cache in its local database and app-private files. You can log manually and reuse saved meals without an AI key or purchase.</p>
+        <p>An app-scoped random installation token lives outside the database. Eatlog uses it for hosted-service throttling, purchase access checks, and hosted AI grants. RevenueCat uses it as an App User ID for entitlement checks. The platform store and RevenueCat process purchase, restoration, refund, renewal, and entitlement information. Eatlog stores access and usage state outside the diary database. The token, grants, usage state, and receipts are not part of Eatlog backups or CSV exports.</p>
+        <p>If you save your own Google Gemini API key, Eatlog stores it in the device credential store, backed by Android Keystore or iOS Keychain. Eatlog shows only its first and last four characters on Profile &gt; AI estimates. A separate app-private record holds your consent and chosen AI route. The key never goes into SQLite, Eatlog backups, CSV exports, logs, or Worker requests. Saving or checking a key sends the key to Google&#x27;s model-list endpoint without meal content. Removing the key erases the local credential and its consent, but does not revoke the key in your Google project. Delete all data also tries to remove the key and tells you if the credential store refuses.</p>
+        <h2 id="optional-ai-estimates">Optional AI estimates</h2>
+        <p>Eatlog has two AI routes. You choose them in Profile &gt; AI estimates when both are available. The routes have separate consent records. Turning off Eatlog-hosted estimates in Privacy withdraws hosted consent; remove your key in AI estimates to stop the direct route. Neither action deletes diary entries.</p>
+        <p><strong>My key</strong> sends only the selected resized meal photo and optional title, description, or re-estimate context from your device directly to Google Gemini, using your key. Meal and component re-estimates can include the current component names and amounts and, when supplied, the selected photo. The estimate payload, key, installation token, and usage report do not go through Eatlog&#x27;s Worker. The app may still contact Eatlog for purchase checks or USDA search. Google may limit, reject, or charge for your project&#x27;s usage. Eatlog does not charge for My key. Google&#x27;s API terms distinguish unpaid and billed usage, including how Google may use submitted content; regional terms can differ. An Eatlog purchase does not set your Google project&#x27;s billing or data-treatment category. Read <a href="https://ai.google.dev/gemini-api/terms">Google&#x27;s Gemini terms</a>, <a href="https://ai.google.dev/gemini-api/docs/billing">billing guide</a>, <a href="https://ai.google.dev/gemini-api/docs/rate-limits">rate limits</a>, and <a href="https://ai.google.dev/gemini-api/docs/available-regions">available regions</a> before choosing this route.</p>
+        <p>Under Google&#x27;s current API terms, unpaid usage can let Google use submitted content to improve products, with human review. For paid API usage, Google says it does not use prompts and responses to improve products, although abuse-monitoring retention can still apply. Google&#x27;s terms give unpaid usage in the EEA, Switzerland, and the UK the paid-services data treatment. Check your Google project&#x27;s terms and billing status; buying Omelette does not change them.</p>
+        <p><strong>Eatlog AI</strong> is the optional hosted route included with Eatlog Omelette or verified legacy or complimentary access. After hosted consent and access checks, Eatlog sends the selected resized photo and optional title, description, or re-estimate context, plus the installation token and request identifier, through its Cloudflare Worker to Google Gemini. The Worker can retry the same model through a regional Cloudflare relay when Google refuses its first location. The Worker checks a signed grant and enforces the hosted allowance. Cloudflare handles the connecting IP address to deliver requests. The hosted route uses Eatlog&#x27;s provider credential, never your saved key.</p>
+        <p>Taking a photo, choosing one, or reusing a saved meal stays local until you explicitly request an online estimate. Eatlog asks you to review every returned estimate before saving. Estimates can be wrong. Declining or withdrawing either AI route leaves manual logging and other local features usable.</p>
+        <h2 id="food-search-and-other-network-activity">Food search and other network activity</h2>
+        <p>Local history and bundled common foods search on your device. USDA FoodData Central search sends a search query, or a selected USDA food ID, through Eatlog&#x27;s Worker to USDA. The Worker can cache normalized USDA responses. A full online food search can also send your query directly to Open Food Facts when you press Search; it does not query Open Food Facts for every keystroke. Open Food Facts requests identify Eatlog and its support contact. Eatlog saves a remote result in your diary only when you log it.</p>
+        <p>The app may contact RevenueCat, the platform store, and Eatlog&#x27;s Worker to check or refresh purchase access, grants, and hosted usage. These checks do not include your meal photo, food diary, weight history, or Google key. They can happen even if you choose My key. App installation uses the platform store or distribution service; the bundled Expo Updates client can check its configured EAS update channel for app code updates. Those checks do not include your diary.</p>
+        <h2 id="android-health-connect">Android Health Connect</h2>
+        <p>On Android, you can grant Eatlog permission to read and write Weight records in Health Connect. Eatlog uses imported weights for local trends and can write weights you log. Connection state and record identifiers stay in the local database, not the Eatlog Worker. You can disconnect Eatlog or revoke access in Android settings. Eatlog does not use HealthKit or Apple Health in v1.</p>
+        <h2 id="camera-files-backups-and-sharing">Camera, files, backups, and sharing</h2>
+        <p>Eatlog asks for camera access when you choose camera Scan. Photo uses the system photo picker; Restore uses the document picker. A restorable <code>.eatlog-backup</code> or supported legacy <code>.marco-backup</code> contains a database snapshot and referenced meal photos. The readable CSV export contains profile and history tables, but no photos, Google key, consent, purchase records, or Health Connect synchronization metadata. A CSV export cannot be restored.</p>
+        <p>Eatlog creates meal share images on your device and opens the system share sheet. Backup and export sharing also use the system share sheet. You choose the destination. Eatlog has no sharing backend, public link, or feed. Apps or storage providers you choose control their copies.</p>
+        <h2 id="retention-and-deletion">Retention and deletion</h2>
+        <p>You can edit or delete individual logs. Profile &gt; Delete all data removes the local database, saved meal photos, hosted-estimate consent, temporary backup and export files, and your saved key and direct-route consent when the device credential store allows it. The app reports a key-removal failure rather than claiming success. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and warns if it cannot confirm removal. Deleting the app removes app-private storage subject to operating-system behavior. Files you exported or shared, a Google key in your Google project, and provider-held data need separate action at their destinations.</p>
+        <p>The Worker records operational fields and aggregate token and cost counts. Its logging code excludes request bodies, images, descriptions, search queries, prompts, provider responses, raw installation tokens, token hashes, transaction IDs, grants, IP addresses, headers, and secrets. Salted hosted quota records and short-lived grants contain no food or photo content. Google, Cloudflare, RevenueCat, the platform store, USDA, Open Food Facts, and any share destination process data under their own terms. See <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare&#x27;s privacy policy</a>, <a href="https://www.revenuecat.com/privacy/">RevenueCat&#x27;s privacy policy</a>, <a href="https://fdc.nal.usda.gov/">USDA FoodData Central</a>, and <a href="https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/">Open Food Facts API terms</a>.</p>
+        <h2 id="health-information-and-licenses">Health information and licenses</h2>
+        <p>Eatlog is for adults and general wellness. Nutrition values, targets, trends, and AI estimates can be incomplete or wrong. It is not a medical device. Review estimates and consult a qualified health professional for medical decisions.</p>
+        <p>The Eatlog app source is licensed under 0BSD. That license does not grant hosted AI service access. Open Food Facts database data uses the Open Database License, individual database contents use the Database Contents License, and product images use a Creative Commons Attribution-ShareAlike license. USDA FoodData Central is a U.S. government data source. Eatlog lists these and its bundled font and software credits in Profile &gt; Licenses and attributions.</p>
+        <h2 id="contact-and-changes">Contact and changes</h2>
+        <p>Contact <a href="mailto:sggajitos@gmail.com">sggajitos@gmail.com</a> about this draft or a privacy request. Material changes to recipients, data sent, or purposes require updated in-app disclosures and a new published policy version. Earlier versions remain in version control.</p>
       </article>
     </div>
   </main>
 
   <footer class="site-footer">
     <div class="section-shell site-footer__inner">
-      <div><a class="brand" href="/" aria-label="Eatlog home"><img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt=""><span>Eatlog</span></a><p class="footer-copy">Privacy Policy version 1.2. Effective September 1, 2026. Contact sggajitos@gmail.com.</p></div>
+      <div><a class="brand" href="/" aria-label="Eatlog home"><img class="brand__mark" src="/assets/icon.png" width="38" height="38" alt=""><span>Eatlog</span></a><p class="footer-copy">Privacy Policy preview draft 1.3. Updated September 24, 2026. Contact sggajitos@gmail.com.</p></div>
       <nav class="footer-links" aria-label="Footer navigation"><a href="/">Overview</a><a href="/terms">Terms</a><a href="/support">Support</a><a href="#main">Back to top</a></nav>
     </div>
   </footer>

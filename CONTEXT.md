@@ -7,16 +7,16 @@ Eatlog is a local-first calorie and weight tracker. Every local feature is free;
 ### Tiers and AI access
 
 **Tier**:
-The user's plan level, always derived from their entitlement and saved key and never stored on its own.
-_Avoid_: Plan state, account type
+An internal compatibility state derived from entitlement and saved key, never stored on its own. Public plans are Eatlog and Eatlog Omelette; saving a key does not create another product.
+_Avoid_: Calling My key a public tier
 
 **Pugo**:
 The free tier with no AI: no active entitlement and no saved key.
 _Avoid_: Free plan, basic
 
 **Manok**:
-The free tier where AI estimates go directly from the device to Google using the user's own Google AI Studio key.
-_Avoid_: BYOK tier, subscription (the old recurring-purchase meaning is obsolete)
+The internal free-with-key state. Estimates on My key go directly from the device to Google using the user's own Google AI Studio key. Legacy `eatlog_manok` subscriptions remain restorable but are not sold to new users.
+_Avoid_: BYOK tier, public subscription name
 
 **Itik**:
 The tier with an active paid or complimentary entitlement to Eatlog-hosted AI, which uses the owner's server-held key.
@@ -45,9 +45,9 @@ _Avoid_: BYOK mode, direct mode
 ### Consent
 
 **Hosted consent**:
-The user's agreement to send meal inputs to Eatlog AI; once accepted it is never asked again unless withdrawn.
+The user's agreement to send selected meal inputs through Eatlog's Worker to Google for Eatlog AI; an accepted current version is reused until withdrawn.
 _Avoid_: Online estimates consent
 
 **Manok consent**:
-The user's agreement, given while saving a key, to send meal inputs directly to Google under Google's terms; removing the key withdraws it. Adding a key also records **Hosted consent**, so a key user who later gains Itik is never asked again; removing the key leaves Hosted consent in place.
+The user's agreement, given while saving a key, to send selected meal inputs directly to Google under Google's terms; removing the key withdraws it. Saving or replacing a key does not accept Hosted consent.
 _Avoid_: Google consent, BYOK consent

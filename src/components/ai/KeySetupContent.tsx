@@ -34,28 +34,29 @@ export type KeySetupMode = 'add' | 'replace';
 
 const AI_STUDIO_URL = 'https://aistudio.google.com/app/apikey';
 
-/**
- * What saving a key agrees to, for both routes: saving also records the Eatlog AI consent. Shown
- * only when adding; replacing keeps the consent given.
- */
+/** Saving a key agrees to direct Google requests only. Hosted consent has its own prompt. */
 const DISCLOSURE: { icon: keyof typeof MaterialIcons.glyphMap; text: string }[] = [
   {
     icon: 'send-to-mobile',
-    text: 'Eatlog sends the photo, meal title, or description you choose to Google Gemini. With your key it goes straight from this phone. With Eatlog AI it goes through Eatlog.',
+    text: 'Eatlog checks your key with Google before saving it. That check sends no meal. Later, selected photos, text, and re-estimate details go straight from this phone to Google.',
   },
   {
     icon: 'payments',
-    text: 'Eatlog charges nothing for your key. Google sets its limits, and may charge you if billing is enabled on your Google project.',
+    text: 'Eatlog charges nothing for My key. Google sets availability and limits, and may charge a project with billing enabled.',
   },
   {
     icon: 'visibility',
-    text: 'If your Google project has no billing, Google may use what you send with your key to improve its products, and people may review it.',
+    text: "Under Google's unpaid API terms, Google may use requests and replies to improve its products, and people may review them. Billed projects and some regions have different terms.",
+  },
+  {
+    icon: 'lock-outline',
+    text: "Your key is saved in this phone's secure storage. Eatlog shows only its first and last four characters. Backups and CSV exports exclude it. Removing it here does not revoke it at Google.",
   },
 ];
 
 interface KeySetupContentProps {
   mode: KeySetupMode;
-  /** Whether Itik is active now. Saving then keeps Eatlog AI as the route. */
+  /** Whether paid access is active now, recorded without changing the selected route. */
   itik: boolean;
   onSaved: () => void;
   onCancel: () => void;
@@ -130,11 +131,7 @@ function Step({
   );
 }
 
-/**
- * Adding a key is the Manok consent, and the Eatlog AI consent with it: the disclosure sits above
- * the one button that both agrees and saves. Replacing a key keeps the consent already given, so
- * it drops the disclosure.
- */
+/** Adding a key records consent for direct Google requests. Replacing keeps that choice. */
 export default function KeySetupContent({ mode, itik, onSaved, onCancel }: KeySetupContentProps) {
   const { horizontalPadding } = useResponsiveLayout();
   const [value, setValue] = useState('');
@@ -222,8 +219,8 @@ export default function KeySetupContent({ mode, itik, onSaved, onCancel }: KeySe
               </Text>
               <Text className="text-base leading-6 text-m3-on-surface-variant">
                 {replacing
-                  ? 'The new key takes over once Google accepts it. Until then, your current key stays in use.'
-                  : 'Estimates go from this phone to Google with your own key. It takes about a minute.'}
+                  ? 'The current key stays in use while Eatlog checks the new one with Google. If that check cannot finish, the new key is still saved.'
+                  : 'Estimates go from this phone to Google with your own key.'}
               </Text>
             </View>
           </View>

@@ -1,6 +1,6 @@
 # Product
 
-> **Phase 3 status:** Implemented (2026-07-29).
+> Current product direction: free open-source logging, optional My key, optional one-time Eatlog Omelette. Earlier phase notes remain design history.
 
 <!-- impeccable:product-schema 1 -->
 
@@ -22,20 +22,20 @@ The MVP is complete when users can maintain the plan after onboarding, recover o
 
 ## Positioning
 
-MacroFactor-class premium UX at public-release scale. The differentiator is a fast photo-first log flow: point the camera at a meal, reuse an editable past meal when it matches, or explicitly request a new estimate before review and logging. Real meal photos in the diary make that history feel personal; deterministic food icons make every non-photo entry immediately recognizable. Premium feel comes from cohesive Android-native behavior, honest calculations, and deliberate motion, not gamification.
+Free, open-source food logging with a fast local path: reuse an editable past meal, search foods, or enter a meal yourself. A photo or description can request an optional estimate. Real meal photos in the diary make history personal; deterministic food icons identify entries without photos. The interface is precise without gamification.
 
 ## Access model
 
-- Eatlog Pugo is the free tier for local food logging, weight tracking, charts, Health Connect, backup, export, and three shared photo or description estimates per rolling 24 hours.
-- Eatlog Manok is PHP 79 monthly. Eatlog Itik is a PHP 799 one-time lifetime entitlement.
-- Manok, Itik, and complimentary access let you redo any meal or component with AI, add higher AI limits, and unlock local adaptive recommendations. The Worker remains authoritative for every AI grant, quota, and model route.
+- Eatlog is free and open source. Every local feature, including adaptive recommendations, sharing, backup, and export, is free.
+- My key is an optional setting, not a plan. A saved Google Gemini API key sends selected estimates directly to Google under the user's project, regional terms, limits, and possible charges.
+- Eatlog Omelette is an optional one-time purchase for Eatlog-hosted AI without a personal key. The Worker enforces 30 combined operations per rolling 24 hours and 250 per rolling 30 days. Legacy subscription access and complimentary grants remain valid; new monthly sales are not offered.
 - Expiry, refund, or revocation never deletes owned food, weight, target, or adaptive data. Entitlement state stays outside SQLite, backups, and CSV exports.
 
 ## Operating Context
 
 Daily: open Today to glance at consumed versus remaining calories and macros, log food or weight from the central sheet, then review weight, energy, progress, and weekly recommendations in Analytics. Review the Diary by day, adjust portions, delete with undo, or repeat a pinned/recent food or meal.
 
-Occasional: open Profile to change personal details, goals, targets, or units; create or restore a backup; export history; read calculation and privacy information; or reset the app. Users do not manage API credentials. The developer provisions Gemini and USDA credentials for each build.
+Occasional: open Profile to change personal details, goals, targets, or units; choose an AI route or manage a personal Google key; create or restore a backup; export history; read calculation and privacy information; or reset the app. Owner credentials for hosted AI and USDA stay outside user settings.
 
 ## Current-State Assessment
 
@@ -43,9 +43,9 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | --- | --- | --- |
 | Onboarding and initial targets | Implemented | Strong first-run flow; needs an edit path and physical-device verification. |
 | Today | Implemented | Coherent daily summary with useful empty, loading, and error states. |
-| Food entry | Implemented | Local past-meal reuse, search, manual logging, and three shared AI Scan, Photo, or Describe requests per rolling 24 hours remain in Pugo. Meal/component re-estimation requires Manok, Itik, or complimentary access. Every remote estimate also requires separate Gemini consent. |
+| Food entry | Implemented | Local past-meal reuse, search, and manual logging are free. Scan, Photo, Describe, and meal/component re-estimation use the selected optional My key or hosted route with separate consent. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
-| Weight and Analytics | Implemented | Weight/chart metrics remain in Pugo; adaptive reads and mutations require Manok, Itik, or complimentary access. |
+| Weight and Analytics | Implemented | Weight/chart metrics and adaptive reviews are free local features. |
 | Profile and Settings | Implemented | Profile editing, privacy controls, backup/restore, CSV export, reset, Health Connect, help, and detail routes are available. |
 | Data ownership | Implemented | Backup, restore, CSV export, and guarded full reset are implemented; consent remains outside backup/export. |
 | Cloud sync | Not implemented | Post-MVP. Its eventual home is Profile > Data & Sync, not a top-level tab. |
@@ -61,7 +61,7 @@ The implemented core has a coherent visual language and daily loop. Source-level
 - Six setup/calculation steps plus an optional final full-screen AI-estimate consent step when the build has an estimate Worker, with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware completion flow.
 - Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, photo-first empty state, and calendar-accurate scale/trend/goal weight display.
 - Central entry bottom sheet: local camera/gallery selection, ranked past-meal reuse with the newly selected photo, explicit new estimation, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
-- Gemini vision/text meal estimation returns a named meal and per-100g component nutrition. Pugo initial estimates use the same Gemini 3.5 Flash-Lite with 3.1 Flash-Lite fallback route as paid access; paid access can also redo an edited scan or description.
+- Gemini vision/text meal estimation returns a named meal and per-100g component nutrition. My key calls Google directly; Eatlog AI uses the Worker and its regional relay when needed. Both routes cover initial and follow-up estimates.
 - On-device SQLite profile, food log, meal, target, food-cache, weight-log, pin, and adaptive-review records with sequential non-destructive migrations.
 - Diary: calendar strip, overflow-aware daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, aligned edit/delete swipe actions, and undo.
 - Analytics: 1M/3M/6M/1Y weight ranges, scale and EWMA trend charting, intake coverage, expenditure/target context, goal-rate progress, and persisted weekly Accept/Keep recommendations.
@@ -74,7 +74,7 @@ The implemented core has a coherent visual language and daily loop. Source-level
 
 **Post-MVP:** cloud multi-device sync; barcode camera scanning; offline food search; HealthKit/Apple Health; auth/accounts; notifications; social features; coach messaging; light theme; localization.
 
-**Hard constraints:** Android-first cross-platform Expo managed workflow and EAS store distribution; local-first canonical app data with a Worker used only for remote search, AI, entitlements, and quotas; canonical food/weight data remains on-device unless the user exports a file; Onest remains bundled; photo capture, import, and description lead while reuse, search, and manual entry remain complete; no silent system-font fallback; shared semantics stay consistent across purpose-built screen compositions. Users never enter, view, or manage API keys.
+**Hard constraints:** Android-first cross-platform Expo managed workflow and EAS store distribution; local-first canonical app data with a Worker for remote search, hosted AI, entitlements, and quotas; selected My key estimates go directly to Google; canonical food/weight data remains on-device except selected remote actions and user exports; Onest remains bundled; photo capture, import, and description lead while reuse, search, and manual entry remain complete; no silent system-font fallback; shared semantics stay consistent across purpose-built screen compositions. The only user-managed credential is their own Google key, kept in SecureStore and masked on Profile → AI estimates.
 
 ## MVP Completion Contract
 
@@ -112,8 +112,8 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 ### Preferences
 
 - Metric or imperial measurement display.
-- AI estimate consent status, full-screen enable/decline flow, withdrawal control, food-source status, network-use disclosure, and privacy copy.
-- Developer-provisioned credentials stay outside the UI.
+- Separate hosted and My key consent, route choice, key replacement/removal, full-screen hosted enable/decline flow, food-source status, network-use disclosure, and privacy copy.
+- Owner-provisioned hosted and USDA credentials stay outside the UI.
 - Do not add appearance, reminder, notification, or other inert settings during MVP.
 
 ### Data & Sync
@@ -170,7 +170,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 1. **Form and function together.** Every surface and transition must make logging, reviewing, or understanding data easier.
 2. **Photo-first, fallback-complete.** Camera capture, gallery import, and description lead; local reuse, search, and manual entry remain credible recovery paths.
 3. **Adaptive truth, explicitly controlled.** The initial formula remains useful; weekly evidence can propose new targets, but only Accept changes target history.
-4. **Local ownership.** The device owns the data. No login, account, backend, or forced network dependency outside food search/AI estimation.
+4. **Local ownership.** The device owns the diary. No login or forced online estimate; optional AI, food search, purchase verification, and updates have named network routes.
 5. **One component vocabulary.** A selected state, card, button, numeric figure, macro color, and sheet should mean the same thing everywhere.
 6. **No jank.** Animate state, never decoration; preserve scroll gestures, Android Back behavior, and reduced-motion alternatives.
 

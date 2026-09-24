@@ -1,136 +1,61 @@
 # Eatlog store policy worksheets
 
-Updated: 2026-08-28
+Drafted 2026-09-24 for the preview source. These are proposed form answers, not changes to Play Console or App Store Connect. Reconcile them with the exact signed binary, SDK behavior, provider terms, and current console questions before submission. The [route matrix](../privacy/ROUTE_MATRIX.md) supplies the code trace.
 
-These are source answers, not submitted console records. Reconcile them against the final binaries, provider contracts, and current store forms. Fields that require an account or owner decision remain labeled.
+## Product and consent facts
 
-## Fixed product facts
-
-- Eatlog's target acquisition is free. Pugo provides local logging plus three initial photo or description estimates per rolling 24 hours; Manok is PHP 79 monthly; Itik is a PHP 799 one-time lifetime entitlement. Manok and Itik add follow-up re-estimates and adaptive plan recommendations. The closed-test Manok offer must be deactivated before public production.
-- RevenueCat and the Eatlog Worker verify purchases and entitlements. There is no app account, authentication, cloud food/weight database, ads, or third-party analytics.
-- Android ships first. Android and iOS purchases are separate.
-- Data is local-first. Online actions are Scan, Describe, paid clarification/re-estimation, USDA search/detail, and explicit Open Food Facts full search. Pugo Scan and Describe share a three-estimate rolling allowance; clarification and re-estimation require Manok, Itik, or complimentary access. Every Gemini estimate also requires the current accepted consent; food search remains separate.
-- Card sharing renders a 1080 by 1920 PNG locally with the permanent Eatlog mark. Save image writes it to the system photo library; Share sends it only to a destination the user selects in operating-system UI. Neither action uses an Eatlog backend or social publishing service, and no mark toggle exists.
-- Health Connect is Android-only and limited to Weight read/write. HealthKit and Apple Health are absent from v1.
-- Adults; general wellness; nutrition and weight values are estimates.
+- Eatlog is free and open source. All local features are free. An API key is optional. My key sends selected estimate content directly to Google; Eatlog does not bill that route. Google's project, region, model, quota, and billing status control its charges and data treatment.
+- Eatlog Omelette is a one-time non-consumable purchase of hosted AI access, subject to 30 combined operations per rolling 24 hours and 250 per rolling 30 days. Legacy subscribers and complimentary grants retain access. New monthly sales are out of scope. The purchase price must come from the live localized store sheet.
+- Hosted consent and My key consent are separate. Saving/checking a key sends the key to Google before a meal estimate, but no meal content. A selected estimate sends its photo/text. Local diary storage does not mean selected AI content stays on device.
+- The app has no Eatlog account, cloud diary, ads, or third-party analytics. RevenueCat and store checks, USDA via the Worker, explicit direct Open Food Facts search, and Expo updates are other network activity.
+- Android Health Connect reads/writes Weight only after the user connects it. iOS v1 has no HealthKit or Apple Health.
 
 ## Google Play Data Safety draft
 
-Use the conservative answers below until the production provider-contract review proves a narrower answer.
+Play's [Data safety instructions](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-AE) distinguish on-device processing, temporary processing, and transfers to service providers. Use the final console wording to classify each row; a declared transfer is not automatically a declared third-party sharing event.
 
-| Form area | Draft answer | Purpose | Linkage/tracking | Status |
-| --- | --- | --- | --- | --- |
-| Photos and videos | Collected remotely only when the user invokes an allowed initial estimate or paid re-estimate after local camera/gallery selection | App functionality | Local selection and past-meal reuse are not collected; not used for tracking or account linkage | Verify Gemini/Cloudflare retention in production console |
-| Other user-generated content | Collected for allowed Describe/re-estimation and food-search text | App functionality | Not used for tracking; no account linkage | Verify provider retention |
-| Device or other IDs | App-scoped random installation token sent to Eatlog Worker and used as RevenueCat App User ID | Fraud prevention, security, entitlement, and app functionality | Not advertising ID; not used for tracking | Confirm final Google category mapping |
-| Health and fitness | Weight/nutrition data stays in app-private storage; Android Weight crosses only to Health Connect at user request | App functionality | Not sent to Eatlog backend; not tracking | Confirm Health Connect declaration interaction |
-| App activity | Operational route/status/latency fields only; no body/query/prompt/response logs | Analytics for service reliability and security | Aggregate operational use; not tracking | Verify deployed Worker logs |
-| Personal info, contacts, location, financial info, messages, audio, files/documents, calendar | Not collected by Eatlog | N/A | N/A | Recheck final binary |
+| Data type to assess | Transfer and reason | Optionality and linkage | Final check |
+| --- | --- | --- | --- |
+| Photos and videos | User-selected estimate image to Google directly on My key, or via Eatlog Worker on hosted AI | Optional AI action; request can carry provider/account or installation metadata | Confirm Google/Cloudflare retention and console category |
+| Other user-generated content | Description, limited re-estimate context, and food-search query to Google, Worker/USDA, or Open Food Facts as selected | Optional online action; no Eatlog account | Distinguish Google BYOK from hosted processing |
+| Device or other IDs | Random installation ID to RevenueCat and Worker for entitlement, quota, and abuse controls | Generated for access checks; no ad ID | Verify SDK and Worker fields in signed binary |
+| App activity and diagnostics | Worker route/status/latency and aggregate model/token/cost counts; SDK/service operational data may also be processed | No food body in Eatlog logs; no ad tracking | Inspect production logs and SDK disclosures |
+| Purchases | Store and RevenueCat process product/entitlement and receipt metadata | Optional purchase, tied to installation ID | Verify store and RevenueCat declarations |
+| Health and fitness | Local food/weight data stays on device except selected estimate content and user-authorized Android Health Connect Weight transfer | No Eatlog health-data backend | Complete Health Apps and Health Connect forms separately |
+| Financial details, contacts, precise location, audio, messages | No such fields requested by Eatlog | No account or advertising use | Recheck merged manifest and SDK disclosures |
 
-Additional draft answers:
-
-- Data is encrypted in transit with HTTPS.
-- Users can delete local data in the app without an account. Provider-side deletion rights and retention must be described from the final contracts; do not promise remote deletion without evidence.
-- Data is not sold and is not used for advertising or cross-app tracking.
-- User-directed meal-image saving and operating-system sharing are local device actions, not Eatlog backend collection. The user chooses any external share destination and its separate privacy terms apply after selection.
-- Service-provider processing by Cloudflare, Google, USDA, and Open Food Facts must be classified using the current console definitions at submission.
-- **STORE ACCOUNT:** Complete and save the final Data Safety questionnaire from the production app record.
-- **CREDENTIAL:** Confirm production Gemini and Cloudflare data handling, retention, and logging settings.
-
-## Google Health Apps declaration draft
-
-- App category: Nutrition and Weight Management.
-- Core purpose: help adults log food and weight, review nutrition estimates, see weight trends, and choose whether to apply target suggestions.
-- Medical-device status: not a medical device; no diagnosis, treatment, cure, or prevention claim.
-- Required store disclaimer source: “Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition.”
-- Supporting caution: users should consult a qualified health professional for health decisions.
-- No clinical workflow, provider messaging, emergency function, medication function, disease management, or regulated-device claim.
-- **STORE ACCOUNT:** Complete the declaration and reconcile categories with the current Play form.
-
-## Health Connect declaration and justification
-
-| Permission | User-facing function | Minimum access justification |
-| --- | --- | --- |
-| Read Weight | Import user-authorized Weight records into the local Eatlog weight history and trend | Weight only; initiated after the user opens Health Connect and grants access |
-| Write Weight | Export weights entered in Eatlog so the user can use them in Health Connect | Weight only; records are tracked so Eatlog can update/delete the records it wrote |
-
-Suggested review explanation:
-
-> Eatlog is an account-free nutrition and weight log. Health Connect is optional and Android-only. After the user opens Profile → Health Connect and grants access, Eatlog reads Weight records for its local history and trend and writes only weights entered in Eatlog. Eatlog does not request other health data types and does not send Health Connect data to its Worker. Users can disconnect, revoke access in Android settings, or delete Eatlog-written records through Eatlog's reset flow.
-
-Evidence required:
-
-- Generated manifest with Health Connect Weight read/write, legacy `READ_EXTERNAL_STORAGE`, and `WRITE_EXTERNAL_STORAGE` capped at API 32; no Android 13 media-read permission, microphone, or overlay permission may survive.
-- Android API 26 to 32 requests legacy write access only after Save image. Android API 33 and newer saves through MediaStore with no runtime media-read prompt.
-- Point-of-use screenshots from API 26/current Android and a Health Connect-capable physical device.
-- **STORE ACCOUNT:** Health Connect declaration and review submission.
-- **PHYSICAL DEVICE:** End-to-end permission, import, export, disconnect, and delete verification.
+Data uses are app functionality, service security, and entitlement verification. Eatlog does not sell data or use cross-app tracking. HTTPS protects transport. In-app Delete all data removes local records/key/consent, but cannot erase copies the user shared, revoke a Google key, reverse a store purchase, or remove provider records. Do not claim universal provider-side deletion. The owner must save the completed console questionnaire as release evidence.
 
 ## Apple App Privacy draft
 
-Conservative labels for the iOS binary:
+Apple's [App Privacy Details guide](https://developer.apple.com/app-store/app-privacy-details/) defines collection as off-device transmission retained beyond real-time service. It requires third-party partner practices and has narrow optional-disclosure criteria. Do not answer "No data collected" merely because SQLite stays local.
 
-| Data type | Collected | Purpose | Linked to identity | Tracking |
-| --- | --- | --- | --- | --- |
-| Photos or Videos | Yes, only for user-selected Scan | App Functionality | No account; classify as not linked after contract review | No |
-| Other User Content | Yes, meal descriptions and submitted food searches | App Functionality | No account; classify as not linked after contract review | No |
-| Device ID or Other Data | App-scoped random installation token and network IP used for rate limiting | App Functionality; Fraud Prevention/Security | No account; confirm Apple's current category definitions | No |
-| Health & Fitness | Local nutrition and weight data does not leave the iOS app; no HealthKit | Not collected off device | N/A | No |
-| Purchases | Store and RevenueCat process Manok/Itik purchase and entitlement metadata | App Functionality | Linked only to the app-scoped RevenueCat App User ID; no Eatlog account | No |
-| Diagnostics | Worker keeps restricted operational route/status/latency fields | App Functionality | Not linked | No |
+| Data type to evaluate | Reason | Linkage and tracking review |
+| --- | --- | --- |
+| Photos or Videos | Selected AI image reaches Google, directly or via Worker | No Eatlog account; review provider retention and Google project terms |
+| Other User Content | Description, clarification text, and remote food-search query | Check whether Google API key/project or installation ID links the request |
+| Identifiers | Installation ID used as RevenueCat App User ID and Worker quota identity | Not advertising ID; verify the SDK's current privacy details |
+| Purchases | Store/RevenueCat entitlement and transaction metadata | Linked to installation ID; no Eatlog account |
+| Diagnostics and usage | Worker operational data and SDK/service diagnostics | Confirm actual retention and linkage |
+| Health & Fitness | iOS local nutrition/weight data has no HealthKit route | Selected food text may still be Other User Content; review final form categories |
 
-- No third-party advertising or cross-company tracking.
-- Share-image saving requests add-only Photos access at point of use. Native sharing requests no Photos permission and sends the generated PNG only to the user-selected system destination.
-- No precise/coarse location, contacts, audio, messages, browsing history, payment information, or account contact information.
-- **CREDENTIAL:** Verify Google/Cloudflare processing and retention before final labels.
-- **STORE ACCOUNT:** Complete the current App Privacy questionnaire and save evidence.
+There is no Eatlog advertising or cross-company tracking. Saving a share image uses add-only Photos permission; system sharing goes only to the destination the user chooses. The owner must finish and publish App Privacy answers in App Store Connect against the final binary.
 
-## Age-rating worksheet
+## Health, age, and export forms
 
-- Intended audience: adults.
-- General wellness nutrition and weight logging; no medical treatment, diagnosis, gambling, contests, social feed, messaging, user-generated public content, violence, sexual content, drugs, alcohol promotion, unrestricted web access, or advertising.
-- Camera/gallery content is private and user-selected. Eatlog publishes nothing itself; a generated share image leaves Eatlog only when the user saves it locally or chooses a destination in the operating-system share menu.
-- External links are limited to support, privacy, research, provider, and license pages.
-- Expected classification is a low age rating, but do not state a final rating before completing each store's current questionnaire.
-- **STORE ACCOUNT:** Complete Google content rating and Apple age-rating forms from the final metadata.
+Google Health Apps: Nutrition and Weight Management; general wellness only. Store description includes the required non-medical-device disclaimer. Health Connect requests only Read Weight and Write Weight, with optional connection and local history. Inspect the merged Android manifest and test permission, import, write, revoke, and reset on physical devices. Do not claim Apple Health support.
 
-## Apple export-compliance worksheet
+The app is aimed at adults and has no public user content, messaging, ads, gambling, or clinical function. Let each store calculate its final age rating from its current questionnaire.
 
-- Eatlog uses operating-system and platform HTTPS/TLS for network transport.
-- Eatlog does not implement proprietary cryptography or expose a user-facing encryption feature.
-- Candidate Expo setting: `ios.config.usesNonExemptEncryption: false`.
-- **STORE ACCOUNT:** Answer App Store Connect export-compliance questions against the final binary and current Apple guidance; retain the response evidence.
+Eatlog uses platform HTTPS/TLS and no proprietary cryptography. Recheck the final iOS binary and App Store Connect export-compliance questions; `ios.config.usesNonExemptEncryption` is currently false.
 
-## Reviewer-notes source
+## Reviewer access
 
-Reviewer path:
+The isolated preview APK uses RevenueCat Test Store. Its purchase dialog can return Success without a charge or personal API key. This is the only self-service restricted-feature review path currently implemented. A production Play/App Store review build still needs a complimentary unlock that works without payment or a personal key; the current source has no hidden code redemption flow. Do not submit a production restricted-access answer that says all features are free or asks a reviewer to buy. See [review material](REVIEW_MATERIAL.md).
 
-1. Launch Eatlog. No login is required.
-2. Complete local onboarding with synthetic adult data.
-3. Use the center Add control; it is an action button, not a fifth tab.
-4. Manual logging works without online services.
-5. On a build with online estimates, onboarding shows the concise AI meal-estimate consent. Camera/gallery selection and past-meal reuse remain local regardless of that choice. Pugo shares three initial Estimate as new and Describe requests per rolling 24 hours. Okay enables an allowed request without repeated prompts; Not now completes onboarding and sends nothing. Meal and component re-estimates open the plan screen before consent or private-content construction unless Manok, Itik, or complimentary access is active. Profile → Privacy shows Enabled/Off, names Google Gemini, and provides withdrawal.
-6. Typing food search uses USDA through the Worker when configured. Press Search to additionally use Open Food Facts directly; neither provider depends on Gemini consent.
-7. In Diary, tap any meal image or food-icon rail, or swipe a meal and choose Share immediately left of Delete. Swipe the preview horizontally to move between Photo, Framed, and Nutrition; photo-less meals use Nutrition. The position dots, permanent Eatlog mark, Save image, and Share stay visible without vertical scrolling; no mark control or toggle state exists. Today, day summaries, Analytics, and standalone foods have no Share action.
-8. Android only: Profile → Health Connect requests Weight read/write after the reviewer chooses to connect. iOS has no Health Connect or HealthKit UI.
-9. Profile → Backup and restore creates/restores archives; Profile → Export data creates non-restorable CSV; Delete all data uses two confirmations.
+## Sources to recheck at submission
 
-Provider explanation:
-
-- After an allowed request passes access and quota checks, consent gates Gemini estimates before installation-token loading or fetch. Gemini estimates and USDA requests use the owner-operated Cloudflare Worker; the Worker independently enforces Pugo and paid access.
-- Open Food Facts is a direct, explicit full-search provider and is attributed under ODbL/Database Contents License terms.
-- There is no app account, cloud sync, advertising, or telemetry. Manok and Itik use store in-app purchases verified by RevenueCat; the app includes a plan screen, restore, and subscription-management actions.
-
-Account-bound additions:
-
-- **OWNER INPUT:** Public developer/legal name, monitored support email, privacy/support URLs, launch countries, and reviewer contact.
-- **STORE ACCOUNT:** App IDs, review contact fields, content declarations, price, countries, agreements, and final submission notes.
-- **CREDENTIAL:** Production service validation and signed binary identifiers.
-
-## Reference sources
-
-- Implementation inventory: `release/privacy/DATA_INVENTORY.md`
-- Public policy draft: `release/site/privacy.md`
-- Support draft: `release/site/support.md`
-- Owner-controlled values: `release/OWNER_INPUTS.md`
-- Store metadata source: created in M7 and must remain consistent with these answers.
+- [Google Gemini API terms](https://ai.google.dev/gemini-api/terms): unpaid API content may improve Google's products and may be human-reviewed; paid API projects have different terms; EEA, Switzerland, and UK have an exception. Buying Omelette does not make the user's BYOK project a paid Google project.
+- [Google Gemini billing](https://ai.google.dev/gemini-api/docs/billing) and [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits): Google controls charges and project/model limits.
+- [Google Play Data safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-AE) and [Apple App Privacy](https://developer.apple.com/app-store/app-privacy-details/): use their current definitions and disclose SDK/partner behavior.
+- `release/privacy/ROUTE_MATRIX.md`, `release/site/privacy.md`, `release/store/metadata.mjs`, and the final signed binary.

@@ -1,5 +1,7 @@
 # Eatlog Public Store Release Implementation Plan
 
+> Historical release record. Its Pugo/Manok/Itik sales and pricing instructions are superseded by `release/OWNER_RELEASE_CHECKLIST.md` and `release/store/metadata.mjs`. Keep this file as decision history; do not execute its old billing steps.
+
 **Status:** Account-free M2-M7 complete; M8-M10 not started
 
 **Last updated:** 2026-08-10

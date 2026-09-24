@@ -6,6 +6,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+  X-Robots-Tag: noindex, nofollow
 
 /privacy*
   Cache-Control: public, max-age=300, must-revalidate

@@ -79,16 +79,13 @@ test('configures once and reads only the itik offering, not the current default'
   assert.equal(await missing.offering(), null);
 });
 
-test('labels packages from the store terms and reports a trial only when the store offers one', async () => {
+test('offers only the one-time product while legacy subscriptions remain restorable', async () => {
   const withTrial = client({ getOfferings: async () => offerings(monthly({ billingPeriod: { iso8601: 'P1M' } }), oneTime()) });
-  assert.deepEqual((await withTrial.offering())?.packages.map((item) => [item.period, item.freeTrial]), [['P1M', 'P1M'], [null, null]]);
+  assert.deepEqual((await withTrial.offering())?.packages.map((item) => [item.productIdentifier, item.period]), [['eatlog_itik', null]]);
   const noTrial = client({ getOfferings: async () => offerings(monthly(null)) });
-  assert.equal((await noTrial.offering())?.packages[0].freeTrial, null);
-  const iosIntro = monthly(null);
-  iosIntro.product.defaultOption = null;
-  iosIntro.product.introPrice = { price: 0, period: 'P1W' };
-  const ios = client({ getOfferings: async () => offerings(iosIntro) });
-  assert.equal((await ios.offering())?.packages[0].freeTrial, 'P1W');
+  assert.deepEqual((await noTrial.offering())?.packages, []);
+  assert.equal((await noTrial.purchase('$rc_monthly', NONE)).state, 'failed');
+  assert.equal((await noTrial.restore(NONE)).access.kind, 'purchase');
 });
 
 test('maps purchase success, cancellation, failure, pending, and delayed entitlement refresh', async () => {
@@ -108,6 +105,7 @@ test('maps purchase success, cancellation, failure, pending, and delayed entitle
   assert.equal(delayed.state, 'entitlement-pending');
   assert.deepEqual(delayed.access, NONE);
   assert.equal((await client().purchase('$rc_monthly', NONE)).message, "This plan isn't available in this build.");
+  assert.equal((await success.purchase('$rc_monthly', NONE)).state, 'failed');
 });
 
 test('purchase cancellation keeps the current access instead of claiming none', async () => {

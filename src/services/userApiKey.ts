@@ -175,12 +175,12 @@ export function createUserApiKeyStore(secure: SecureKeyStorage, records: KeyReco
   /**
    * Saving is the Manok consent. The credential is written first and the record second; if the
    * record cannot be written, the key is taken back out so it never sits there unconsented.
-   * Saving while Itik keeps Eatlog AI as the route: switching to the key is the user's call.
+   * Saving a key is an explicit choice to use My key, including for a paid user.
    */
   async function save(key: string, itik: boolean): Promise<void> {
     await load();
     await secure.set(key);
-    const next: UserKeyState = { loaded: true, hasKey: true, keyHint: apiKeyHint(key), route: itik ? 'eatlog-ai' : 'my-key', itikSeen: itik };
+    const next: UserKeyState = { loaded: true, hasKey: true, keyHint: apiKeyHint(key), route: 'my-key', itikSeen: itik };
     try {
       await records.write(JSON.stringify(recordOf(next)));
     } catch (error) {
@@ -220,15 +220,15 @@ export function createUserApiKeyStore(secure: SecureKeyStorage, records: KeyReco
   }
 
   /**
-   * Gaining Itik moves a saved key's route to Eatlog AI; the key stays for the user to pick
-   * again. Losing Itik changes nothing about the route — the next attempt asks instead.
+   * Plan changes never change a route the user chose. Only the last observed entitlement is
+   * recorded so a resumed app can distinguish a plan change from an incomplete store check.
    */
   async function observeItik(itik: boolean): Promise<void> {
     await load();
     if (!state.hasKey || state.itikSeen === itik) return;
-    const next: UserKeyState = itik ? { ...state, route: 'eatlog-ai', itikSeen: true } : { ...state, itikSeen: false };
+    const next: UserKeyState = { ...state, itikSeen: itik };
     publish(next);
-    // A lost write repeats the same switch at the next launch, which lands in the same place.
+    // A lost write only repeats this observation at the next launch.
     await records.write(JSON.stringify(recordOf(next))).catch(() => undefined);
   }
 

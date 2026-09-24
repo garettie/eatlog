@@ -4,11 +4,12 @@
     <!--
     THESIS: Eatlog is the premium food log that minds its own business. The page sells the real product through oversized, legible app screens rather than borrowed social proof.
     OWN-WORLD: Near-black M3 surfaces, Onest, the white egg mark, editorial scale, and nutrient colors used only inside real product data.
-    STORY: Meet the product immediately, move one meal through its full loop, inspect the exact data route, compare the three birds, then check release status.
+    STORY: Meet the free, open-source product, move one meal through its full loop, inspect the data routes, compare the two choices, then check release status.
     FIRST VIEWPORT: A plain-spoken promise and three real Eatlog screens sit inside a precision dial that fills as you read. The product is visible before any explanation is required.
     FORM: Premium food-tech instrument with a crooked sense of humor. Precise mechanics, playful copy, no gamified fitness theater.
   -->
     <meta charset="utf-8" />
+    <meta name="robots" content="noindex,nofollow" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -16,21 +17,21 @@
     <meta name="theme-color" content="#0c0e13" />
     <meta
       name="description"
-      content="Eatlog is a local-first food, macro, and weight log with editable estimates, clear trends, and data that stays on your phone."
+      content="Eatlog is a free, open-source food and weight log. Keep your diary on your phone, use optional AI with your own Gemini key, or buy hosted AI once."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Eatlog: Before you eat, log." />
+    <meta property="og:title" content="Eatlog: Free, open-source food logging" />
     <meta
       property="og:description"
-      content="Fast food and weight logging with editable estimates, clear trends, local backup, and no account."
+      content="Food and weight logging you own. Optional Gemini estimates with your key, or one-time hosted AI with Eatlog Omelette."
     />
     <meta property="og:image" content="/assets/feature-graphic.png" />
-    <title>Eatlog: Before you Eat, Log.</title>
+    <title>Eatlog: Free, open-source food logging</title>
     <link rel="icon" href="/assets/favicon.png" type="image/png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="stylesheet" href="/styles.css?v=20260825-premium5" />
-    <link rel="stylesheet" href="/home.css?v=20260826-mog29" />
-    <script src="/site.js?v=20260825-mog21" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=20260924-two-plans" />
+    <link rel="stylesheet" href="/home.css?v=20260924-two-plans" />
+    <script src="/site.js?v=20260924-two-plans" defer></script>
   </head>
   <body class="home-page">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -51,13 +52,14 @@
         <nav class="site-nav" aria-label="Primary navigation">
           <a href="#daily-loop">The app</a>
           <a href="#local-first">Your data</a>
-          <a href="#plans">The birds</a>
+          <a href="#plans">Plans</a>
+          <a href="https://github.com/garettie/eatlog">Source</a>
         </nav>
         <details class="mobile-nav">
           <summary>Menu</summary>
           <nav aria-label="Mobile navigation">
             <a href="#daily-loop">The app</a><a href="#local-first">Your data</a
-            ><a href="#plans">The birds</a><a href="/support">Support</a>
+            ><a href="#plans">Plans</a><a href="https://github.com/garettie/eatlog">Source</a><a href="/support">Support</a>
           </nav>
         </details>
         <a class="header-action" href="#release-status">Release status</a>
@@ -69,8 +71,7 @@
         <div class="section-shell mog-hero__grid">
           <div class="mog-hero__copy">
             <p class="mog-kicker">
-              <span aria-hidden="true"></span> Food logging that minds its own
-              business
+              <span aria-hidden="true"></span> Free, open-source food logging
             </p>
             <h1 id="hero-title">Before you Eat,<br /><em>Log.</em></h1>
             <p class="mog-wordplay">
@@ -78,13 +79,13 @@
               <strong>Eatlog.</strong>
             </p>
             <p class="mog-hero__lede">
-              Photo when you are in a hurry. Manual when you are not. Edit every
-              estimate, keep the whole diary on your phone, and move on with
-              your day.
+              Log food, weight, and targets on your phone. AI is optional: use
+              your own Google Gemini key, or buy Eatlog-hosted estimates once.
+              Every estimate stays editable before you save it.
             </p>
             <div class="mog-hero__actions">
               <a class="mog-button" href="#daily-loop"
-                >Put one meal through it</a
+                >See how Eatlog works</a
               >
               <a class="mog-text-link" href="#local-first"
                 >See what leaves your phone <span aria-hidden="true">↓</span></a
@@ -92,8 +93,8 @@
             </div>
             <ul class="mog-hero__facts" aria-label="Eatlog product facts">
               <li>
-                <strong>No account</strong
-                ><span>There is nothing to forget a password for.</span>
+                <strong>Free local features</strong
+                ><span>No account or API key needed to keep a diary.</span>
               </li>
               <li>
                 <strong>Your edits win</strong
@@ -143,11 +144,11 @@
             <div class="mog-stage__halo" aria-hidden="true"></div>
             <figure class="mog-phone mog-phone--left">
               <img
-                src="/assets/fabsheet-cropped.jpg"
+                src="/assets/diary-cropped.jpg"
                 sizes="(max-width: 760px) 38vw, 240px"
                 width="810"
                 height="1720"
-                alt="Eatlog Add entry sheet with scan, photo, description, recent meals, food search, and weight actions"
+                alt="Eatlog Diary with meals grouped by day, photos, and nutrition totals"
                 decoding="async"
               />
             </figure>
@@ -172,7 +173,7 @@
                 sizes="(max-width: 760px) 38vw, 240px"
                 width="810"
                 height="1720"
-                alt="Eatlog Analytics with calorie intake, targets, logging consistency, and the next plan check"
+                alt="Eatlog Analytics with average intake, calorie history, and weekly target adherence"
                 decoding="async"
               />
             </figure>
@@ -269,11 +270,7 @@
                 <img
                   class="mog-story__image"
                   data-story-image="trend"
-                  src="/assets/weightscreen-405.jpg"
-                  srcset="
-                    /assets/weightscreen-405.jpg 405w,
-                    /assets/weightscreen.jpg     810w
-                  "
+                  src="/assets/consistency-cropped.jpg"
                   sizes="min(38vw, 430px)"
                   width="810"
                   height="1720"
@@ -475,9 +472,12 @@
                 ><strong>STAYS HERE</strong>
               </li>
               <li>
-                <span>AI estimate you request</span
-                ><strong>PHOTO OR TEXT</strong
-                ><small>Only after separate consent.</small>
+                <span>My key estimate</span><strong>DIRECT TO GOOGLE</strong
+                ><small>The selected photo or text and your key go to Google. Eatlog does not receive that estimate.</small>
+              </li>
+              <li>
+                <span>Eatlog AI estimate</span><strong>VIA EATLOG</strong
+                ><small>The selected photo or text and installation ID go through Eatlog's Worker to Google after hosted consent.</small>
               </li>
               <li>
                 <span>Food database search</span><strong>SEARCH QUERY</strong
@@ -502,343 +502,112 @@
         <div class="section-shell">
           <div class="mog-plans__heading" data-reveal>
             <div>
-              <p class="mog-section-tag">THE BIRD SITUATION</p>
-              <h2 id="plans-title">Three birds. Pick your level of fancy.</h2>
+              <p class="mog-section-tag">TWO WAYS TO GET COOKING</p>
+              <h2 id="plans-title">The egg is free. The omelette is optional.</h2>
             </div>
             <p>
-              Pugo includes 3 photo or description estimates per rolling 24
-              hours. Manok and Itik let you redo any meal or component with AI,
-              plus adaptive plan recommendations.
+              Eatlog's local features are free and open source. An API key is
+              only for optional AI estimates. Use your own Google Gemini key,
+              or buy Eatlog Omelette for hosted estimates without one.
             </p>
           </div>
 
-          <div class="mog-birds" aria-label="Eatlog plan prices" data-reveal>
+          <div class="mog-plan-cards" aria-label="Eatlog plans" data-reveal>
             <article data-reveal style="--reveal-delay: 0ms">
-              <img src="/assets/tier-pugo.svg" width="72" height="72" alt="" />
+              <img src="/assets/tier-eatlog.svg" width="72" height="72" alt="" />
               <div>
-                <h3>Pugo</h3>
-                <p>The full local log, plus three estimates.</p>
+                <h3>Eatlog</h3>
+                <p>Everything local, with optional AI using your key.</p>
               </div>
               <strong>Free</strong>
             </article>
             <article data-reveal style="--reveal-delay: 90ms">
-              <img src="/assets/tier-manok.svg" width="72" height="72" alt="" />
+              <img src="/assets/tier-omelette.svg" width="72" height="72" alt="" />
               <div>
-                <h3>Manok</h3>
-                <p>Paid features monthly.</p>
+                <h3>Eatlog Omelette</h3>
+                <p>Eatlog-hosted AI without your own key.</p>
               </div>
-              <strong><span>PHP</span> 79<small>/month</small></strong>
-            </article>
-            <article data-reveal style="--reveal-delay: 180ms">
-              <img
-                src="/assets/tier-itik.svg"
-                width="72"
-                height="72"
-                alt=""
-              /><span class="mog-bird__chip">PAY ONCE</span>
-              <div>
-                <h3>Itik</h3>
-                <p>Paid features, pay once.</p>
-              </div>
-              <strong><span>PHP</span> 799<small> once</small></strong>
+              <strong>Pay once</strong>
             </article>
           </div>
 
-          <div
-            class="plan-table-wrap mog-plan-table"
-            data-reveal
-            style="--reveal-delay: 120ms"
-          >
+          <div class="plan-table-wrap mog-plan-table" data-reveal style="--reveal-delay: 120ms">
             <table class="plan-table">
               <thead>
                 <tr>
                   <th scope="col">Feature</th>
-                  <th scope="col">Pugo</th>
-                  <th scope="col">Manok</th>
-                  <th scope="col">Itik</th>
+                  <th scope="col">Eatlog</th>
+                  <th scope="col">Eatlog Omelette</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <th scope="row">Local food and weight logging</th>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
+                  <th scope="row">Food and weight logging, saved meals</th>
+                  <td>Included</td>
+                  <td>Included</td>
                 </tr>
                 <tr>
-                  <th scope="row">Diary, analytics, backup, export</th>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
+                  <th scope="row">Diary, analytics, adaptive plans, backup, export, sharing</th>
+                  <td>Included</td>
+                  <td>Included</td>
                 </tr>
                 <tr>
-                  <th scope="row">Photo or description estimates</th>
-                  <td>3 per rolling 24 hours</td>
-                  <td>Higher limits</td>
-                  <td>Higher limits</td>
+                  <th scope="row">Photo, description, and re-estimates with your Gemini key</th>
+                  <td>Optional</td>
+                  <td>Optional</td>
                 </tr>
                 <tr>
-                  <th scope="row">Redo any meal or component</th>
+                  <th scope="row">Eatlog-hosted estimates without your key</th>
                   <td>Not included</td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
+                  <td>30 per rolling 24 hours; 250 per rolling 30 days</td>
                 </tr>
                 <tr>
-                  <th scope="row">Adaptive plan recommendations</th>
-                  <td>Not included</td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
-                  <td>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </td>
+                  <th scope="row">Price</th>
+                  <td>Free</td>
+                  <td>One-time purchase; localized price at checkout</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           <div class="plan-mobile" data-plan-comparison>
-            <div
-              class="tier-tabs"
-              role="tablist"
-              aria-label="Compare Eatlog plans"
-            >
-              <button
-                class="tier-tab is-selected"
-                id="tier-tab-pugo"
-                type="button"
-                role="tab"
-                aria-selected="true"
-                aria-controls="tier-panel-pugo"
-                tabindex="0"
-                data-tier="pugo"
-              >
-                <img
-                  src="/assets/tier-pugo.svg"
-                  width="48"
-                  height="48"
-                  alt=""
-                /><span>Pugo</span><small>Free</small>
+            <div class="tier-tabs" role="tablist" aria-label="Compare Eatlog plans">
+              <button class="tier-tab is-selected" id="tier-tab-eatlog" type="button" role="tab"
+                aria-selected="true" aria-controls="tier-panel-eatlog" tabindex="0" data-tier="eatlog">
+                <img src="/assets/tier-eatlog.svg" width="48" height="48" alt="" />
+                <span>Eatlog</span><small>Free</small>
               </button>
-              <button
-                class="tier-tab"
-                id="tier-tab-manok"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="tier-panel-manok"
-                tabindex="-1"
-                data-tier="manok"
-              >
-                <img
-                  src="/assets/tier-manok.svg"
-                  width="48"
-                  height="48"
-                  alt=""
-                /><span>Manok</span><small>Monthly</small>
-              </button>
-              <button
-                class="tier-tab"
-                id="tier-tab-itik"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                aria-controls="tier-panel-itik"
-                tabindex="-1"
-                data-tier="itik"
-              >
-                <img
-                  src="/assets/tier-itik.svg"
-                  width="48"
-                  height="48"
-                  alt=""
-                /><span>Itik</span><small>Lifetime</small>
+              <button class="tier-tab" id="tier-tab-omelette" type="button" role="tab"
+                aria-selected="false" aria-controls="tier-panel-omelette" tabindex="-1" data-tier="omelette">
+                <img src="/assets/tier-omelette.svg" width="48" height="48" alt="" />
+                <span>Omelette</span><small>Pay once</small>
               </button>
             </div>
-            <section
-              class="tier-panel"
-              id="tier-panel-pugo"
-              role="tabpanel"
-              aria-labelledby="tier-tab-pugo"
-              data-tier-panel="pugo"
-            >
+            <section class="tier-panel" id="tier-panel-eatlog" role="tabpanel"
+              aria-labelledby="tier-tab-eatlog" data-tier-panel="eatlog">
               <dl class="tier-details">
-                <div>
-                  <dt>Local logging</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Diary, analytics, backup, export</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Photo or description estimates</dt>
-                  <dd>3 per rolling 24 hours</dd>
-                </div>
-                  <dt>Redo any meal or component</dt>
-                  <dd>Not included</dd>
-                </div>
-                <div>
-                  <dt>Adaptive plan</dt>
-                  <dd>Not included</dd>
-                </div>
-                <div>
-                  <dt>Billing</dt>
-                  <dd>Free</dd>
-                </div>
+                <div><dt>Local food and weight logging</dt><dd>Included</dd></div>
+                <div><dt>Diary, analytics, adaptive plans, backup, export, sharing</dt><dd>Included</dd></div>
+                <div><dt>AI with your Gemini key</dt><dd>Optional</dd></div>
+                <div><dt>Eatlog-hosted AI</dt><dd>Not included</dd></div>
+                <div><dt>Price</dt><dd>Free</dd></div>
               </dl>
             </section>
-            <section
-              class="tier-panel"
-              id="tier-panel-manok"
-              role="tabpanel"
-              aria-labelledby="tier-tab-manok"
-              data-tier-panel="manok"
-              hidden
-            >
+            <section class="tier-panel" id="tier-panel-omelette" role="tabpanel"
+              aria-labelledby="tier-tab-omelette" data-tier-panel="omelette" hidden>
               <dl class="tier-details">
-                <div>
-                  <dt>Local logging</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Diary, analytics, backup, export</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Photo or description estimates</dt>
-                  <dd>Higher limits</dd>
-                </div>
-                <div>
-                  <dt>Redo any meal or component</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Adaptive plan</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Billing</dt>
-                  <dd>PHP 79 monthly</dd>
-                </div>
-              </dl>
-            </section>
-            <section
-              class="tier-panel"
-              id="tier-panel-itik"
-              role="tabpanel"
-              aria-labelledby="tier-tab-itik"
-              data-tier-panel="itik"
-              hidden
-            >
-              <dl class="tier-details">
-                <div>
-                  <dt>Local logging</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Diary, analytics, backup, export</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Photo or description estimates</dt>
-                  <dd>Higher limits</dd>
-                </div>
-                <div>
-                  <dt>Redo any meal or component</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Adaptive plan</dt>
-                  <dd>
-                    <span class="feature-check" role="img" aria-label="Included"
-                      >✓</span
-                    >
-                  </dd>
-                </div>
-                <div>
-                  <dt>Billing</dt>
-                  <dd>PHP 799 once</dd>
-                </div>
+                <div><dt>Local food and weight logging</dt><dd>Included</dd></div>
+                <div><dt>Diary, analytics, adaptive plans, backup, export, sharing</dt><dd>Included</dd></div>
+                <div><dt>AI with your Gemini key</dt><dd>Optional</dd></div>
+                <div><dt>Eatlog-hosted AI</dt><dd>30 per rolling 24 hours; 250 per rolling 30 days</dd></div>
+                <div><dt>Price</dt><dd>One-time purchase; localized price at checkout</dd></div>
               </dl>
             </section>
           </div>
           <p class="plan-note">
-            Store checkout shows final localized prices and billing terms. AI
-            access is subject to the fair-use limits in the
-            <a href="/terms">Terms</a>.
+            Eatlog does not charge for My key. Google sets its own availability,
+            quotas, billing, and data terms. Omelette's hosted limits apply only
+            when you choose Eatlog AI. Read the <a href="/terms">Terms</a>.
           </p>
         </div>
       </section>
@@ -863,11 +632,27 @@
               </p>
             </details>
             <details data-reveal style="--reveal-delay: 60ms">
-              <summary>Can I use Eatlog without AI estimates?</summary>
+              <summary>Do I need an API key to use Eatlog?</summary>
               <p>
-                Yes. Manual logging, local history, food search, weight
-                tracking, analytics, backup, export, and sharing remain
-                available when you decline online meal estimates.
+                No. Manual logging, saved meals, food search, weight tracking,
+                analytics, backup, export, and sharing work without a key or purchase.
+                A key only enables optional direct Gemini estimates.
+              </p>
+            </details>
+            <details>
+              <summary>Is My key free?</summary>
+              <p>
+                Eatlog does not charge for it. Google controls Gemini's free and
+                paid usage, quotas, availability, and data terms for your Google
+                project. You can see those terms before saving a key in the app.
+              </p>
+            </details>
+            <details>
+              <summary>Where does an AI estimate go?</summary>
+              <p>
+                My key sends the selected photo or text from your phone to Google.
+                Eatlog AI sends it through Eatlog's Worker to Google. Your diary
+                stays on the phone either way. Both routes need their own consent.
               </p>
             </details>
             <details data-reveal style="--reveal-delay: 120ms">
@@ -880,11 +665,21 @@
               </p>
             </details>
             <details data-reveal style="--reveal-delay: 180ms">
-              <summary>What happens if I stop paying?</summary>
+              <summary>What does Omelette buy?</summary>
               <p>
-                Your local food, weight, target, photo, and adaptive history
-                stays on the device. Paid AI and adaptive access ends when the
-                verified entitlement expires or is revoked.
+                A one-time purchase lets you use Eatlog-hosted estimates without
+                your own key, within the hosted allowance. It does not add local
+                features. A refund or revocation can end hosted access; your
+                local diary stays on the device.
+              </p>
+            </details>
+            <details>
+              <summary>Can I change Eatlog?</summary>
+              <p>
+                Yes. Eatlog's app source is available under the 0BSD license.
+                <a href="https://github.com/garettie/eatlog">Read the code</a>,
+                report a bug, or propose a change. The license covers the app
+                source, not access to Eatlog's hosted AI service.
               </p>
             </details>
             <details data-reveal style="--reveal-delay: 240ms">
@@ -969,6 +764,7 @@
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
           <a href="/support">Support</a>
+          <a href="https://github.com/garettie/eatlog">Source and contribute</a>
           <a href="#main">Back to top</a>
         </nav>
       </div>

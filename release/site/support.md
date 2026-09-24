@@ -1,70 +1,54 @@
 ---
 title: Eatlog Support
-publication_status: ready-to-publish
-last_updated: 2026-08-28
+publication_status: preview-draft
+last_updated: 2026-09-24
 ---
 
 # Eatlog Support
 
-Eatlog support is available at `sggajitos@gmail.com`. We aim to respond within 3 business days.
+Preview draft, last updated September 24, 2026. Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) for support.
 
 ## Before contacting support
 
-- Open Profile → About and note the app version, build, platform, and database schema.
-- Describe the exact action that failed and the error shown by Eatlog.
-- Do not send a backup, meal photo, food description, Health Connect record, API credential, or other personal data unless support explicitly requests a safe diagnostic step.
-- Never send store passwords, one-time codes, recovery keys, or API secrets.
+- Open Profile > About and note the app version, build, platform, and database schema.
+- Describe the action that failed and the exact message Eatlog showed.
+- Do not send a backup, meal photo, food description, Health Connect record, Gemini key, or other personal data unless support asks for a safe diagnostic step.
+- Never send store passwords, one-time codes, receipts, transaction IDs, or API secrets.
 
-## Online estimates or food search are unavailable
+## AI estimates or food search are unavailable
 
-Check that the device has an internet connection, then retry. Scan and Describe use Eatlog’s online estimation service. USDA search also runs online. Open Food Facts runs only after you press Search and requires a release build with provider contact details. Pugo includes three photo or description estimates in a rolling 24-hour window. If you reach the limit, use manual logging or wait until the oldest estimate leaves the window. Redoing a meal or component requires Manok or Itik.
+Manual logging, saved meals, targets, and local analytics still work. First check your connection. For My key, open Profile > AI estimates and check that your key is saved, the route is My key, and your Google project can use Gemini in your region. The key check sends your key to Google without meal data. An invalid or unreadable key needs replacement; removing it from Eatlog does not revoke it at Google. Google may enforce its own quota or billing rules.
 
-Review each estimate before saving it. Estimates and community food data can be incomplete or wrong.
+For Eatlog AI, check that Profile > AI estimates selects Eatlog AI and hosted consent is on in Profile > Privacy. Omelette, valid legacy, or complimentary access is required. The hosted allowance is 30 combined operations per rolling 24 hours and 250 per rolling 30 days. If access or the provider is unavailable, try later. Do not buy again to fix a network error.
 
-## Plan, purchase, or restore problem
+USDA search runs through Eatlog's Worker. A full food search can also contact Open Food Facts when you press Search. Remote food data and AI estimates can be wrong; review before saving.
 
-Open Profile → Plan, refresh access, then use Restore purchases with the same platform and store account that made the purchase. Manok management opens the store subscription screen; Itik and complimentary access do not create a managed subscription. Copy the Support ID from this screen when contacting support. Do not send receipts, transaction IDs, store credentials, or screenshots containing account information.
+## Purchase or restore problem
 
-RevenueCat or Worker outages must not block Eatlog Pugo startup or local logging. If paid access cannot be verified, retry later; local food, weight, target, and adaptive history remains on the device.
+Open Profile > Plan and refresh access, then use Restore purchases with the same platform and store account used for the purchase. A canceled purchase creates no entitlement. A one-time Omelette purchase has no subscription management page. Existing subscription customers can manage their subscription through the store. Copy the Support ID from Plan when contacting support. Do not send receipts or store credentials.
 
-## Camera or photo access is unavailable
+RevenueCat or Worker outages do not block local logging. If hosted access cannot be verified, retry later. Local diary and adaptive history remain on your phone.
 
-Choose camera Scan or Photo again so Eatlog can request access at the point of use. If the operating system no longer offers the prompt, open the device's app-permission settings and allow the relevant access. Eatlog does not request microphone access.
+## Camera, photos, and Health Connect
 
-## Health Connect does not sync
+Choose camera Scan or Photo again to let the operating system ask for access. If the prompt no longer appears, check Eatlog's device permissions. Eatlog does not request microphone access.
 
-Health Connect is Android-only. Open Profile → Health Connect, confirm that Weight read and write access is granted, then retry the sync. If you revoked access in Android settings, connect again from Eatlog. Eatlog does not use HealthKit or Apple Health in v1.
+Health Connect is Android-only. Open Profile > Health Connect, confirm Weight read and write permission, then retry sync. If you revoked permission in Android settings, connect again. Eatlog does not use HealthKit or Apple Health in v1.
 
-## Create a backup
+## Backup, restore, and export
 
-Open Profile → Backup and restore → Create backup, then choose a destination in the system share sheet. Keep the `.eatlog-backup` file private. A supported legacy `.marco-backup` archive can also be restored. A CSV export is readable but cannot be restored.
+Open Profile > Backup and restore > Create backup, then choose a destination in the system share sheet. Keep the `.eatlog-backup` archive private. Eatlog can also restore a supported legacy `.marco-backup`.
 
-## Restore a backup
+Choose Restore backup in the same screen and select the archive. Eatlog checks its manifest, files, hashes, record counts, photos, database integrity, and schema before replacement. Keep the original until you verify the restored diary. Backup and restore do not move your Gemini key, route consent, installation token, or store entitlement to another device.
 
-Open Profile → Backup and restore → Restore backup and choose the archive. Eatlog inspects the manifest, files, hashes, record counts, photos, database integrity, and schema before replacement. If validation fails, the live database is not supposed to change. Keep the original archive until you verify the restored profile, meals, weights, targets, and photos.
+Profile > Export data creates a readable ZIP of CSV files. It excludes meal photos, Gemini keys, route consent, store data, and Health Connect sync metadata. A CSV export cannot be restored.
 
-## Export readable data
+## Delete data or remove your key
 
-Open Profile → Export data to create a zipped set of CSV files. The export excludes meal photos and Health Connect synchronization metadata. It is not a restorable backup.
+Remove key in Profile > AI estimates deletes the key and its direct-route consent from this device. It does not revoke the key at Google or delete existing meals. Turn off hosted estimates in Profile > Privacy to withdraw the separate Eatlog AI consent. These actions do not remove earlier data held by a provider.
 
-## Delete data
+Delete individual logs from their edit screens. Profile > Delete all data removes the local database, meal photos, hosted consent, temporary files, and the saved Gemini key and its consent when the credential store allows it. The app reports if key removal fails. On Android, Eatlog attempts to remove Weight records it wrote to Health Connect and warns if it cannot confirm removal. Previously shared or exported copies remain at their destinations.
 
-Delete individual logs from their edit screens. To erase app data, open Profile → Delete all data and complete both confirmations. On Android, Eatlog first attempts to remove Weight records it wrote to Health Connect and reports any warning before local deletion. Copies you previously exported or shared are not deleted from their destinations.
+## Contact and deletion requests
 
-## Contact
-
-Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) with the app version, build, platform, database schema, exact action, and exact message shown.
-
-### Request deletion of your Eatlog data
-
-Eatlog is account-free and stores your profile and history on your device. To request deletion by email:
-
-1. Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com?subject=Eatlog%20data%20deletion%20request) with the subject `Eatlog data deletion request`.
-2. State whether you want all Eatlog data deleted or only specific records. Include your app version and platform.
-3. If you cannot open Profile → Delete all data, explain why so support can provide the next steps.
-
-Deleting all data removes the local database, including your profile, targets, food and meal logs, nutrition estimates, weight records, adaptive history, pins, and estimate cache. It also removes saved meal photos, remote-estimate consent, and temporary backup or export files. On Android, Eatlog attempts to remove Weight records it wrote to Health Connect.
-
-Eatlog keeps no cloud copy of this local data. Exported or shared files, Health Connect records not written by Eatlog, provider copies, and the deletion-request email or support correspondence remain under the relevant destination or provider's retention rules. Eatlog applies no additional retention period to data deleted from the app.
-
-We aim to respond within 3 business days.
+Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) with your app version, build, platform, database schema, action, and exact error message. Eatlog keeps no cloud copy of your diary, so Delete all data is the direct way to erase it. If you cannot use the app, email with the subject Eatlog data deletion request and explain what failed. Support can guide device steps, but cannot remotely erase app-private data on your phone. Provider-held copies, files you exported, and support email follow their respective retention rules.

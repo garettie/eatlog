@@ -1,5 +1,7 @@
 # Eatlog Android release: owner work remaining
 
+> Historical owner setup record. Its monthly subscription sales, old prices, and three-tier steps are superseded. Use `release/OWNER_INPUTS.md` and `release/OWNER_RELEASE_CHECKLIST.md` for current production actions. Do not run the billing commands below as a new setup procedure; preserve existing product IDs for restoration.
+
 Updated: 2026-08-24
 
 The local production billing work is complete on `main` at commit `f01d160`. This checklist starts with the next owner action. The earlier Play account, app shell, RevenueCat app, Google service account, tester recruitment, and Preview backup work are treated as complete based on the owner's confirmation.

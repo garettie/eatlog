@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useEntitlement } from '../../context/EntitlementContext';
 import { canBuyItik, hasItik, type EatlogAccess } from '../../services/billing.types';
 import { PAID_PLAN_NAME } from '../../services/tierNames';
-import { packageCadence, packageDescription, packagePrice, packageTrial } from './planCopy';
+import { packageCadence, packageDescription, packagePrice } from './planCopy';
 
 /**
  * Purchase state shared by the interrupt paywall and the Profile plan screen. Every package in
@@ -25,12 +25,9 @@ export function usePlanPurchase(access: EatlogAccess | null) {
   // Anyone can open the offer; the double-payment guard only hides it from someone who would
   // be paying twice.
   const canBuy = access === null || canBuyItik(access);
-  const trial = product ? packageTrial(product) : null;
-
   const title = useMemo(() => {
-    if (trial) return 'Start free trial';
     return product ? `Get ${PAID_PLAN_NAME} · ${product.priceString}` : `Get ${PAID_PLAN_NAME}`;
-  }, [product, trial]);
+  }, [product]);
 
   const disabled = busy || loadingProducts || !product || !canBuy;
 
@@ -57,7 +54,7 @@ export function usePlanPurchase(access: EatlogAccess | null) {
       id: item.packageIdentifier,
       title: PAID_PLAN_NAME,
       cadence: packageCadence(item),
-      badge: packageTrial(item) ? 'Free trial' : null,
+      badge: null,
       price: packagePrice(item),
       description: packageDescription(item),
     })),
@@ -73,6 +70,6 @@ export function usePlanPurchase(access: EatlogAccess | null) {
     setMessage,
     run,
     retryStore,
-    storeUnreachable: !loadingProducts && packages.length === 0,
+    purchaseUnavailable: !loadingProducts && packages.length === 0,
   };
 }

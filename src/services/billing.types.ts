@@ -1,5 +1,6 @@
 export const EATLOG_ENTITLEMENT_ID = 'eatlog_paid';
 export const EATLOG_OFFERING_ID = 'itik';
+export const EATLOG_LIFETIME_PRODUCT_ID = 'eatlog_itik';
 
 export type AccessReason =
   | 'none'

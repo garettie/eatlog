@@ -2,72 +2,51 @@
 
 > Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-I built Eatlog for myself around a simple rule: everything I need, nothing I don't. Fast input, editable estimates, useful trends, and a diary that stays on my phone. No account to create. No cloud diary. No streak mascot waiting to judge lunch.
+Eatlog is a free, open-source food and weight log. Your diary lives on your device. Log food by hand, search foods, reuse a past meal, or add a photo. Today shows calories and macros; Diary and Analytics give you the longer view. Targets and adaptive suggestions are yours to review and change, with no purchase required.
 
-Photo when you're in a hurry. Manual when you're not. Fix what it guessed wrong, save the meal, and move on with your day.
+I built Eatlog for myself around a simple rule: everything I need, nothing I don't. I wanted quick input, editable estimates, useful trends, and a diary that stays on my phone. No account to create. No streak mascot judging lunch.
 
-## One meal, four moves
+## Optional AI estimates
 
-1. **Log it.** Take a photo, describe the meal, search, reuse something familiar, or enter it yourself.
-2. **Review it.** Edit names, portions, grams, calories, and macros before anything enters the diary. The robot does not get the last word.
-3. **Read it.** See today's calories and macros, then use Diary and Analytics when you want the longer view.
-4. **Decide.** When enough evidence exists, Eatlog can propose a target change. Nothing moves until you accept it.
+Eatlog works without AI or an API key. If you want photo, description, meal, or component estimates, choose a route in **Profile → AI estimates**:
 
-## Everything I need
+- **My key:** Add your own Google AI Studio Gemini API key. Eatlog sends the selected photo or text directly to Google. Eatlog does not charge for this route. Google controls its availability, quotas, billing, and data treatment; a Google project with billing enabled may incur charges. Check [Google's Gemini API terms](https://ai.google.dev/gemini-api/terms) and [billing guide](https://ai.google.dev/gemini-api/docs/billing) before using it.
+- **Eatlog AI:** The optional one-time **Eatlog Omelette** purchase lets you use Eatlog-hosted estimates without your own key. Selected estimate content goes to Eatlog's Worker and then Google. Hosted use has a rolling allowance of 30 operations per 24 hours and 250 per 30 days. The store shows the current localized price before purchase.
 
-- A fast Today view for calories and macros.
-- A proper diary with meals, photos, edits, and undo.
-- Weight trend, average intake, calorie history, and logging consistency.
-- Saved foods and past meals that make repeat logging quick.
-- Meal cards for sharing without turning Eatlog into a social network.
-- Restorable backups, readable CSV exports, and a real delete-all button.
-- Optional weight sync with Health Connect on Android.
+A paid user may still choose My key. Both routes return estimates to review before saving. Neither route is needed for local logging, weight tracking, analytics, adaptive suggestions, backup, export, or meal sharing.
 
-## Nothing I don't
+The key is kept in the device credential store and shown only as its first and last four characters on the AI estimates screen. It is excluded from backups and CSV exports. Removing it from Eatlog does not revoke it at Google.
 
-- No Eatlog account. There is nothing to forget a password for.
-- No cloud copy of the food log, weight history, targets, or meal photos.
-- No ads or third-party analytics.
-- No forced online estimate. Manual logging and saved history still work without one.
-- No automatic plan changes. The plan has to ask first.
-- No medical cosplay. Eatlog records estimates and trends. It does not pretend to be a doctor.
+## Your data
 
-## The birds
+The profile, meals, weights, photos, and targets stay in app-private storage unless you choose an online action or export/share them. USDA food search goes through the Eatlog Worker; an explicit full search also contacts Open Food Facts directly. Purchase checks use RevenueCat and a random installation ID, even if you never send an AI estimate. See the [privacy policy](release/site/privacy.md) and [data inventory](release/privacy/DATA_INVENTORY.md) for each route.
 
-- **Pugo.** Food logging, weight tracking, Diary, Analytics, and 5 photo or description estimates per rolling 24 hours.
-- **Manok.** Lets you redo any meal or component with AI, raises estimate limits, and adds adaptive plan recommendations through a monthly plan.
-- **Itik.** The same paid features with a one-time lifetime purchase.
+Create a restorable `.eatlog-backup` archive, export readable CSV files, or delete local data in Profile. CSV is for reading and cannot be restored. Android can optionally read and write Weight through Health Connect. iOS v1 has no Apple Health integration.
 
-Current prices and terms appear in the app store purchase sheet.
+## Install and develop
 
-## Platforms
-
-Eatlog is built for Android and iPhone. The first public release is planned for Android, with iPhone to follow.
-
-## Run it locally
-
-Eatlog uses Expo and React Native with native modules. Use a native development build. Expo Go cannot run the full app.
+Android is the first planned public release; iOS follows. This repository is source code, not a published store install. Native modules require a development build; Expo Go cannot run the full app.
 
 ```bash
-npm install
+npm ci
 npm start
 npm run android
 ```
 
-Running the iPhone build requires macOS and Xcode:
+On macOS with Xcode, `npm run ios` starts an iOS development build. Manual logging needs no Worker or billing setup. To work on optional online routes, supply your **own** preview configuration through the Expo environment and follow [native configuration](release/config/NATIVE_CONFIGURATION.md) and [Worker setup](worker/README.md). Do not use or commit the owner's keys. The `preview` EAS profile builds an isolated `Eatlog Preview` APK on the `subscription-preview` channel; it is not a production release.
+
+Run the repository checks with:
 
 ```bash
-npm run ios
-```
-
-## Checks
-
-```bash
-npm test
+env TMPDIR=/tmp npm test
 npm run typecheck
 npm run store:metadata:check
+npm run store:artwork:check
+npm run site:check
 ```
 
-## License
+## Contribute
 
-[BSD Zero Clause](LICENSE)
+File bugs and proposed changes in [GitHub issues](https://github.com/garettie/eatlog/issues), or send a pull request with a focused change. Code, docs, accessibility work, and food-data corrections are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and checks. Send security reports to the [published support email](mailto:sggajitos@gmail.com) instead of posting secrets or exploit details in a public issue.
+
+The source code is licensed under [0BSD](LICENSE). That license does not include paid access to Eatlog-hosted AI or rights to third-party services and data.

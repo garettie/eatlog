@@ -7,8 +7,8 @@ import ResponsiveContent from './ResponsiveContent';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
-const REMOTE_ESTIMATE_CONSENT_TITLE = 'AI meal estimates';
-const REMOTE_ESTIMATE_CONSENT_MESSAGE = 'Taking or choosing a photo and reusing a past meal stays on your device. Estimate as new sends that photo and any meal title you add; Describe sends the text you choose to Google Gemini. Nothing is sent until you choose an online estimate.';
+const REMOTE_ESTIMATE_CONSENT_TITLE = 'Use Eatlog AI?';
+const REMOTE_ESTIMATE_CONSENT_MESSAGE = 'Your diary stays on this phone. When you ask for a hosted estimate, the selected photo, title, description, or re-estimate details go through Eatlog to Google Gemini. Eatlog uses an installation ID, purchase status, IP address, and request usage to control access and fair use. Hosted estimates have rolling limits of 30 in 24 hours and 250 in 30 days.';
 
 export interface RemoteEstimateConsentContentProps {
   onAccept: () => void | Promise<void>;
@@ -32,20 +32,20 @@ function ConsentActions({
         onPress={() => { void onAccept(); }}
         disabled={busy}
         accessibilityRole="button"
-        accessibilityLabel="Okay. Enable AI meal estimates."
-        accessibilityHint="Allows a photo and optional title to be sent only when you choose Estimate as new, or description text when you request an estimate"
+        accessibilityLabel="Allow Eatlog AI estimates"
+        accessibilityHint="Allows selected meal details to go through Eatlog to Google when you request a hosted estimate"
         accessibilityState={{ busy: !!busy, disabled: !!busy }}
         className={`min-h-[52px] flex-row items-center justify-center gap-2 rounded-full bg-m3-primary px-5 active:opacity-90 ${busy ? 'opacity-50' : ''}`}
       >
         {busy ? <ActivityIndicator color={M3.onPrimary} /> : <MaterialIcons name="auto-awesome" size={18} color={M3.onPrimary} />}
-        <Text className="text-base font-bold text-m3-on-primary">Okay</Text>
+        <Text className="text-base font-bold text-m3-on-primary">Allow Eatlog AI</Text>
       </Pressable>
       <Pressable
         onPress={() => { void onDecline(); }}
         disabled={busy}
         accessibilityRole="button"
-        accessibilityLabel="Not now. Continue without AI meal estimates."
-        accessibilityHint="Keeps Eatlog usable without sending anything for an estimate"
+        accessibilityLabel="Not now. Keep Eatlog AI off."
+        accessibilityHint="Keeps local features and My key available"
         accessibilityState={{ disabled: !!busy }}
         className={`min-h-[48px] items-center justify-center px-5 active:opacity-60 ${busy ? 'opacity-50' : ''}`}
       >

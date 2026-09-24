@@ -119,7 +119,7 @@ export function BackupRestoreScreen() {
         if (!preview) return;
         Alert.alert(
             'Replace all Eatlog data?',
-            'The validated backup will replace the current database and meal photos. Eatlog will create an internal safety copy first.',
+            'The validated backup replaces your local database and meal photos. Your saved Google key and AI consent choices stay as they are. Eatlog creates an internal safety copy first.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -137,7 +137,7 @@ export function BackupRestoreScreen() {
             <ScrollView contentContainerClassName="p-6 gap-6">
                 <View className="gap-2">
                     <Text className="text-lg font-bold text-m3-on-surface">Back up your Eatlog data</Text>
-                    <Text className="text-sm text-m3-on-surface-variant">Save a restorable copy of your profile, history, targets, reviews, and meal photos.</Text>
+                    <Text className="text-sm text-m3-on-surface-variant">Save a restorable copy of your profile, history, targets, reviews, and meal photos. Your Google key is excluded.</Text>
                 </View>
                 <View className="gap-3">
                     <PrimaryButton title="Create and save backup" icon="backup" onPress={() => void backup()} disabled={progress != null} />
@@ -185,7 +185,7 @@ export function ExportDataScreen() {
         <Screen>
             <ScrollView contentContainerClassName="p-6 gap-6">
                 <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Export your data</Text><Text className="text-sm text-m3-on-surface-variant">Save your food, weight, target, and review history as readable CSV files.</Text></View>
-                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For reading, not restoring</Text><Text className="text-sm text-m3-on-surface-variant">{supportsHealthConnect(Platform.OS) ? 'CSV exports include no meal photos, caches, or Health Connect sync metadata. Use Backup & restore when you need to restore Eatlog.' : 'CSV exports include no meal photos or caches. Use Backup & restore when you need to restore Eatlog.'}</Text></Card>
+                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For reading, not restoring</Text><Text className="text-sm text-m3-on-surface-variant">{supportsHealthConnect(Platform.OS) ? 'CSV exports exclude meal photos, your Google key, caches, and Health Connect sync metadata. Use Backup & restore to restore Eatlog.' : 'CSV exports exclude meal photos, your Google key, and caches. Use Backup & restore to restore Eatlog.'}</Text></Card>
                 <PrimaryButton title="Create CSV export" icon="file-download" onPress={() => void run()} disabled={progress != null} />
                 {progress ? <ProgressCard progress={progress} /> : null}
                 {message ? <Message text={message} /> : null}

@@ -41,7 +41,6 @@ const AiSetupContext = createContext<AiSetupContextValue | null>(null);
 
 export function AiSetupProvider({ children }: { children: React.ReactNode }) {
   const { status, hasItik } = useEntitlement();
-  const { accept: acceptHostedConsent } = useRemoteEstimateConsent();
   const [keyState, setKeyState] = useState<UserKeyState>(userApiKeyStore.getState());
   const [presented, setPresented] = useState<Presented | null>(null);
   const presentedRef = useRef<Presented | null>(null);
@@ -52,7 +51,7 @@ export function AiSetupProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // Gaining Itik moves a saved key's route to Eatlog AI. An unsettled plan says nothing either way.
+  // Entitlement changes update the observed plan without changing the selected AI route.
   useEffect(() => {
     if (status === 'checking') return;
     void userApiKeyStore.observeItik(hasItik);
@@ -87,14 +86,11 @@ export function AiSetupProvider({ children }: { children: React.ReactNode }) {
   const finishSetup = useCallback(async (saved: boolean) => {
     const current = presentedRef.current;
     if (current?.kind !== 'setup') return;
-    // Adding a key agreed to both routes, so Eatlog AI never asks again after the plan arrives.
-    // A failed write only means the hosted prompt may appear later; the key is saved either way.
-    if (saved && current.mode === 'add') await acceptHostedConsent().catch(() => false);
     if (presentedRef.current !== current) return;
     present(null);
     current.resolve(saved);
     current.fromChoice?.(saved ? 'key-saved' : 'dismissed');
-  }, [acceptHostedConsent, present]);
+  }, [present]);
 
   const finishChoice = useCallback((outcome: AiChoiceOutcome) => {
     const current = presentedRef.current;
@@ -339,8 +335,8 @@ export function useAiGate(): () => Promise<boolean> {
     }
     const choice = await new Promise<'key' | 'plans' | 'none'>((resolve) => {
       showDialog({
-        title: `${planName('itik')} has ended`,
-        message: 'Your Google key is still saved. You can still use it, or renew your subscription.',
+        title: `${planName('itik')} isn't active`,
+        message: 'Your Google key is still saved. You can use it for estimates or check your purchase.',
         actions: [
           { label: 'See plans', tone: 'neutral', onPress: () => resolve('plans') },
           { label: 'Use my key', tone: 'primary', onPress: () => resolve('key') },

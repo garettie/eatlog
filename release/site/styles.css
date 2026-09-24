@@ -1159,9 +1159,9 @@ summary:focus-visible {
 .tier-details > div {
   min-height: 58px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
   align-items: center;
-  gap: 20px;
+  gap: 12px;
   border-bottom: 1px solid var(--outline-soft);
 }
 
@@ -1180,6 +1180,7 @@ summary:focus-visible {
   font-size: 0.84rem;
   font-weight: 700;
   text-align: right;
+  line-height: 1.4;
 }
 
 .faq-layout {

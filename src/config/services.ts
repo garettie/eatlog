@@ -36,7 +36,8 @@ export const serviceConfig = {
     termsUrl,
   },
   availability: {
-    gemini: foodWorkerUrl.length > 0,
+    gemini: true,
+    hostedGemini: foodWorkerUrl.length > 0,
     usda: foodWorkerUrl.length > 0,
     openFoodFacts: openFoodFactsUserAgent !== null,
   },

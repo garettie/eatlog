@@ -12,6 +12,7 @@ import { serviceConfig } from '../config/services';
 import { useAiSetup } from '../context/AiSetupContext';
 import { useEntitlement, type RefreshOutcome } from '../context/EntitlementContext';
 import { tierOf } from '../services/userApiKey';
+import { PAID_PLAN_NAME } from '../services/tierNames';
 import { APP_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
@@ -98,12 +99,12 @@ function PlanContent() {
           <>
             <OfferChoice options={plan.options} selectedId={plan.selectedId} onSelect={plan.setSelected} />
 
-            {plan.storeUnreachable ? (
+            {plan.purchaseUnavailable ? (
               <View accessibilityRole="alert" className="flex-row items-start gap-3 px-1">
                 <MaterialIcons name="cloud-off" size={20} color={M3.error} />
                 <View className="min-w-0 flex-1 gap-2">
                   <Text className="text-sm text-m3-on-surface-variant">
-                    We couldn't reach the store, so prices and checkout didn't load. Your logbook still works.
+                    The one-time {PAID_PLAN_NAME} purchase is unavailable here right now. Free Eatlog still works.
                   </Text>
                   <Pressable
                     onPress={plan.retryStore}

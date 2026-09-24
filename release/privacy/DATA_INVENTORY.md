@@ -1,108 +1,45 @@
 # Eatlog data inventory
 
-Verified against source on 2026-08-28. This inventory describes the account-free v1 application and its Cloudflare Worker. It is the source for privacy copy and store disclosures; it is not a claim that the public pages are deployed.
+Preview source audit, 2026-09-24. Use the [route matrix](ROUTE_MATRIX.md) for each feature's access, payload, recipient, credential, consent, storage, deletion, limit, and UI location. This is source evidence, not a claim that a revised policy or store form is live.
 
-## Storage on the device
+## On the device
 
-| Data | Contents | Storage and lifetime | Leaves the device? | User controls |
-| --- | --- | --- | --- | --- |
-| Profile | Display name, sex, birth date, height, activity level, goal, preferred weight unit, target weight, protein preference, analytics-intro state | Singleton row in the app-private SQLite database until reset or app removal | No | Edit in Profile; included in backup and CSV export; removed by Delete all data |
-| Nutrition targets and reviews | Calorie and macro history, TDEE estimates, target origin, adaptive evidence and decisions, intake-day confirmations | App-private SQLite tables until reset or app removal | No | Review and edit targets; included in backup and CSV export; removed by reset |
-| Food history and meals | Dates, meal type, food names, source identifiers, brands, preparation, portions, grams, calories and macros, meal relationships | App-private SQLite tables until deletion, reset, or app removal | Only content deliberately sent for an online lookup or estimate | Add, edit, delete, undo; included in backup and CSV export |
-| Weight history | Dates, scale and trend weight, revision, record origin, and Android Health Connect origin metadata | App-private SQLite until deletion, reset, or app removal | Android Health Connect records can cross the app boundary only after the user enables that connection | Add, edit, delete; included in backup and CSV export |
-| Health Connect state | Android-only enabled flag, last-sync time, exported-record IDs, revisions, and pending-delete flags | App-private SQLite; restored archives have device-specific connection state cleared | Only to Android Health Connect, not to Eatlog's Worker | Connect/disconnect; revoke in Android settings; reset attempts to remove Eatlog-written records |
-| Meal photos | App-private image files and SQLite file references | A photo used for a reused or newly estimated meal is copied at most once into app-private storage for review and saving; saved files remain until meal-photo removal, reset, or app removal | Camera/gallery selection and past-meal reuse stay local; a resized/compressed representation is sent only when the user chooses Estimate as new; a locally rendered meal card leaves only through user-directed Save image or system sharing | Choose camera/gallery content, reuse local meal history, remove a meal photo, save a derived meal card to Photos/Gallery, share it to a selected destination, exclude photos from CSV, include referenced photos in backup, reset |
-| AI food cache | Normalized foods, brands, preparation, serving information, nutrition values, and Scan/Describe source | `food_cache` in SQLite until reset or app removal | No additional transmission; populated from a returned estimate | Included in database backup, excluded from human-readable CSV, removed by reset |
-| Pins | Keys for pinned foods | `pinned_foods` in SQLite until unpinned, reset, or app removal | No | Pin/unpin; included in database backup |
-| Online search cache | Recent USDA/Open Food Facts result sets and provider state | In process memory for a short TTL; ends when the app process ends | The original lookup already used the provider described below | Search cancellation, retry, or app close |
-| Installation identity | App-scoped random token | App-private persistence outside SQLite, backups, and CSV exports | Sent to the Eatlog Worker for Pugo quota identity and request throttling; used as RevenueCat App User ID; never shown or logged | Regenerates after missing/corrupt state or app removal |
-| Remote-estimate consent | Current version plus `accepted` or `declined` decision | App-private file outside SQLite until the user changes it, resets data, or removes the app | No | Okay enables allowed Gemini estimates; Not now keeps local features usable; Profile → Privacy withdraws it; excluded from backup and CSV |
-| Purchase and AI access | Store product and entitlement metadata, short-lived signed AI grant, and in-memory Pugo grant | RevenueCat SDK cache plus app process memory; no Eatlog SQLite row | RevenueCat, the platform store, and the Eatlog Worker | Restore, refresh, store subscription management; excluded from backup and CSV |
+| Data | Storage | Control and export |
+| --- | --- | --- |
+| Profile, targets, meals, foods, weights, adaptive reviews, pins, food cache | App-private SQLite | Edit/delete in app; restorable backup and selected readable CSV; Delete all data removes local database |
+| Meal photos | App-private files with SQLite references | Remove meal/photo or Delete all data; referenced photos enter a restorable backup, not CSV |
+| Personal Google Gemini key | Platform SecureStore, device-only credential setting | Profile → AI estimates shows first/last four characters only; Replace/Remove key; excluded from database, backups, CSV, logs, and Worker requests |
+| My key consent and route | Separate app-private record beside the credential, not in SecureStore | Removing key removes its record. A key without a current record after restore/reinstall is not used |
+| Hosted consent | Versioned app-private record outside SQLite | Profile → Privacy withdraws hosted consent; Delete all data removes the local record; backups/CSV exclude it |
+| Installation ID | Random app-scoped token in app-private storage outside SQLite | Used by Worker and RevenueCat, not a name or advertising ID; excluded from backups/CSV. Current Delete all data does not erase it or remote quota records; app removal regenerates it |
+| Entitlement/grant and online search cache | RevenueCat SDK cache and app process memory | Excluded from backups/CSV; grant and search memory end with process, while store/provider records follow their own terms |
+| Health Connect sync state | Android-only SQLite rows | Device-specific sync authority is cleared on restore; disconnect/revoke in Android, reset attempts cleanup of Eatlog-written Weight records |
 
-SQLite tables verified in `src/db/database.ts`: `profile`, `weight_logs`, `meals`, `food_logs`, `food_cache`, `pinned_foods`, `daily_targets`, `adaptive_reviews`, `health_connect_state`, `health_connect_weight_exports`, and `adaptive_intake_day_confirmations`.
+SQLite tables include `profile`, `weight_logs`, `meals`, `food_logs`, `food_cache`, `pinned_foods`, `daily_targets`, `adaptive_reviews`, `health_connect_state`, `health_connect_weight_exports`, and `adaptive_intake_day_confirmations`.
 
-## Network data flows
+## What leaves the device
 
-### Estimate as new, Describe, and re-estimation
+The user can log manually and reuse saved meals without a key, purchase, or estimate upload. A camera/gallery selection stays local until the user chooses an estimate. My key sends the chosen resized photo/title or text and limited re-estimate context directly to Google with the user's key. Before saving a key, validation sends the key to Google's model-list endpoint, without a meal. The estimate payload on My key does not pass through Eatlog.
 
-1. The user can take or choose a photo and search or reuse grouped meal history entirely on the device. Those actions do not request online-estimate consent, prepare an upload, or contact the Worker.
-2. The operation-aware gate allows initial Scan, Photo, and Describe requests to proceed while access resolves. Confirmed Pugo meal or component re-estimates open the plan screen; unresolved re-estimates fail unavailable. Both re-estimate denials occur before consent, content construction, installation-token loading, or fetch.
-3. For an allowed request, Eatlog requests the current online-estimate consent when required. A decline keeps the selected photo, title, and local suggestions without sending data.
-4. Estimate as new sends a resized/compressed base64 image and optional meal title; Describe and allowed re-estimates send the entered food or meal text. Requests also carry the app-scoped installation token.
-5. The Eatlog Cloudflare Worker verifies access, applies installation-scoped and IP-based limits, and sends the requested content to Google Gemini. Pugo receives three shared initial operations per rolling 24 hours; clarification is paid-only.
-6. The Worker returns structured estimate data. Eatlog requires review before saving it as a log.
+Eatlog AI sends the chosen content, app installation ID, request ID, and optional signed grant to the Worker. It forwards estimate content to Google and may retry a location refusal through the regional GeminiRelay Durable Object. The Worker stores salted quota subjects, counters, request identity, entitlement cache, and webhook IDs, without food content. Current hosted limits are 30 combined operations per rolling 24 hours and 250 per rolling 30 days; five rejected-food refunds can occur in a rolling day. The user must accept hosted consent separately. A saved My key no longer accepts it automatically. Existing version-1 hosted decisions remain reusable because the Worker-to-Gemini recipient and selected-payload disclosure have not materially changed; a future recipient or payload change needs consent-version review.
 
-The Worker independently issues and verifies short-lived signed grants, derives salted quota subjects, and atomically applies Pugo, trial, or paid limits before Gemini dispatch. Pugo grants are held in app memory only. RevenueCat receives the installation token as its App User ID and store purchase/entitlement metadata. RevenueCat webhooks invalidate cached entitlement state. Worker state contains salted quota subjects, counters, idempotency records, and webhook IDs, but no food content.
+USDA type-ahead/full-search text and selected numeric USDA food ID go via the Worker with installation ID; the Worker uses its own USDA key. Explicit full search also sends rewritten text directly to Open Food Facts, using an Eatlog User-Agent with the monitored support contact. Food source results are cached briefly in app memory; only logged foods enter SQLite.
 
-The Worker must not log request bodies, images, descriptions, prompts, model responses, raw installation tokens, token hashes, IP addresses, headers, transaction IDs, grants, or secrets. It may log aggregate model/token counts and configured cost estimates. Cloudflare, RevenueCat, Google, and the platform store process the request or purchase to provide and protect the service; their production terms and retention settings require an owner console review before release.
+RevenueCat uses the random installation ID as App User ID to check purchase, restore, subscription, lifetime, or complimentary access. Stores and RevenueCat process purchase/entitlement data. The Worker receives access refresh and usage requests. These contacts can occur without a meal estimate. Expo Updates can also request update metadata; no diary payload is built into that request. Eatlog has no account, cloud diary, ad SDK, or third-party analytics in source.
 
-### USDA FoodData Central
+On Android, Health Connect reads Weight into local history and receives only user-authorized Weight records written by Eatlog. It is separate from the Worker. iOS v1 has no HealthKit or Apple Health integration.
 
-- Typing a food query can send the rewritten query and `common` mode to the Eatlog Worker. Pressing Search can send the query and `full` mode. Selecting a USDA result can send its numeric FoodData Central ID for detail.
-- The request carries the app-scoped installation token. Cloudflare supplies the connecting IP for rate limiting.
-- The Worker sends the query or ID to USDA FoodData Central, normalizes the result, and may cache upstream responses. Query-derived cache keys use a digest rather than readable query text.
-- Eatlog receives food descriptions, source IDs, nutrient data, and portions. The app keeps a short in-memory result cache and persists only data the user logs.
+## Ownership actions
 
-### Open Food Facts
+- A restorable `.eatlog-backup` or supported legacy `.marco-backup` contains `manifest.json`, a SQLite snapshot, and referenced photos. Restore validates the archive before replacement and uses a safety copy for rollback. It does not restore the key, consent, installation ID, entitlements, grants, quota, or device-specific Health Connect sync authority.
+- CSV export is a zipped, readable set of profile, food, weight, target, and adaptive history. It has no photos, credentials, or entitlement data and cannot be restored.
+- A meal share card is rendered locally as a 1080 by 1920 PNG in temporary cache. Photo, Framed, and Nutrition styles keep the Eatlog mark. Save image places a copy in Photos/Gallery; Share hands it to the operating-system destination the user chooses. Eatlog has no sharing server.
+- Delete all data removes local SQLite data, meal photos, temporary ownership files, hosted consent, and the saved personal key/route. Android attempts cleanup of Eatlog-written Health Connect records first. It does not revoke the Google key at Google, cancel/refund a store purchase, erase provider records, or retrieve files already shared elsewhere. If secure key removal fails, the app reports that the key remains.
 
-- Open Food Facts runs only for an explicit full search, such as pressing the keyboard Search action. It does not run in the type-ahead search.
-- The app sends the rewritten search text directly by HTTPS POST to `https://search.openfoodfacts.org/search` and receives matching product records.
-- The request uses the provider-required `Eatlog/<version> (<monitored support email>)` User-Agent. The provider is disabled when the owner-controlled support email is absent or invalid.
-- Requested fields are product name, code, brands, nutrient data, serving quantity, and serving size. Eatlog does not request product images in this search.
-- Open Food Facts data is volunteer-contributed and may be incomplete or inaccurate. Database, database-content, and image license attributions remain visible in the app and policy source.
+## Provider and store disclosure facts
 
-### Purchases and access
+Google controls My key quota, availability, billing, and processing. [Gemini API terms](https://ai.google.dev/gemini-api/terms) say unpaid API content can be used to improve Google products and may be human-reviewed. A billed Google Cloud API project has different treatment; EEA, Switzerland, and UK have an exception for unpaid services. A purchase from Eatlog is not evidence that a user's Google project is billed. [Billing](https://ai.google.dev/gemini-api/docs/billing) and [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits) are project/model dependent.
 
-- RevenueCat uses the app-scoped installation token as the App User ID; Eatlog does not create an account and never calls RevenueCat logout.
-- Google Play or Apple's App Store processes Manok and Itik payments. Eatlog does not receive card numbers, bank details, or store passwords.
-- Entitlement, receipt, promotional-grant, quota, and webhook state are excluded from SQLite, `.eatlog-backup`, and CSV export. Downgrading does not delete food, weight, target, or adaptive data.
+Google Play [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-AE) and Apple [App Privacy](https://developer.apple.com/app-store/app-privacy-details/) use different definitions for collection and sharing. The draft [policy worksheets](../store/POLICY_WORKSHEETS.md) identify candidate categories, but the owner must review the final SDKs, signed binary, provider contracts, and console questions before submitting either form.
 
-### No other app network flows
-
-The v1 source has no app account, authentication, cloud database, cloud sync, advertising, or third-party analytics/telemetry SDK. RevenueCat and the Worker provide entitlement verification without storing user food or weight data. Expo/EAS can be used by the owner for builds and updates, but those release operations are not user-facing application data flows and are governed separately by the selected release account and OTA policy.
-
-## Permissions and platform boundaries
-
-| Permission or surface | Platform | Trigger | Scope |
-| --- | --- | --- | --- |
-| Camera | Android and iOS | User taps Scan with camera | Capture an image for the selected Scan action |
-| Photo library/system picker | Android and iOS | User taps Photo | Select one image for Scan |
-| Add to photo library | Android and iOS | User taps Save image in a share preview | Save one locally rendered 1080 by 1920 PNG; Android API 26 to 32 uses legacy write access, Android API 33+ uses MediaStore without media-read permission, and iOS uses add-only access |
-| Health Connect Weight read/write | Android only | User opens Health Connect and chooses to connect or sync | Read Weight records and write Eatlog-entered Weight records only |
-| Files/document picker | Android and iOS | User starts restore | Select an Eatlog/legacy Marco backup archive; CSV is not accepted as restore input |
-| Share sheet | Android and iOS | User shares a card image, backup, or CSV export | User selects the destination app or storage provider; card sharing requests no photo-library permission |
-| Notifications, microphone, contacts, location, advertising ID | None | Not requested | Not part of v1 |
-
-HealthKit and Apple Health are absent from v1. iOS hides Health Connect navigation, sync, privacy copy, and reset wording. Android backup metadata for Health Connect is ignored safely when restored on iOS.
-
-## Backup, restore, export, sharing, deletion
-
-- A restorable `.eatlog-backup` archive contains `manifest.json`, a SQLite database snapshot, and referenced meal photos. Supported legacy `.marco-backup` archives use the same restorable model. Installation identity, entitlement state, receipts, grants, Pugo and paid quota history, RevenueCat identifiers, and remote-estimate consent are outside SQLite and never enter the archive.
-- Restore stages and validates the archive, file sizes and hashes, record counts, database integrity, foreign keys, schema version, and photo mappings before replacing live data. It rejects future schemas without mutation. A safety copy supports automatic rollback if replacement fails.
-- A CSV export is a zipped, human-readable set of profile, meal, component, weight, target, and adaptive-review CSV files plus a manifest. It contains no photos or Health Connect synchronization metadata and cannot be restored.
-- Sharing renders the selected meal card on-device as a 1080 by 1920 PNG, writes it only to temporary cache, and removes capture/cache files after the Save image or Share attempt. Save image adds the PNG to Photos or Gallery; Share sends it only to the operating-system destination the user chooses. Every Photo, Framed, Nutrition, and photo-less fallback card permanently includes the Eatlog mark; no mark toggle exists. Eatlog has no sharing backend, public link, social feed, destination tracking, or source-EXIF transfer.
-- Backup and export files leave Eatlog only when the user invokes the system share sheet and chooses a destination. Eatlog cannot control a recipient app or cloud-storage provider after sharing.
-- Individual food logs, meals, and weights can be deleted in the app. Delete all data removes the SQLite data, meal photos, and temporary ownership files. On Android it first attempts to remove Weight records written by Eatlog from Health Connect and reports warnings before local deletion.
-- App removal is controlled by the operating system and removes app-private local storage. Copies the user exported or shared remain wherever the user placed them.
-
-## Source evidence
-
-- Device database and migrations: `src/db/database.ts`
-- Meal-photo storage and local share-card export: `src/utils/mealPhotos.ts`, `src/utils/shareContract.json`, `src/utils/shareCards.ts`, and `src/components/share/ShareOverlay.tsx`
-- Scan/Describe client and consent boundary: `src/services/foodScan.ts`, `src/services/remoteEstimateConsent.ts`, `src/context/RemoteEstimateConsentContext.tsx`
-- USDA and Open Food Facts clients: `src/services/foodSearchRemote.ts`, `src/services/foodSearchEngine.ts`, and `src/hooks/useFoodSearchController.ts`
-- Health Connect: `src/services/healthConnect.ts`, `src/screens/DataSyncScreens.tsx`, and `src/navigation/TabNavigator.tsx`
-- Backup, restore, CSV, and reset: `src/services/dataBackup.ts`, `src/services/dataExport.ts`, and `src/services/dataReset.ts`
-- Worker gateway and rate limiting: `worker/src/index.ts`, `worker/wrangler.subscription-production.jsonc`, and `worker/wrangler.subscription-staging.jsonc`
-
-## Current audit evidence
-
-Audited source base: `51836cb` on `main`, with the consent/release-contract implementation in the working tree. The current local test suite passed 246/246 and typecheck passed; no commit, signed binary, device run, production-service call, or store submission was performed.
-
-## Release blockers for this inventory
-
-- **OWNER INPUT:** Insert the public developer/legal name, monitored support email, stable HTTPS privacy URL, and stable HTTPS support URL before publication.
-- **OWNER INPUT:** Register Eatlog's Open Food Facts API usage and confirm the monitored contact before enabling the provider in production.
-- **CREDENTIAL:** Review Google Gemini and Cloudflare production retention, account, and abuse-protection settings without exposing secrets.
-- **STORE ACCOUNT:** Reconcile this inventory against the final Google Data Safety and Apple App Privacy console questionnaires.
-- **PHYSICAL DEVICE:** Verify permission timing, direct Scan/Describe requests, share destinations, Health Connect behavior, and reset on the release device matrix.
+Evidence paths: `src/db/database.ts`, `src/services/foodScan.ts`, `foodEstimateDirect.ts`, `foodEstimateGemini.ts`, `userApiKey.ts`, `remoteEstimateConsent.ts`, `foodSearchRemote.ts`, `billing.ts`, `subscriptionApi.ts`, `dataBackup.ts`, `dataExport.ts`, `dataReset.ts`, `healthConnect.ts`, `src/utils/shareCards.ts`, `worker/src/index.ts`, `worker/src/subscriptions.ts`, and `worker/src/subscriptionDurableObject.ts`.

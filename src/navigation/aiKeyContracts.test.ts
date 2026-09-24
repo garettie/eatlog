@@ -15,6 +15,9 @@ const dataReset = read('../services/dataReset.ts');
 const onboarding = read('../screens/OnboardingScreen.tsx');
 const aiEstimates = read('../screens/AiEstimatesScreen.tsx');
 const profile = read('../screens/ProfileScreen.tsx');
+const services = read('../config/services.ts');
+const choice = read('../components/ai/AiChoiceContent.tsx');
+const privacy = read('../screens/ProfileInfoScreens.tsx');
 
 test('the key lives only in the platform credential store, loaded lazily', () => {
   assert.ok(appJson.expo.plugins.includes('expo-secure-store'));
@@ -58,6 +61,13 @@ test('onboarding offers the AI choice instead of hosted consent', () => {
   assert.doesNotMatch(onboarding, /useRemoteEstimateConsent|RemoteEstimateConsentContent/);
 });
 
+test('a build without an Eatlog Worker still offers My key estimates', () => {
+  assert.match(services, /gemini: true/);
+  assert.match(services, /hostedGemini: foodWorkerUrl\.length > 0/);
+  assert.match(choice, /serviceConfig\.availability\.hostedGemini/);
+  assert.match(privacy, /title="My key controls"/);
+});
+
 test('adding a key checks it with Google before saving, and only a rejection stops the save', () => {
   const save = keySetup.slice(keySetup.indexOf('const save = useCallback'), keySetup.indexOf('}, [itik, onSaved, replacing, value]);'));
   assert.ok(save.indexOf('normalizeApiKeyInput') < save.indexOf('checkUserApiKey'));
@@ -66,17 +76,16 @@ test('adding a key checks it with Google before saving, and only a rejection sto
   assert.match(keySetup, /Agree and save key/);
 });
 
-test('adding a key records the Eatlog AI consent too, before setup closes; replacing does not', () => {
+test('saving a key leaves hosted consent to its own prompt', () => {
   const finish = aiSetup.slice(aiSetup.indexOf('const finishSetup'), aiSetup.indexOf('const finishChoice'));
-  assert.match(finish, /saved && current\.mode === 'add'\) await acceptHostedConsent\(\)/);
-  assert.ok(finish.indexOf('acceptHostedConsent()') < finish.indexOf('present(null)'));
-  assert.doesNotMatch(keySetup, /Nothing goes through Eatlog/);
-  assert.match(keySetup, /With Eatlog AI it goes through Eatlog/);
+  assert.doesNotMatch(finish, /acceptHostedConsent\(/);
+  assert.match(keySetup, /Saving a key agrees to direct Google requests only/);
+  assert.match(keySetup, /That check sends no meal/);
 });
 
 test('the plan-ended prompt offers the key or plans, and dismissing it sends nothing', () => {
-  const ended = aiSetup.slice(aiSetup.indexOf('has ended'), aiSetup.indexOf("if (choice === 'plans')"));
-  assert.match(ended, /Your Google key is still saved\. You can still use it, or renew your subscription\./);
+  const ended = aiSetup.slice(aiSetup.indexOf("isn't active"), aiSetup.indexOf("if (choice === 'plans')"));
+  assert.match(ended, /Your Google key is still saved\. You can use it for estimates or check your purchase\./);
   assert.equal((ended.match(/label: '/g) ?? []).length, 2);
   assert.match(ended, /onDismiss: \(\) => resolve\('none'\)/);
 });

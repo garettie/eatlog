@@ -47,16 +47,25 @@ assert.equal(metadata.product.name, 'Eatlog');
 assert.equal(metadata.google.title, 'Eatlog');
 assert.equal(metadata.apple.title, 'Eatlog');
 assert.equal(metadata.product.commercial.acquisitionPrice, 'free');
-assert.deepEqual(metadata.product.commercial.manok, { currency: 'PHP', amount: 79, period: 'monthly' });
-assert.deepEqual(metadata.product.commercial.itik, { currency: 'PHP', amount: 799, purchaseType: 'one-time lifetime entitlement' });
-assert.equal(metadata.product.commercial.subscriptions, true);
+assert.deepEqual(metadata.product.commercial.plans, ['Eatlog', 'Eatlog Omelette']);
+assert.equal(metadata.product.commercial.hostedProductId, 'eatlog_itik');
+assert.equal(metadata.product.commercial.hostedPurchaseType, 'one-time non-consumable');
+assert.equal(metadata.product.commercial.localizedPriceSource, 'store purchase sheet');
+assert.equal(metadata.product.commercial.legacySubscriptionProductId, 'eatlog_manok');
+assert.equal(metadata.product.commercial.newSubscriptionSales, false);
 assert.equal(metadata.product.commercial.inAppPurchases, true);
 assert.equal(metadata.product.accountRequired, false);
 assert.equal(metadata.product.localFirst, true);
 assert.ok(metadata.google.fullDescription.includes(metadata.google.requiredHealthDisclaimer));
 assert.ok(metadata.google.fullDescription.includes('Consult a qualified healthcare professional'));
 const publicListingCopy = `${metadata.google.shortDescription} ${metadata.google.fullDescription} ${metadata.apple.subtitle} ${metadata.apple.description} ${metadata.apple.promotionalText}`;
-assert.doesNotMatch(publicListingCopy, /\btrial\b|introductory offer|free month/iu, 'Public store copy must not advertise a trial.');
+assert.doesNotMatch(publicListingCopy, /\btrial\b|introductory offer|free month|\bmonthly\b|\b(?:Pugo|Manok|Itik)\b|unlimited/iu, 'Public store copy must not advertise an old plan or allowance.');
+for (const [platform, copy] of [['Google', metadata.google.fullDescription], ['Apple', metadata.apple.description]]) {
+  for (const phrase of ['free, open-source', 'own Google Gemini API key', 'Eatlog Omelette', 'one-time', '30 operations per', '250 per', 'Google']) {
+    assert.ok(copy.toLowerCase().includes(phrase.toLowerCase()), `${platform} description must include ${phrase}.`);
+  }
+  assert.doesNotMatch(copy, /(?:adaptive|analytics|backup|sharing|re-estimat).{0,90}(?:purchase|paid|Omelette)/iu, `${platform} description sells a free feature.`);
+}
 assert.ok(readme.includes(metadata.product.valueProposition), 'README must include the canonical product value proposition.');
 assert.ok(metadata.google.fullDescription.includes(metadata.product.valueProposition), 'Google description must include the canonical product value proposition.');
 assert.ok(metadata.apple.description.includes(metadata.product.valueProposition), 'Apple description must include the canonical product value proposition.');
@@ -84,9 +93,8 @@ for (const forbidden of [
   assert.equal(forbidden.test(publicCopy), false, `Public store copy contains a forbidden or placeholder claim: ${forbidden}`);
 }
 assert.equal(/Apple Health|HealthKit/iu.test(metadata.apple.description), false, 'Apple public description must not claim Apple Health or HealthKit support.');
-const internalProviderName = /\b(?:USDA|Open Food Facts|Cloudflare|Gemini|RevenueCat)\b/iu;
-assert.equal(internalProviderName.test(publicCopy), false, 'Public store copy must describe the product, not internal providers.');
-assert.equal(internalProviderName.test(readme), false, 'README must describe the product, not internal providers.');
+const internalProviderName = /\b(?:USDA|Open Food Facts|Cloudflare|RevenueCat)\b/iu;
+assert.equal(internalProviderName.test(publicCopy), false, 'Public store copy must describe the product, not infrastructure.');
 
 assert.deepEqual(shareContract.contentKinds, ['meal']);
 assert.deepEqual(shareContract.mealStyles, ['photo', 'framed', 'nutrition']);

@@ -91,7 +91,7 @@ type FoodSheetFailureKind =
 
 const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     unavailable: 'Photo and description estimates are unavailable.',
-    'consent-required': 'Enable online estimates to use this.',
+    'consent-required': 'Allow Eatlog AI to get hosted estimates.',
     'paid-access-required': `Eatlog AI needs ${PAID_PLAN_NAME}. Get it, or add your own Google key.`,
     'fair-use-daily-limit': "You've reached the 24-hour fair-use limit. Try again after it resets.",
     'fair-use-30-day-limit': "You've reached the 30-day fair-use limit. Try again after it resets.",

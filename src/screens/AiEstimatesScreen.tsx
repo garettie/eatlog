@@ -22,14 +22,14 @@ const ROUTE_OPTIONS: { value: AiRoute; label: string }[] = [
 /** What estimates run on right now, said once at the top of the screen. */
 function statusOf(tier: Tier, route: AiRoute): { icon: 'key' | 'auto-awesome'; title: string; detail: string } {
   if (tier === 'pugo') {
-    return { icon: 'auto-awesome', title: 'AI estimates are off', detail: `Add a Google key for free estimates, or get ${PAID_PLAN_NAME}.` };
+    return { icon: 'auto-awesome', title: 'AI estimates are off', detail: `Logging still works. Add your key or get ${PAID_PLAN_NAME} for estimates.` };
   }
   if (tier === 'manok') {
-    return { icon: 'key', title: 'Using your Google key', detail: 'Free. Estimates go from this phone to Google.' };
+    return { icon: 'key', title: 'Using your Google key', detail: 'Estimates go directly to Google. Google sets limits and billing.' };
   }
   return route === 'my-key'
-    ? { icon: 'key', title: 'Using your Google key', detail: `Eatlog AI is also included with ${planName('itik')}.` }
-    : { icon: 'auto-awesome', title: 'Using Eatlog AI', detail: `Included with ${planName('itik')}.` };
+    ? { icon: 'key', title: 'Using your Google key', detail: `Direct to Google. ${planName('itik')} also includes Eatlog AI.` }
+    : { icon: 'auto-awesome', title: 'Using Eatlog AI', detail: `Through Eatlog. Included with ${planName('itik')}, subject to fair use.` };
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -75,8 +75,8 @@ export function AiEstimatesScreen() {
     Alert.alert(
       'Remove your key?',
       hasItik
-        ? 'Estimates go back to Eatlog AI.'
-        : `AI estimates stop until you add a key or get ${PAID_PLAN_NAME}. Your meals stay.`,
+        ? 'Future estimates use Eatlog AI, with its separate consent. Removing this key from your phone does not revoke it at Google.'
+        : `AI estimates stop until you add a key or get ${PAID_PLAN_NAME}. Your meals stay. Removing this key from your phone does not revoke it at Google.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Remove', style: 'destructive', onPress: () => { void remove(); } },
@@ -117,8 +117,13 @@ export function AiEstimatesScreen() {
                 options={ROUTE_OPTIONS}
                 value={keyState.route}
                 onChange={changeRoute}
-                accessibilityLabel="Who funds your estimates"
+                accessibilityLabel="Choose where estimates are sent"
               />
+              <Text className="px-1 text-sm text-m3-on-surface-variant">
+                {keyState.route === 'my-key'
+                  ? 'My key sends selected meal details directly to Google. Google controls your project limits and billing.'
+                  : 'Eatlog AI sends selected meal details through Eatlog to Google. The hosted fair-use limits apply.'}
+              </Text>
             </View>
           ) : null}
 
@@ -150,7 +155,7 @@ export function AiEstimatesScreen() {
               <ProfileSettingRow
                 icon="key"
                 title="Add a Google key"
-                detail="Free AI estimates with your own key"
+                detail="No Eatlog charge; Google controls limits and billing"
                 onPress={() => { void openKeySetup('add'); }}
                 showDivider={false}
               />
@@ -162,7 +167,7 @@ export function AiEstimatesScreen() {
               <ProfileSettingRow
                 icon="auto-awesome"
                 title={`Get ${PAID_PLAN_NAME}`}
-                detail="AI estimates with nothing to set up"
+                detail="One-time purchase for hosted estimates, subject to fair use"
                 onPress={() => navigation.navigate('SubscriptionPlan')}
                 showDivider={false}
               />

@@ -1,5 +1,7 @@
 # Eatlog final account-free release audit
 
+> Historical audit of the 2026-08 source base. Its results, counts, and release status do not describe the 2026-09 free/open-source BYOK and Omelette preview. Current source behavior is in `release/privacy/ROUTE_MATRIX.md`; current rollout gates are in `release/OWNER_RELEASE_CHECKLIST.md`.
+
 Audit date: 2026-08-14
 
 Branch: `main`

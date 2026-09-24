@@ -123,7 +123,7 @@ function formatResetTime(nextEligibleAt: string | null | undefined): string | nu
 function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null): FoodEstimationFailure {
     const messages: Record<FoodEstimationFailureKind, string> = {
         unavailable: 'Estimates are unavailable in this build.',
-        'consent-required': 'Enable online estimates to use this.',
+        'consent-required': 'Allow Eatlog AI to get hosted estimates.',
         'paid-access-required': `Eatlog AI needs ${PAID_PLAN_NAME}.`,
         'fair-use-daily-limit': 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when it resets.',
         'fair-use-30-day-limit': 'The 250-operation rolling 30-day fair-use limit is reached. Try again when it resets.',

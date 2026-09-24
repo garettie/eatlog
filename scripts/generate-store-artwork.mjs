@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,7 @@ import { decodePng, encodePng } from './store-artwork-png.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputDirectory = join(root, 'release/artwork/export');
+const siteAssetsDirectory = join(root, 'release/site/assets');
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'eatlog-store-artwork-'));
 const canonicalDataUrl = `data:image/png;base64,${readFileSync(join(root, 'assets/icon.png')).toString('base64')}`;
 
@@ -23,8 +24,17 @@ function render(source, output, width, height) {
   if (result.status !== 0) throw new Error('rsvg-convert could not render the store artwork source.');
 }
 
+function renderTier(source, output) {
+  const result = spawnSync('rsvg-convert', [
+    '--format=png', '--width=1024', '--height=1024',
+    `--output=${output}`, source,
+  ], { cwd: root, encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`rsvg-convert could not render ${source}.`);
+}
+
 try {
   mkdirSync(outputDirectory, { recursive: true });
+  mkdirSync(siteAssetsDirectory, { recursive: true });
   const renderedIcon = join(temporaryDirectory, 'play-icon.png');
   const renderedFeature = join(temporaryDirectory, 'play-feature.png');
   render(join(root, 'release/artwork/source/play-icon.svg'), renderedIcon, 512, 512);
@@ -42,6 +52,20 @@ try {
     join(outputDirectory, 'apple-app-store-icon-1024.png'),
     encodePng(decodePng(readFileSync(join(root, 'assets/icon.png'))), 2),
   );
+  for (const [name, exportName] of [
+    ['eatlog', 'eatlog-free-product-icon-1024.png'],
+    ['omelette', 'eatlog-omelette-product-icon-1024.png'],
+  ]) {
+    const source = join(root, `release/artwork/source/tier-${name}.svg`);
+    const rendered = join(temporaryDirectory, `tier-${name}.png`);
+    renderTier(source, rendered);
+    writeFileSync(join(outputDirectory, exportName), encodePng(decodePng(readFileSync(rendered)), 6));
+    copyFileSync(source, join(siteAssetsDirectory, `tier-${name}.svg`));
+  }
+  for (const name of ['pugo', 'manok', 'itik']) {
+    rmSync(join(outputDirectory, `eatlog-${name}-product-icon-1024.png`), { force: true });
+    rmSync(join(siteAssetsDirectory, `tier-${name}.svg`), { force: true });
+  }
 } finally {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }
