@@ -28,9 +28,9 @@
     <title>Eatlog: Free, open-source food logging</title>
     <link rel="icon" href="/assets/favicon.png" type="image/png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="stylesheet" href="/styles.css?v=20260924-two-plans" />
-    <link rel="stylesheet" href="/home.css?v=20260924-two-plans" />
-    <script src="/site.js?v=20260924-two-plans" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=20260924-impeccable" />
+    <link rel="stylesheet" href="/home.css?v=20260924-impeccable" />
+    <script src="/site.js?v=20260924-impeccable" defer></script>
   </head>
   <body class="home-page">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -537,71 +537,39 @@
           </div>
 
           <div class="plan-table-wrap mog-plan-table" data-reveal style="--reveal-delay: 120ms">
-            <table class="plan-table">
-              <thead>
-                <tr>
-                  <th scope="col">Feature</th>
-                  <th scope="col">Eatlog</th>
-                  <th scope="col">Eatlog Omelette</th>
+            <table class="plan-table" role="table">
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col" role="columnheader">Feature</th>
+                  <th scope="col" role="columnheader">Eatlog</th>
+                  <th scope="col" role="columnheader">Eatlog Omelette</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">Open-source app (0BSD)</th>
-                  <td>Included</td>
-                  <td>Included</td>
+              <tbody role="rowgroup">
+                <tr role="row">
+                  <th scope="row" role="rowheader">Open-source app (0BSD)</th>
+                  <td role="cell">Included</td>
+                  <td role="cell">Included</td>
                 </tr>
-                <tr>
-                  <th scope="row">Food and weight logging, saved meals</th>
-                  <td>Included</td>
-                  <td>Included</td>
+                <tr role="row">
+                  <th scope="row" role="rowheader">Food and weight logging, saved meals</th>
+                  <td role="cell">Included</td>
+                  <td role="cell">Included</td>
                 </tr>
-                <tr>
-                  <th scope="row">Diary, analytics, adaptive plans, backup, export, sharing</th>
-                  <td>Included</td>
-                  <td>Included</td>
+                <tr role="row">
+                  <th scope="row" role="rowheader">Diary, analytics, adaptive plans, backup, export, sharing</th>
+                  <td role="cell">Included</td>
+                  <td role="cell">Included</td>
                 </tr>
-                <tr>
-                  <th scope="row">AI photo and meal estimates</th>
-                  <td>Free, BYOK</td>
-                  <td>Paid, no additional setup required</td>
+                <tr class="plan-table__difference" role="row">
+                  <th scope="row" role="rowheader">AI photo and meal estimates</th>
+                  <td role="cell">Free, BYOK</td>
+                  <td role="cell">Paid, no additional setup required</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div class="plan-mobile" data-plan-comparison>
-            <div class="tier-tabs" role="tablist" aria-label="Compare Eatlog plans">
-              <button class="tier-tab is-selected" id="tier-tab-eatlog" type="button" role="tab"
-                aria-selected="true" aria-controls="tier-panel-eatlog" tabindex="0" data-tier="eatlog">
-                <img src="/assets/tier-eatlog.svg?v=20260924-egg" width="48" height="48" alt="" />
-                <span>Eatlog</span><small>Free</small>
-              </button>
-              <button class="tier-tab" id="tier-tab-omelette" type="button" role="tab"
-                aria-selected="false" aria-controls="tier-panel-omelette" tabindex="-1" data-tier="omelette">
-                <img src="/assets/tier-omelette.svg?v=20260924-egg" width="48" height="48" alt="" />
-                <span>Omelette</span><small>Pay once</small>
-              </button>
-            </div>
-            <section class="tier-panel" id="tier-panel-eatlog" role="tabpanel"
-              aria-labelledby="tier-tab-eatlog" data-tier-panel="eatlog">
-              <dl class="tier-details">
-                <div><dt>Open-source app (0BSD)</dt><dd>Included</dd></div>
-                <div><dt>Local food and weight logging</dt><dd>Included</dd></div>
-                <div><dt>Diary, analytics, adaptive plans, backup, export, sharing</dt><dd>Included</dd></div>
-                <div><dt>AI photo and meal estimates</dt><dd>Free, BYOK</dd></div>
-              </dl>
-            </section>
-            <section class="tier-panel" id="tier-panel-omelette" role="tabpanel"
-              aria-labelledby="tier-tab-omelette" data-tier-panel="omelette" hidden>
-              <dl class="tier-details">
-                <div><dt>Open-source app (0BSD)</dt><dd>Included</dd></div>
-                <div><dt>Local food and weight logging</dt><dd>Included</dd></div>
-                <div><dt>Diary, analytics, adaptive plans, backup, export, sharing</dt><dd>Included</dd></div>
-                <div><dt>AI photo and meal estimates</dt><dd>Paid, no additional setup required</dd></div>
-              </dl>
-            </section>
-          </div>
           <p class="plan-note">
             BYOK means bring your own Gemini key. Eatlog does not charge for it;
             Google sets its own quotas, billing, and data terms. Omelette is a

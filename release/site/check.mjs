@@ -58,12 +58,8 @@ assert.match(homepage, /src="\/assets\/diary-cropped\.jpg"/, 'hero needs the cur
 assert.match(homepage, /src="\/assets\/consistency-cropped\.jpg"/, 'story trend needs the current consistency screenshot');
 assert.match(homepage, /src="\/assets\/planscreen3-405\.jpg"/, 'story step 04 keeps its plan-update screenshot');
 assert.doesNotMatch(homepage, /\b(?:Pugo|Manok|Itik)\b|PHP\s*79|PHP\s*799|paid adaptive|paid features monthly/i, 'homepage still sells obsolete plans');
-assert.equal([...homepage.matchAll(/class="tier-tab(?: is-selected)?"/g)].length, 2, 'mobile comparison needs exactly two tabs');
-assert.equal([...homepage.matchAll(/class="tier-panel"/g)].length, 2, 'mobile comparison needs exactly two panels');
-for (const id of ['eatlog', 'omelette']) {
-  assert.match(homepage, new RegExp(`id="tier-tab-${id}"[\\s\\S]*?aria-controls="tier-panel-${id}"`), `${id} tab needs a matching panel`);
-  assert.match(homepage, new RegExp(`id="tier-panel-${id}"[\\s\\S]*?aria-labelledby="tier-tab-${id}"`), `${id} panel needs a matching tab`);
-}
+assert.equal([...homepage.matchAll(/<th scope="col"/g)].length, 3, 'plan table needs a feature column and exactly two plan columns');
+assert.doesNotMatch(homepage, /tier-tab|data-tier-panel|plan-mobile/, 'the plan comparison must show both plans at once, never behind tabs');
 assert.doesNotMatch(homepage, /tier-(?:pugo|manok|itik)(?:\.svg|"|\b)/i, 'homepage references obsolete tier artwork');
 assert.match(homepage, /href="\/styles\.css\?v=[^"]+"/, 'homepage stylesheet needs a cache-busting version');
 assert.match(homepage, /href="\/home\.css\?v=[^"]+"/, 'homepage stylesheet override needs a cache-busting version');

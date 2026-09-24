@@ -1304,26 +1304,6 @@
     text-align: right;
   }
 
-  .home-page .mog-plan-table {
-    display: none;
-  }
-
-  .home-page .plan-mobile {
-    display: block;
-    margin-top: 40px;
-  }
-
-  .home-page .tier-tabs {
-    border-color: #393c44;
-    background: #15171c;
-  }
-
-  .home-page .tier-panel,
-  .home-page .tier-details {
-    border-color: #393c44;
-    background: transparent;
-  }
-
   .home-page .mog-faq .faq-layout {
     grid-template-columns: 1fr;
     gap: 54px;
@@ -1545,18 +1525,6 @@
     text-align: left;
   }
 
-  .home-page .tier-tabs {
-    gap: 4px;
-  }
-
-  .home-page .tier-tab {
-    padding-inline: 6px;
-  }
-
-  .home-page .tier-tab img {
-    width: 38px;
-    height: 38px;
-  }
 
   .mog-final {
     padding-block: 58px;
@@ -1786,12 +1754,12 @@
   }
 
   .mog-sticker--one {
-    animation: mog-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 700ms both,
+    animation: mog-pop 520ms cubic-bezier(0.16, 1, 0.3, 1) 700ms both,
       mog-wobble-one 5.6s ease-in-out 1400ms infinite;
   }
 
   .mog-sticker--two {
-    animation: mog-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) 800ms both,
+    animation: mog-pop 520ms cubic-bezier(0.16, 1, 0.3, 1) 800ms both,
       mog-wobble-two 6.4s ease-in-out 1600ms infinite;
   }
 
@@ -1931,9 +1899,11 @@ html.js .mog-receipt[data-reveal].is-revealed {
   top: 0;
   left: 0;
   width: 100%;
-  height: calc(var(--story-fill, 0.25) * 100%);
+  height: 100%;
   background: var(--mog-coral);
-  transition: height 480ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: scaleY(var(--story-fill, 0.25));
+  transform-origin: top;
+  transition: transform 480ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mog-story__step-number {
@@ -1957,7 +1927,7 @@ html.js .mog-receipt[data-reveal].is-revealed {
 }
 
 .mog-plan-cards img {
-  transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mog-plan-cards article:hover img {
@@ -2004,6 +1974,12 @@ html.js .mog-receipt[data-reveal].is-revealed {
 
 .home-page .mog-plan-table td .feature-check {
   color: var(--mog-white);
+}
+
+.home-page .mog-plan-table .plan-table__difference th,
+.home-page .mog-plan-table .plan-table__difference td {
+  color: var(--mog-white);
+  font-weight: 600;
 }
 
 /* ---- Receipt: tactile ---- */
@@ -2165,6 +2141,56 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
 
   .mog-final__inner {
     gap: 26px;
+  }
+}
+
+/* Phones: each feature takes its own line, with both plans' values side by side under it. */
+@media (max-width: 720px) {
+  .home-page .mog-plan-table {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .home-page .mog-plan-table .plan-table,
+  .home-page .mog-plan-table thead,
+  .home-page .mog-plan-table tbody {
+    display: block;
+    min-width: 0;
+  }
+
+  .home-page .mog-plan-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-page .mog-plan-table thead th:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .home-page .mog-plan-table thead th:not(:first-child),
+  .home-page .mog-plan-table tbody th,
+  .home-page .mog-plan-table tbody td {
+    width: auto;
+  }
+
+  .home-page .mog-plan-table thead th {
+    padding: 18px 12px;
+  }
+
+  .home-page .mog-plan-table tbody th {
+    grid-column: 1 / -1;
+    padding: 16px 18px 6px;
+    border-bottom: 0;
+  }
+
+  .home-page .mog-plan-table td {
+    padding: 0 12px 16px;
+    line-height: 1.35;
   }
 }
 
