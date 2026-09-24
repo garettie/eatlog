@@ -31,7 +31,19 @@ const TEMP_PREFIXES = [
   'marco-backup-stage-', 'marco-restore-stage-', 'marco-restore-safety-', 'marco-export-',
 ];
 
+/** Shown for any other failure: the native error text is a stack trace, not a message. */
+export const RESET_FAILED_MESSAGE = "Couldn't finish deleting your data. Try again.";
+
 export async function resetLocalData(onProgress?: OwnershipProgressListener): Promise<OwnershipResult> {
+  try {
+    return await eraseEverything(onProgress);
+  } catch (error) {
+    if (error instanceof KeyRemovalError) throw error;
+    throw new Error(RESET_FAILED_MESSAGE);
+  }
+}
+
+async function eraseEverything(onProgress?: OwnershipProgressListener): Promise<OwnershipResult> {
   await waitForHealthConnectIdle();
   onProgress?.({ operation: 'reset', phase: 'photos', completed: 0, total: 3, message: 'Removing meal photos', cancellable: false });
   await deleteAllMealPhotos();

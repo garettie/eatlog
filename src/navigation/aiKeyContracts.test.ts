@@ -86,3 +86,9 @@ test('Delete all data reaches the key: the legacy database check uses a file URI
   assert.doesNotMatch(dataReset, /new File\(SQLite\.defaultDatabaseDirectory/);
   assert.match(dataReset, /new File\(`file:\/\/\$\{encodeURI\(SQLite\.defaultDatabaseDirectory\)\}`, LEGACY_DATABASE_NAME\)/);
 });
+
+test('a failed Delete all data shows one plain sentence, never the native error text', () => {
+  const entry = dataReset.slice(dataReset.indexOf('export async function resetLocalData'), dataReset.indexOf('async function eraseEverything'));
+  assert.match(dataReset, /RESET_FAILED_MESSAGE = "Couldn't finish deleting your data\. Try again\."/);
+  assert.match(entry, /if \(error instanceof KeyRemovalError\) throw error;\s+throw new Error\(RESET_FAILED_MESSAGE\);/);
+});
