@@ -1,13 +1,14 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
+import { MAX_IMAGE_BYTES } from '../services/foodEstimateCore';
+
 const PHOTO_DIR = `${FileSystem.documentDirectory}meal-photos/`;
 // Small copies for list rails. A cache, never data: not backed up, rebuilt on demand.
 const THUMBNAIL_DIR = `${FileSystem.cacheDirectory}meal-photo-thumbnails/`;
 const MAX_PHOTO_DIMENSION = 1600;
 const PHOTO_QUALITY = 0.75;
 const ESTIMATE_QUALITY = 0.65;
-const MAX_ESTIMATE_BYTES = 4 * 1024 * 1024;
 
 export function getMealPhotoDirectory(): string {
   return PHOTO_DIR;
@@ -43,7 +44,7 @@ export async function prepareFoodEstimateImage(
     if (!optimized.base64) throw new Error('Image conversion did not produce JPEG data');
     const padding = optimized.base64.endsWith('==') ? 2 : optimized.base64.endsWith('=') ? 1 : 0;
     const decodedBytes = Math.floor((optimized.base64.length * 3) / 4) - padding;
-    if (decodedBytes > MAX_ESTIMATE_BYTES) throw new Error('Image remains larger than 4 MiB after compression');
+    if (decodedBytes > MAX_IMAGE_BYTES) throw new Error('Image remains larger than 4 MiB after compression');
     return optimized.base64;
   } finally {
     await FileSystem.deleteAsync(optimized.uri, { idempotent: true }).catch(() => {});

@@ -11,6 +11,22 @@ import {
     isUnrecognizedFoodEstimate,
     mealDivisionOf,
 } from './foodScanContract';
+import {
+    MAX_CLARIFICATION_TEXT_LENGTH,
+    MAX_COMPONENTS,
+    MAX_COMPONENT_GRAMS,
+    MAX_CONTEXT_DESCRIPTION_LENGTH,
+    MAX_CONTEXT_NAME_LENGTH,
+    MAX_DESCRIPTION_LENGTH,
+    MAX_SCAN_TITLE_LENGTH,
+    type EstimateContext,
+    type EstimateContextComponent,
+    type EstimateInput,
+    type EstimateOperation,
+} from './foodEstimateCore';
+import { requestDirectEstimate } from './foodEstimateDirect';
+
+export type { EstimateContextComponent };
 
 export interface MealDivision {
     servesTotal: number;
@@ -27,11 +43,6 @@ export interface DescribeResult {
      * every component by hand.
      */
     division?: MealDivision;
-}
-
-export interface EstimateContextComponent {
-    name: string;
-    estimatedGrams: number;
 }
 
 export interface MealClarificationInput {
@@ -61,20 +72,22 @@ export type FoodEstimationFailureKind =
     | 'invalid-response'
     | 'description-too-long'
     | 'cancelled'
-    | 'unrecognized';
+    | 'unrecognized'
+    | 'key-invalid'
+    | 'key-limit'
+    | 'location-unsupported';
 export type FoodEstimationResult =
     | { ok: true; result: DescribeResult }
     | { ok: false; kind: FoodEstimationFailureKind; message: string };
+type FoodEstimationFailure = Extract<FoodEstimationResult, { ok: false }>;
+/** What a route hands back before the shared mapping: the estimate body, or a failure. */
+type TransportOutcome = { ok: true; estimate: unknown } | FoodEstimationFailure;
 
-type EstimateOperation = 'scan' | 'describe' | 'clarify-meal' | 'clarify-component';
-const MAX_CONTEXT_COMPONENTS = 20;
-const MAX_CONTEXT_DESCRIPTION_LENGTH = 500;
-const MAX_CONTEXT_NAME_LENGTH = 120;
-const MAX_CONTEXT_GRAMS = 10_000;
-const MAX_CLARIFICATION_NAME_LENGTH = 200;
-const MAX_SCAN_MEAL_TITLE_LENGTH = 120;
-/** The Worker's own limit for a description. Checked here so the upload is not wasted. */
-const MAX_DESCRIPTION_LENGTH = 2000;
+/**
+ * Who funds an estimate: Eatlog AI through the hosted service, or My key straight to Google.
+ * Read once when a request starts; a failure never switches it.
+ */
+export type AiRoute = 'eatlog-ai' | 'my-key';
 /**
  * How long a failed action keeps its identity so an explicit Retry is recognised as the same
  * submission rather than a second one. It matches the Worker's replay window: past it the
@@ -82,17 +95,7 @@ const MAX_DESCRIPTION_LENGTH = 2000;
  */
 const ACTION_RETRY_WINDOW_MS = 120_000;
 
-interface EstimateContext {
-    originalDescription?: string;
-    mealName?: string;
-    components: EstimateContextComponent[];
-}
-
-interface EstimateInput {
-    text?: string;
-    imageBase64?: string;
-    context?: EstimateContext;
-}
+type EstimateFields = Omit<EstimateInput, 'operation'>;
 
 export interface FoodEstimateClientOptions {
     workerUrl: string;
@@ -104,6 +107,8 @@ export interface FoodEstimateClientOptions {
     getAiAuthorization?: () => { ok: true; grant: string } | { ok: false; kind: AiAuthorizationFailure };
     acceptAiGrant?: (token: string, expiresAt: string) => void;
     requestId?: (payload: string) => string | Promise<string>;
+    getAiRoute?: () => AiRoute;
+    getUserApiKey?: () => Promise<string | null>;
 }
 
 const RESET_KINDS = new Set<FoodEstimationFailureKind>([
@@ -118,7 +123,7 @@ function formatResetTime(nextEligibleAt: string | null | undefined): string | nu
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null): FoodEstimationResult {
+function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null): FoodEstimationFailure {
     const messages: Record<FoodEstimationFailureKind, string> = {
         unavailable: 'Estimates are unavailable in this build.',
         'consent-required': 'Enable online estimates to use this.',
@@ -136,6 +141,9 @@ function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null
         cancelled: 'Estimate cancelled.',
         'invalid-response': 'The estimation service returned an unusable result. Try again or enter it manually.',
         unrecognized: 'No usable food was recognized. Try a clearer photo or a more specific description.',
+        'key-invalid': "Google didn't accept your API key. Replace it to keep using AI estimates.",
+        'key-limit': "Your API key reached Google's limit. Try again later or check your Google project.",
+        'location-unsupported': "Google doesn't serve your current location.",
     };
     const resetTime = RESET_KINDS.has(kind) ? formatResetTime(nextEligibleAt) : null;
     const message = resetTime
@@ -157,8 +165,8 @@ function buildEstimateContext(input: {
         .filter((component) => component.name
             && Number.isFinite(component.estimatedGrams)
             && component.estimatedGrams > 0
-            && component.estimatedGrams <= MAX_CONTEXT_GRAMS)
-        .slice(0, MAX_CONTEXT_COMPONENTS);
+            && component.estimatedGrams <= MAX_COMPONENT_GRAMS)
+        .slice(0, MAX_COMPONENTS);
     if (components.length === 0) return undefined;
     const originalDescription = input.originalDescription?.trim().slice(0, MAX_CONTEXT_DESCRIPTION_LENGTH);
     const mealName = input.mealName?.trim().slice(0, MAX_CONTEXT_NAME_LENGTH);
@@ -244,6 +252,9 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const checkConsent = options.hasConsent ?? hasRemoteEstimateConsent;
     const authorize = options.getAiAuthorization ?? getAiAuthorization;
     const acceptGrant = options.acceptAiGrant ?? acceptAiGrant;
+    // Until key setup exists every install is on Eatlog AI and has no saved key.
+    const readAiRoute = options.getAiRoute ?? ((): AiRoute => 'eatlog-ai');
+    const loadUserApiKey = options.getUserApiKey ?? (async () => null);
 
     /**
      * Live and recently failed actions, keyed by the payload that defines them. Memory only, and
@@ -251,10 +262,17 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
      * the Worker has forgotten it too.
      */
     const actions = new Map<string, EstimateAction>();
+    /** Advanced by every clear, so a result that lands afterwards is recognised as orphaned. */
+    let generation = 0;
 
-    /** Consent withdrawal, a change of entitlement or identity, and Delete all data all land here. */
+    /**
+     * Consent withdrawal (Eatlog AI consent, or removing the saved key), a change of entitlement
+     * or identity, and Delete all data all land here. Estimates still running are discarded
+     * when they finish rather than delivered to a user who has just withdrawn.
+     */
     function clearActions(): void {
         actions.clear();
+        generation += 1;
     }
 
     function actionFor(payload: string): EstimateAction {
@@ -290,31 +308,53 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
 
     function estimate(
         operation: EstimateOperation,
-        input: EstimateInput,
+        input: EstimateFields,
         call: EstimateCallOptions = {},
     ): Promise<FoodEstimationResult> {
+        const route = readAiRoute();
         const payload = JSON.stringify({ operation, ...input });
-        const action = actionFor(payload);
+        // The route is part of the action, so the same food on the other route never merges.
+        const actionKey = JSON.stringify([route, payload]);
+        const action = actionFor(actionKey);
         // Duplicate taps on one button share the estimate already running rather than starting
         // a second one behind it.
         if (!action.inFlight) {
-            action.inFlight = run(operation, input, payload, action).then((result) => {
+            const startedGeneration = generation;
+            const work = route === 'my-key'
+                ? requestWithUserKey(operation, input)
+                : requestWithEatlogAi(operation, input, payload, action);
+            action.inFlight = work.then((outcome) => {
+                if (generation !== startedGeneration) return failure('cancelled');
                 action.inFlight = null;
+                const result = outcome.ok ? deliver(operation, input, outcome.estimate) : outcome;
                 // A delivered estimate ends its action. Submitting the same meal again is a new
                 // intention, and the next one gets an identifier of its own.
-                if (result.ok || result.kind === 'unrecognized') actions.delete(payload);
+                if (result.ok || result.kind === 'unrecognized') actions.delete(actionKey);
                 return result;
             });
         }
         return detachable(action.inFlight, call.signal);
     }
 
-    async function run(
+    async function requestWithUserKey(operation: EstimateOperation, input: EstimateFields): Promise<TransportOutcome> {
+        let apiKey: string | null;
+        try {
+            apiKey = await loadUserApiKey();
+        } catch {
+            return failure('key-invalid');
+        }
+        // The key was removed as this request started, which is a withdrawal like any other.
+        if (!apiKey) return failure('cancelled');
+        const outcome = await requestDirectEstimate({ operation, ...input }, apiKey, { fetchImpl, now, totalMs: timeoutMs });
+        return outcome.ok ? outcome : failure(outcome.kind);
+    }
+
+    async function requestWithEatlogAi(
         operation: EstimateOperation,
-        input: EstimateInput,
+        input: EstimateFields,
         payload: string,
         action: EstimateAction,
-    ): Promise<FoodEstimationResult> {
+    ): Promise<TransportOutcome> {
         if (!options.workerUrl) return failure('unavailable');
         const authorization = authorize();
         if (!authorization.ok && authorization.kind === 'paid-access-required') return failure(authorization.kind);
@@ -398,35 +438,11 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
             // A body that claims to be JSON and is not is a bad answer, not a bad connection.
             // Letting it reach the outer catch told the user their network had failed and
             // offered a retry that could only produce the same reply.
-            let result: FoodEstimateResponse;
             try {
-                result = await response.json() as FoodEstimateResponse;
+                return { ok: true, estimate: await response.json() };
             } catch {
                 return failure('invalid-response');
             }
-            if (!result || typeof result !== 'object') return failure('invalid-response');
-            if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');
-            if (!isRecognizedFoodEstimate(result)) return failure('invalid-response');
-            const division = mealDivisionOf(result);
-            const source = operation === 'scan' || input.imageBase64 ? 'scan' : 'describe';
-            // A scan title carrying a stated amount ("72g Bear Brand", "2 servings of adobo")
-            // is a portion instruction, not a label. The estimate applies the amount and
-            // returns a clean name, so echoing the raw title back would restate the quantity.
-            // Numbers that belong to a name ("24 Chicken", "100 Plus") are not amounts.
-            const scanTitle = operation === 'scan' ? input.text?.trim() : undefined;
-            const providedMealTitle = scanTitle && !hasFoodAmount(scanTitle) ? scanTitle : undefined;
-            const originalDescription = operation === 'describe' || operation === 'scan'
-                ? input.text
-                : input.context?.originalDescription;
-            return {
-                ok: true,
-                result: {
-                    mealName: formatFoodDisplayName(providedMealTitle || result.mealName, 'sentence'),
-                    components: mapComponents(result.components, source, now()),
-                    ...(originalDescription ? { originalDescription } : {}),
-                    ...(division ? { division } : {}),
-                },
-            };
         } catch (error) {
             if (error instanceof Error && error.name === 'AbortError') return failure('timeout');
             return failure('network');
@@ -435,9 +451,37 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         }
     }
 
+    /** Both routes end here, so an estimate reads the same whichever one produced it. */
+    function deliver(operation: EstimateOperation, input: EstimateFields, estimate: unknown): FoodEstimationResult {
+        const result = estimate as FoodEstimateResponse;
+        if (!result || typeof result !== 'object') return failure('invalid-response');
+        if (isUnrecognizedFoodEstimate(result)) return failure('unrecognized');
+        if (!isRecognizedFoodEstimate(result)) return failure('invalid-response');
+        const division = mealDivisionOf(result);
+        const source = operation === 'scan' || input.imageBase64 ? 'scan' : 'describe';
+        // A scan title carrying a stated amount ("72g Bear Brand", "2 servings of adobo")
+        // is a portion instruction, not a label. The estimate applies the amount and
+        // returns a clean name, so echoing the raw title back would restate the quantity.
+        // Numbers that belong to a name ("24 Chicken", "100 Plus") are not amounts.
+        const scanTitle = operation === 'scan' ? input.text?.trim() : undefined;
+        const providedMealTitle = scanTitle && !hasFoodAmount(scanTitle) ? scanTitle : undefined;
+        const originalDescription = operation === 'describe' || operation === 'scan'
+            ? input.text
+            : input.context?.originalDescription;
+        return {
+            ok: true,
+            result: {
+                mealName: formatFoodDisplayName(providedMealTitle || result.mealName, 'sentence'),
+                components: mapComponents(result.components, source, now()),
+                ...(originalDescription ? { originalDescription } : {}),
+                ...(division ? { division } : {}),
+            },
+        };
+    }
+
     async function scanFood(imageBase64: string, mealTitle?: string, call?: EstimateCallOptions): Promise<FoodEstimationResult> {
         if (!imageBase64.trim()) return failure('unrecognized');
-        const title = mealTitle?.trim().slice(0, MAX_SCAN_MEAL_TITLE_LENGTH);
+        const title = mealTitle?.trim().slice(0, MAX_SCAN_TITLE_LENGTH);
         return estimate('scan', {
             imageBase64,
             ...(title ? { text: title } : {}),
@@ -455,7 +499,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
 
     async function clarifyMeal(options: MealClarificationInput, call?: EstimateCallOptions): Promise<DescribeResult | null> {
         const result = await estimate('clarify-meal', {
-            text: options.name.trim().slice(0, MAX_CLARIFICATION_NAME_LENGTH),
+            text: options.name.trim().slice(0, MAX_CLARIFICATION_TEXT_LENGTH),
             imageBase64: options.imageBase64,
             context: buildEstimateContext(options),
         }, call);
@@ -464,7 +508,7 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
 
     async function clarifyComponent(options: ComponentClarificationInput, call?: EstimateCallOptions): Promise<FoodResult | null> {
         const result = await estimate('clarify-component', {
-            text: options.name.trim().slice(0, MAX_CLARIFICATION_NAME_LENGTH),
+            text: options.name.trim().slice(0, MAX_CLARIFICATION_TEXT_LENGTH),
             imageBase64: options.imageBase64,
             context: buildEstimateContext(options),
         }, call);
