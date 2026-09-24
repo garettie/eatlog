@@ -50,7 +50,9 @@ export async function resetLocalData(onProgress?: OwnershipProgressListener): Pr
   await closeDatabase();
   resetDatabaseConnection();
   await SQLite.deleteDatabaseAsync(DATABASE_NAME);
-  const legacyDatabase = new File(SQLite.defaultDatabaseDirectory, LEGACY_DATABASE_NAME);
+  // expo-sqlite reports its directory as a plain path; the file API needs a file URI, and throws
+  // on a bare path before anything after this line (the fresh database, the key) is reached.
+  const legacyDatabase = new File(`file://${encodeURI(SQLite.defaultDatabaseDirectory)}`, LEGACY_DATABASE_NAME);
   if (legacyDatabase.exists) await SQLite.deleteDatabaseAsync(LEGACY_DATABASE_NAME);
 
   onProgress?.({ operation: 'reset', phase: 'initialize', completed: 2, total: 3, message: 'Preparing a fresh Eatlog database', cancellable: false });

@@ -80,3 +80,9 @@ test('the plan-ended prompt offers the key or plans, and dismissing it sends not
   assert.equal((ended.match(/label: '/g) ?? []).length, 2);
   assert.match(ended, /onDismiss: \(\) => resolve\('none'\)/);
 });
+
+test('Delete all data reaches the key: the legacy database check uses a file URI, not a bare path', () => {
+  // A bare SQLite directory path made File throw "URI is not absolute" before the key was erased.
+  assert.doesNotMatch(dataReset, /new File\(SQLite\.defaultDatabaseDirectory/);
+  assert.match(dataReset, /new File\(`file:\/\/\$\{encodeURI\(SQLite\.defaultDatabaseDirectory\)\}`, LEGACY_DATABASE_NAME\)/);
+});
