@@ -65,3 +65,18 @@ test('adding a key checks it with Google before saving, and only a rejection sto
   assert.ok(save.indexOf('checkUserApiKey') < save.indexOf('userApiKeyStore.save'));
   assert.match(keySetup, /Agree and save key/);
 });
+
+test('adding a key records the Eatlog AI consent too, before setup closes; replacing does not', () => {
+  const finish = aiSetup.slice(aiSetup.indexOf('const finishSetup'), aiSetup.indexOf('const finishChoice'));
+  assert.match(finish, /saved && current\.mode === 'add'\) await acceptHostedConsent\(\)/);
+  assert.ok(finish.indexOf('acceptHostedConsent()') < finish.indexOf('present(null)'));
+  assert.doesNotMatch(keySetup, /Nothing goes through Eatlog/);
+  assert.match(keySetup, /With Eatlog AI it goes through Eatlog/);
+});
+
+test('the plan-ended prompt offers the key or plans, and dismissing it sends nothing', () => {
+  const ended = aiSetup.slice(aiSetup.indexOf('has ended'), aiSetup.indexOf("if (choice === 'plans')"));
+  assert.match(ended, /Your Google key is still saved\. You can still use it, or renew your subscription\./);
+  assert.equal((ended.match(/label: '/g) ?? []).length, 2);
+  assert.match(ended, /onDismiss: \(\) => resolve\('none'\)/);
+});

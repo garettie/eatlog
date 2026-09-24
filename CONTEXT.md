@@ -49,5 +49,5 @@ The user's agreement to send meal inputs to Eatlog AI; once accepted it is never
 _Avoid_: Online estimates consent
 
 **Manok consent**:
-The user's agreement, given while saving a key, to send meal inputs directly to Google under Google's terms; removing the key withdraws it.
+The user's agreement, given while saving a key, to send meal inputs directly to Google under Google's terms; removing the key withdraws it. Adding a key also records **Hosted consent**, so a key user who later gains Itik is never asked again; removing the key leaves Hosted consent in place.
 _Avoid_: Google consent, BYOK consent

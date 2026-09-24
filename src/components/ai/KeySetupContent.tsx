@@ -34,19 +34,22 @@ export type KeySetupMode = 'add' | 'replace';
 
 const AI_STUDIO_URL = 'https://aistudio.google.com/app/apikey';
 
-/** What saving a key agrees to. Shown only when adding; replacing keeps the consent given. */
+/**
+ * What saving a key agrees to, for both routes: saving also records the Eatlog AI consent. Shown
+ * only when adding; replacing keeps the consent given.
+ */
 const DISCLOSURE: { icon: keyof typeof MaterialIcons.glyphMap; text: string }[] = [
   {
     icon: 'send-to-mobile',
-    text: 'Eatlog sends the photo, meal title, or description you choose from this phone to Google Gemini with your key. Nothing goes through Eatlog.',
+    text: 'Eatlog sends the photo, meal title, or description you choose to Google Gemini. With your key it goes straight from this phone. With Eatlog AI it goes through Eatlog.',
   },
   {
     icon: 'payments',
-    text: "Eatlog charges nothing for this. Google sets your key's limits, and may charge you if billing is enabled on your Google project.",
+    text: 'Eatlog charges nothing for your key. Google sets its limits, and may charge you if billing is enabled on your Google project.',
   },
   {
     icon: 'visibility',
-    text: 'If your Google project has no billing, Google may use what you send to improve its products, and people may review it.',
+    text: 'If your Google project has no billing, Google may use what you send with your key to improve its products, and people may review it.',
   },
 ];
 
@@ -128,8 +131,9 @@ function Step({
 }
 
 /**
- * Adding a key is the Manok consent: the disclosure sits above the one button that both agrees
- * and saves. Replacing a key keeps the consent already given, so it drops the disclosure.
+ * Adding a key is the Manok consent, and the Eatlog AI consent with it: the disclosure sits above
+ * the one button that both agrees and saves. Replacing a key keeps the consent already given, so
+ * it drops the disclosure.
  */
 export default function KeySetupContent({ mode, itik, onSaved, onCancel }: KeySetupContentProps) {
   const { horizontalPadding } = useResponsiveLayout();

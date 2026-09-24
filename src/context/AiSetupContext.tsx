@@ -15,7 +15,7 @@ import KeySetupContent, { type KeySetupMode } from '../components/ai/KeySetupCon
 import { useSheetDialog } from '../components/SheetDialog';
 import { DURATION, EASING } from '../theme/motion';
 import { clearFoodEstimateActions } from '../services/foodScan';
-import { PAID_PLAN_NAME } from '../services/tierNames';
+import { planName } from '../services/tierNames';
 import { decideAiGate, userApiKeyStore, type AiRoute, type UserKeyState } from '../services/userApiKey';
 import { useEntitlement } from './EntitlementContext';
 import { useRemoteEstimateConsent } from './RemoteEstimateConsentContext';
@@ -41,6 +41,7 @@ const AiSetupContext = createContext<AiSetupContextValue | null>(null);
 
 export function AiSetupProvider({ children }: { children: React.ReactNode }) {
   const { status, hasItik } = useEntitlement();
+  const { accept: acceptHostedConsent } = useRemoteEstimateConsent();
   const [keyState, setKeyState] = useState<UserKeyState>(userApiKeyStore.getState());
   const [presented, setPresented] = useState<Presented | null>(null);
   const presentedRef = useRef<Presented | null>(null);
@@ -83,13 +84,17 @@ export function AiSetupProvider({ children }: { children: React.ReactNode }) {
     present({ kind: 'choice', resolve });
   }), [present, settleCurrent]);
 
-  const finishSetup = useCallback((saved: boolean) => {
+  const finishSetup = useCallback(async (saved: boolean) => {
     const current = presentedRef.current;
     if (current?.kind !== 'setup') return;
+    // Adding a key agreed to both routes, so Eatlog AI never asks again after the plan arrives.
+    // A failed write only means the hosted prompt may appear later; the key is saved either way.
+    if (saved && current.mode === 'add') await acceptHostedConsent().catch(() => false);
+    if (presentedRef.current !== current) return;
     present(null);
     current.resolve(saved);
     current.fromChoice?.(saved ? 'key-saved' : 'dismissed');
-  }, [present]);
+  }, [acceptHostedConsent, present]);
 
   const finishChoice = useCallback((outcome: AiChoiceOutcome) => {
     const current = presentedRef.current;
@@ -334,13 +339,13 @@ export function useAiGate(): () => Promise<boolean> {
     }
     const choice = await new Promise<'key' | 'plans' | 'none'>((resolve) => {
       showDialog({
-        title: `${PAID_PLAN_NAME} has ended`,
-        message: `Keep estimating with your Google key, or get ${PAID_PLAN_NAME} again.`,
+        title: `${planName('itik')} has ended`,
+        message: 'Your Google key is still saved. You can still use it, or renew your subscription.',
         actions: [
-          { label: 'Use my key', tone: 'primary', onPress: () => resolve('key') },
           { label: 'See plans', tone: 'neutral', onPress: () => resolve('plans') },
-          { label: 'Not now', tone: 'cancel', onPress: () => resolve('none') },
+          { label: 'Use my key', tone: 'primary', onPress: () => resolve('key') },
         ],
+        onDismiss: () => resolve('none'),
       });
     });
     if (choice === 'plans') navigation.navigate('Paywall');

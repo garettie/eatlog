@@ -30,6 +30,8 @@ export interface SheetDialogRequest {
   /** Custom content between the heading and the actions, such as a picker. Sheets only. */
   body?: (close: () => void) => React.ReactNode;
   actions: SheetDialogAction[];
+  /** Tapping outside or Back when no action is a Cancel. */
+  onDismiss?: () => void;
 }
 
 export type ShowSheetDialog = (request: SheetDialogRequest) => void;
@@ -54,7 +56,7 @@ export function useSheetDialogHost(): SheetDialogHost {
 
 export const SheetDialogContext = createContext<ShowSheetDialog | null>(null);
 
-function showNativeAlert({ title, message, actions }: SheetDialogRequest) {
+function showNativeAlert({ title, message, actions, onDismiss }: SheetDialogRequest) {
   const cancel = actions.find((action) => action.tone === 'cancel');
   Alert.alert(
     title,
@@ -64,7 +66,7 @@ function showNativeAlert({ title, message, actions }: SheetDialogRequest) {
       onPress: action.onPress,
       style: action.tone === 'destructive' ? 'destructive' : action.tone === 'cancel' ? 'cancel' : 'default',
     })),
-    { cancelable: true, onDismiss: cancel?.onPress },
+    { cancelable: true, onDismiss: cancel?.onPress ?? onDismiss },
   );
 }
 
@@ -117,7 +119,9 @@ export function SheetDialogOverlay({ host }: { host: SheetDialogHost }) {
 
   const dismiss = useCallback(() => {
     if (!requestRef.current) return;
-    run(requestRef.current.actions.find((action) => action.tone === 'cancel'));
+    const cancel = requestRef.current.actions.find((action) => action.tone === 'cancel');
+    const { onDismiss } = requestRef.current;
+    run(cancel ?? (onDismiss ? { label: 'Dismiss', onPress: onDismiss } : undefined));
   }, [run]);
 
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
