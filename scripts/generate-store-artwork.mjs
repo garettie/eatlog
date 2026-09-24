@@ -60,6 +60,12 @@ try {
     const rendered = join(temporaryDirectory, `tier-${name}.png`);
     renderTier(source, rendered);
     writeFileSync(join(outputDirectory, exportName), encodePng(decodePng(readFileSync(rendered)), 6));
+    // Store promo images must be square and opaque, so the round backdrop fills the canvas.
+    const square = join(temporaryDirectory, `tier-${name}-square.svg`);
+    const renderedSquare = join(temporaryDirectory, `tier-${name}-square.png`);
+    writeFileSync(square, readFileSync(source, 'utf8').replace('<circle cx="24" cy="24" r="24" fill="#1A1A1A"/>', '<rect width="48" height="48" fill="#1A1A1A"/>'));
+    renderTier(square, renderedSquare);
+    writeFileSync(join(outputDirectory, exportName.replace('-1024.png', '-square-1024.png')), encodePng(decodePng(readFileSync(renderedSquare)), 2));
     copyFileSync(source, join(siteAssetsDirectory, `tier-${name}.svg`));
   }
   for (const name of ['pugo', 'manok', 'itik']) {

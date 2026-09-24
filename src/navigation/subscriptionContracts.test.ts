@@ -107,8 +107,11 @@ test('both free states use one egg icon and paid access uses the omelette', () =
   assert.match(planParts, /<TierPlanIcon tier=\{tier\}/);
   assert.match(tierPlanIcon, /tier === 'itik'/);
   assert.doesNotMatch(tierPlanIcon, /tier === 'pugo'|tier === 'manok'/);
-  assert.match(tierPlanIcon, /fill="#FFFFFF"/);
-  assert.match(tierPlanIcon, /fill="#F2B94F"/);
+  // The app draws the same egg and omelette as the website and store artwork.
+  for (const name of ['eatlog', 'omelette']) {
+    const svg = read(`../../release/artwork/source/tier-${name}.svg`);
+    for (const [, d] of svg.matchAll(/ d="([^"]+)"/g)) assert.ok(tierPlanIcon.includes(d), `${name} path differs from its source`);
+  }
 });
 
 test('every displayed plan name comes from one module', () => {

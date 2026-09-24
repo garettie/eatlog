@@ -68,9 +68,12 @@ for (const [name, exportName] of [
   const center = (512 * productIcon.width + 512) * 4;
   assert.deepEqual(
     [...productIcon.rgba.subarray(center, center + 4)],
-    name === 'eatlog' ? [255, 255, 255, 255] : [214, 138, 52, 255],
+    name === 'eatlog' ? [243, 235, 221, 255] : [244, 193, 78, 255],
     `${name} product icon does not show the expected egg or omelette.`,
   );
+  const square = read(`release/artwork/export/${exportName.replace('-1024.png', '-square-1024.png')}`);
+  assert.deepEqual([square.width, square.height, square.colorType], [1024, 1024, 2], `${name} square icon must be opaque RGB.`);
+  assert.deepEqual([...square.rgba.subarray(0, 3)], [26, 26, 26], `${name} square icon must fill its corners.`);
 }
 for (const name of ['pugo', 'manok', 'itik']) {
   assert.equal(existsSync(join(root, `release/artwork/export/eatlog-${name}-product-icon-1024.png`)), false);
