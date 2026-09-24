@@ -1044,6 +1044,7 @@ export default function OnboardingScreen({ navigation }: Props) {
               {step === TOTAL_STEPS && HAS_AI_CHOICE && (
                 <View className="min-h-[520px] flex-1">
                   <AiChoiceContent
+                    topBar={{ icon: 'arrow-back', label: 'Back to your starting targets', onPress: () => goToStep(CALCULATION_STEP) }}
                     busy={consentBusy || isSubmitting}
                     error={stepError}
                     onUseKey={() => { void handleUseKey(); }}

@@ -1,10 +1,19 @@
-import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, SafeAreaView } from 'react-native';
+import React, { createContext, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Modal, View } from 'react-native';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 
 import AiChoiceContent from '../components/ai/AiChoiceContent';
 import KeySetupContent, { type KeySetupMode } from '../components/ai/KeySetupContent';
 import { useSheetDialog } from '../components/SheetDialog';
+import { DURATION, EASING } from '../theme/motion';
 import { clearFoodEstimateActions } from '../services/foodScan';
 import { PAID_PLAN_NAME } from '../services/tierNames';
 import { decideAiGate, userApiKeyStore, type AiRoute, type UserKeyState } from '../services/userApiKey';
@@ -117,31 +126,179 @@ export function AiSetupProvider({ children }: { children: React.ReactNode }) {
   return (
     <AiSetupContext.Provider value={value}>
       {children}
-      <Modal
-        visible={presented !== null}
-        animationType="none"
-        presentationStyle="fullScreen"
-        onRequestClose={dismiss}
-      >
-        <SafeAreaView className="flex-1 bg-m3-surface" accessibilityViewIsModal>
-          {presented?.kind === 'choice' ? (
-            <AiChoiceContent
-              scrollable
-              onUseKey={chooseKeyFromChoice}
-              onEatlogAi={() => finishChoice('plans')}
-              onNotNow={() => finishChoice('dismissed')}
-            />
-          ) : presented?.kind === 'setup' ? (
-            <KeySetupContent
-              mode={presented.mode}
-              itik={hasItik}
-              onSaved={() => finishSetup(true)}
-              onCancel={() => finishSetup(false)}
-            />
-          ) : null}
-        </SafeAreaView>
-      </Modal>
+      <AiSetupModal
+        presented={presented}
+        hasItik={hasItik}
+        onDismiss={dismiss}
+        onUseKey={chooseKeyFromChoice}
+        onEatlogAi={() => finishChoice('plans')}
+        onNotNow={() => finishChoice('dismissed')}
+        onSetupDone={finishSetup}
+      />
     </AiSetupContext.Provider>
+  );
+}
+
+/** The opaque surface, padded clear of the status and navigation bars of the modal's window. */
+function InsetSurface({
+  style,
+  interactive,
+  children,
+}: {
+  style: ReturnType<typeof useAnimatedStyle>;
+  interactive: boolean;
+  children: React.ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Animated.View
+      style={[style, { paddingTop: insets.top, paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}
+      pointerEvents={interactive ? 'auto' : 'none'}
+      accessibilityViewIsModal
+      className="flex-1 bg-m3-surface"
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Matches the onboarding step offset, so setup moves like one more step. */
+const STEP_OFFSET = 28;
+
+/** Which screen a presentation shows; a change of screen runs the exit and entrance. */
+function screenOf(presented: Presented): string {
+  return presented.kind === 'setup' ? `setup:${presented.mode}` : 'choice';
+}
+
+/**
+ * The full-screen AI setup surface. It moves exactly like an onboarding step: opening arrives from
+ * the forward side, closing leaves like Back, and moving from the choice to key setup exits the
+ * choice, swaps while nothing is visible, then brings the new screen in from the forward side.
+ */
+function AiSetupModal({
+  presented,
+  hasItik,
+  onDismiss,
+  onUseKey,
+  onEatlogAi,
+  onNotNow,
+  onSetupDone,
+}: {
+  presented: Presented | null;
+  hasItik: boolean;
+  onDismiss: () => void;
+  onUseKey: () => void;
+  onEatlogAi: () => void;
+  onNotNow: () => void;
+  onSetupDone: (saved: boolean) => void;
+}) {
+  const reduced = useReducedMotion();
+  // What is on screen trails `presented` by the exit animation.
+  const [shown, setShown] = useState<Presented | null>(presented);
+  const presentedRef = useRef(presented);
+  presentedRef.current = presented;
+  // Onboarding's step motion: leave 28dp toward travel in 90ms, arrive from 28dp in 200ms.
+  const surfaceX = useSharedValue(0);
+  const surfaceOpacity = useSharedValue(presented ? 1 : 0);
+  const contentX = useSharedValue(0);
+  const contentOpacity = useSharedValue(1);
+  const swapping = useRef(false);
+
+  const clearShown = useCallback(() => setShown(null), []);
+  const swapToPresented = useCallback(() => setShown(presentedRef.current), []);
+
+  const enter = useCallback((x: typeof surfaceX, opacity: typeof surfaceOpacity) => {
+    x.value = withTiming(0, { duration: reduced ? 0 : DURATION.short, easing: EASING.emphasizedDecelerate });
+    opacity.value = withTiming(1, { duration: reduced ? 0 : DURATION.short });
+  }, [reduced]);
+
+  useEffect(() => {
+    if (!presented) {
+      // Closing reads as Back: the surface leaves the way it came in.
+      surfaceX.value = withTiming(STEP_OFFSET, { duration: reduced ? 0 : DURATION.exit, easing: EASING.emphasizedAccelerate });
+      surfaceOpacity.value = withTiming(0, { duration: reduced ? 0 : DURATION.exit }, (finished) => {
+        if (finished) runOnJS(clearShown)();
+      });
+      return;
+    }
+    if (!shown) {
+      // Opening reads as the next step: it arrives from the forward side.
+      setShown(presented);
+      contentX.value = 0;
+      contentOpacity.value = 1;
+      surfaceX.value = STEP_OFFSET;
+      surfaceOpacity.value = 0;
+      enter(surfaceX, surfaceOpacity);
+      return;
+    }
+    // A presentation arriving during the close takes the surface back instead of losing it.
+    enter(surfaceX, surfaceOpacity);
+    if (screenOf(shown) === screenOf(presented)) {
+      setShown(presented);
+      return;
+    }
+    swapping.current = true;
+    contentX.value = withTiming(-STEP_OFFSET, { duration: reduced ? 0 : DURATION.exit, easing: EASING.emphasizedAccelerate });
+    contentOpacity.value = withTiming(0, { duration: reduced ? 0 : DURATION.exit }, (finished) => {
+      if (finished) runOnJS(swapToPresented)();
+    });
+    // `shown` is deliberately left out: this reacts to new presentations, not to its own swaps.
+  }, [presented]);
+
+  // The new screen has rendered while invisible; only now does it enter.
+  const shownScreen = shown ? screenOf(shown) : null;
+  useLayoutEffect(() => {
+    if (shownScreen === null || !swapping.current) return;
+    swapping.current = false;
+    contentX.value = STEP_OFFSET;
+    enter(contentX, contentOpacity);
+  }, [contentOpacity, contentX, enter, shownScreen]);
+
+  const surfaceStyle = useAnimatedStyle(() => ({
+    opacity: surfaceOpacity.value,
+    transform: [{ translateX: surfaceX.value }],
+  }));
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [{ translateX: contentX.value }],
+  }));
+
+  return (
+    <Modal
+      visible={shown !== null}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      navigationBarTranslucent
+      onRequestClose={onDismiss}
+    >
+      {/* The modal is its own window: its insets come from a provider inside it. */}
+      <SafeAreaProvider>
+        <InsetSurface style={surfaceStyle} interactive={presented !== null}>
+          {/* Keyed by screen so Add and Replace never share a half-typed field; it swaps while invisible. */}
+          <Animated.View key={shown ? screenOf(shown) : 'none'} style={contentStyle} className="flex-1">
+            {shown?.kind === 'choice' ? (
+              <AiChoiceContent
+                scrollable
+                topBar={{ icon: 'close', label: 'Close. Continue without AI meal estimates.', onPress: onNotNow }}
+                onUseKey={onUseKey}
+                onEatlogAi={onEatlogAi}
+                onNotNow={onNotNow}
+              />
+            ) : shown?.kind === 'setup' ? (
+              <KeySetupContent
+                mode={shown.mode}
+                itik={hasItik}
+                onSaved={() => onSetupDone(true)}
+                onCancel={() => onSetupDone(false)}
+              />
+            ) : (
+              <View className="flex-1" />
+            )}
+          </Animated.View>
+        </InsetSurface>
+      </SafeAreaProvider>
+    </Modal>
   );
 }
 

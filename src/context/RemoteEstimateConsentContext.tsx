@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Modal, SafeAreaView } from 'react-native';
+import { AppState, Modal } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import RemoteEstimateConsentContent from '../components/RemoteEstimateConsentContent';
 import { clearFoodEstimateActions } from '../services/foodScan';
@@ -102,12 +103,16 @@ export function RemoteEstimateConsentProvider({ children }: { children: React.Re
         visible={modalVisible}
         animationType="none"
         presentationStyle="fullScreen"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={handleDismiss}
         onDismiss={() => {
           if (modalVisibleRef.current) handleDismiss();
         }}
       >
-        <SafeAreaView className="flex-1 bg-m3-surface" accessibilityViewIsModal>
+        {/* The modal is its own window: its insets come from a provider inside it. */}
+        <SafeAreaProvider>
+        <SafeAreaView edges={['top', 'bottom', 'left', 'right']} className="flex-1 bg-m3-surface" accessibilityViewIsModal>
           <RemoteEstimateConsentContent
             scrollable
             busy={accepting}
@@ -116,6 +121,7 @@ export function RemoteEstimateConsentProvider({ children }: { children: React.Re
             onDecline={() => { void decline(); }}
           />
         </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
     </RemoteEstimateConsentContext.Provider>
   );

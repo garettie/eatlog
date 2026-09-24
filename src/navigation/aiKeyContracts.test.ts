@@ -59,7 +59,7 @@ test('onboarding offers the AI choice instead of hosted consent', () => {
 });
 
 test('adding a key checks it with Google before saving, and only a rejection stops the save', () => {
-  const save = keySetup.slice(keySetup.indexOf('const save = useCallback'), keySetup.indexOf('return ('));
+  const save = keySetup.slice(keySetup.indexOf('const save = useCallback'), keySetup.indexOf('}, [itik, onSaved, replacing, value]);'));
   assert.ok(save.indexOf('normalizeApiKeyInput') < save.indexOf('checkUserApiKey'));
   assert.match(save, /=== 'rejected'/);
   assert.ok(save.indexOf('checkUserApiKey') < save.indexOf('userApiKeyStore.save'));
