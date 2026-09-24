@@ -20,7 +20,7 @@ _Avoid_: BYOK tier, subscription (the old recurring-purchase meaning is obsolete
 
 **Itik**:
 The tier with an active paid or complimentary entitlement to Eatlog-hosted AI, which uses the owner's server-held key.
-_Avoid_: Lifetime (the old one-time-purchase meaning is obsolete), premium
+_Avoid_: Premium; naming Itik by its billing cadence
 
 **Complimentary access**:
 An Itik entitlement granted without a purchase, used for owner and friend testing.
