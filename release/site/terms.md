@@ -1,13 +1,13 @@
 ---
 title: Eatlog Terms of Use
-publication_status: preview-draft
-policy_version: 1.3-draft
+publication_status: published
+policy_version: 1.3
 last_updated: 2026-09-24
 ---
 
 # Eatlog Terms of Use
 
-Preview draft, last updated September 24, 2026. This text is not yet the published terms. Eatlog is provided by Sean Garette Gajitos. Contact [sggajitos@gmail.com](mailto:sggajitos@gmail.com).
+Version 1.3, effective September 24, 2026. Eatlog is provided by Sean Garette Gajitos. Contact [sggajitos@gmail.com](mailto:sggajitos@gmail.com).
 
 ## General wellness
 

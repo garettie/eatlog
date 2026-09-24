@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const siteRoot = dirname(fileURLToPath(import.meta.url));
-const publicationMode = process.argv.includes('--publication');
 const routes = new Map([
   ['/', 'index.html'],
   ['/privacy', 'privacy/index.html'],
@@ -82,38 +81,22 @@ assert.match(headers, /X-Frame-Options: DENY/, '_headers needs anti-framing prot
 assert.match(headers, /\/privacy\*\s+Cache-Control: public, max-age=300, must-revalidate/, '_headers needs a Privacy cache rule');
 assert.match(headers, /\/terms\*\s+Cache-Control: public, max-age=300, must-revalidate/, '_headers needs a Terms cache rule');
 assert.match(headers, /\/support\*\s+Cache-Control: public, max-age=300, must-revalidate/, '_headers needs a Support cache rule');
-if (publicationMode) {
-  for (const [route, html] of pages) {
-    assert.equal(/noindex|preview draft/i.test(html), false, `${route} still contains a preview publication blocker`);
-  }
-  assert.match(pages.get('/support'), /href="mailto:[^"@]+@[^"@]+"/i, '/support needs a monitored email link');
-  const robots = readSiteFile('robots.txt');
-  assert.doesNotMatch(robots, /Disallow:\s*\/(privacy|terms|support)/, 'robots.txt still blocks a compliance route');
-  assert.equal(/X-Robots-Tag: noindex/.test(headers), false, '_headers still blocks compliance-page indexing');
-  for (const [documentName, sources] of legalSources) {
-    for (const source of sources) {
-      assert.equal(/publication_status:\s*preview-draft|preview draft|noindex,nofollow/i.test(source), false, `${documentName} still contains a preview marker`);
-      if (documentName !== 'support') assert.match(source, /effective/i, `${documentName} needs an effective date for publication`);
-      for (const factPattern of legalFactPatterns.get(documentName)) {
-        assert.match(source, factPattern, `${documentName} source is missing ${factPattern}`);
-      }
+for (const [route, html] of pages) {
+  assert.equal(/noindex|preview draft/i.test(html), false, `${route} still contains a preview publication blocker`);
+}
+assert.match(pages.get('/support'), /href="mailto:[^"@]+@[^"@]+"/i, '/support needs a monitored email link');
+const robots = readSiteFile('robots.txt');
+assert.doesNotMatch(robots, /Disallow:\s*\/(privacy|terms|support)/, 'robots.txt still blocks a compliance route');
+assert.equal(/X-Robots-Tag: noindex/.test(headers), false, '_headers still blocks compliance-page indexing');
+for (const [documentName, sources] of legalSources) {
+  for (const source of sources) {
+    assert.equal(/publication_status:\s*preview-draft|preview draft|noindex,nofollow/i.test(source), false, `${documentName} still contains a preview marker`);
+    if (documentName !== 'support') assert.match(source, /effective/i, `${documentName} needs an effective date for publication`);
+    for (const factPattern of legalFactPatterns.get(documentName)) {
+      assert.match(source, factPattern, `${documentName} source is missing ${factPattern}`);
     }
-  }
-} else {
-  for (const [route, html] of pages) {
-    assert.match(html, /name="robots" content="noindex,nofollow"/, `${route} preview page must stay unindexed`);
-  }
-  assert.match(headers, /\/\*[\s\S]*?X-Robots-Tag: noindex, nofollow/, '_headers must keep preview responses unindexed');
-  for (const [documentName, sources] of legalSources) {
-    assert.match(sources[0], /publication_status:\s*preview-draft/, `${documentName} Markdown must be marked as a preview draft`);
-    assert.match(sources[1], /Preview draft/i, `${documentName} served page must be marked as a preview draft`);
-    for (const source of sources) {
-      for (const factPattern of legalFactPatterns.get(documentName)) {
-        assert.match(source, factPattern, `${documentName} source is missing ${factPattern}`);
-      }
-      assert.doesNotMatch(source, /\b(?:Pugo|Manok|Itik)\b|three initial photo or description estimates|PHP\s*79|PHP\s*799|paid adaptive/i, `${documentName} has obsolete sales language`);
-    }
+    assert.doesNotMatch(source, /\b(?:Pugo|Manok|Itik)\b|three initial photo or description estimates|PHP\s*79|PHP\s*799|paid adaptive/i, `${documentName} has obsolete sales language`);
   }
 }
 
-console.log(`Eatlog site ${publicationMode ? 'publication' : 'preview'} checks passed for ${routes.size} routes.`);
+console.log(`Eatlog site publication checks passed for ${routes.size} routes.`);

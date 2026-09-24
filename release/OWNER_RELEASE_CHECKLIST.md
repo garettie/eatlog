@@ -20,7 +20,7 @@ The repository changes remain in preview. Each box below changes or verifies an 
 ## 3. Publish words and forms in the right order
 
 - [ ] Approve final copy and the September 24 owner screenshots now cropped into the website. Keep story step 04's existing plan-update image unless the owner supplies a replacement. Check that screenshots still match the final signed app.
-- [ ] Set actual policy version/effective dates; remove preview noindex/draft guards; publish website, Privacy, Terms, and Support over stable HTTPS. Check phone/desktop, keyboard access, links, and public availability. Run `npm run site:check:publication` against source before deployment.
+- [x] Website, Privacy, Terms, and Support published September 24, 2026 (policy version 1.3, effective that day). Run `npm run site:check` before each later deploy.
 - [ ] Put the exact current app/Worker behavior and localized purchase terms into Play and later Apple listings. Upload final artwork and real store screenshots only after the tested binary matches them.
 - [ ] Complete Google Play Data Safety, Health Apps, Health Connect, App access, content rating, prices/regions, and required testing. Complete Apple App Privacy, age rating, export compliance, purchase, and review fields for iOS. Save actual console answers. Draft worksheets alone do not update either console.
 - [ ] Recheck support contact, Open Food Facts registration, provider terms, privacy links, refund and legacy subscription management text, and restricted reviewer steps from the published URLs and submitted forms.

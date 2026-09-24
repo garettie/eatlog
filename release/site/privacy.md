@@ -1,13 +1,13 @@
 ---
 title: Eatlog Privacy Policy
-publication_status: preview-draft
-policy_version: 1.3-draft
+publication_status: published
+policy_version: 1.3
 last_updated: 2026-09-24
 ---
 
 # Eatlog Privacy Policy
 
-Preview draft, last updated September 24, 2026. This text is not yet the published policy. Eatlog is developed and operated by Sean Garette Gajitos. Contact [sggajitos@gmail.com](mailto:sggajitos@gmail.com).
+Version 1.3, effective September 24, 2026. Eatlog is developed and operated by Sean Garette Gajitos. Contact [sggajitos@gmail.com](mailto:sggajitos@gmail.com).
 
 Eatlog is a free, open-source, account-free food and weight log. Your diary lives in app-private storage on your device. Eatlog has no account system, cloud diary, advertising, or third-party analytics SDK. Optional online actions still contact the services named below.
 
@@ -61,4 +61,4 @@ The Eatlog app source is licensed under 0BSD. That license does not grant hosted
 
 ## Contact and changes
 
-Contact [sggajitos@gmail.com](mailto:sggajitos@gmail.com) about this draft or a privacy request. Material changes to recipients, data sent, or purposes require updated in-app disclosures and a new published policy version. Earlier versions remain in version control.
+Contact [sggajitos@gmail.com](mailto:sggajitos@gmail.com) about this policy or a privacy request. Material changes to recipients, data sent, or purposes require updated in-app disclosures and a new published policy version. Earlier versions remain in version control.

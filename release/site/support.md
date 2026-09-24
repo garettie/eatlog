@@ -1,12 +1,12 @@
 ---
 title: Eatlog Support
-publication_status: preview-draft
+publication_status: published
 last_updated: 2026-09-24
 ---
 
 # Eatlog Support
 
-Preview draft, last updated September 24, 2026. Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) for support.
+Last updated September 24, 2026. Email [sggajitos@gmail.com](mailto:sggajitos@gmail.com) for support.
 
 ## Before contacting support
 
