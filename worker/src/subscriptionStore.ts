@@ -1,6 +1,5 @@
 import type {
   CachedAccess,
-  AiAccessKind,
   ExecutionClaim,
   ExecutionOutcome,
   QuotaDecision,
@@ -35,10 +34,10 @@ export class DurableSubscriptionStore implements SubscriptionStore {
   getCached(customerKey: string, now: number, stale = false): Promise<CachedAccess | null> { return this.call('/cache/get', { customerKey, now, stale }); }
   putCached(customerKey: string, value: CachedAccess): Promise<void> { return this.call('/cache/put', { customerKey, ...value }); }
   async recordWebhook(eventId: string, eventTimestamp: number, customerKeys: string[]): Promise<'accepted' | 'duplicate' | 'stale'> { return (await this.call<{ result: 'accepted' | 'duplicate' | 'stale' }>('/webhook', { eventId, eventTimestamp, customerKeys })).result; }
-  reserve(subject: string, access: AiAccessKind, operation: string, requestId: string, now: number): Promise<QuotaDecision> { return this.call('/quota/reserve', { subject, access, operation, requestId, now }); }
+  reserve(subject: string, requestId: string, now: number): Promise<QuotaDecision> { return this.call('/quota/reserve', { subject, requestId, now }); }
   finalize(subject: string, requestId: string): Promise<void> { return this.call('/quota/finalize', { subject, requestId }); }
   refund(subject: string, requestId: string, reason: RefundReason): Promise<void> { return this.call('/quota/refund', { subject, requestId, reason }); }
-  usage(subject: string, access: AiAccessKind, now: number): Promise<Usage> { return this.call('/quota/usage', { subject, access, now }); }
+  usage(subject: string, now: number): Promise<Usage> { return this.call('/quota/usage', { subject, now }); }
   claimExecution(subject: string, requestId: string, fingerprint: string, operation: string, now: number): Promise<ExecutionClaim> { return this.call('/execution/claim', { subject, requestId, fingerprint, operation, now }); }
   async completeExecution(subject: string, requestId: string, token: string, outcome: ExecutionOutcome, result: string | null, now: number): Promise<void> { await this.call('/execution/complete', { subject, requestId, token, outcome, result, now }); }
 }

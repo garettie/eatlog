@@ -5,9 +5,7 @@ import {
   THIRTY_DAYS_MS,
   ExecutionLedger,
   decideQuota,
-  operationClass,
   quotaUsage,
-  type AiAccessKind,
   type ExecutionOutcome,
   type QuotaEvent,
   type RefundReason,
@@ -48,16 +46,17 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
       const customerKey = String(body.customerKey ?? '');
       const now = Number(body.now);
       const row = [...sql.exec<CacheRow>('SELECT access_json, subject, valid_until, provisional FROM access_cache WHERE customer_key = ?', customerKey)][0];
-      if (!row || (body.stale !== true && row.valid_until <= now)) return Response.json(null);
+      // A provisional row, written by earlier versions while RevenueCat was unreachable, is not
+      // an answer about this customer and must never be read as one.
+      if (!row || row.provisional === 1 || (body.stale !== true && row.valid_until <= now)) return Response.json(null);
       return Response.json({
         access: JSON.parse(row.access_json),
         subjectIdentity: row.subject,
         validUntil: row.valid_until,
-        provisional: row.provisional === 1,
       });
     }
     if (path === '/cache/put') {
-      sql.exec('INSERT OR REPLACE INTO access_cache (customer_key, access_json, subject, valid_until, provisional) VALUES (?, ?, ?, ?, ?)', String(body.customerKey), JSON.stringify(body.access), body.subjectIdentity == null ? null : String(body.subjectIdentity), Number(body.validUntil), body.provisional === true ? 1 : 0);
+      sql.exec('INSERT OR REPLACE INTO access_cache (customer_key, access_json, subject, valid_until, provisional) VALUES (?, ?, ?, ?, 0)', String(body.customerKey), JSON.stringify(body.access), body.subjectIdentity == null ? null : String(body.subjectIdentity), Number(body.validUntil));
       return Response.json({ ok: true });
     }
     if (path === '/webhook') {
@@ -82,26 +81,24 @@ export class EntitlementQuotaState extends DurableObject<DurableEnv> {
     }
     if (path === '/quota/usage' || path === '/quota/reserve') {
       const subject = String(body.subject ?? '');
-      const access = String(body.access) as AiAccessKind;
       const now = Number(body.now);
       sql.exec('DELETE FROM quota_events WHERE timestamp <= ?', now - THIRTY_DAYS_MS);
       sql.exec('DELETE FROM quota_requests WHERE created_at <= ?', now - THIRTY_DAYS_MS);
       const rows = [...sql.exec<EventRow>('SELECT operation_class, timestamp, request_id FROM quota_events WHERE subject = ? AND timestamp > ? ORDER BY timestamp', subject, now - THIRTY_DAYS_MS)];
       const events = rows.map((row) => ({ operationClass: row.operation_class, timestamp: row.timestamp, requestId: row.request_id }));
-      if (path === '/quota/usage') return Response.json(quotaUsage(events, access, now));
+      if (path === '/quota/usage') return Response.json(quotaUsage(events, now));
       const requestId = String(body.requestId ?? '');
       const prior = [...sql.exec<{ state: string; created_at: number }>('SELECT state, created_at FROM quota_requests WHERE subject = ? AND request_id = ?', subject, requestId)][0];
       // Deduplication is bounded: a retry arrives in seconds, and an identifier presented much
       // later is a new submission even when a client derived it from the meal itself.
       if ((prior?.state === 'reserved' || prior?.state === 'finalized') && prior.created_at > now - DUPLICATE_WINDOW_MS) {
-        return Response.json({ allowed: true, duplicate: true, usage: quotaUsage(events, access, now) });
+        return Response.json({ allowed: true, duplicate: true, usage: quotaUsage(events, now) });
       }
-      const operation = String(body.operation ?? '');
-      const decision = decideQuota(events, access, operation, now);
+      const decision = decideQuota(events, now);
       if (!decision.allowed) return Response.json(decision);
       sql.exec('INSERT OR REPLACE INTO quota_requests (subject, request_id, state, created_at) VALUES (?, ?, ?, ?)', subject, requestId, 'reserved', now);
-      sql.exec('INSERT OR REPLACE INTO quota_events (subject, operation_class, timestamp, request_id) VALUES (?, ?, ?, ?)', subject, operationClass(access, operation), now, requestId);
-      return Response.json({ ...decision, usage: quotaUsage([...events, { operationClass: operationClass(access, operation), timestamp: now, requestId }], access, now) });
+      sql.exec("INSERT OR REPLACE INTO quota_events (subject, operation_class, timestamp, request_id) VALUES (?, 'paid', ?, ?)", subject, now, requestId);
+      return Response.json({ ...decision, usage: quotaUsage([...events, { operationClass: 'paid', timestamp: now, requestId }], now) });
     }
     if (path === '/execution/claim') {
       return Response.json(this.executions.claim(

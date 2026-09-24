@@ -56,9 +56,7 @@ test('production subscriptions use an isolated Worker and state namespace', () =
   assert.deepEqual(Object.keys(production.vars ?? {}).sort(), [
     'GEMINI_PRICING',
     'REVENUECAT_ENTITLEMENT_ID',
-    'SUBSCRIPTIONS_ENABLED',
   ]);
-  assert.equal(production.vars?.SUBSCRIPTIONS_ENABLED, 'true');
   assert.equal(production.vars?.REVENUECAT_ENTITLEMENT_ID, 'eatlog_paid');
   // Priced per model, so an unpriced model reports unknown cost rather than free.
   const pricing = JSON.parse(production.vars?.GEMINI_PRICING ?? '{}') as Record<string, unknown>;

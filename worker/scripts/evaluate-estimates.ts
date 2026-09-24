@@ -161,6 +161,12 @@ async function runStaging(cases: EvaluationCase[], options: Options): Promise<Ar
       console.log(`Stopped at ${entry.id}: the service reported a limit.`);
       break;
     }
+    if (response.status === 402) {
+      // Hosted estimates are Itik-only, so every later case would fail the same way and be
+      // scored as unrecognized. Grant the evaluation install complimentary access instead.
+      console.log(`Stopped at ${entry.id}: EATLOG_EVALUATION_INSTALL_ID has no Itik entitlement.`);
+      break;
+    }
     if (!response.ok) {
       console.log(`${entry.id}: HTTP ${response.status}`);
       collected.push([entry, { status: 'unrecognized', components: [] }, { latencyMs, costUsd: null }]);

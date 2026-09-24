@@ -2,19 +2,18 @@ import {
   AI_GRANT_AUDIENCE,
   AI_GRANT_MAX_TTL_MS,
   ENTITLEMENT_CACHE_TTL_MS,
-  PROVISIONAL_PUGO_CACHE_TTL_MS,
   aggregateAiUsage,
   type AiModelRates,
   type AiTokenUsage,
   accessExpired,
   accessExpiresAt,
+  currentCachedAccess,
   hashQuotaIdentity,
   type ExecutionClaim,
   normalizeRevenueCatSubscriber,
   signAiGrant,
   verifyAiGrant,
   type GrantClaims,
-  type AiAccessKind,
   type QuotaDecision,
   type SubscriptionStore,
   type VerifiedRevenueCatAccess,
@@ -54,7 +53,6 @@ export { attemptBudget };
 const USDA_ORIGIN = 'https://api.nal.usda.gov';
 const USDA_SEARCH_PATH = '/fdc/v1/foods/search';
 const USDA_PAGE_SIZE = 25;
-const PUGO_GEMINI_MODELS = GEMINI_ESTIMATE_MODELS;
 const PAID_GEMINI_MODELS = GEMINI_ESTIMATE_MODELS;
 const USDA_TIMEOUT_MS = 8000;
 // Measured against the live provider: a healthy flash-lite answers a described meal in 3-12s,
@@ -117,7 +115,6 @@ export interface Env {
   GEMINI_INSTALL_LIMITER: RateLimitBinding;
   GEMINI_IP_LIMITER: RateLimitBinding;
   GEMINI_EMERGENCY_LIMITER: RateLimitBinding;
-  SUBSCRIPTIONS_ENABLED?: string;
   REVENUECAT_SECRET_API_KEY?: string;
   REVENUECAT_WEBHOOK_AUTH?: string;
   AI_GRANT_SIGNING_KEY?: string;
@@ -730,10 +727,6 @@ function parseUpstreamJson(
   }
 }
 
-function subscriptionsEnabled(env: Env): boolean {
-  return env.SUBSCRIPTIONS_ENABLED === 'true';
-}
-
 function requireSubscriptionConfiguration(env: Env): asserts env is Env & {
   REVENUECAT_SECRET_API_KEY: string;
   REVENUECAT_WEBHOOK_AUTH: string;
@@ -748,10 +741,10 @@ function requireSubscriptionConfiguration(env: Env): asserts env is Env & {
     env.QUOTA_IDENTITY_SALT,
     env.RATE_LIMIT_SALT,
   ].some((value) => typeof value !== 'string' || !value.trim())) {
-    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { rejection: 'subscription-configuration' });
+    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Eatlog AI is unavailable. Try again later.', { rejection: 'subscription-configuration' });
   }
   if (env.REVENUECAT_ENTITLEMENT_ID && env.REVENUECAT_ENTITLEMENT_ID !== 'eatlog_paid') {
-    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Eatlog Pugo remains available.', { rejection: 'subscription-entitlement' });
+    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Eatlog AI is unavailable. Try again later.', { rejection: 'subscription-entitlement' });
   }
 }
 
@@ -775,27 +768,6 @@ async function constantTimeEqual(provided: string, expected: string): Promise<bo
   return difference === 0;
 }
 
-function pugoAccessConfirmed(access: VerifiedRevenueCatAccess['access']): boolean {
-  return access.kind === 'pugo'
-    && (access.reason === 'none' || access.reason === 'expired' || access.reason === 'revoked');
-}
-
-async function withPugoQuotaSubject(
-  verified: VerifiedRevenueCatAccess,
-  installId: string,
-  env: Env & { QUOTA_IDENTITY_SALT: string },
-): Promise<VerifiedRevenueCatAccess> {
-  if (verified.subjectIdentity || !pugoAccessConfirmed(verified.access)) return verified;
-  return {
-    ...verified,
-    subjectIdentity: await hashQuotaIdentity(`pugo:${installId}`, env.QUOTA_IDENTITY_SALT),
-  };
-}
-
-function grantAccess(access: VerifiedRevenueCatAccess['access']): AiAccessKind | null {
-  return access.kind === 'pugo' && !pugoAccessConfirmed(access) ? null : access.kind;
-}
-
 function bearerToken(request: Request): string | null {
   const header = request.headers.get('authorization')?.trim() ?? '';
   return header.startsWith('Bearer ') ? header.slice(7).trim() : null;
@@ -809,23 +781,17 @@ async function refreshRevenueCatAccess(
   now: number,
   force: boolean,
   deadline: Deadline,
-): Promise<{ verified: VerifiedRevenueCatAccess; customerKey: string; provisional: boolean }> {
+): Promise<VerifiedRevenueCatAccess> {
   requireSubscriptionConfiguration(env);
   const customerKey = await hashQuotaIdentity(`customer:${installId}`, env.RATE_LIMIT_SALT);
   if (!force) {
-    const cached = await store.getCached(customerKey, now);
-    if (cached && !accessExpired(cached.access, now)) {
-      const verified = await withPugoQuotaSubject(cached, installId, env);
-      if (verified.subjectIdentity !== cached.subjectIdentity) {
-        await store.putCached(customerKey, { ...cached, ...verified });
-      }
-      return { verified, customerKey, provisional: cached.provisional === true };
-    }
+    const cached = currentCachedAccess(await store.getCached(customerKey, now));
+    if (cached && !accessExpired(cached.access, now)) return cached;
   }
   try {
     // Too little time left to both ask RevenueCat and still produce an estimate: fall through
-    // to the cached or provisional answer rather than spending what remains on a call whose
-    // result would arrive after the client has gone.
+    // to the cached answer rather than spending what remains on a call whose result would
+    // arrive after the client has gone.
     if (deadline.remaining() <= REVENUECAT_TIMEOUT_MS / 2) throw new Error('insufficient time to verify access');
     const response = await fetchUpstream(fetchImpl, `${REVENUECAT_ORIGIN}/v1/subscribers/${encodeURIComponent(installId)}`, {
       headers: { Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`, Accept: 'application/json' },
@@ -833,57 +799,30 @@ async function refreshRevenueCatAccess(
     const normalized = normalizeRevenueCatSubscriber(parseUpstreamJson(response, 'revenuecat', 'bypass'), now);
     // A response we could not parse is not a verdict. Caching it would overwrite the last good
     // record with a non-answer and take the outage fallback down with it.
-    if (normalized.access.kind === 'pugo' && normalized.access.reason === 'malformed') {
+    if (normalized.access.kind === 'none' && normalized.access.reason === 'malformed') {
       throw new Error('unusable RevenueCat response');
     }
-    const paidSubjectIdentity = normalized.subjectIdentity
-      ? await hashQuotaIdentity(normalized.subjectIdentity, env.QUOTA_IDENTITY_SALT)
-      : null;
-    const verified = await withPugoQuotaSubject(
-      { access: normalized.access, subjectIdentity: paidSubjectIdentity },
-      installId,
-      env,
-    );
+    const verified: VerifiedRevenueCatAccess = {
+      access: normalized.access,
+      subjectIdentity: normalized.subjectIdentity
+        ? await hashQuotaIdentity(normalized.subjectIdentity, env.QUOTA_IDENTITY_SALT)
+        : null,
+    };
     const expiry = accessExpiresAt(normalized.access) ?? Number.POSITIVE_INFINITY;
     await store.putCached(customerKey, {
       ...verified,
       validUntil: Math.min(now + ENTITLEMENT_CACHE_TTL_MS, expiry),
     });
-    return { verified, customerKey, provisional: false };
+    return verified;
   } catch {
-    // The last verified access outranks the fallback, however old it is. Webhook
+    // The last verified access outranks everything else, however old it is. Webhook
     // invalidation expires this row instead of removing it precisely so a paying customer
     // still has something to fall back to here.
-    const cached = await store.getCached(customerKey, now, true);
-    if (cached && !accessExpired(cached.access, now)) {
-      return {
-        verified: await withPugoQuotaSubject(cached, installId, env),
-        customerKey,
-        provisional: cached.provisional === true,
-      };
-    }
-    // Nothing verified has ever been seen for this install, or what was seen has expired.
-    // Pugo quota is keyed on the install alone, so serve it rather than blocking a free
-    // estimate on an upstream the free tier never needed. Both the cache entry and the grant
-    // it produces expire with the outage window, never outliving their own justification.
-    //
-    // This says only that RevenueCat could not be reached, so it must never be written over a
-    // record that says something. The read above already returns before reaching here when one
-    // exists; the guard keeps that true if this order ever changes, because a fallback that
-    // overwrote the last verified access would take the outage fallback down with it.
-    const verified = await withPugoQuotaSubject(
-      { access: { kind: 'pugo', checkedAt: new Date(now).toISOString(), reason: 'none' }, subjectIdentity: null },
-      installId,
-      env,
-    );
-    if (!cached || cached.provisional === true) {
-      await store.putCached(customerKey, {
-        ...verified,
-        validUntil: now + PROVISIONAL_PUGO_CACHE_TTL_MS,
-        provisional: true,
-      });
-    }
-    return { verified, customerKey, provisional: true };
+    const cached = currentCachedAccess(await store.getCached(customerKey, now, true));
+    if (cached && !accessExpired(cached.access, now)) return cached;
+    // Nothing verified has been seen for this install. Hosted AI is paid only, so there is no
+    // free answer to fall back to: the estimate fails and the client may retry.
+    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Eatlog AI is unavailable. Try again later.', { rejection: 'entitlement-unverified' });
   }
 }
 
@@ -897,21 +836,16 @@ async function issueAiGrant(
   verified: VerifiedRevenueCatAccess,
   env: Env,
   now: number,
-  provisional = false,
 ): Promise<IssuedAiGrant | null> {
-  const access = grantAccess(verified.access);
-  if (!access || !verified.subjectIdentity) return null;
+  const { access } = verified;
+  if (access.kind === 'none' || !verified.subjectIdentity) return null;
   requireSubscriptionConfiguration(env);
-  // A provisional grant states only that RevenueCat was unreachable, so it must expire with
-  // the outage window. Left at the normal ceiling it would be a bearer token asserting free
-  // limits for 30 days, and `authorizeEstimate` honours a valid grant without re-checking.
-  const ceiling = provisional ? PROVISIONAL_PUGO_CACHE_TTL_MS : AI_GRANT_MAX_TTL_MS;
   const claims: GrantClaims = {
     aud: AI_GRANT_AUDIENCE,
     sub: verified.subjectIdentity,
-    access,
+    access: access.kind,
     iat: now,
-    exp: Math.min(now + ceiling, accessExpiresAt(verified.access) ?? Number.POSITIVE_INFINITY),
+    exp: Math.min(now + AI_GRANT_MAX_TTL_MS, accessExpiresAt(access) ?? Number.POSITIVE_INFINITY),
   };
   return {
     claims,
@@ -929,10 +863,10 @@ async function accessRefresh(
   force: boolean,
   deadline: Deadline,
 ): Promise<Response> {
-  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force, deadline);
-  const grant = await issueAiGrant(verified, env, now, provisional);
+  const verified = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, force, deadline);
+  const grant = await issueAiGrant(verified, env, now);
   if (!grant) return json({ access: verified.access, usage: { kind: 'none' } });
-  const usage = await store.usage(grant.claims.sub, grant.claims.access, now);
+  const usage = await store.usage(grant.claims.sub, now);
   return json({
     access: verified.access,
     grant: { token: grant.token, expiresAt: grant.expiresAt },
@@ -955,10 +889,10 @@ async function authorizeEstimate(
     const claims = await verifyAiGrant(token, env.AI_GRANT_SIGNING_KEY, now);
     if (claims) return { claims, refreshedGrant: null };
   }
-  const { verified, provisional } = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false, deadline);
-  const refreshedGrant = await issueAiGrant(verified, env, now, provisional);
+  const verified = await refreshRevenueCatAccess(installId, env, store, fetchImpl, now, false, deadline);
+  const refreshedGrant = await issueAiGrant(verified, env, now);
   if (!refreshedGrant) {
-    throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Refresh your plan and try again.', { rejection: 'entitlement-refresh' });
+    throw new HttpError(402, 'PAID_ACCESS_REQUIRED', PAID_ACCESS_MESSAGE, { rejection: 'paid-access' });
   }
   return { claims: refreshedGrant.claims, refreshedGrant };
 }
@@ -970,10 +904,12 @@ function attachGrant(response: Response, grant: IssuedAiGrant): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+const PAID_ACCESS_MESSAGE = 'Eatlog Itik is required for Eatlog AI estimates.';
+
 async function requireGrant(request: Request, env: Env, now: number): Promise<GrantClaims> {
   requireSubscriptionConfiguration(env);
   const token = bearerToken(request);
-  if (!token) throw new HttpError(402, 'PAID_ACCESS_REQUIRED', 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
+  if (!token) throw new HttpError(402, 'PAID_ACCESS_REQUIRED', PAID_ACCESS_MESSAGE, { rejection: 'paid-access' });
   const claims = await verifyAiGrant(token, env.AI_GRANT_SIGNING_KEY, now);
   if (!claims) throw new HttpError(503, 'ENTITLEMENT_UNAVAILABLE', 'Paid access could not be verified. Refresh your plan and try again.', { rejection: 'grant' });
   return claims;
@@ -1392,19 +1328,16 @@ export async function handleRequest(
 
     const fetchImpl = dependencies.fetchImpl ?? fetch;
     if (route === 'revenuecat-webhook') {
-      if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
       return await handleRevenueCatWebhook(request, env, resolveSubscriptionStore(env, dependencies.subscriptionStore), deadline);
     }
     if (route === 'usage') {
-      if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
       const now = (dependencies.now ?? Date.now)();
       const claims = await requireGrant(request, env, now);
-      return json(await resolveSubscriptionStore(env, dependencies.subscriptionStore).usage(claims.sub, claims.access, now));
+      return json(await resolveSubscriptionStore(env, dependencies.subscriptionStore).usage(claims.sub, now));
     }
 
     const installId = requireInstallId(request);
     if (route === 'access-refresh') {
-      if (!subscriptionsEnabled(env)) throw new HttpError(404, 'NOT_FOUND', 'Route not found.', { rejection: 'route-disabled' });
       requireJsonContentType(request);
       const body = await readJsonObject(request, 1024, deadline);
       rejectUnknownProperties(body, ['force']);
@@ -1436,11 +1369,6 @@ export async function handleRequest(
       return await usdaDetail(parseFdcId(url.pathname), env, context, fetchImpl, defaultCache, deadline);
     }
     requireJsonContentType(request);
-    if (!subscriptionsEnabled(env)) {
-      const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
-      return (await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS, deadline)).response;
-    }
-
     const input = parseEstimate(await readJsonObject(request, MAX_ESTIMATE_BODY_BYTES, deadline));
     const idempotencyKey = request.headers.get('x-eatlog-request-id')?.trim() ?? '';
     if (!/^[A-Za-z0-9-]{16,128}$/.test(idempotencyKey)) {
@@ -1469,7 +1397,7 @@ export async function handleRequest(
     let reservation: QuotaDecision;
     try {
       reservation = await withinDeadline(
-        store.reserve(claims.sub, claims.access, input.operation, idempotencyKey, now),
+        store.reserve(claims.sub, idempotencyKey, now),
         STATE_CALL_TIMEOUT_MS,
         () => new HttpError(504, 'STATE_TIMEOUT', 'Food service could not complete the request.', { rejection: 'state-timeout' }),
       );
@@ -1478,11 +1406,7 @@ export async function handleRequest(
       throw error;
     }
     if (!reservation.allowed) {
-      if (reservation.code === 'PAID_ACCESS_REQUIRED') {
-        throw new HttpError(402, reservation.code, 'Eatlog Manok or Itik is required for AI estimates.', { rejection: 'paid-access' });
-      }
       const messages = {
-        PUGO_DAILY_LIMIT: 'The 3-estimate rolling 24-hour Pugo allowance is used. Try again when the window resets.',
         FAIR_USE_DAILY_LIMIT: 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when the window resets.',
         FAIR_USE_30_DAY_LIMIT: 'The 250-operation rolling 30-day fair-use limit is reached. Try again when the window resets.',
         REFUND_DAILY_LIMIT: 'Too many recent submissions had no recognizable food in them. Try again when the window resets.',
@@ -1528,8 +1452,7 @@ export async function handleRequest(
         return authorization.refreshedGrant ? attachGrant(replayed, authorization.refreshedGrant) : replayed;
       }
       try {
-        const models = claims.access === 'pugo' ? PUGO_GEMINI_MODELS : PAID_GEMINI_MODELS;
-        const { response, recognized } = await geminiEstimate(input, env, fetchImpl, models, deadline);
+        const { response, recognized } = await geminiEstimate(input, env, fetchImpl, PAID_GEMINI_MODELS, deadline);
         const body = await response.clone().text();
         await bookkeeping(store.completeExecution(claims.sub, idempotencyKey, claim.token, 'succeeded', body, clock()));
         // The provider answered. Either it found food, or it looked and found none — the second
@@ -1578,7 +1501,6 @@ export const contract = {
   FOOD_ESTIMATE_SYSTEM_INSTRUCTION,
   USDA_PAGE_SIZE,
   GEMINI_ORIGIN,
-  PUGO_GEMINI_MODELS,
   PAID_GEMINI_MODELS,
   MAX_RESULTS,
   MAX_COMPONENTS,

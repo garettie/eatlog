@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { attemptBudget, contract, handleRequest, hashInstallId, resetModelCooldowns, routeModels, type Env } from '../src/index.js';
-import { MemorySubscriptionStore, type SubscriptionStore } from '../src/subscriptions.js';
+import worker, { attemptBudget, contract, handleRequest, hashInstallId, resetModelCooldowns, routeModels, type Env } from '../src/index.js';
+import { AI_GRANT_AUDIENCE, MemorySubscriptionStore, signAiGrant, type SubscriptionStore } from '../src/subscriptions.js';
 
 const INSTALL_ID = '0123456789abcdef0123456789abcdef';
 const JPEG = '/9j/2f/Z';
@@ -38,11 +38,31 @@ class MemoryCache {
   }
 }
 
+const GRANT_SIGNING_KEY = 'grant-signing-secret';
+
+/**
+ * Hosted estimates always need paid access now. Tests about the estimate itself, not about who
+ * may request one, carry this grant so they reach Gemini the way an Itik install does.
+ */
+const ITIK_GRANT = await signAiGrant({
+  aud: AI_GRANT_AUDIENCE,
+  sub: 'itik-test-subject',
+  access: 'subscription',
+  iat: Date.now(),
+  exp: Date.now() + 24 * 60 * 60 * 1000,
+}, GRANT_SIGNING_KEY);
+
 function makeEnv(overrides: Partial<Env> = {}): Env {
   return {
     USDA_API_KEY: 'usda-secret-value',
     GEMINI_API_KEY: 'gemini-secret-value',
     RATE_LIMIT_SALT: 'salt-secret-value',
+    REVENUECAT_SECRET_API_KEY: 'revenuecat-secret',
+    REVENUECAT_WEBHOOK_AUTH: 'Bearer webhook-secret',
+    AI_GRANT_SIGNING_KEY: GRANT_SIGNING_KEY,
+    QUOTA_IDENTITY_SALT: 'quota-identity-salt',
+    REVENUECAT_ENTITLEMENT_ID: 'eatlog_paid',
+    ACCESS_STATE: {} as DurableObjectNamespace,
     USDA_INSTALL_LIMITER: new Limiter(),
     USDA_IP_LIMITER: new Limiter(),
     USDA_EMERGENCY_LIMITER: new Limiter(),
@@ -78,6 +98,18 @@ function request(
   return new Request(`https://worker.example${path}`, init);
 }
 
+let itikRequests = 0;
+
+function asItik(req: Request): Request {
+  const headers = new Headers(req.headers);
+  if (!headers.has('authorization')) headers.set('authorization', `Bearer ${ITIK_GRANT}`);
+  if (!headers.has('x-eatlog-request-id')) {
+    itikRequests += 1;
+    headers.set('x-eatlog-request-id', `itik-request-${String(itikRequests).padStart(6, '0')}`);
+  }
+  return new Request(req, { headers });
+}
+
 async function call(
   req: Request,
   options: {
@@ -90,11 +122,13 @@ async function call(
   } = {},
 ): Promise<{ response: Response; body: any; context: ReturnType<typeof makeContext> }> {
   const context = makeContext();
-  const response = await handleRequest(req, options.env ?? makeEnv(), context, {
+  // A test that brings no subscription store is not about access, so its estimate runs as Itik.
+  const itik = !options.subscriptionStore && new URL(req.url).pathname === '/v1/estimate';
+  const response = await handleRequest(itik ? asItik(req) : req, options.env ?? makeEnv(), context, {
     fetchImpl: options.fetchImpl,
     cache: options.cache ?? null,
     requestId: () => options.requestId ?? 'request-fixed',
-    subscriptionStore: options.subscriptionStore,
+    subscriptionStore: options.subscriptionStore ?? (itik ? new MemorySubscriptionStore() : undefined),
     ...(options.now ? { now: options.now } : {}),
   });
   const body = await response.clone().json();
@@ -141,16 +175,7 @@ const recognized = {
 };
 
 function subscriptionEnv(overrides: Partial<Env> = {}): Env {
-  return makeEnv({
-    SUBSCRIPTIONS_ENABLED: 'true',
-    REVENUECAT_SECRET_API_KEY: 'revenuecat-secret',
-    REVENUECAT_WEBHOOK_AUTH: 'Bearer webhook-secret',
-    AI_GRANT_SIGNING_KEY: 'grant-signing-secret',
-    QUOTA_IDENTITY_SALT: 'quota-identity-salt',
-    REVENUECAT_ENTITLEMENT_ID: 'eatlog_paid',
-    ACCESS_STATE: {} as DurableObjectNamespace,
-    ...overrides,
-  });
+  return makeEnv(overrides);
 }
 
 function paidRevenueCat(periodType = 'normal'): unknown {
@@ -1025,7 +1050,7 @@ test('an unrecognized estimate refunds the quota it reserved', async () => {
   const env = subscriptionEnv();
   let recognize = false;
   const fetchImpl = (async (input: string | URL | Request) => {
-    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
     return geminiResponse(recognize ? recognized : {
       status: 'unrecognized',
       unrecognizedReason: 'No food is visible.',
@@ -1052,7 +1077,7 @@ test('an unrecognized estimate refunds the quota it reserved', async () => {
   const afterRejections = await call(request('/v1/usage', 'GET', undefined, grant), {
     env, fetchImpl, subscriptionStore: store,
   });
-  assert.equal(afterRejections.body.remaining24Hours, 3);
+  assert.equal(afterRejections.body.remaining24Hours, 30);
 
   // A usable estimate still costs one.
   recognize = true;
@@ -1063,7 +1088,7 @@ test('an unrecognized estimate refunds the quota it reserved', async () => {
   const afterAccepted = await call(request('/v1/usage', 'GET', undefined, grant), {
     env, fetchImpl, subscriptionStore: store,
   });
-  assert.equal(afterAccepted.body.remaining24Hours, 2);
+  assert.equal(afterAccepted.body.remaining24Hours, 29);
 });
 
 test('repeated refunds are capped even though they never touch the visible quota', async () => {
@@ -1161,18 +1186,52 @@ test('a Gemini failure surfaces its own status even when the refund also fails',
   assert.equal(result.body.error.code, 'MALFORMED_UPSTREAM');
 });
 
-test('Pugo refresh and inline estimates share one three-request installation allowance', async () => {
+test('through the deployed entry point with no injected dependencies, an install without an entitlement never reaches Gemini', async (t) => {
+  const upstream: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    const url = String(input instanceof Request ? input.url : input);
+    upstream.push(url);
+    if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
+    return geminiResponse(recognized);
+  });
+  // The real Durable Object needs the Workers runtime, so this namespace answers only the
+  // access-cache calls an entitlement check makes. Any quota or execution call means the
+  // request got past authorization, which is the failure this test exists to catch.
+  const stateCalls: string[] = [];
+  const accessState = {
+    idFromName: (name: string) => name,
+    get: () => ({
+      fetch: async (url: string) => {
+        const path = new URL(url).pathname;
+        stateCalls.push(path);
+        if (path === '/cache/get') return jsonResponse(null);
+        if (path === '/cache/put') return jsonResponse({ ok: true });
+        return jsonResponse({ error: 'unexpected state call' }, 500);
+      },
+    }),
+  } as unknown as DurableObjectNamespace;
+
+  const response = await worker.fetch(
+    request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+      'X-Eatlog-Request-ID': 'request-no-dependencies-0001',
+    }),
+    makeEnv({ ACCESS_STATE: accessState }),
+    makeContext(),
+  );
+  const body = await response.json() as { error: { code: string } };
+  assert.equal(response.status, 402);
+  assert.equal(body.error.code, 'PAID_ACCESS_REQUIRED');
+  assert.deepEqual(upstream.map((url) => new URL(url).origin), ['https://api.revenuecat.com']);
+  assert.deepEqual(stateCalls, ['/cache/get', '/cache/put']);
+});
+
+test('an install without an entitlement gets no grant and every hosted estimate is refused before Gemini', async () => {
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
-  const geminiUrls: string[] = [];
-  let revenueCatCalls = 0;
+  let geminiCalls = 0;
   const fetchImpl = (async (input: string | URL | Request) => {
-    const url = String(input);
-    if (url.startsWith('https://api.revenuecat.com/')) {
-      revenueCatCalls += 1;
-      return jsonResponse(freeRevenueCat());
-    }
-    geminiUrls.push(url);
+    if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
+    geminiCalls += 1;
     return geminiResponse(recognized);
   }) as typeof fetch;
 
@@ -1180,67 +1239,30 @@ test('Pugo refresh and inline estimates share one three-request installation all
     env, fetchImpl, subscriptionStore: store,
   });
   assert.equal(refreshed.response.status, 200);
-  assert.equal(refreshed.body.access.kind, 'pugo');
-  assert.equal(typeof refreshed.body.grant.token, 'string');
-  assert.deepEqual(refreshed.body.usage, {
-    kind: 'free',
-    remaining24Hours: 3,
-    nextEligibleAt: null,
-  });
+  assert.equal(refreshed.body.access.kind, 'none');
+  assert.equal(refreshed.body.grant, undefined);
+  assert.deepEqual(refreshed.body.usage, { kind: 'none' });
 
-  const first = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
-    'X-Eatlog-Request-ID': 'request-pugo-0001',
-  }), { env, fetchImpl, subscriptionStore: store });
-  assert.equal(first.response.status, 200);
-  assert.equal(first.response.headers.get('x-eatlog-ai-grant') != null, true);
-
-  const usage = await call(request('/v1/usage', 'GET', undefined, {
-    Authorization: `Bearer ${refreshed.body.grant.token}`,
-  }), { env, fetchImpl, subscriptionStore: store });
-  assert.deepEqual(usage.body, {
-    kind: 'free',
-    remaining24Hours: 2,
-    nextEligibleAt: null,
-  });
-
-  for (let index = 2; index <= 3; index += 1) {
-    const input = index % 2 === 0
-      ? { operation: 'scan', imageBase64: JPEG }
-      : { operation: 'describe', text: 'rice' };
+  for (const input of [
+    { operation: 'scan', imageBase64: JPEG },
+    { operation: 'describe', text: 'rice' },
+    { operation: 'clarify-meal', text: 'rice', context: { mealName: 'Rice', components: [{ name: 'Rice', estimatedGrams: 158 }] } },
+    { operation: 'clarify-component', text: 'rice', context: { mealName: 'Rice', components: [{ name: 'Rice', estimatedGrams: 158 }] } },
+  ]) {
     const result = await call(request('/v1/estimate', 'POST', input, {
-      Authorization: `Bearer ${refreshed.body.grant.token}`,
-      'X-Eatlog-Request-ID': `request-pugo-000${index}`,
-    }), { env, fetchImpl, subscriptionStore: store });
-    assert.equal(result.response.status, 200);
-  }
-
-  const over = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
-    Authorization: `Bearer ${refreshed.body.grant.token}`,
-    'X-Eatlog-Request-ID': 'request-pugo-0004',
-  }), { env, fetchImpl, subscriptionStore: store });
-  assert.equal(over.response.status, 429);
-  assert.equal(over.body.error.code, 'PUGO_DAILY_LIMIT');
-  assert.equal(typeof over.body.error.nextEligibleAt, 'string');
-  assert.equal(geminiUrls.length, 3);
-  assert.equal(geminiUrls.every((url) => url.includes(`/models/${contract.PUGO_GEMINI_MODELS[0]}:generateContent`)), true);
-  assert.equal(revenueCatCalls, 1);
-
-  for (const operation of ['clarify-meal', 'clarify-component']) {
-    const result = await call(request('/v1/estimate', 'POST', {
-      operation,
-      text: 'rice',
-      context: { mealName: 'Rice', components: [{ name: 'Rice', estimatedGrams: 158 }] },
-    }, {
-      Authorization: `Bearer ${refreshed.body.grant.token}`,
-      'X-Eatlog-Request-ID': `request-${operation}`,
+      'X-Eatlog-Request-ID': `request-no-entitlement-${input.operation}`,
     }), { env, fetchImpl, subscriptionStore: store });
     assert.equal(result.response.status, 402);
     assert.equal(result.body.error.code, 'PAID_ACCESS_REQUIRED');
+    assert.equal(result.response.headers.get('x-eatlog-ai-grant'), null);
   }
-  assert.equal(geminiUrls.length, 3);
+
+  const usage = await call(request('/v1/usage', 'GET'), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(usage.response.status, 402);
+  assert.equal(geminiCalls, 0);
 });
 
-test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices every attempt it made', async () => {
+test('hosted estimates use the 3.5-to-3.1 Gemini fallback and price every attempt they made', async () => {
   const original = console.log;
   const logs: Array<Record<string, unknown>> = [];
   console.log = (value?: unknown) => {
@@ -1254,7 +1276,7 @@ test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices ev
     });
     const fallbackFetch = (async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
+      if (url.startsWith('https://api.revenuecat.com/')) return jsonResponse(paidRevenueCat());
       urls.push(url);
       if (urls.length === 1) return new Response('{', { headers: { 'Content-Type': 'application/json' } });
       return jsonResponse({
@@ -1263,7 +1285,7 @@ test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices ev
       });
     }) as typeof fetch;
     const fallback = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
-      'X-Eatlog-Request-ID': 'request-pugo-fallback',
+      'X-Eatlog-Request-ID': 'request-hosted-fallback',
     }), {
       env,
       fetchImpl: fallbackFetch,
@@ -1271,12 +1293,12 @@ test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices ev
     });
     assert.equal(fallback.response.status, 200);
     assert.equal(urls.length, 2);
-    assert.ok(urls[0].includes(`/models/${contract.PUGO_GEMINI_MODELS[0]}:generateContent`));
-    assert.ok(urls[1].includes(`/models/${contract.PUGO_GEMINI_MODELS[1]}:generateContent`));
+    assert.ok(urls[0].includes(`/models/${contract.PAID_GEMINI_MODELS[0]}:generateContent`));
+    assert.ok(urls[1].includes(`/models/${contract.PAID_GEMINI_MODELS[1]}:generateContent`));
     const attempts = logs.filter((entry) => entry.event === 'ai_usage');
     // Both attempts are recorded: the first was made, and whatever it cost is not zero simply
     // because its reply could not be parsed.
-    assert.deepEqual(attempts.map((entry) => entry.model), [...contract.PUGO_GEMINI_MODELS]);
+    assert.deepEqual(attempts.map((entry) => entry.model), [...contract.PAID_GEMINI_MODELS]);
     assert.deepEqual(attempts.map((entry) => entry.outcome), ['invalid-response', 'succeeded']);
     assert.equal(attempts[0].estimatedCostUsd, null);
     assert.equal(attempts[1].estimatedCostUsd, 0.0002);
@@ -1284,7 +1306,7 @@ test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices ev
 
     logs.length = 0;
     const primary = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
-      'X-Eatlog-Request-ID': 'request-pugo-primary',
+      'X-Eatlog-Request-ID': 'request-hosted-primary',
     }), {
       env: subscriptionEnv({
         GEMINI_INPUT_USD_PER_MILLION: '',
@@ -1292,7 +1314,7 @@ test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices ev
       }),
       fetchImpl: (async (input: string | URL | Request) => (
         String(input).startsWith('https://api.revenuecat.com/')
-          ? jsonResponse(freeRevenueCat())
+          ? jsonResponse(paidRevenueCat())
           : jsonResponse({
               candidates: [{ content: { parts: [{ text: JSON.stringify(recognized) }] } }],
               usageMetadata: { promptTokenCount: 1_000, candidatesTokenCount: 250 },
@@ -1302,7 +1324,7 @@ test('Pugo uses the same 3.5-to-3.1 Gemini fallback as paid access and prices ev
     });
     assert.equal(primary.response.status, 200);
     const primaryUsage = logs.find((entry) => entry.event === 'ai_usage');
-    assert.equal(primaryUsage?.model, contract.PUGO_GEMINI_MODELS[0]);
+    assert.equal(primaryUsage?.model, contract.PAID_GEMINI_MODELS[0]);
     assert.equal(primaryUsage?.estimatedCostUsd, null);
   } finally {
     console.log = original;
@@ -1348,22 +1370,25 @@ test('estimate authorizes inline, reuses cached access, and returns a grant for 
   assert.equal(revenueCatCalls, 2);
 });
 
-test('malformed RevenueCat access with no cached record falls back to provisional Pugo, like an outage', async () => {
+test('malformed RevenueCat access with no cached record is unavailable, not free', async () => {
+  let geminiCalls = 0;
   const malformedFetch = (async (input: string | URL | Request) => {
     if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse({ nope: true });
+    geminiCalls += 1;
     return geminiResponse(recognized);
   }) as typeof fetch;
   const result = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
-    'X-Eatlog-Request-ID': 'request-malformed-free',
+    'X-Eatlog-Request-ID': 'request-malformed-unverified',
   }), {
     env: subscriptionEnv(),
     fetchImpl: malformedFetch,
     subscriptionStore: new MemorySubscriptionStore(),
   });
-  // A malformed response is not a verdict, so it is not a reason to withhold the free tier
-  // from an install RevenueCat has never confirmed anything about.
-  assert.equal(result.response.status, 200);
-  assert.equal(result.body.status, 'recognized');
+  // A malformed response is not a verdict either way: not a denial, and not a reason to run
+  // Gemini for an install RevenueCat has never confirmed anything about.
+  assert.equal(result.response.status, 503);
+  assert.equal(result.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
+  assert.equal(geminiCalls, 0);
 });
 
 test('a malformed RevenueCat response cannot overwrite or deny a good cached record', async () => {
@@ -1375,7 +1400,7 @@ test('a malformed RevenueCat response cannot overwrite or deny a good cached rec
     subscriptionStore: store,
   });
   assert.equal(online.response.status, 200);
-  assert.equal(online.body.access.kind, 'manok');
+  assert.equal(online.body.access.kind, 'subscription');
 
   let geminiCalls = 0;
   const malformedFetch = (async (input: string | URL | Request) => {
@@ -1388,7 +1413,7 @@ test('a malformed RevenueCat response cannot overwrite or deny a good cached rec
     env, fetchImpl: malformedFetch, subscriptionStore: store,
   });
   assert.equal(stillPaid.response.status, 200);
-  assert.equal(stillPaid.body.access.kind, 'manok');
+  assert.equal(stillPaid.body.access.kind, 'subscription');
 
   const estimate = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
     Authorization: `Bearer ${stillPaid.body.grant.token}`,
@@ -1407,7 +1432,7 @@ test('a confirmed revoked or expired RevenueCat response still overwrites the ca
     subscriptionStore: store,
   });
   assert.equal(online.response.status, 200);
-  assert.equal(online.body.access.kind, 'manok');
+  assert.equal(online.body.access.kind, 'subscription');
 
   const revokedFetch = (async (input: string | URL | Request) => {
     if (String(input).startsWith('https://api.revenuecat.com/')) return jsonResponse(freeRevenueCat());
@@ -1417,18 +1442,19 @@ test('a confirmed revoked or expired RevenueCat response still overwrites the ca
     env, fetchImpl: revokedFetch, subscriptionStore: store,
   });
   assert.equal(revoked.response.status, 200);
-  assert.equal(revoked.body.access.kind, 'pugo');
+  assert.equal(revoked.body.access.kind, 'none');
+  assert.equal(revoked.body.grant, undefined);
 });
 
-test('an unreachable RevenueCat grants Pugo quota instead of blocking a free estimate', async () => {
+test('an unreachable RevenueCat with nothing verified cached fails retryably and never reaches Gemini', async () => {
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
   let geminiCalls = 0;
-  let revenueCatCalls = 0;
+  let reachable = false;
   const fetchImpl = (async (input: string | URL | Request) => {
     if (String(input).startsWith('https://api.revenuecat.com/')) {
-      revenueCatCalls += 1;
-      throw new Error('RevenueCat unavailable');
+      if (!reachable) throw new Error('RevenueCat unavailable');
+      return jsonResponse(paidRevenueCat());
     }
     geminiCalls += 1;
     return geminiResponse(recognized);
@@ -1437,33 +1463,25 @@ test('an unreachable RevenueCat grants Pugo quota instead of blocking a free est
   const estimate = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
     'X-Eatlog-Request-ID': 'request-outage-0001',
   }), { env, fetchImpl, subscriptionStore: store });
-  assert.equal(estimate.response.status, 200);
-  assert.equal(geminiCalls, 1);
+  assert.equal(estimate.response.status, 503);
+  assert.equal(estimate.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
+  assert.equal(estimate.body.error.message, 'Eatlog AI is unavailable. Try again later.');
+  assert.equal(estimate.response.headers.get('x-eatlog-ai-grant'), null);
+  assert.equal(geminiCalls, 0);
 
-  const grant = estimate.response.headers.get('x-eatlog-ai-grant');
-  assert.equal(typeof grant, 'string');
-  const usage = await call(request('/v1/usage', 'GET', undefined, {
-    Authorization: `Bearer ${grant}`,
-  }), { env, fetchImpl, subscriptionStore: store });
-  assert.deepEqual(usage.body, { kind: 'free', remaining24Hours: 2, nextEligibleAt: null });
-
-  const invalid = await call(request('/v1/estimate', 'POST', { privateImage: 'must-not-be-parsed' }, {
-    'X-Eatlog-Request-ID': 'request-outage-0002',
-  }), { env, fetchImpl, subscriptionStore: store });
-  assert.equal(invalid.response.status, 400);
-  assert.equal(geminiCalls, 1);
-
-  // The provisional cache absorbs the outage so each request does not re-pay the timeout.
-  assert.equal(revenueCatCalls, 1);
-
-  // The fallback grant expires with the outage window. At the 30-day ceiling it would be a
-  // bearer token asserting free limits long after RevenueCat recovered, and authorizeEstimate
-  // honours a valid grant without re-checking.
-  const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), {
+  const refresh = await call(request('/v1/access/refresh', 'POST', { force: true }), {
     env, fetchImpl, subscriptionStore: store,
   });
-  const lifetimeMs = Date.parse(refreshed.body.grant.expiresAt) - Date.now();
-  assert.ok(lifetimeMs > 0 && lifetimeMs <= 60_000, `provisional grant lived ${lifetimeMs}ms`);
+  assert.equal(refresh.response.status, 503);
+
+  // Nothing about the outage was remembered, so a paying customer is served the moment
+  // RevenueCat answers again.
+  reachable = true;
+  const recovered = await call(request('/v1/estimate', 'POST', { operation: 'describe', text: 'rice' }, {
+    'X-Eatlog-Request-ID': 'request-outage-0002',
+  }), { env, fetchImpl, subscriptionStore: store });
+  assert.equal(recovered.response.status, 200);
+  assert.equal(geminiCalls, 1);
 });
 
 test('a paid customer keeps access through an outage that follows a routine webhook', async () => {
@@ -1474,7 +1492,7 @@ test('a paid customer keeps access through an outage that follows a routine webh
     fetchImpl: (async () => jsonResponse(paidRevenueCat())) as typeof fetch,
     subscriptionStore: store,
   });
-  assert.equal(online.body.access.kind, 'manok');
+  assert.equal(online.body.access.kind, 'subscription');
 
   // A renewal invalidates the cached entitlement so the next request re-verifies.
   const accepted = await call(request('/v1/revenuecat/webhook', 'POST', {
@@ -1487,14 +1505,14 @@ test('a paid customer keeps access through an outage that follows a routine webh
   assert.equal(accepted.body.result, 'accepted');
 
   // RevenueCat is now unreachable. Invalidation must not have destroyed the fallback, or a
-  // renewal followed by a hiccup would silently demote a paying customer to free limits.
+  // renewal followed by a hiccup would silently cut a paying customer off.
   const outage = await call(request('/v1/access/refresh', 'POST', {}), {
     env,
     fetchImpl: (async () => { throw new Error('RevenueCat unavailable'); }) as typeof fetch,
     subscriptionStore: store,
   });
   assert.equal(outage.response.status, 200);
-  assert.equal(outage.body.access.kind, 'manok');
+  assert.equal(outage.body.access.kind, 'subscription');
   assert.equal(outage.body.usage.kind, 'paid');
 
   // The invalidation still forces a live re-check once the upstream answers again.
@@ -1504,11 +1522,11 @@ test('a paid customer keeps access through an outage that follows a routine webh
     fetchImpl: (async () => { revenueCatCalls += 1; return jsonResponse(paidRevenueCat()); }) as typeof fetch,
     subscriptionStore: store,
   });
-  assert.equal(recovered.body.access.kind, 'manok');
+  assert.equal(recovered.body.access.kind, 'subscription');
   assert.equal(revenueCatCalls, 1);
 });
 
-test('RevenueCat outage prefers an unexpired verified cache and otherwise falls back to redacted Pugo access', async () => {
+test('RevenueCat outage prefers an unexpired verified cache and otherwise fails without leaking the cause', async () => {
   const store = new MemorySubscriptionStore();
   const env = subscriptionEnv();
   const online = await call(request('/v1/access/refresh', 'POST', {}), {
@@ -1527,17 +1545,15 @@ test('RevenueCat outage prefers an unexpired verified cache and otherwise falls 
   assert.equal(cached.response.status, 200);
   assert.equal(JSON.stringify(cached.body).includes(raw), false);
 
-  assert.equal(cached.body.access.kind, 'manok');
+  assert.equal(cached.body.access.kind, 'subscription');
 
   const empty = await call(request('/v1/access/refresh', 'POST', {}), {
     env,
     fetchImpl: (async () => { throw new Error(raw); }) as typeof fetch,
     subscriptionStore: new MemorySubscriptionStore(),
   });
-  assert.equal(empty.response.status, 200);
-  assert.equal(empty.body.access.kind, 'pugo');
-  assert.equal(typeof empty.body.grant.token, 'string');
-  assert.equal(empty.body.usage.kind, 'free');
+  assert.equal(empty.response.status, 503);
+  assert.equal(empty.body.error.code, 'ENTITLEMENT_UNAVAILABLE');
   assert.equal(JSON.stringify(empty.body).includes(raw), false);
 });
 
@@ -2325,9 +2341,10 @@ test('an unreachable RevenueCat gives up in time for the estimate it was authori
   await reached;
   t.mock.timers.tick(9000);
   const { response, body } = await pending;
-  // The outage falls back to Pugo rather than failing, and the estimate still runs.
-  assert.equal(response.status, 200);
-  assert.equal(body.status, 'recognized');
+  // The hung verification is abandoned inside the client's patience and reported as a
+  // retryable outage, not left to run until the client gives up.
+  assert.equal(response.status, 503);
+  assert.equal(body.error.code, 'ENTITLEMENT_UNAVAILABLE');
 });
 
 test('a quota store that never answers fails the request instead of holding it open', async (t) => {
@@ -2364,7 +2381,7 @@ test('a quota store that never answers fails the request instead of holding it o
 test('a reservation that commits after the state call gave up is handed back, not charged', async (t) => {
   // `withinDeadline` does not cancel the call it stopped waiting for, so the Durable Object can
   // still commit a reservation the Worker has already given up on. Left alone that silently
-  // costs an estimate nobody received — the failure a free user meets as an early limit.
+  // costs an estimate nobody received — the failure a customer meets as an early limit.
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const memory = new MemorySubscriptionStore();
   const env = subscriptionEnv();
@@ -2379,8 +2396,8 @@ test('a reservation that commits after the state call gave up is handed back, no
     refund: memory.refund.bind(memory),
     claimExecution: memory.claimExecution.bind(memory),
     completeExecution: memory.completeExecution.bind(memory),
-    reserve: (subject, access, operation, requestId, at) => {
-      const committed = memory.reserve(subject, access, operation, requestId, at);
+    reserve: (subject, requestId, at) => {
+      const committed = memory.reserve(subject, requestId, at);
       if (!stall) return committed;
       announce();
       // Committed inside the store, never delivered to the Worker.
@@ -2389,7 +2406,7 @@ test('a reservation that commits after the state call gave up is handed back, no
   };
   const fetchImpl = (async (input: string | URL | Request) => (
     String(input).startsWith('https://api.revenuecat.com/')
-      ? jsonResponse(freeRevenueCat())
+      ? jsonResponse(paidRevenueCat())
       : geminiResponse(recognized)
   )) as typeof fetch;
 
@@ -2409,7 +2426,7 @@ test('a reservation that commits after the state call gave up is handed back, no
   stall = false;
   t.mock.timers.reset();
   const usage = await call(request('/v1/usage', 'GET', undefined, grant), { env, fetchImpl, subscriptionStore: store });
-  assert.equal(usage.body.remaining24Hours, 3);
+  assert.equal(usage.body.remaining24Hours, 30);
 });
 
 test('a request with too little time left is refused before it reserves anything', async () => {
@@ -2424,7 +2441,7 @@ test('a request with too little time left is refused before it reserves anything
     if (String(input).startsWith('https://api.revenuecat.com/')) {
       // Verification answered, but the request has spent most of its budget getting here.
       elapsed = 17_000;
-      return jsonResponse(freeRevenueCat());
+      return jsonResponse(paidRevenueCat());
     }
     geminiCalls += 1;
     return geminiResponse(recognized);
@@ -2439,12 +2456,12 @@ test('a request with too little time left is refused before it reserves anything
 
   elapsed = 0;
   const refreshed = await call(request('/v1/access/refresh', 'POST', { force: true }), {
-    env, fetchImpl: (async () => jsonResponse(freeRevenueCat())) as typeof fetch, subscriptionStore: memory,
+    env, fetchImpl: (async () => jsonResponse(paidRevenueCat())) as typeof fetch, subscriptionStore: memory,
   });
   const usage = await call(request('/v1/usage', 'GET', undefined, { Authorization: `Bearer ${refreshed.body.grant.token}` }), {
     env, fetchImpl, subscriptionStore: memory,
   });
-  assert.equal(usage.body.remaining24Hours, 3);
+  assert.equal(usage.body.remaining24Hours, 30);
 });
 
 test('the region relay is given the budget it must finish inside', async () => {

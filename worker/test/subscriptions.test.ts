@@ -9,9 +9,11 @@ import {
   accessExpired,
   accessExpiresAt,
   aggregateAiUsage,
+  currentCachedAccess,
   normalizeRevenueCatSubscriber,
   signAiGrant,
   verifyAiGrant,
+  type CachedAccess,
   type GrantClaims,
 } from '../src/subscriptions.js';
 
@@ -70,13 +72,66 @@ function subscriber(kind: 'trial' | 'manok' | 'itik' | 'complimentary'): unknown
 }
 
 test('RevenueCat server normalization covers trial, paid, lifetime, complimentary, expiry, refund, and malformed records', () => {
-  assert.equal(normalizeRevenueCatSubscriber(subscriber('trial'), NOW).access.kind, 'manok-trial');
-  assert.equal(normalizeRevenueCatSubscriber(subscriber('manok'), NOW).access.kind, 'manok');
-  assert.equal(normalizeRevenueCatSubscriber(subscriber('itik'), NOW).access.kind, 'itik');
+  const trial = normalizeRevenueCatSubscriber(subscriber('trial'), NOW).access;
+  assert.equal(trial.kind, 'subscription');
+  assert.equal(trial.kind === 'subscription' && trial.trial, true);
+  const renewing = normalizeRevenueCatSubscriber(subscriber('manok'), NOW).access;
+  assert.equal(renewing.kind, 'subscription');
+  assert.equal(renewing.kind === 'subscription' && renewing.trial, false);
+  assert.equal(normalizeRevenueCatSubscriber(subscriber('itik'), NOW).access.kind, 'purchase');
   assert.equal(normalizeRevenueCatSubscriber(subscriber('complimentary'), NOW).access.kind, 'complimentary');
-  assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: {} } }, NOW).access.kind, 'pugo');
-  assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: { eatlog_paid: { product_identifier: 'eatlog_manok', expires_date: '2026-08-01T00:00:00Z' } } } }, NOW).access.kind, 'pugo');
-  assert.equal(normalizeRevenueCatSubscriber({ nope: true }, NOW).access.kind, 'pugo');
+  assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: {} } }, NOW).access.kind, 'none');
+  assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: { eatlog_paid: { product_identifier: 'eatlog_manok', expires_date: '2026-08-01T00:00:00Z' } } } }, NOW).access.kind, 'none');
+  assert.equal(normalizeRevenueCatSubscriber({ nope: true }, NOW).access.kind, 'none');
+});
+
+test('any product behind eatlog_paid is Itik, classified by record shape rather than product ID', () => {
+  const yearly = subscriber('manok') as any;
+  yearly.subscriber.entitlements.eatlog_paid.product_identifier = 'eatlog_itik_yearly:annual';
+  yearly.subscriber.subscriptions = { 'eatlog_itik_yearly:annual': yearly.subscriber.subscriptions.eatlog_manok };
+  assert.equal(normalizeRevenueCatSubscriber(yearly, NOW).access.kind, 'subscription');
+
+  const oneTime = subscriber('itik') as any;
+  oneTime.subscriber.entitlements.eatlog_paid.product_identifier = 'eatlog_itik_once';
+  oneTime.subscriber.non_subscriptions = { eatlog_itik_once: oneTime.subscriber.non_subscriptions.eatlog_itik };
+  assert.equal(normalizeRevenueCatSubscriber(oneTime, NOW).access.kind, 'purchase');
+
+  // A one-time purchase that claims an expiry is not a shape RevenueCat produces.
+  const expiring = subscriber('itik') as any;
+  expiring.subscriber.entitlements.eatlog_paid.expires_date = '2026-09-22T00:00:00Z';
+  assert.equal(normalizeRevenueCatSubscriber(expiring, NOW).access.kind, 'none');
+});
+
+test('quota subjects keep their pre-rename identities so paid allowances survive the deploy', () => {
+  assert.equal(normalizeRevenueCatSubscriber(subscriber('manok'), NOW).subjectIdentity, 'manok:stable-subscription');
+  assert.equal(normalizeRevenueCatSubscriber(subscriber('trial'), NOW).subjectIdentity, 'manok:stable-subscription');
+  assert.equal(normalizeRevenueCatSubscriber(subscriber('itik'), NOW).subjectIdentity, 'itik:stable-lifetime');
+  assert.equal(normalizeRevenueCatSubscriber(subscriber('complimentary'), NOW).subjectIdentity, 'complimentary:user-id:eatlog_paid');
+});
+
+test('cached access written before the tier rename still reads as the same paid access', () => {
+  const legacy = (access: Record<string, unknown>): CachedAccess => (
+    { access: access as unknown as CachedAccess['access'], subjectIdentity: 'subject', validUntil: NOW }
+  );
+  const checkedAt = new Date(NOW).toISOString();
+  assert.deepEqual(
+    currentCachedAccess(legacy({ kind: 'manok-trial', checkedAt, expiresAt: '2026-09-22T00:00:00.000Z', willRenew: true, productId: 'eatlog_manok', billingState: 'active' }))?.access,
+    { kind: 'subscription', checkedAt, expiresAt: '2026-09-22T00:00:00.000Z', willRenew: true, productId: 'eatlog_manok', billingState: 'active', trial: true },
+  );
+  assert.deepEqual(
+    currentCachedAccess(legacy({ kind: 'manok', checkedAt, expiresAt: '2026-09-22T00:00:00.000Z', willRenew: false, productId: 'eatlog_manok', billingState: 'grace' }))?.access,
+    { kind: 'subscription', checkedAt, expiresAt: '2026-09-22T00:00:00.000Z', willRenew: false, productId: 'eatlog_manok', billingState: 'grace', trial: false },
+  );
+  assert.deepEqual(
+    currentCachedAccess(legacy({ kind: 'itik', checkedAt, productId: 'eatlog_itik', purchasedAt: null }))?.access,
+    { kind: 'purchase', checkedAt, productId: 'eatlog_itik', purchasedAt: null },
+  );
+  assert.equal(currentCachedAccess(legacy({ kind: 'pugo', checkedAt, reason: 'none' }))?.access.kind, 'none');
+  const complimentary = legacy({ kind: 'complimentary', checkedAt, expiresAt: null });
+  assert.equal(currentCachedAccess(complimentary), complimentary);
+  assert.equal(currentCachedAccess(null), null);
+  // The subject is untouched, so the customer's allowance carries on where it was.
+  assert.equal(currentCachedAccess(legacy({ kind: 'itik', checkedAt, productId: 'eatlog_itik', purchasedAt: null }))?.subjectIdentity, 'subject');
 });
 
 test('complimentary access without a stable RevenueCat user identity fails closed', () => {
@@ -85,7 +140,7 @@ test('complimentary access without a stable RevenueCat user identity fails close
 
   assert.deepEqual(normalizeRevenueCatSubscriber(malformed, NOW), {
     access: {
-      kind: 'pugo',
+      kind: 'none',
       checkedAt: new Date(NOW).toISOString(),
       reason: 'malformed',
     },
@@ -104,7 +159,7 @@ test('RevenueCat v1 subscription fields verify Manok and keep renewal identity s
   subscription.store_transaction_id = 'test-transaction-2';
   const renewed = normalizeRevenueCatSubscriber(first, NOW);
 
-  assert.equal(initial.access.kind, 'manok-trial');
+  assert.equal(initial.access.kind, 'subscription');
   assert.ok(initial.subjectIdentity);
   assert.equal(renewed.subjectIdentity, initial.subjectIdentity);
 });
@@ -120,16 +175,16 @@ test('server lifecycle normalization covers Manok cancellation/grace, Itik prece
   transition.subscriber.entitlements.eatlog_paid.product_identifier = 'eatlog_itik';
   transition.subscriber.entitlements.eatlog_paid.expires_date = null;
   transition.subscriber.non_subscriptions.eatlog_itik = [{ id: 'stable-lifetime', purchase_date: '2026-08-21T00:00:00Z' }];
-  assert.equal(normalizeRevenueCatSubscriber(transition, NOW).access.kind, 'itik');
+  assert.equal(normalizeRevenueCatSubscriber(transition, NOW).access.kind, 'purchase');
 
   const refundedItik = subscriber('manok') as any;
   refundedItik.subscriber.non_subscriptions.eatlog_itik = [{ id: 'refunded-lifetime', purchase_date: '2026-08-20T00:00:00Z' }];
-  assert.equal(normalizeRevenueCatSubscriber(refundedItik, NOW).access.kind, 'manok');
-  assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: {} } }, NOW).access.kind, 'pugo');
+  assert.equal(normalizeRevenueCatSubscriber(refundedItik, NOW).access.kind, 'subscription');
+  assert.equal(normalizeRevenueCatSubscriber({ subscriber: { entitlements: {} } }, NOW).access.kind, 'none');
 });
 
 test('signed AI grants reject forged, expired, wrong-audience, and overlong grants', async () => {
-  const base: GrantClaims = { aud: AI_GRANT_AUDIENCE, sub: 'subject', access: 'manok', iat: NOW, exp: NOW + 60_000 };
+  const base: GrantClaims = { aud: AI_GRANT_AUDIENCE, sub: 'subject', access: 'subscription', iat: NOW, exp: NOW + 60_000 };
   const valid = await signAiGrant(base, 'signing-secret');
   assert.deepEqual(await verifyAiGrant(valid, 'signing-secret', NOW), base);
   assert.equal(await verifyAiGrant(`${valid}x`, 'signing-secret', NOW), null);
@@ -139,127 +194,72 @@ test('signed AI grants reject forged, expired, wrong-audience, and overlong gran
   assert.equal(await verifyAiGrant(await signAiGrant({ ...base, exp: NOW + 31 * 24 * 60 * 60_000 }, 'signing-secret'), 'signing-secret', NOW), null);
 });
 
-test('signed AI grants accept every AI access class', async () => {
-  for (const access of ['pugo', 'manok-trial', 'manok', 'itik', 'complimentary'] as const) {
+test('signed AI grants accept every paid access class', async () => {
+  for (const access of ['purchase', 'subscription', 'complimentary'] as const) {
     const claims: GrantClaims = { aud: AI_GRANT_AUDIENCE, sub: access, access, iat: NOW, exp: NOW + 60_000 };
     assert.deepEqual(await verifyAiGrant(await signAiGrant(claims, 'signing-secret'), 'signing-secret', NOW), claims);
   }
 });
 
-test('Pugo shares three initial estimates per rolling 24 hours and rejects clarifications', async () => {
-  const store = new MemorySubscriptionStore();
-  assert.deepEqual(await store.usage('pugo', 'pugo', NOW), {
-    kind: 'free',
-    remaining24Hours: 3,
-    nextEligibleAt: null,
-  });
-
-  for (let index = 0; index < 3; index += 1) {
-    const operation = index % 2 === 0 ? 'scan' : 'describe';
-    const decision = await store.reserve('pugo', 'pugo', operation, `pugo-${index}`, NOW + index);
-    assert.equal(decision.allowed, true);
-    assert.deepEqual(decision.usage, {
-      kind: 'free',
-      remaining24Hours: 2 - index,
-      nextEligibleAt: index === 2 ? new Date(NOW + 24 * 60 * 60 * 1000).toISOString() : null,
-    });
+test('grants signed before the cutover, including 30-day Pugo grants, no longer verify', async () => {
+  // A Pugo grant was a bearer token for free hosted estimates. Honouring one after the
+  // cutover would keep the free route open for up to 30 days.
+  for (const access of ['pugo', 'manok-trial', 'manok', 'itik']) {
+    const claims = { aud: AI_GRANT_AUDIENCE, sub: access, access, iat: NOW, exp: NOW + 60_000 } as unknown as GrantClaims;
+    assert.equal(await verifyAiGrant(await signAiGrant(claims, 'signing-secret'), 'signing-secret', NOW), null);
   }
-
-  const exhausted = await store.reserve('pugo', 'pugo', 'scan', 'pugo-over', NOW + 5);
-  assert.equal(exhausted.allowed, false);
-  assert.equal(exhausted.code, 'PUGO_DAILY_LIMIT');
-  assert.equal(exhausted.nextEligibleAt, new Date(NOW + 24 * 60 * 60 * 1000).toISOString());
-
-  for (const operation of ['clarify-meal', 'clarify-component']) {
-    const denied = await store.reserve('pugo-clarify', 'pugo', operation, operation, NOW);
-    assert.equal(denied.allowed, false);
-    assert.equal(denied.code, 'PAID_ACCESS_REQUIRED');
-    assert.equal(denied.usage.kind, 'free');
-  }
-
-  await store.refund('pugo', 'pugo-0', 'unrecognized');
-  assert.deepEqual(await store.usage('pugo', 'pugo', NOW + 5), {
-    kind: 'free',
-    remaining24Hours: 1,
-    nextEligibleAt: null,
-  });
-
-  const boundary = new MemorySubscriptionStore();
-  for (let index = 0; index < 3; index += 1) {
-    assert.equal((await boundary.reserve('boundary', 'pugo', 'scan', `boundary-${index}`, NOW)).allowed, true);
-  }
-  assert.equal((await boundary.reserve('boundary', 'pugo', 'describe', 'boundary-next', NOW + 24 * 60 * 60 * 1000)).allowed, true);
 });
 
 test('a subject that keeps refunding hits a separate abuse ceiling regardless of access kind', async () => {
   const store = new MemorySubscriptionStore();
   for (let index = 0; index < 5; index += 1) {
-    const decision = await store.reserve('abuser', 'manok', 'scan', `refund-${index}`, NOW + index);
+    const decision = await store.reserve('abuser', `refund-${index}`, NOW + index);
     assert.equal(decision.allowed, true);
     await store.refund('abuser', `refund-${index}`, 'unrecognized');
   }
   // The refunded attempts must not count against the real paid quota.
-  assert.deepEqual(await store.usage('abuser', 'manok', NOW + 5), {
+  assert.deepEqual(await store.usage('abuser', NOW + 5), {
     kind: 'paid',
     remaining24Hours: 30,
     remaining30Days: 250,
     nextEligibleAt: null,
   });
 
-  const blocked = await store.reserve('abuser', 'manok', 'scan', 'refund-over', NOW + 5);
+  const blocked = await store.reserve('abuser', 'refund-over', NOW + 5);
   assert.equal(blocked.allowed, false);
   assert.equal(blocked.code, 'REFUND_DAILY_LIMIT');
 });
 
-test('the trial offers exactly what the paid subscription offers', async () => {
-  // A trial of the subscription is the subscription. There is no whole-trial total, no
-  // separate initial and clarification budgets, and no counter shape of its own: every
-  // operation spends the same rolling paid allowance a Manok subscriber spends.
-  const trial = new MemorySubscriptionStore();
-  const paid = new MemorySubscriptionStore();
+test('initial estimates and clarifications spend the same paid allowance', async () => {
+  const store = new MemorySubscriptionStore();
   for (let index = 0; index < 30; index += 1) {
-    const operation = index % 2 === 0 ? 'scan' : 'clarify-meal';
-    assert.equal((await trial.reserve('trial', 'manok-trial', operation, `t-${index}`, NOW)).allowed, true);
-    assert.equal((await paid.reserve('paid', 'manok', operation, `p-${index}`, NOW)).allowed, true);
+    assert.equal((await store.reserve('subject', `r-${index}`, NOW)).allowed, true);
   }
-  assert.deepEqual(await trial.usage('trial', 'manok-trial', NOW), await paid.usage('paid', 'manok', NOW));
-
-  // Spreading the same work across the trial does not accumulate toward a hidden total; the
-  // day's allowance comes back with the rolling window, exactly as it does when paying.
-  const spread = new MemorySubscriptionStore();
-  for (let index = 0; index < 60; index += 1) {
-    assert.equal((await spread.reserve('spread', 'manok-trial', 'scan', `s-${index}`, NOW - (60 - index) * 20 * 60 * 60 * 1000)).allowed, true);
-  }
-  assert.equal((await spread.reserve('spread', 'manok-trial', 'scan', 's-next', NOW)).allowed, true);
+  assert.equal((await store.reserve('subject', 'over', NOW)).code, 'FAIR_USE_DAILY_LIMIT');
 });
 
-test('paid quotas enforce rolling boundaries for trial, Manok, Itik, and complimentary access', async () => {
-  for (const access of ['manok-trial', 'manok', 'itik', 'complimentary'] as const) {
-    const store = new MemorySubscriptionStore();
-    for (let index = 0; index < 30; index += 1) assert.equal((await store.reserve(access, access, 'scan', `${index}`, NOW)).allowed, true);
-    assert.equal((await store.reserve(access, access, 'scan', 'daily-over', NOW)).code, 'FAIR_USE_DAILY_LIMIT');
-  }
+test('paid quotas enforce rolling daily and 30-day boundaries', async () => {
   const monthly = new MemorySubscriptionStore();
   for (let index = 0; index < 250; index += 1) {
     const day = Math.floor(index / 10);
     const at = NOW - (24 - day) * 24 * 60 * 60 * 1000;
-    assert.equal((await monthly.reserve('monthly', 'manok', 'scan', `${index}`, at)).allowed, true);
+    assert.equal((await monthly.reserve('monthly', `${index}`, at)).allowed, true);
   }
-  assert.equal((await monthly.reserve('monthly', 'manok', 'scan', 'monthly-over', NOW)).code, 'FAIR_USE_30_DAY_LIMIT');
+  assert.equal((await monthly.reserve('monthly', 'monthly-over', NOW)).code, 'FAIR_USE_30_DAY_LIMIT');
 });
 
 test('concurrent requests, idempotent retries, refunds, and finalization charge atomically', async () => {
   const store = new MemorySubscriptionStore();
-  const decisions = await Promise.all(Array.from({ length: 35 }, (_, index) => store.reserve('subject', 'manok', 'scan', `request-${index}`, NOW)));
+  const decisions = await Promise.all(Array.from({ length: 35 }, (_, index) => store.reserve('subject', `request-${index}`, NOW)));
   assert.equal(decisions.filter((item) => item.allowed).length, 30);
-  const duplicate = await store.reserve('subject', 'manok', 'scan', 'request-0', NOW);
+  const duplicate = await store.reserve('subject', 'request-0', NOW);
   assert.equal(duplicate.allowed, true);
   assert.equal(duplicate.duplicate, true);
   await store.refund('subject', 'request-0', 'unrecognized');
-  assert.equal((await store.reserve('subject', 'manok', 'scan', 'replacement', NOW)).allowed, true);
+  assert.equal((await store.reserve('subject', 'replacement', NOW)).allowed, true);
   await store.finalize('subject', 'replacement');
   await store.refund('subject', 'replacement', 'unrecognized');
-  assert.equal((await store.usage('subject', 'manok', NOW)).kind, 'paid');
+  assert.equal((await store.usage('subject', NOW)).kind, 'paid');
 });
 
 test('webhooks are idempotent, reject out-of-order events, and invalidate complimentary access', async () => {
@@ -273,9 +273,9 @@ test('webhooks are idempotent, reject out-of-order events, and invalidate compli
 
 test('quota and webhook idempotency state is reusable after the 30-day retention window', async () => {
   const store = new MemorySubscriptionStore();
-  assert.equal((await store.reserve('subject', 'manok', 'scan', 'request', NOW)).allowed, true);
+  assert.equal((await store.reserve('subject', 'request', NOW)).allowed, true);
   await store.finalize('subject', 'request');
-  assert.equal((await store.reserve('subject', 'manok', 'scan', 'request', NOW + 31 * 24 * 60 * 60 * 1000)).duplicate, false);
+  assert.equal((await store.reserve('subject', 'request', NOW + 31 * 24 * 60 * 60 * 1000)).duplicate, false);
   assert.equal(await store.recordWebhook('event', NOW, ['customer']), 'accepted');
   assert.equal(await store.recordWebhook('event', NOW + 31 * 24 * 60 * 60 * 1000, ['customer']), 'accepted');
 });
@@ -289,12 +289,12 @@ test('promotional grants resolve from the subscription record because v1 entitle
   assert.ok(verified.subjectIdentity);
 
   promotional.subscriber.subscriptions = {};
-  assert.equal(normalizeRevenueCatSubscriber(promotional, NOW).access.kind, 'pugo');
+  assert.equal(normalizeRevenueCatSubscriber(promotional, NOW).access.kind, 'none');
 });
 
 test('AI grants stay valid until the verified entitlement expires', async () => {
   const expiry = NOW + 20 * 24 * 60 * 60 * 1000;
-  const claims: GrantClaims = { aud: AI_GRANT_AUDIENCE, sub: 'subject', access: 'manok', iat: NOW, exp: expiry };
+  const claims: GrantClaims = { aud: AI_GRANT_AUDIENCE, sub: 'subject', access: 'subscription', iat: NOW, exp: expiry };
   const token = await signAiGrant(claims, 'signing-secret');
 
   assert.deepEqual(await verifyAiGrant(token, 'signing-secret', NOW + 19 * 24 * 60 * 60 * 1000), claims);
@@ -308,7 +308,7 @@ test('verified access survives a RevenueCat outage until the entitlement expires
 
   const stale = NOW + 5 * 24 * 60 * 60 * 1000;
   assert.equal(await store.getCached('customer', stale), null);
-  assert.equal((await store.getCached('customer', stale, true))?.access.kind, 'manok');
+  assert.equal((await store.getCached('customer', stale, true))?.access.kind, 'subscription');
 
   const expired = Date.parse('2026-09-23T00:00:00Z');
   assert.equal(await store.getCached('customer', expired, true), null);
@@ -332,7 +332,7 @@ test('a lifetime complimentary grant without a stable RevenueCat identity still 
   delete lifetime.subscriber.original_app_user_id;
 
   assert.deepEqual(normalizeRevenueCatSubscriber(lifetime, NOW), {
-    access: { kind: 'pugo', checkedAt: new Date(NOW).toISOString(), reason: 'malformed' },
+    access: { kind: 'none', checkedAt: new Date(NOW).toISOString(), reason: 'malformed' },
     subjectIdentity: null,
   });
 });

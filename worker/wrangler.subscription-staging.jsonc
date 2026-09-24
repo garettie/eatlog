@@ -6,7 +6,6 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "vars": {
-    "SUBSCRIPTIONS_ENABLED": "true",
     "REVENUECAT_ENTITLEMENT_ID": "eatlog_paid",
     // Standard-tier USD per million tokens, read from the provider's price list on the dated day.
     "GEMINI_PRICING": "{\"dated\":\"2026-09-05\",\"gemini-3.1-flash-lite\":{\"input\":0.25,\"output\":1.5,\"cached\":0.025},\"gemini-3.5-flash-lite\":{\"input\":0.3,\"output\":2.5,\"cached\":0.03}}"

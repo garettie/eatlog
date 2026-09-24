@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Miniflare } from 'miniflare';
 
-import type { AiAccessKind, ExecutionClaim, ExecutionOutcome, QuotaDecision, RefundReason, SubscriptionStore, Usage } from '../../src/subscriptions.js';
+import type { ExecutionClaim, ExecutionOutcome, QuotaDecision, RefundReason, SubscriptionStore, Usage } from '../../src/subscriptions.js';
 
 /**
  * The smallest harness that runs the real `EntitlementQuotaState` — its real SQL, its real
@@ -90,11 +90,11 @@ export async function startQuotaRuntime(): Promise<QuotaRuntime> {
     async recordWebhook(eventId, eventTimestamp, customerKeys) {
       return (await call<{ result: 'accepted' | 'duplicate' | 'stale' }>('/webhook', { eventId, eventTimestamp, customerKeys })).result;
     },
-    reserve: (subject, access: AiAccessKind, operation, requestId, now): Promise<QuotaDecision> =>
-      call('/quota/reserve', { subject, access, operation, requestId, now }),
+    reserve: (subject, requestId, now): Promise<QuotaDecision> =>
+      call('/quota/reserve', { subject, requestId, now }),
     finalize: (subject, requestId) => call<void>('/quota/finalize', { subject, requestId }),
     refund: (subject, requestId, reason: RefundReason) => call<void>('/quota/refund', { subject, requestId, reason }),
-    usage: (subject, access: AiAccessKind, now): Promise<Usage> => call('/quota/usage', { subject, access, now }),
+    usage: (subject, now): Promise<Usage> => call('/quota/usage', { subject, now }),
     claimExecution: (subject, requestId, fingerprint, operation, now): Promise<ExecutionClaim> =>
       call('/execution/claim', { subject, requestId, fingerprint, operation, now }),
     async completeExecution(subject, requestId, token, outcome: ExecutionOutcome, result, now) {
