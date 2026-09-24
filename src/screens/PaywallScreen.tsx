@@ -11,7 +11,7 @@ import { usePlanPurchase } from '../components/plan/usePlanPurchase';
 import { serviceConfig } from '../config/services';
 import { useEntitlement } from '../context/EntitlementContext';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { TIER_NAMES } from '../services/tierNames';
+import { PAID_PLAN_NAME } from '../services/tierNames';
 import { APP_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
@@ -48,7 +48,7 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
           <View className="flex-row items-start gap-3">
             <View className="min-w-0 flex-1 gap-1">
               <Text accessibilityRole="header" className="text-2xl font-bold text-m3-on-surface">
-                Get {TIER_NAMES.itik}
+                Get {PAID_PLAN_NAME}
               </Text>
               <Text className="text-sm text-m3-on-surface-variant">
                 AI estimates from photos and descriptions, with no key to set up.
@@ -97,7 +97,7 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
               />
             </>
           ) : (
-            <Text className="px-1 text-sm text-m3-on-surface-variant">Eatlog {TIER_NAMES.itik} is already active.</Text>
+            <Text className="px-1 text-sm text-m3-on-surface-variant">Eatlog {PAID_PLAN_NAME} is already active.</Text>
           )}
 
           {plan.message || restoreMessage ? (

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { useEntitlement } from '../../context/EntitlementContext';
 import { canBuyItik, hasItik, type EatlogAccess } from '../../services/billing.types';
-import { TIER_NAMES } from '../../services/tierNames';
+import { PAID_PLAN_NAME } from '../../services/tierNames';
 import { packageCadence, packageDescription, packagePrice, packageTrial } from './planCopy';
 
 /**
@@ -29,7 +29,7 @@ export function usePlanPurchase(access: EatlogAccess | null) {
 
   const title = useMemo(() => {
     if (trial) return 'Start free trial';
-    return product ? `Get ${TIER_NAMES.itik} · ${product.priceString}` : `Get ${TIER_NAMES.itik}`;
+    return product ? `Get ${PAID_PLAN_NAME} · ${product.priceString}` : `Get ${PAID_PLAN_NAME}`;
   }, [product, trial]);
 
   const disabled = busy || loadingProducts || !product || !canBuy;
@@ -55,7 +55,7 @@ export function usePlanPurchase(access: EatlogAccess | null) {
   return {
     options: packages.map((item) => ({
       id: item.packageIdentifier,
-      title: TIER_NAMES.itik,
+      title: PAID_PLAN_NAME,
       cadence: packageCadence(item),
       badge: packageTrial(item) ? 'Free trial' : null,
       price: packagePrice(item),

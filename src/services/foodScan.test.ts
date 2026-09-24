@@ -341,7 +341,7 @@ test('paid access gates every AI operation before consent, identity loading, or 
     assert.deepEqual(result, {
         ok: false,
         kind: 'paid-access-required',
-        message: 'Eatlog AI needs Itik.',
+        message: 'Eatlog AI needs Omelette.',
     });
     assert.deepEqual({ consentReads, tokenReads, fetches }, { consentReads: 0, tokenReads: 0, fetches: 0 });
 });
@@ -423,7 +423,7 @@ test('maps each known Worker entitlement and quota code to specific redacted cop
         if (!result.ok) {
             assert.equal(result.kind, kind);
             assert.equal(result.message.includes('raw provider'), false);
-            if (kind === 'paid-access-required') assert.equal(result.message, 'Eatlog AI needs Itik.');
+            if (kind === 'paid-access-required') assert.equal(result.message, 'Eatlog AI needs Omelette.');
         }
     }
 });

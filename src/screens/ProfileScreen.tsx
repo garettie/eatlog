@@ -20,7 +20,7 @@ import { supportsHealthConnect } from '../services/platformFeatures';
 import { useEntitlement } from '../context/EntitlementContext';
 import { useAiSetup } from '../context/AiSetupContext';
 import { tierOf, type UserKeyState } from '../services/userApiKey';
-import { TIER_NAMES } from '../services/tierNames';
+import { planName } from '../services/tierNames';
 import { serviceConfig } from '../config/services';
 
 interface ProfileScreenProps {
@@ -304,7 +304,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
                 <View className={isTwoPane ? 'flex-[3] min-w-0 gap-6' : 'gap-6'}>
                     <Section title="Eatlog">
-                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : `Eatlog ${TIER_NAMES[tierOf(hasItik, keyState.hasKey)]}`} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={serviceConfig.availability.gemini} />
+                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : planName(tierOf(hasItik, keyState.hasKey))} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={serviceConfig.availability.gemini} />
                         {serviceConfig.availability.gemini ? (
                             <ProfileSettingRow icon="auto-awesome" title="AI estimates" detail={aiEstimatesDetail(hasItik, keyState)} onPress={() => navigation.navigate('AiEstimates')} showDivider={false} />
                         ) : null}

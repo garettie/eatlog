@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import ResponsiveContent from '../ResponsiveContent';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../../theme/layout';
 import { M3 } from '../../theme/tokens';
-import { TIER_NAMES } from '../../services/tierNames';
+import { PAID_PLAN_NAME } from '../../services/tierNames';
 
 interface AiChoiceContentProps {
   onUseKey: () => void;
@@ -93,7 +93,7 @@ export default function AiChoiceContent({
           <ChoiceRow
             icon="auto-awesome"
             title="Eatlog AI"
-            detail={`With ${TIER_NAMES.itik}. Nothing to set up.`}
+            detail={`With ${PAID_PLAN_NAME}. Nothing to set up.`}
             onPress={onEatlogAi}
             disabled={busy}
             showDivider={false}

@@ -99,7 +99,7 @@ test('maps purchase success, cancellation, failure, pending, and delayed entitle
   } });
   const result = await success.purchase('$rc_lifetime', NONE);
   assert.equal(result.state, 'success');
-  assert.equal(result.message, 'Eatlog Itik is active.');
+  assert.equal(result.message, 'Eatlog Omelette is active.');
   assert.equal(bought, '$rc_lifetime');
   for (const [code, expected] of [['1', 'cancelled'], ['20', 'pending'], ['10', 'failed']] as const) {
     assert.equal((await client({ purchasePackage: async () => { throw { code }; } }).purchase('$rc_lifetime', NONE)).state, expected);
@@ -124,13 +124,13 @@ test('restores access, reports no purchase, and never sells a second Itik produc
   const billing = client({ purchasePackage: async () => { purchases += 1; return { customerInfo: customerInfo('purchase') }; } });
   const restored = await billing.restore(NONE);
   assert.equal(restored.access.kind, 'purchase');
-  assert.equal(restored.message, 'Eatlog Itik was restored.');
+  assert.equal(restored.message, 'Eatlog Omelette was restored.');
   const none = await client({ restorePurchases: async () => customerInfo('none') }).restore(NONE);
   assert.equal(none.state, 'no-purchase');
-  assert.equal(none.message, 'No active Itik purchase was found on this store account.');
+  assert.equal(none.message, 'No active Omelette purchase was found on this store account.');
 
   const bought = { kind: 'purchase', productId: 'eatlog_itik', purchasedAt: null, checkedAt: NOW.toISOString() } as const;
-  assert.equal((await billing.purchase('$rc_lifetime', bought)).message, 'Eatlog Itik is already active.');
+  assert.equal((await billing.purchase('$rc_lifetime', bought)).message, 'Eatlog Omelette is already active.');
   const renewing = await billing.purchase('$rc_lifetime', RENEWING);
   assert.equal(renewing.state, 'failed');
   assert.match(renewing.message, /Cancel it in the store/);

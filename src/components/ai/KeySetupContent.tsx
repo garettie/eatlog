@@ -16,7 +16,6 @@ import PrimaryButton from '../PrimaryButton';
 import ResponsiveContent from '../ResponsiveContent';
 import { checkUserApiKey } from '../../services/foodEstimateDirect';
 import { normalizeApiKeyInput, userApiKeyStore } from '../../services/userApiKey';
-import { TIER_NAMES } from '../../services/tierNames';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../../theme/layout';
 import { M3 } from '../../theme/tokens';
 
@@ -178,7 +177,7 @@ export default function KeySetupContent({ mode, itik, onSaved, onCancel }: KeySe
                 Eatlog sends the photo, meal title, or description you choose from this phone to Google Gemini with your key. Nothing goes through Eatlog.
               </Text>
               <Text className="text-sm leading-5 text-m3-on-surface-variant">
-                {TIER_NAMES.manok} is free in Eatlog. Google sets your key's limits, and may charge you if billing is enabled on your Google project.
+                Eatlog charges nothing for this. Google sets your key's limits, and may charge you if billing is enabled on your Google project.
               </Text>
               <Text className="text-sm leading-5 text-m3-on-surface-variant">
                 If your Google project has no billing, Google may use what you send to improve its products, and people may review it.

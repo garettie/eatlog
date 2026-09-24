@@ -109,11 +109,10 @@ test('subscription tiers use the requested bird identities', () => {
   assert.match(tierBirdIcon, /return \([\s\S]*fill="#203431"/);
 });
 
-test('every displayed tier name comes from one module', () => {
+test('every displayed plan name comes from one module', () => {
   const tierNames = read('../services/tierNames.ts');
-  assert.match(tierNames, /pugo: 'Pugo'/);
-  assert.match(tierNames, /manok: 'Manok'/);
-  assert.match(tierNames, /itik: 'Itik'/);
+  assert.match(tierNames, /PAID_PLAN_NAME = 'Omelette'/);
+  assert.match(tierNames, /tier === 'itik' \? `Eatlog \$\{PAID_PLAN_NAME\}` : 'Eatlog'/);
   const shown = [
     profile, paywall, planScreen, planParts, planPurchase, planCopy, aiSetup, foodSheet, foodScan,
     read('../services/billing.ts'),
@@ -122,12 +121,13 @@ test('every displayed tier name comes from one module', () => {
     read('../components/ai/KeySetupContent.tsx'),
   ];
   for (const source of shown) {
-    // Comments may name tiers; strings and JSX text may not.
+    // Comments may use the internal tier names; strings and JSX text may not show them, and
+    // only tierNames.ts spells the paid plan's name.
     const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-    assert.doesNotMatch(code, /['"`>][^'"`<]*\b(Pugo|Manok|Itik)\b/);
+    assert.doesNotMatch(code, /['"`>][^'"`<]*\b(Pugo|Manok|Itik|Omelette)\b/);
   }
-  // The Profile Plan row names the derived tier, never an old Manok purchase.
-  assert.match(profile, /`Eatlog \$\{TIER_NAMES\[tierOf\(hasItik, keyState\.hasKey\)\]\}`/);
+  // The Profile Plan row names the derived plan, never an old purchase's product.
+  assert.match(profile, /planName\(tierOf\(hasItik, keyState\.hasKey\)\)/);
 });
 
 test('purchase support controls keep their layout stable and expose the Support ID', () => {
@@ -198,7 +198,7 @@ test('an unresolved plan still renders the plan surfaces instead of a blocking s
     assert.doesNotMatch(source, /Checking your plan/);
     assert.doesNotMatch(source, /entitlementStatus === 'checking'/);
   }
-  assert.match(planParts, /access \? TIER_NAMES\[tier\] : 'Unconfirmed'/);
+  assert.match(planParts, /access \? planName\(tier\) : 'Unconfirmed'/);
 });
 
 test('AI estimate submission authorizes inline during the Worker request without a blocking preflight', () => {

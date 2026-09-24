@@ -6,7 +6,7 @@ import AiChoiceContent from '../components/ai/AiChoiceContent';
 import KeySetupContent, { type KeySetupMode } from '../components/ai/KeySetupContent';
 import { useSheetDialog } from '../components/SheetDialog';
 import { clearFoodEstimateActions } from '../services/foodScan';
-import { TIER_NAMES } from '../services/tierNames';
+import { PAID_PLAN_NAME } from '../services/tierNames';
 import { decideAiGate, userApiKeyStore, type AiRoute, type UserKeyState } from '../services/userApiKey';
 import { useEntitlement } from './EntitlementContext';
 import { useRemoteEstimateConsent } from './RemoteEstimateConsentContext';
@@ -177,8 +177,8 @@ export function useAiGate(): () => Promise<boolean> {
     }
     const choice = await new Promise<'key' | 'plans' | 'none'>((resolve) => {
       showDialog({
-        title: `${TIER_NAMES.itik} has ended`,
-        message: `Keep estimating with your Google key, or get ${TIER_NAMES.itik} again.`,
+        title: `${PAID_PLAN_NAME} has ended`,
+        message: `Keep estimating with your Google key, or get ${PAID_PLAN_NAME} again.`,
         actions: [
           { label: 'Use my key', tone: 'primary', onPress: () => resolve('key') },
           { label: 'See plans', tone: 'neutral', onPress: () => resolve('plans') },

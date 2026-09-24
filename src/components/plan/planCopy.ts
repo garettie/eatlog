@@ -1,5 +1,5 @@
 import type { BillingPackage, EatlogAccess } from '../../services/billing.types';
-import { TIER_NAMES } from '../../services/tierNames';
+import { PAID_PLAN_NAME } from '../../services/tierNames';
 import type { Tier } from '../../services/userApiKey';
 
 export type Access = EatlogAccess;
@@ -67,8 +67,8 @@ export function accessDetail(access: Access, tier: Tier): string {
   if (access.kind === 'complimentary') {
     return access.expiresAt ? `Available until ${dateLabel(access.expiresAt)}` : 'Courtesy of Eatlog.';
   }
-  if (access.reason === 'expired') return `${TIER_NAMES.itik} ended. Your logbook is untouched.`;
-  if (access.reason === 'revoked') return `${TIER_NAMES.itik} was removed. Your logbook is untouched.`;
+  if (access.reason === 'expired') return `${PAID_PLAN_NAME} ended. Your logbook is untouched.`;
+  if (access.reason === 'revoked') return `${PAID_PLAN_NAME} was removed. Your logbook is untouched.`;
   if (access.reason === 'malformed' || access.reason === 'unavailable') {
     return "We couldn't confirm a purchase. Your logbook still works.";
   }

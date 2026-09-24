@@ -8,7 +8,7 @@ import SegmentedControl from '../components/SegmentedControl';
 import { useAiSetup } from '../context/AiSetupContext';
 import { useEntitlement } from '../context/EntitlementContext';
 import { tierOf, type AiRoute } from '../services/userApiKey';
-import { TIER_NAMES } from '../services/tierNames';
+import { PAID_PLAN_NAME, planName } from '../services/tierNames';
 import { FORM_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 
 const ROUTE_OPTIONS: { value: AiRoute; label: string }[] = [
@@ -17,9 +17,9 @@ const ROUTE_OPTIONS: { value: AiRoute; label: string }[] = [
 ];
 
 const TIER_DETAIL = {
-  itik: `${TIER_NAMES.itik}. Eatlog AI is included.`,
-  manok: `${TIER_NAMES.manok}. Free estimates on your own Google key.`,
-  pugo: `${TIER_NAMES.pugo}. Add a Google key for free estimates, or get ${TIER_NAMES.itik}.`,
+  itik: `${planName('itik')}. Eatlog AI is included.`,
+  manok: 'Free. Estimates use your own Google key.',
+  pugo: `Free. Add a Google key for AI estimates, or get ${PAID_PLAN_NAME}.`,
 } as const;
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -64,7 +64,7 @@ export function AiEstimatesScreen() {
       'Remove your key?',
       hasItik
         ? 'Estimates go back to Eatlog AI.'
-        : `AI estimates stop until you add a key or get ${TIER_NAMES.itik}. Your meals stay.`,
+        : `AI estimates stop until you add a key or get ${PAID_PLAN_NAME}. Your meals stay.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Remove', style: 'destructive', onPress: () => { void remove(); } },
@@ -125,7 +125,7 @@ export function AiEstimatesScreen() {
               <ProfileSettingRow
                 icon="key"
                 title="Add a Google key"
-                detail={`Free AI estimates with ${TIER_NAMES.manok}`}
+                detail="Free AI estimates with your own key"
                 onPress={() => { void openKeySetup('add'); }}
                 showDivider={false}
               />

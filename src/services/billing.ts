@@ -19,7 +19,7 @@ import {
   type EatlogAccess,
   type RevenueCatCustomerSnapshot,
 } from './billing.types';
-import { TIER_NAMES } from './tierNames';
+import { PAID_PLAN_NAME } from './tierNames';
 
 interface BillingOperationResult extends BillingActionResult {
   access: EatlogAccess;
@@ -166,12 +166,12 @@ export function createBillingClient(options: BillingClientOptions) {
 
   async function purchase(packageIdentifier: string, currentAccess: EatlogAccess): Promise<BillingOperationResult> {
     if (currentAccess.kind === 'purchase') {
-      return { state: 'success', message: `Eatlog ${TIER_NAMES.itik} is already active.`, access: currentAccess };
+      return { state: 'success', message: `Eatlog ${PAID_PLAN_NAME} is already active.`, access: currentAccess };
     }
     if (!canBuyItik(currentAccess)) {
       return {
         state: 'failed',
-        message: `Your ${TIER_NAMES.itik} subscription still renews. Cancel it in the store before buying another option.`,
+        message: `Your ${PAID_PLAN_NAME} subscription still renews. Cancel it in the store before buying another option.`,
         access: currentAccess,
       };
     }
@@ -190,7 +190,7 @@ export function createBillingClient(options: BillingClientOptions) {
           access: currentAccess,
         };
       }
-      return { state: 'success', message: `Eatlog ${TIER_NAMES.itik} is active.`, access };
+      return { state: 'success', message: `Eatlog ${PAID_PLAN_NAME} is active.`, access };
     } catch (error) {
       return { ...purchaseFailure(error), access: currentAccess };
     }
@@ -201,9 +201,9 @@ export function createBillingClient(options: BillingClientOptions) {
       await configure();
       const access = normalizeAccess(snapshot(await (await adapter()).restorePurchases()), now());
       if (access.kind === 'none') {
-        return { state: 'no-purchase', message: `No active ${TIER_NAMES.itik} purchase was found on this store account.`, access };
+        return { state: 'no-purchase', message: `No active ${PAID_PLAN_NAME} purchase was found on this store account.`, access };
       }
-      return { state: 'success', message: `Eatlog ${TIER_NAMES.itik} was restored.`, access };
+      return { state: 'success', message: `Eatlog ${PAID_PLAN_NAME} was restored.`, access };
     } catch {
       return { state: 'failed', message: "Couldn't restore purchases. Check the store account and try again.", access: currentAccess };
     }

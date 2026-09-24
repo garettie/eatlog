@@ -5,7 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import Card from '../Card';
 import TierBirdIcon from '../TierBirdIcon';
 import { M3 } from '../../theme/tokens';
-import { TIER_NAMES } from '../../services/tierNames';
+import { PAID_PLAN_NAME, planName } from '../../services/tierNames';
 import type { Tier } from '../../services/userApiKey';
 import { accessDetail, type Access } from './planCopy';
 
@@ -153,7 +153,7 @@ export function CurrentPlanCard({ access, tier }: { access: Access | null; tier:
         <View className="flex-row flex-wrap items-baseline gap-2">
           <Text className="text-xs font-semibold text-m3-on-surface-variant">Current plan</Text>
           <Text className="text-base font-bold text-m3-on-surface">
-            {access ? TIER_NAMES[tier] : 'Unconfirmed'}
+            {access ? planName(tier) : 'Unconfirmed'}
           </Text>
         </View>
         <Text className="text-sm text-m3-on-surface-variant">
@@ -189,7 +189,7 @@ export function ValueSummary() {
       <FeatureLine icon="restaurant">Logging, weight, and analytics</FeatureLine>
       <FeatureLine icon="insights">Weekly target updates from your trend</FeatureLine>
       <FeatureLine icon="vpn-key">AI estimates with your own Google key</FeatureLine>
-      <Text className="mt-2 px-1 text-xs font-semibold text-m3-on-surface-variant">{TIER_NAMES.itik}</Text>
+      <Text className="mt-2 px-1 text-xs font-semibold text-m3-on-surface-variant">{PAID_PLAN_NAME}</Text>
       <FeatureLine icon="done-all">Everything in free</FeatureLine>
       <FeatureLine icon="auto-awesome">AI estimates with no setup</FeatureLine>
       <Text className="px-1 text-xs text-m3-on-surface-variant">Eatlog AI is subject to fair use.</Text>

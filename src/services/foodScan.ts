@@ -26,7 +26,7 @@ import {
 } from './foodEstimateCore';
 import { requestDirectEstimate } from './foodEstimateDirect';
 import { userApiKeyStore, type AiRoute } from './userApiKey';
-import { TIER_NAMES } from './tierNames';
+import { PAID_PLAN_NAME } from './tierNames';
 
 export type { AiRoute };
 
@@ -124,7 +124,7 @@ function failure(kind: FoodEstimationFailureKind, nextEligibleAt?: string | null
     const messages: Record<FoodEstimationFailureKind, string> = {
         unavailable: 'Estimates are unavailable in this build.',
         'consent-required': 'Enable online estimates to use this.',
-        'paid-access-required': `Eatlog AI needs ${TIER_NAMES.itik}.`,
+        'paid-access-required': `Eatlog AI needs ${PAID_PLAN_NAME}.`,
         'fair-use-daily-limit': 'The 30-operation rolling 24-hour fair-use limit is reached. Try again when it resets.',
         'fair-use-30-day-limit': 'The 250-operation rolling 30-day fair-use limit is reached. Try again when it resets.',
         'refund-daily-limit': 'Too many recent estimate attempts could not be completed. Try again when the window resets.',

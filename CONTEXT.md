@@ -22,6 +22,10 @@ _Avoid_: BYOK tier, subscription (the old recurring-purchase meaning is obsolete
 The tier with an active paid or complimentary entitlement to Eatlog-hosted AI, which uses the owner's server-held key.
 _Avoid_: Premium; naming Itik by its billing cadence
 
+**Plan name**:
+What users see in place of a tier: Eatlog for Pugo and Manok, and Eatlog Omelette for Itik. Pugo, Manok, and Itik remain the domain and code names and are never shown.
+_Avoid_: Showing a tier name; naming the free plan by whether a key is saved
+
 **Complimentary access**:
 An Itik entitlement granted without a purchase, used for owner and friend testing.
 _Avoid_: Promo, free Itik

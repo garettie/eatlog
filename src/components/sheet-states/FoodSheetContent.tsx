@@ -37,7 +37,7 @@ import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos'
 import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { DURATION, EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
-import { TIER_NAMES } from '../../services/tierNames';
+import { PAID_PLAN_NAME } from '../../services/tierNames';
 import { useAiGate } from '../../context/AiSetupContext';
 import { useEntitlement } from '../../context/EntitlementContext';
 import { useNavigation } from '@react-navigation/native';
@@ -92,7 +92,7 @@ type FoodSheetFailureKind =
 const FAILURE_MESSAGES: Record<FoodSheetFailureKind, string> = {
     unavailable: 'Photo and description estimates are unavailable.',
     'consent-required': 'Enable online estimates to use this.',
-    'paid-access-required': `Eatlog AI needs ${TIER_NAMES.itik}. Get it, or add your own Google key.`,
+    'paid-access-required': `Eatlog AI needs ${PAID_PLAN_NAME}. Get it, or add your own Google key.`,
     'fair-use-daily-limit': "You've reached the 24-hour fair-use limit. Try again after it resets.",
     'fair-use-30-day-limit': "You've reached the 30-day fair-use limit. Try again after it resets.",
     'refund-daily-limit': 'Too many recent estimate attempts could not be completed. Try again after it resets.',
