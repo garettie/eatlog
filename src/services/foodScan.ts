@@ -25,6 +25,9 @@ import {
     type EstimateOperation,
 } from './foodEstimateCore';
 import { requestDirectEstimate } from './foodEstimateDirect';
+import { userApiKeyStore, type AiRoute } from './userApiKey';
+
+export type { AiRoute };
 
 export type { EstimateContextComponent };
 
@@ -83,11 +86,6 @@ type FoodEstimationFailure = Extract<FoodEstimationResult, { ok: false }>;
 /** What a route hands back before the shared mapping: the estimate body, or a failure. */
 type TransportOutcome = { ok: true; estimate: unknown } | FoodEstimationFailure;
 
-/**
- * Who funds an estimate: Eatlog AI through the hosted service, or My key straight to Google.
- * Read once when a request starts; a failure never switches it.
- */
-export type AiRoute = 'eatlog-ai' | 'my-key';
 /**
  * How long a failed action keeps its identity so an explicit Retry is recognised as the same
  * submission rather than a second one. It matches the Worker's replay window: past it the
@@ -252,7 +250,6 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     const checkConsent = options.hasConsent ?? hasRemoteEstimateConsent;
     const authorize = options.getAiAuthorization ?? getAiAuthorization;
     const acceptGrant = options.acceptAiGrant ?? acceptAiGrant;
-    // Until key setup exists every install is on Eatlog AI and has no saved key.
     const readAiRoute = options.getAiRoute ?? ((): AiRoute => 'eatlog-ai');
     const loadUserApiKey = options.getUserApiKey ?? (async () => null);
 
@@ -518,7 +515,12 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
     return { scanFood, describeMeal, clarifyMeal, clarifyComponent, clearActions };
 }
 
-const defaultClient = createFoodEstimateClient({ workerUrl: serviceConfig.foodWorkerUrl });
+const defaultClient = createFoodEstimateClient({
+    workerUrl: serviceConfig.foodWorkerUrl,
+    // The route is read once as a request starts; a failure never switches it.
+    getAiRoute: userApiKeyStore.currentRoute,
+    getUserApiKey: userApiKeyStore.getKey,
+});
 
 export const scanFood = defaultClient.scanFood;
 export const describeMeal = defaultClient.describeMeal;

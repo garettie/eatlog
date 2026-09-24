@@ -5,6 +5,7 @@ import {
     blockedFinish,
     buildGeminiEstimateBody,
     candidateText,
+    GEMINI_ORIGIN,
     geminiModelUrl,
 } from './foodEstimateGemini';
 
@@ -139,4 +140,34 @@ export async function requestDirectEstimate(
     }
     // A later model that was merely unavailable must not hide that the key ran out of quota.
     return { ok: false, kind: last === 'provider' && limited ? 'key-limit' : last };
+}
+
+export type UserApiKeyCheck = 'accepted' | 'rejected' | 'inconclusive';
+
+/**
+ * Asks Google for its model list with the key before it is saved. The request carries no meal
+ * and costs nothing. Only a definitive key rejection stops the save: a check that could not be
+ * finished (offline, slow, a server fault, a location refusal) is not evidence against the key,
+ * and real use reports the problem if there is one.
+ */
+export async function checkUserApiKey(
+    apiKey: string,
+    options: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
+): Promise<UserApiKeyCheck> {
+    const fetchImpl = options.fetchImpl ?? fetch;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 10_000);
+    try {
+        const response = await fetchImpl(`${GEMINI_ORIGIN}/v1beta/models?pageSize=1`, {
+            method: 'GET',
+            headers: { 'x-goog-api-key': apiKey },
+            signal: controller.signal,
+        });
+        if (response.ok) return 'accepted';
+        return classifyDirectRejection(response.status, await response.text()) === 'key-invalid' ? 'rejected' : 'inconclusive';
+    } catch {
+        return 'inconclusive';
+    } finally {
+        clearTimeout(timer);
+    }
 }

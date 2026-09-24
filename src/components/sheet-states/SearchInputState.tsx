@@ -15,7 +15,8 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 import { useEntitlement } from "../../context/EntitlementContext";
-import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
+import { useAiGate } from "../../context/AiSetupContext";
+import ReplaceKeyAction from "../ai/ReplaceKeyAction";
 import { insertFoodLog, type MealType, setFoodPinned } from "../../db/database";
 import { describeMeal, type DescribeResult } from "../../services/foodScan";
 import { loadFoodDetails, type FoodResult } from "../../services/foodSearch";
@@ -68,7 +69,8 @@ export default function SearchInputState({
 	const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 	const [estimating, setEstimating] = useState(false);
 	const [estimateError, setEstimateError] = useState<string | null>(null);
-	const { requestConsent } = useRemoteEstimateConsent();
+	const [keyRejected, setKeyRejected] = useState(false);
+	const ensureAiReady = useAiGate();
 	const { warmEntitlement } = useEntitlement();
 	const navigation = useNavigation<any>();
 
@@ -139,19 +141,23 @@ export default function SearchInputState({
 		const query = search.query.trim();
 		if (!query || estimating) return;
 		setEstimateError(null);
+		setKeyRejected(false);
 		warmEntitlement();
-		if (!await requestConsent()) return;
+		if (!await ensureAiReady()) return;
 		setEstimating(true);
 		const result = await describeMeal(query);
 		setEstimating(false);
 		if (!result.ok) {
 			if (result.kind === "paid-access-required") navigation.navigate("Paywall");
-			else setEstimateError(result.message);
+			else {
+				setEstimateError(result.message);
+				setKeyRejected(result.kind === "key-invalid");
+			}
 			return;
 		}
 		Keyboard.dismiss();
 		onEstimateResult(result.result);
-	}, [warmEntitlement, estimating, navigation, onEstimateResult, requestConsent, search.query]);
+	}, [warmEntitlement, estimating, navigation, onEstimateResult, ensureAiReady, search.query]);
 
 	const foodRow = (food: FoodResult) => (
 		<FoodSearchResultRow
@@ -345,6 +351,9 @@ export default function SearchInputState({
 							>
 								{estimateError}
 							</Text>
+						) : null}
+						{estimateError && keyRejected ? (
+							<ReplaceKeyAction onReplaced={() => void handleEstimate()} />
 						) : null}
 					</View>
 				) : null}

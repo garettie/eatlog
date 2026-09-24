@@ -39,6 +39,9 @@ import {
 } from "./src/context/DataMaintenanceContext";
 import { RemoteEstimateConsentProvider } from "./src/context/RemoteEstimateConsentContext";
 import { EntitlementProvider } from "./src/context/EntitlementContext";
+import { AiSetupProvider } from "./src/context/AiSetupContext";
+import { KeyRemovalError } from "./src/services/dataReset";
+import { userApiKeyStore } from "./src/services/userApiKey";
 import type {
 	OwnershipProgressEvent,
 	OwnershipResult,
@@ -85,6 +88,8 @@ function AppContent() {
 	const [maintenanceProgress, setMaintenanceProgress] =
 		useState<OwnershipProgressEvent | null>(null);
 	const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
+	// Delete all data finished everything but the key, which can still be erased on its own.
+	const [keyRemovalPending, setKeyRemovalPending] = useState(false);
 	const [maintenanceResult, setMaintenanceResult] =
 		useState<OwnershipResult | null>(null);
 	const maintenanceStartedRef = useRef(false);
@@ -163,6 +168,7 @@ function AppContent() {
 			})
 			.catch((error) => {
 				maintenance.reject(error);
+				setKeyRemovalPending(error instanceof KeyRemovalError);
 				setMaintenanceError(
 					error instanceof Error
 						? error.message
@@ -247,20 +253,49 @@ function AppContent() {
 									>
 										{maintenanceError}
 									</Text>
-									<Text className="mt-3 text-center text-sm text-m3-on-surface-variant">
-										Eatlog stopped the operation. Return to verify your local
-										data before trying again.
-									</Text>
+									{keyRemovalPending ? (
+										<Pressable
+											accessibilityRole="button"
+											onPress={() => {
+												void userApiKeyStore.remove().then(() => {
+													setKeyRemovalPending(false);
+													setMaintenance(null);
+													setMaintenanceError(null);
+													setDataEpoch((value) => value + 1);
+													setMaintenanceResult({
+														operation: "reset",
+														completedAt: new Date().toISOString(),
+														summary: "All local Eatlog data was deleted.",
+													});
+												}).catch(() => undefined);
+											}}
+											className="mt-6 min-h-[48px] justify-center rounded-full bg-m3-primary px-6"
+										>
+											<Text className="font-semibold text-sm text-m3-on-primary">
+												Try again
+											</Text>
+										</Pressable>
+									) : (
+										<Text className="mt-3 text-center text-sm text-m3-on-surface-variant">
+											Eatlog stopped the operation. Return to verify your local
+											data before trying again.
+										</Text>
+									)}
 									<Pressable
 										accessibilityRole="button"
 										onPress={() => {
+											setKeyRemovalPending(false);
 											setMaintenance(null);
 											setMaintenanceError(null);
 											setDataEpoch((value) => value + 1);
 										}}
-										className="mt-6 min-h-[48px] justify-center rounded-full bg-m3-primary px-6"
+										className={keyRemovalPending
+											? "mt-2 min-h-[48px] justify-center rounded-full px-6"
+											: "mt-6 min-h-[48px] justify-center rounded-full bg-m3-primary px-6"}
 									>
-										<Text className="font-semibold text-sm text-m3-on-primary">
+										<Text className={keyRemovalPending
+											? "font-semibold text-sm text-m3-on-surface-variant"
+											: "font-semibold text-sm text-m3-on-primary"}>
 											Return to Eatlog
 										</Text>
 									</Pressable>
@@ -317,7 +352,9 @@ function AppContent() {
 						theme={navigationTheme}
 					>
 						<RemoteEstimateConsentProvider>
-							<RootNavigator />
+							<AiSetupProvider>
+								<RootNavigator />
+							</AiSetupProvider>
 						</RemoteEstimateConsentProvider>
 					</NavigationContainer>
 				)}

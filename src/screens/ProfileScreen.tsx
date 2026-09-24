@@ -18,6 +18,9 @@ import ResponsiveContent from '../components/ResponsiveContent';
 import { APP_MAX_WIDTH, useResponsiveLayout } from '../theme/layout';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { useEntitlement } from '../context/EntitlementContext';
+import { useAiSetup } from '../context/AiSetupContext';
+import type { UserKeyState } from '../services/userApiKey';
+import { serviceConfig } from '../config/services';
 
 interface ProfileScreenProps {
     dataVersion: number;
@@ -60,6 +63,12 @@ function adaptiveLabel(state: AdaptiveReviewState): string {
     return `Holding targets · ${state.eligibility.weightLogCount}/${state.eligibility.requiredWeightLogCount} weights`;
 }
 
+function aiEstimatesDetail(itik: boolean, keyState: UserKeyState): string {
+    if (!keyState.hasKey) return itik ? 'Eatlog AI' : 'Not set up';
+    const key = keyState.keyHint ?? 'Saved key';
+    return itik && keyState.route === 'eatlog-ai' ? `Eatlog AI · ${key} saved` : `My key · ${key}`;
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <View className="gap-3">
@@ -73,6 +82,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
     const navigation = useNavigation<any>();
     const { runDataMaintenance } = useDataMaintenance();
     const { access, hasPaidFeatures, status: entitlementStatus } = useEntitlement();
+    const { keyState } = useAiSetup();
     const { isTwoPane, horizontalPadding } = useResponsiveLayout();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [target, setTarget] = useState<DailyTarget | null>(null);
@@ -293,7 +303,10 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
                 <View className={isTwoPane ? 'flex-[3] min-w-0 gap-6' : 'gap-6'}>
                     <Section title="Eatlog">
-                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : access?.kind === 'pugo' ? 'Eatlog Pugo' : access?.kind === 'manok-trial' || access?.kind === 'manok' ? 'Eatlog Manok' : access?.kind === 'itik' ? 'Eatlog Itik · Lifetime' : 'Complimentary access'} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={false} />
+                        <ProfileSettingRow icon="workspace-premium" title="Plan" detail={entitlementStatus === 'checking' ? 'Checking plan…' : access?.kind === 'pugo' ? 'Eatlog Pugo' : access?.kind === 'manok-trial' || access?.kind === 'manok' ? 'Eatlog Manok' : access?.kind === 'itik' ? 'Eatlog Itik · Lifetime' : 'Complimentary access'} onPress={() => navigation.navigate('SubscriptionPlan')} showDivider={serviceConfig.availability.gemini} />
+                        {serviceConfig.availability.gemini ? (
+                            <ProfileSettingRow icon="auto-awesome" title="AI estimates" detail={aiEstimatesDetail(hasPaidFeatures, keyState)} onPress={() => navigation.navigate('AiEstimates')} showDivider={false} />
+                        ) : null}
                     </Section>
                     <Section title="Plan">
                         <ProfileSettingRow icon="person-outline" title="Personal details" detail={displayName} onPress={() => navigation.navigate('PersonalDetails')} />

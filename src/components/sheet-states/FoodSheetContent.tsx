@@ -37,7 +37,7 @@ import { prepareFoodEstimateImage, saveMealPhoto } from '../../utils/mealPhotos'
 import { formatDayHeader, todayISO } from '../../utils/calendar';
 import { DURATION, EASING } from '../../theme/motion';
 import { M3 } from '../../theme/tokens';
-import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
+import { useAiGate } from '../../context/AiSetupContext';
 import { useEntitlement } from '../../context/EntitlementContext';
 import { useNavigation } from '@react-navigation/native';
 
@@ -181,7 +181,7 @@ export default function FoodSheetContent({
 }: FoodSheetContentProps) {
     const reduced = useReducedMotion();
     const showDialog = useSheetDialog();
-    const { requestConsent } = useRemoteEstimateConsent();
+    const ensureAiReady = useAiGate();
     const { warmEntitlement } = useEntitlement();
     const navigation = useNavigation<any>();
     const scanRequestRef = useRef(0);
@@ -207,6 +207,7 @@ export default function FoodSheetContent({
     const [suggestionRefresh, setSuggestionRefresh] = useState(0);
     const [photoEstimateBusy, setPhotoEstimateBusy] = useState(false);
     const [photoEstimateError, setPhotoEstimateError] = useState<string | null>(null);
+    const [photoKeyRejected, setPhotoKeyRejected] = useState(false);
     const [reusableMealsAvailable, setReusableMealsAvailable] = useState<boolean | null>(null);
     const stateTransitionRequestRef = useRef(0);
     const enteringStateRef = useRef(false);
@@ -562,9 +563,10 @@ export default function FoodSheetContent({
         scanMealTitleRef.current = mealTitle;
         setPhotoEstimateBusy(true);
         setPhotoEstimateError(null);
+        setPhotoKeyRejected(false);
 
         try {
-            if (!await requestConsent() || requestId !== scanRequestRef.current) return;
+            if (!await ensureAiReady() || requestId !== scanRequestRef.current) return;
             // The estimate keeps the photo and Identify meal's height, so the sheet holds still.
             const photoTitleHeight = stateContentHeightsRef.current['photo-title'];
             setScanningPhoto({ uri: pendingPhoto.uri, minHeight: photoTitleHeight });
@@ -611,6 +613,7 @@ export default function FoodSheetContent({
                     setPhotoEstimateError(null);
                 } else {
                     setPhotoEstimateError(FAILURE_MESSAGES[scanResult.kind]);
+                    setPhotoKeyRejected(scanResult.kind === 'key-invalid');
                 }
                 setPhotoEstimateBusy(false);
                 scanInFlightRef.current = false;
@@ -634,7 +637,7 @@ export default function FoodSheetContent({
                 setPhotoEstimateBusy(false);
             }
         }
-    }, [warmEntitlement, navigation, onGoBack, persistPendingPhoto, photoMealTitle, requestConsent, setState, showScanError, state.pendingAction, transitionTo]);
+    }, [warmEntitlement, navigation, onGoBack, persistPendingPhoto, photoMealTitle, ensureAiReady, setState, showScanError, state.pendingAction, transitionTo]);
 
     const handleReuseMeal = useCallback(async (meal: LoggedMeal) => {
         if (mealReuseInFlightRef.current) return;
@@ -810,24 +813,24 @@ export default function FoodSheetContent({
 
     const handleClarify = useCallback(
         async (input: MealClarificationInput): Promise<ClarificationOutcome<DescribeResult>> => {
-            if (!await requestConsent()) return { result: null, consentDeclined: true };
+            if (!await ensureAiReady()) return { result: null, consentDeclined: true };
             return {
                 result: await clarifyMeal({ ...input, imageBase64: scanBase64Ref.current ?? undefined }),
                 consentDeclined: false,
             };
         },
-        [requestConsent],
+        [ensureAiReady],
     );
 
     const handleClarifyComponent = useCallback(
         async (input: ComponentClarificationInput): Promise<ClarificationOutcome<FoodResult>> => {
-            if (!await requestConsent()) return { result: null, consentDeclined: true };
+            if (!await ensureAiReady()) return { result: null, consentDeclined: true };
             return {
                 result: await clarifyComponent({ ...input, imageBase64: scanBase64Ref.current ?? undefined }),
                 consentDeclined: false,
             };
         },
-        [requestConsent],
+        [ensureAiReady],
     );
 
     const handleMealLogged = useCallback(
@@ -953,6 +956,7 @@ export default function FoodSheetContent({
                         estimateAvailable={serviceConfig.availability.gemini}
                         estimateBusy={photoEstimateBusy}
                         estimateError={photoEstimateError}
+                        onReplaceKey={photoKeyRejected ? () => { void handlePhotoEstimate(); } : undefined}
                         onEstimate={() => { void handlePhotoEstimate(); }}
                         onBack={handlePhotoTitleBack}
                         onContentHeightChange={reportContentHeight}

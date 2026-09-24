@@ -17,6 +17,7 @@ import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../s
 import { AboutScreen, AttributionsScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { ProfileSubscriptionPlanScreen } from '../screens/PlanScreen';
+import { AiEstimatesScreen } from '../screens/AiEstimatesScreen';
 
 interface ProfileNavigatorProps {
   dataVersion: number;
@@ -44,6 +45,7 @@ const ABOUT_OPTIONS = { title: 'About' } as const;
 const ATTRIBUTIONS_OPTIONS = { title: 'Licenses & attributions' } as const;
 const PLAN_PREVIEW_OPTIONS = { title: 'Review changes' } as const;
 const SUBSCRIPTION_PLAN_OPTIONS = { title: 'Plan' } as const;
+const AI_ESTIMATES_OPTIONS = { title: 'AI estimates' } as const;
 
 function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps) {
   const renderProfileHome = useCallback(
@@ -75,6 +77,7 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
         {renderProfileHome}
       </Stack.Screen>
       <Stack.Screen name="SubscriptionPlan" component={ProfileSubscriptionPlanScreen} options={SUBSCRIPTION_PLAN_OPTIONS} />
+      <Stack.Screen name="AiEstimates" component={AiEstimatesScreen} options={AI_ESTIMATES_OPTIONS} />
       <Stack.Screen name="PersonalDetails" options={PERSONAL_DETAILS_OPTIONS}>
         {renderPersonalDetails}
       </Stack.Screen>

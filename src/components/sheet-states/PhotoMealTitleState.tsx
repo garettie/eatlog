@@ -7,6 +7,7 @@ import { parseLocalISO } from '../../utils/calendar';
 import { M3 } from '../../theme/tokens';
 import PrimaryButton from '../PrimaryButton';
 import SheetBackButton from './SheetBackButton';
+import ReplaceKeyAction from '../ai/ReplaceKeyAction';
 
 interface PhotoMealTitleStateProps {
   photoUri: string;
@@ -22,6 +23,8 @@ interface PhotoMealTitleStateProps {
   estimateAvailable: boolean;
   estimateBusy: boolean;
   estimateError: string | null;
+  /** Present when Google turned the key down: replace it, then estimate again. */
+  onReplaceKey?: () => void;
   onEstimate: () => void;
   onBack: () => void;
   onContentHeightChange: (height: number) => void;
@@ -107,6 +110,7 @@ export default function PhotoMealTitleState({
   estimateAvailable,
   estimateBusy,
   estimateError,
+  onReplaceKey,
   onEstimate,
   onBack,
   onContentHeightChange,
@@ -177,6 +181,7 @@ export default function PhotoMealTitleState({
           {estimateError}
         </Text>
       ) : null}
+      {estimateError && onReplaceKey ? <ReplaceKeyAction onReplaced={onReplaceKey} /> : null}
 
       {estimateAvailable ? (
         <PrimaryButton

@@ -53,13 +53,13 @@ test('camera and gallery selection stay local until Estimate as new', () => {
   const cameraFlow = sourceBetween(foodSheetSource, 'const handleCamera', 'const handleGallery');
   const galleryFlow = sourceBetween(foodSheetSource, 'const handleGallery', 'const handlePhotoEstimate');
   for (const selectionFlow of [cameraFlow, galleryFlow]) {
-    assert.doesNotMatch(selectionFlow, /requestConsent/);
+    assert.doesNotMatch(selectionFlow, /requestConsent|ensureAiReady/);
     assert.doesNotMatch(selectionFlow, /prepareFoodEstimateImage/);
     assert.doesNotMatch(selectionFlow, /scanFood/);
   }
 
   const estimateFlow = sourceBetween(foodSheetSource, 'const handlePhotoEstimate', 'const handleReuseMeal');
-  const consentIndex = estimateFlow.indexOf('requestConsent()');
+  const consentIndex = estimateFlow.indexOf('ensureAiReady()');
   const preparationIndex = estimateFlow.indexOf('prepareFoodEstimateImage');
   const scanIndex = estimateFlow.indexOf('scanFood(base64, mealTitle)');
   assert.ok(consentIndex >= 0 && consentIndex < preparationIndex);

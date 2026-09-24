@@ -53,6 +53,7 @@
         }
       ],
       "expo-sqlite",
+      "expo-secure-store",
       "./plugins/withEatlogHealthConnect",
       [
         "expo-build-properties",

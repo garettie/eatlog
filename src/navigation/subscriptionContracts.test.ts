@@ -18,6 +18,7 @@ const planPurchase = read('../components/plan/usePlanPurchase.ts');
 const planCopy = read('../components/plan/planCopy.ts');
 const tierBirdIcon = read('../components/TierBirdIcon.tsx');
 const entitlementProvider = read('../context/EntitlementContext.tsx');
+const aiSetup = read('../context/AiSetupContext.tsx');
 const foodSheet = read('../components/sheet-states/FoodSheetContent.tsx');
 const foodScan = read('../services/foodScan.ts');
 const search = read('../components/sheet-states/SearchInputState.tsx');
@@ -248,21 +249,25 @@ test('initial estimates proceed while re-estimates gate before private content c
   assert.match(tabNavigator, /const openDescribe[\s\S]*?stateKey: 'entry', pendingAction: 'describe'/);
   assert.match(foodSheet, /case 'describe':\s*handleDescribe\(\);/);
   for (const source of [search, addComponent, describeInput]) {
-    const consent = source.indexOf('requestConsent()');
+    const consent = source.indexOf('ensureAiReady()');
     const accessGate = source.indexOf('warmEntitlement()');
     assert.ok(consent >= 0 && accessGate >= 0 && accessGate < consent);
     assert.equal(source.includes('await ensurePaidAccess()'), false);
   }
+  // Redo goes through the same gate as a first estimate: My key redoes on the user's key, and
+  // Eatlog AI still needs Itik, which the gate checks and the Worker enforces.
   for (const marker of ['const handleClarify =', 'const handleClarifyComponent =']) {
     const start = review.indexOf(marker);
-    const consent = review.indexOf('requestConsent()', start);
-    const accessGate = review.indexOf('await ensurePaidAccess()', start);
-    const upgrade = review.indexOf('navigation.navigate("Paywall")', accessGate);
-    const unavailable = review.indexOf('PAID_ACCESS_UNAVAILABLE_MESSAGE', accessGate);
-    assert.ok(start >= 0 && consent >= 0 && accessGate >= start && accessGate < consent);
-    assert.ok(upgrade > accessGate && upgrade < consent);
-    assert.ok(unavailable > accessGate && unavailable < consent);
+    const gate = review.indexOf('await ensureAiReady()', start);
+    const request = review.indexOf(marker === 'const handleClarify =' ? 'await onClarify(' : 'await onClarifyComponent(', start);
+    assert.ok(start >= 0 && gate > start && gate < request);
   }
+  assert.equal(review.includes('ensurePaidAccess'), false);
+  assert.equal(review.includes('requestConsent'), false);
+  // My key is decided before RevenueCat is asked; hosted consent is asked only for Eatlog AI.
+  const gateHook = aiSetup.slice(aiSetup.indexOf('export function useAiGate'));
+  assert.ok(gateHook.indexOf("keyState.route === 'my-key'") < gateHook.indexOf('await ensurePaidAccess()'));
+  assert.match(gateHook, /if \(gate === 'eatlog-ai'\) return requestConsent\(\);/);
   assert.match(foodScan, /acceptAiGrant/);
 });
 

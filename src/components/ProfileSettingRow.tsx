@@ -11,6 +11,8 @@ interface ProfileSettingRowProps {
   onPress?: () => void;
   disabled?: boolean;
   showDivider?: boolean;
+  /** Destructive rows, such as removing a saved key, read in Error Coral. */
+  tone?: 'default' | 'destructive';
 }
 
 export default function ProfileSettingRow({
@@ -20,14 +22,16 @@ export default function ProfileSettingRow({
   onPress,
   disabled = false,
   showDivider = true,
+  tone = 'default',
 }: ProfileSettingRowProps) {
+  const destructive = tone === 'destructive';
   const content = (
     <>
       <View className="w-10 h-10 rounded-full bg-m3-surface-container-high items-center justify-center">
-        <MaterialIcons name={icon} size={20} color={M3.onSurfaceVariant} />
+        <MaterialIcons name={icon} size={20} color={destructive ? M3.error : M3.onSurfaceVariant} />
       </View>
       <View className="flex-1 min-w-0">
-        <Text className="text-m3-on-surface font-semibold text-sm" numberOfLines={1}>{title}</Text>
+        <Text className={`${destructive ? 'text-m3-error' : 'text-m3-on-surface'} font-semibold text-sm`} numberOfLines={1}>{title}</Text>
         <Text className="text-m3-on-surface-variant text-sm mt-0.5" numberOfLines={2}>{detail}</Text>
       </View>
       {onPress && <MaterialIcons name="chevron-right" size={20} color={M3.onSurfaceVariant} />}

@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { normalizeFoodEstimate } from './foodEstimateCore';
 import { GEMINI_ESTIMATE_MODELS, GEMINI_ORIGIN } from './foodEstimateGemini';
+import { checkUserApiKey } from './foodEstimateDirect';
 import { createFoodEstimateClient, type AiRoute, type FoodEstimateClientOptions } from './foodScan';
 
 const USER_KEY = 'synthetic-user-key-0000';
@@ -330,4 +331,36 @@ test('the same food on the other route is a separate action, never merged with t
     assert.equal(urls.length, 2);
     assert.ok(urls[0].startsWith(GEMINI_ORIGIN));
     assert.equal(urls[1], `${WORKER_URL}/v1/estimate`);
+});
+
+test('key check: a free model-list request with the key only in a header', async () => {
+    const calls: Call[] = [];
+    const fetchImpl = (async (url: string, init: RequestInit) => {
+        calls.push({ url, init });
+        return new Response('{"models":[]}', { status: 200 });
+    }) as unknown as typeof fetch;
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl }), 'accepted');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].init.method, 'GET');
+    assert.equal(calls[0].init.body, undefined);
+    assert.ok(calls[0].url.startsWith(`${GEMINI_ORIGIN}/v1beta/models`));
+    assert.ok(!calls[0].url.includes(USER_KEY));
+    assert.deepEqual(calls[0].init.headers, { 'x-goog-api-key': USER_KEY });
+});
+
+test('key check: only a definitive key rejection blocks saving', async () => {
+    const answer = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+    const invalid = { error: { code: 400, status: 'INVALID_ARGUMENT', message: 'API key not valid. Please pass a valid API key.', details: [{ reason: 'API_KEY_INVALID' }] } };
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl: answer(400, invalid) }), 'rejected');
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl: answer(403, { error: { status: 'PERMISSION_DENIED', details: [{ reason: 'SERVICE_DISABLED' }] } }) }), 'rejected');
+    // Location, overload, quota, and transport failures are not evidence against the key.
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl: answer(400, { error: { status: 'FAILED_PRECONDITION', message: 'User location is not supported for the API use.' } }) }), 'inconclusive');
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl: answer(503, { error: { status: 'UNAVAILABLE' } }) }), 'inconclusive');
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl: answer(429, { error: { status: 'RESOURCE_EXHAUSTED' } }) }), 'inconclusive');
+    const offline = (async () => { throw new TypeError('Network request failed'); }) as unknown as typeof fetch;
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl: offline }), 'inconclusive');
+    const hung = ((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    })) as unknown as typeof fetch;
+    assert.equal(await checkUserApiKey(USER_KEY, { fetchImpl: hung, timeoutMs: 5 }), 'inconclusive');
 });

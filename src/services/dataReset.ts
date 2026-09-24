@@ -13,6 +13,18 @@ import { deleteAllMealPhotos } from '../utils/mealPhotos';
 import type { OwnershipProgressListener, OwnershipResult } from './dataOwnership.types';
 import { waitForHealthConnectIdle } from './healthConnect';
 import { clearRemoteEstimateConsent } from './remoteEstimateConsent';
+import { userApiKeyStore } from './userApiKey';
+
+/**
+ * Everything else was deleted, but the credential store refused to erase the user's Google key.
+ * The key and its Manok consent stay together, so the app never holds a key without consent.
+ */
+export class KeyRemovalError extends Error {
+  constructor() {
+    super("Everything else was deleted, but Eatlog couldn't remove your Google key from this phone. It's still saved.");
+    this.name = 'KeyRemovalError';
+  }
+}
 
 const TEMP_PREFIXES = [
   'eatlog-backup-stage-', 'eatlog-restore-stage-', 'eatlog-restore-safety-', 'eatlog-export-',
@@ -43,5 +55,12 @@ export async function resetLocalData(onProgress?: OwnershipProgressListener): Pr
 
   onProgress?.({ operation: 'reset', phase: 'initialize', completed: 2, total: 3, message: 'Preparing a fresh Eatlog database', cancellable: false });
   await initDatabase();
+
+  // Last, so a refusal here never keeps the rest of the data.
+  try {
+    await userApiKeyStore.remove();
+  } catch {
+    throw new KeyRemovalError();
+  }
   return { operation: 'reset', completedAt: new Date().toISOString(), summary: 'All local Eatlog data was deleted.' };
 }

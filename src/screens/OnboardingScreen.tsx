@@ -66,8 +66,9 @@ import {
   WELLNESS_DISCLAIMER,
 } from '../utils/nutritionSafety';
 import ResponsiveContent from '../components/ResponsiveContent';
-import RemoteEstimateConsentContent from '../components/RemoteEstimateConsentContent';
-import { useRemoteEstimateConsent } from '../context/RemoteEstimateConsentContext';
+import AiChoiceContent from '../components/ai/AiChoiceContent';
+import { useAiSetup } from '../context/AiSetupContext';
+import { useEntitlement } from '../context/EntitlementContext';
 import { serviceConfig } from '../config/services';
 import { FORM_MAX_WIDTH } from '../theme/layout';
 
@@ -84,8 +85,8 @@ const UNIT_CHOICES: ChoiceCardOption<'metric' | 'imperial'>[] = [
 ];
 
 const CALCULATION_STEP = 6;
-const HAS_REMOTE_ESTIMATE_CONSENT = serviceConfig.availability.gemini;
-const TOTAL_STEPS = HAS_REMOTE_ESTIMATE_CONSENT ? 7 : CALCULATION_STEP;
+const HAS_AI_CHOICE = serviceConfig.availability.gemini;
+const TOTAL_STEPS = HAS_AI_CHOICE ? 7 : CALCULATION_STEP;
 
 function StyledInput({
   label,
@@ -152,7 +153,9 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
 
 export default function OnboardingScreen({ navigation }: Props) {
   const reduced = useReducedMotion();
-  const { accept, decline } = useRemoteEstimateConsent();
+  const { openKeySetup } = useAiSetup();
+  const { hasPaidFeatures } = useEntitlement();
+  const plansOpenedRef = useRef(false);
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -514,32 +517,27 @@ export default function OnboardingScreen({ navigation }: Props) {
     AccessibilityInfo.announceForAccessibility(`Step ${step} of ${TOTAL_STEPS}`);
   }, [step]);
 
-  async function handleConsentAccept() {
+  // Key setup returns here: a saved key finishes onboarding, Not now leaves the choice open.
+  async function handleUseKey() {
     if (consentBusy || isSubmitting) return;
-    setStepError(null);
     setConsentBusy(true);
     try {
-      if (!await accept()) {
-        setStepError('Eatlog could not save your privacy choice. Nothing was sent. Try again.');
-        return;
-      }
-      await handleSave();
+      if (await openKeySetup('add')) await handleSave();
     } finally {
       setConsentBusy(false);
     }
   }
 
-  async function handleConsentDecline() {
+  function handleEatlogAi() {
     if (consentBusy || isSubmitting) return;
-    setStepError(null);
-    setConsentBusy(true);
-    try {
-      await decline();
-      await handleSave();
-    } finally {
-      setConsentBusy(false);
-    }
+    plansOpenedRef.current = true;
+    navigation.navigate('Paywall');
   }
+
+  // Coming back from the plans with Itik finishes onboarding; coming back without it keeps the choice.
+  useEffect(() => {
+    if (step === TOTAL_STEPS && plansOpenedRef.current && hasPaidFeatures) void handleSave();
+  }, [hasPaidFeatures, step]);
 
   async function handleSave() {
     if (savedRef.current || !computedTargets) return;
@@ -1032,7 +1030,7 @@ export default function OnboardingScreen({ navigation }: Props) {
                         title="Use these starting targets"
                         icon="check"
                         onPress={() => {
-                          if (HAS_REMOTE_ESTIMATE_CONSENT) goToStep(TOTAL_STEPS);
+                          if (HAS_AI_CHOICE) goToStep(TOTAL_STEPS);
                           else void handleSave();
                         }}
                         loading={isSubmitting}
@@ -1042,14 +1040,15 @@ export default function OnboardingScreen({ navigation }: Props) {
                 </View>
               )}
 
-              {/* ═══════════════ STEP 7 — Estimate consent ═══════════════ */}
-              {step === TOTAL_STEPS && HAS_REMOTE_ESTIMATE_CONSENT && (
+              {/* ═══════════════ STEP 7 — AI meal estimates ═══════════════ */}
+              {step === TOTAL_STEPS && HAS_AI_CHOICE && (
                 <View className="min-h-[520px] flex-1">
-                  <RemoteEstimateConsentContent
+                  <AiChoiceContent
                     busy={consentBusy || isSubmitting}
                     error={stepError}
-                    onAccept={handleConsentAccept}
-                    onDecline={handleConsentDecline}
+                    onUseKey={() => { void handleUseKey(); }}
+                    onEatlogAi={handleEatlogAi}
+                    onNotNow={() => { void handleSave(); }}
                   />
                 </View>
               )}

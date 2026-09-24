@@ -17,7 +17,8 @@ import Animated, { useReducedMotion } from "react-native-reanimated";
 import { useNavigation } from "@react-navigation/native";
 
 import { useEntitlement } from "../../context/EntitlementContext";
-import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
+import { useAiGate } from "../../context/AiSetupContext";
+import ReplaceKeyAction from "../ai/ReplaceKeyAction";
 import { describeMeal } from "../../services/foodScan";
 import { loadFoodDetails, type FoodResult } from "../../services/foodSearch";
 import { useFoodSearchController } from "../../hooks/useFoodSearchController";
@@ -102,13 +103,14 @@ export default function AddComponentView({
 	// handed over twice by a fast double tap.
 	const addedRef = useRef(false);
 	const discardGuard = useDiscardGuardContext();
-	const { requestConsent } = useRemoteEstimateConsent();
+	const ensureAiReady = useAiGate();
 	const { warmEntitlement } = useEntitlement();
 	const navigation = useNavigation<any>();
 
 	const [describeText, setDescribeText] = useState("");
 	const [estimating, setEstimating] = useState(false);
 	const [describeError, setDescribeError] = useState<string | null>(null);
+	const [keyRejected, setKeyRejected] = useState(false);
 	const estimateRequestRef = useRef(0);
 
 	const [manualName, setManualName] = useState("");
@@ -257,8 +259,9 @@ export default function AddComponentView({
 		if (!text || estimating || addedRef.current) return;
 		Keyboard.dismiss();
 		setDescribeError(null);
+		setKeyRejected(false);
 		warmEntitlement();
-		if (!(await requestConsent())) return;
+		if (!(await ensureAiReady())) return;
 		const requestId = ++estimateRequestRef.current;
 		setEstimating(true);
 		try {
@@ -273,6 +276,7 @@ export default function AddComponentView({
 				navigation.navigate("Paywall");
 				return;
 			}
+			setKeyRejected(!outcome.ok && outcome.kind === "key-invalid");
 			setDescribeError(
 				outcome.ok
 					? "Couldn't estimate that. Try naming the food and the amount."
@@ -289,7 +293,7 @@ export default function AddComponentView({
 		estimating,
 		navigation,
 		onAdd,
-		requestConsent,
+		ensureAiReady,
 		warmEntitlement,
 	]);
 
@@ -390,6 +394,9 @@ export default function AddComponentView({
 							>
 								{describeError}
 							</Text>
+							{keyRejected ? (
+								<ReplaceKeyAction onReplaced={() => void handleEstimate()} />
+							) : null}
 							<Pressable
 								onPress={() => setPage("manual")}
 								accessibilityRole="button"

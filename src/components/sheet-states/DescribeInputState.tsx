@@ -6,7 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import { describeMeal, DescribeResult } from '../../services/foodScan';
 import { M3 } from '../../theme/tokens';
 import { useEntitlement } from '../../context/EntitlementContext';
-import { useRemoteEstimateConsent } from '../../context/RemoteEstimateConsentContext';
+import { useAiGate } from '../../context/AiSetupContext';
+import ReplaceKeyAction from '../ai/ReplaceKeyAction';
 import PrimaryButton from '../PrimaryButton';
 import SheetBackButton from './SheetBackButton';
 
@@ -22,9 +23,10 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [keyRejected, setKeyRejected] = useState(false);
   const inputRef = useRef<typeof BottomSheetTextInput>(null);
   const requestRef = useRef(0);
-  const { requestConsent } = useRemoteEstimateConsent();
+  const ensureAiReady = useAiGate();
   const { warmEntitlement } = useEntitlement();
   const navigation = useNavigation<any>();
 
@@ -35,8 +37,9 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
     if (!trimmed) return;
     Keyboard.dismiss();
     setError(null);
+    setKeyRejected(false);
     warmEntitlement();
-    if (!await requestConsent()) return;
+    if (!await ensureAiReady()) return;
     const requestId = ++requestRef.current;
     setLoading(true);
     try {
@@ -49,6 +52,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
         navigation.navigate('Paywall');
       } else {
         setError(result.message);
+        setKeyRejected(result.kind === 'key-invalid');
       }
     } catch {
       if (requestId !== requestRef.current) return;
@@ -86,6 +90,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
       {error && (
         <View className="bg-m3-error-container rounded-xl px-4 py-3 gap-2" accessibilityLiveRegion="assertive">
           <Text className="text-m3-on-error-container text-sm">{error}</Text>
+          {keyRejected ? <ReplaceKeyAction onReplaced={() => { void handleEstimate(); }} /> : null}
           <Pressable onPress={handleEstimate} accessibilityRole="button" accessibilityLabel="Retry estimate" accessibilityHint="Tries the meal estimate again" className="min-h-[48px] bg-m3-surface-container-high rounded-full px-4 self-start justify-center">
             <Text className="text-m3-on-surface text-xs font-semibold">Retry</Text>
           </Pressable>

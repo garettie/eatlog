@@ -28,7 +28,6 @@ import Animated, {
 	withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
 
 import { type MealType, saveMealWithComponents } from "../../db/database";
 import type { FoodResult } from "../../services/foodSearch";
@@ -61,9 +60,7 @@ import {
 } from "../../utils/calendar";
 import { M3 } from "../../theme/tokens";
 import { DURATION, EASING } from "../../theme/motion";
-import { useRemoteEstimateConsent } from "../../context/RemoteEstimateConsentContext";
-import { useEntitlement } from "../../context/EntitlementContext";
-import { PAID_ACCESS_UNAVAILABLE_MESSAGE } from "../../services/billing.types";
+import { useAiGate } from "../../context/AiSetupContext";
 import type { ClarificationOutcome } from "./FoodSheetContent";
 import {
 	formatPortionLabel,
@@ -223,9 +220,7 @@ export default function ReviewState({
 	logDate: logDateProp,
 	onGoBack,
 }: ReviewStateProps) {
-	const { requestConsent } = useRemoteEstimateConsent();
-	const { ensurePaidAccess } = useEntitlement();
-	const navigation = useNavigation<any>();
+	const ensureAiReady = useAiGate();
 	const { isNarrow } = useResponsiveLayout();
 	const [mealName, setMealName] = useState(result?.mealName ?? "");
 	const [selectedPhotoUri, setSelectedPhotoUri] = useState<string | null>(
@@ -785,18 +780,8 @@ export default function ReviewState({
 		const name = mealName.trim();
 		if (!name || clarifying) return;
 		setClarifyError(null);
-		// Awaited rather than sampled: on a cold start the plan is still resolving, and
-		// answering "unavailable" from an unfinished lookup denies a re-estimate the user has.
-		const accessDecision = await ensurePaidAccess();
-		if (accessDecision === "free") {
-			navigation.navigate("Paywall");
-			return;
-		}
-		if (accessDecision === "unavailable") {
-			setClarifyError(PAID_ACCESS_UNAVAILABLE_MESSAGE);
-			return;
-		}
-		if (!await requestConsent()) return;
+		// My key redoes on the user's key; Eatlog AI needs Itik, which the Worker enforces.
+		if (!await ensureAiReady()) return;
 		setClarifying(true);
 		try {
 			const clarification = await onClarify({
@@ -835,10 +820,8 @@ export default function ReviewState({
 	}, [
 		mealName,
 		clarifying,
-		ensurePaidAccess,
-		navigation,
+		ensureAiReady,
 		onClarify,
-		requestConsent,
 		result?.originalDescription,
 		components,
 		division,
@@ -851,19 +834,7 @@ export default function ReviewState({
 			const name = component.food.name.trim();
 			if (!name || clarifyingComponentId) return;
 			setComponentClarifyError(null);
-			const accessDecision = await ensurePaidAccess();
-			if (accessDecision === "free") {
-				navigation.navigate("Paywall");
-				return;
-			}
-			if (accessDecision === "unavailable") {
-				setComponentClarifyError({
-					id: component.food.id,
-					message: PAID_ACCESS_UNAVAILABLE_MESSAGE,
-				});
-				return;
-			}
-			if (!await requestConsent()) return;
+			if (!await ensureAiReady()) return;
 			setClarifyingComponentId(component.food.id);
 			try {
 				const clarification = await onClarifyComponent({
@@ -898,10 +869,8 @@ export default function ReviewState({
 		},
 		[
 			clarifyingComponentId,
-			ensurePaidAccess,
-			navigation,
+			ensureAiReady,
 			onClarifyComponent,
-			requestConsent,
 			mealName,
 			result?.originalDescription,
 			components,
