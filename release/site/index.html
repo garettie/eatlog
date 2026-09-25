@@ -32,7 +32,7 @@
     <link rel="icon" href="/assets/favicon.png" type="image/png" />
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="stylesheet" href="/styles.css?v=20260924-impeccable" />
-    <link rel="stylesheet" href="/home.css?v=20260925-foss" />
+    <link rel="stylesheet" href="/home.css?v=20260925-github" />
     <script src="/site.js?v=20260924-impeccable" defer></script>
   </head>
   <body class="home-page">
@@ -66,7 +66,26 @@
             ><a href="/support">Support</a>
           </nav>
         </details>
-        <a class="header-action" href="#release-status">Release status</a>
+        <div class="header-end">
+          <a class="header-action" href="#release-status">Release status</a>
+          <a
+            class="header-github"
+            href="https://github.com/garettie/eatlog"
+            aria-label="Eatlog on GitHub"
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width="20"
+              height="20"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+              />
+            </svg>
+          </a>
+        </div>
       </div>
     </header>
 
@@ -74,15 +93,6 @@
       <section class="mog-hero" aria-labelledby="hero-title">
         <div class="section-shell mog-hero__grid">
           <div class="mog-hero__copy">
-            <p class="mog-foss">
-              <span class="mog-foss__fire" aria-hidden="true"
-                ><span></span><span></span><span></span><span></span><span></span
-              ></span>
-              <span class="mog-foss__text" aria-hidden="true">FOSS. BYOK.</span>
-              <span class="mog-foss__spoken"
-                >Free and open source. Bring your own key.</span
-              >
-            </p>
             <h1 id="hero-title">Before you Eat,<br /><em>Log.</em></h1>
             <p class="mog-wordplay">
               Itlog, eat itlog, log it, log eat, log eat itlog,
@@ -190,7 +200,16 @@
               />
             </figure>
             <span class="mog-sticker mog-sticker--one">NO<br />LOGIN</span>
-            <span class="mog-sticker mog-sticker--two">BYO<br />KEY</span>
+            <p class="mog-foss">
+              <span class="mog-foss__fire" aria-hidden="true"
+                ><span></span><span></span><span></span><span></span
+                ><span></span
+              ></span>
+              <span class="mog-foss__text" aria-hidden="true">FOSS. BYOK.</span>
+              <span class="mog-foss__spoken"
+                >Free and open source. Bring your own key.</span
+              >
+            </p>
           </div>
         </div>
       </section>
@@ -218,7 +237,7 @@
         <div class="section-shell">
           <p class="mog-section-tag" data-reveal>Why it's free</p>
           <h2 id="manifesto-title" data-reveal style="--reveal-delay: 80ms">
-            Free app. Open code.<br /><span>AI on your own key.</span>
+            Free. Open source.<br /><span>Bring your own key.</span>
           </h2>
           <div
             class="mog-manifesto__foot"
@@ -230,7 +249,6 @@
               you scan costs them an API call. Eatlog doesn't have that problem
               because the calls run on your key, not mine. You make a key in
               Google AI Studio, paste it into the app, and that's basically it.
-              The code's public if you want to check.
             </p>
           </div>
         </div>
@@ -485,21 +503,17 @@
                 <span>Scans with your key</span
                 ><strong>STRAIGHT TO GOOGLE</strong
                 ><small
-                  >Your photo or text goes to Google with your key, I never see
-                  it.</small
+                  >Your photo or text goes to Google. I never see it.</small
                 >
               </li>
               <li>
                 <span>Scans with Omelette</span
                 ><strong>THROUGH MY SERVER</strong
-                ><small
-                  >It goes through my Cloudflare worker to Google, since it's
-                  using my key.</small
-                >
+                ><small>It goes through my Cloudflare worker to Google.</small>
               </li>
               <li>
-                <span>Food search</span><strong>SEARCH TERM ONLY</strong
-                ><small>Only when you search.</small>
+                <span>Food search</span><strong>USDA</strong
+                ><small>Free and public food database.</small>
               </li>
               <li>
                 <span>Backups</span><strong>YOUR CALL</strong
@@ -507,7 +521,7 @@
               </li>
             </ol>
             <p class="mog-receipt__total">
-              <span>Cloud diary</span><strong>NONE</strong>
+              <span>Cloud storage</span><strong>NONE</strong>
             </p>
           </div>
         </div>
@@ -542,9 +556,9 @@
               />
               <h3>Eatlog</h3>
               <strong>Free</strong>
-              <p>AI on your own key.</p>
+              <p>Bring Your Own Key. Supports Google AI Studio only.</p>
               <a class="mog-button" href="https://aistudio.google.com/apikey"
-                >Get a free key</a
+                >Get yours here</a
               >
             </article>
             <article data-reveal style="--reveal-delay: 90ms">
@@ -556,9 +570,9 @@
               />
               <h3>Omelette</h3>
               <strong>₱349 once</strong>
-              <p>AI on my key, no setup.</p>
+              <p>No API key or additional setup required.</p>
               <button class="mog-button" type="button" disabled>
-                Coming with the Play release
+                Coming soon
               </button>
             </article>
           </div>
@@ -615,8 +629,7 @@
             <details>
               <summary>Is it really open source?</summary>
               <p>
-                Yes, under ___, so you can do pretty much anything with it. That
-                covers the
+                Yes, so you can do pretty much anything with it. That covers the
                 <a href="https://github.com/garettie/eatlog">app code</a>, not
                 free use of the Omelette server, since that's my key and my
                 bill.
@@ -626,22 +639,18 @@
               <summary>What do I get with Omelette?</summary>
               <p>
                 AI scanning without setting up your own key, that's it,
-                everything else is already free. If you refund it the AI access
-                goes away, but your diary stays.
+                everything else is already free.
               </p>
             </details>
             <details>
               <summary>Does it sync with health apps?</summary>
-              <p>
-                On Android you can sync weight with Health Connect. No Apple
-                Health for now.
-              </p>
+              <p>On Android you can sync weight with Health Connect.</p>
             </details>
             <details>
               <summary>Is this medical advice?</summary>
               <p>
-                No. The estimates and targets can be wrong, so if you're dealing
-                with anything medical, talk to a doctor.
+                No. The estimates and targets can be wrong. If you have some
+                sort of medical condition, go see a doctor.
               </p>
             </details>
           </div>
@@ -665,20 +674,15 @@
             <p class="mog-section-tag">Android first</p>
             <h2 id="final-title">The egg is still cooking.</h2>
             <p>
-              It's not on the Play Store yet, I'm still finishing that up. The
+              Still testing for the Play Store release, iOS will come later. The
               code's already on GitHub though, so you can build it yourself if
               you don't want to wait.
             </p>
           </div>
           <div class="mog-final__actions">
-            <a
-              class="mog-button mog-button--dark"
-              href="https://github.com/garettie/eatlog"
-              >Build it from GitHub</a
-            >
             <div class="mog-cook">
               <button
-                class="mog-cook__button"
+                class="mog-button mog-button--dark mog-cook__button"
                 type="button"
                 data-cook-button
                 aria-describedby="cook-status"
@@ -699,6 +703,9 @@
                 aria-live="polite"
               ></span>
             </div>
+            <a class="mog-final__link" href="https://github.com/garettie/eatlog"
+              >GitHub</a
+            >
           </div>
         </div>
       </section>

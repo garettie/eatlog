@@ -65,6 +65,32 @@
   color: var(--mog-white);
 }
 
+.home-header .header-end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.home-header .header-github {
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--mog-line);
+  border-radius: 999px;
+  background: #101216;
+  color: var(--mog-white);
+  transition: background 160ms ease-out;
+}
+
+.home-header .header-github:hover {
+  background: #25272d;
+}
+
+.home-header .header-github svg {
+  fill: currentColor;
+}
+
 .home-header .header-action {
   min-height: 42px;
   padding: 10px 18px;
@@ -159,11 +185,15 @@
 
 /* ---- FOSS. BYOK.: fat type with CC0 pixel fire ("Fire" by i_rk_jain) burning behind it ---- */
 .mog-foss {
-  position: relative;
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: 13%;
   width: fit-content;
   margin: 0;
   padding-top: 0.55em;
-  font-size: clamp(2.6rem, 4.2vw, 3.8rem);
+  font-size: clamp(1.7rem, 2.5vw, 2.5rem);
+  rotate: -5deg;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -423,16 +453,6 @@
 .mog-sticker--one {
   top: 17%;
   left: 2%;
-}
-
-.mog-sticker--two {
-  right: 2%;
-  bottom: 19%;
-  width: 78px;
-  border: 1px solid #4a4d56;
-  background: #1d2024;
-  color: var(--mog-white);
-  transform: rotate(8deg);
 }
 
 .mog-ticker {
@@ -1030,6 +1050,11 @@
 
   .home-header .mobile-nav {
     display: block;
+    margin-left: auto;
+  }
+
+  .home-header .header-end {
+    margin-left: -18px;
   }
 
   .home-header .mobile-nav summary {
@@ -1126,12 +1151,6 @@
   .mog-sticker--one {
     top: 13%;
     left: 0;
-  }
-
-  .mog-sticker--two {
-    right: 0;
-    bottom: 17%;
-    width: 66px;
   }
 
   .mog-manifesto {
@@ -1650,7 +1669,6 @@
 
 /* ---- Hero entrance choreography ---- */
 @media (prefers-reduced-motion: no-preference) {
-  .mog-foss,
   .mog-hero h1,
   .mog-wordplay,
   .mog-hero__lede,
@@ -1659,7 +1677,6 @@
     animation: mog-rise 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  .mog-foss { animation-delay: 60ms; }
   .mog-hero h1 { animation-delay: 150ms; }
   .mog-wordplay { animation-delay: 240ms; }
   .mog-hero__lede { animation-delay: 300ms; }
@@ -1687,9 +1704,8 @@
       mog-wobble-one 5.6s ease-in-out 1400ms infinite;
   }
 
-  .mog-sticker--two {
-    animation: mog-pop 520ms cubic-bezier(0.16, 1, 0.3, 1) 800ms both,
-      mog-wobble-two 6.4s ease-in-out 1600ms infinite;
+  .mog-foss {
+    animation: mog-pop 520ms cubic-bezier(0.16, 1, 0.3, 1) 800ms both;
   }
 
 }
@@ -1760,16 +1776,10 @@
 }
 
 .mog-sticker--one { transform: rotate(-9deg); }
-.mog-sticker--two { transform: rotate(8deg); }
 
 @keyframes mog-wobble-one {
   0%, 100% { transform: rotate(-9deg); }
   50% { transform: rotate(-4deg) translateY(-5px); }
-}
-
-@keyframes mog-wobble-two {
-  0%, 100% { transform: rotate(8deg); }
-  50% { transform: rotate(4deg) translateY(-4px); }
 }
 
 
@@ -1926,6 +1936,7 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
   z-index: 1;
   cursor: pointer;
   font: inherit;
+  font-weight: 700;
 }
 
 .mog-cook__fire {
@@ -1978,7 +1989,6 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
 /* ---- Reduced motion: everything static, everything visible ---- */
 @media (prefers-reduced-motion: reduce) {
   .mog-sticker--one,
-  .mog-sticker--two,
 
   html.js [data-reveal] {
     opacity: 1;
@@ -2028,7 +2038,7 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
   }
 }
 
-/* ---- Release actions: GitHub leads, the cook button is a small aside ---- */
+/* ---- Release actions: the cook button leads, GitHub is a small link under it ---- */
 .mog-final__actions {
   display: flex;
   flex-direction: column;
@@ -2036,19 +2046,18 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
   gap: 10px;
 }
 
-.mog-cook__button {
+.mog-final__link {
   min-height: 44px;
-  padding: 10px 14px;
-  border: 0;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 14px;
   color: #53555d;
   font-size: 0.92rem;
   font-weight: 600;
-  text-decoration: underline;
   text-underline-offset: 4px;
 }
 
-.mog-cook__button:hover {
+.mog-final__link:hover {
   color: var(--mog-black);
 }
 
@@ -2100,7 +2109,7 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
     width: 100%;
   }
 
-  .mog-cook {
+  .mog-final__link {
     align-self: center;
   }
 }
