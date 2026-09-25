@@ -15,6 +15,9 @@
 
 /support*
   Cache-Control: public, max-age=300, must-revalidate
+
+/test*
+  Cache-Control: public, max-age=300, must-revalidate
 /assets/*
   Cache-Control: public, max-age=86400, must-revalidate
 

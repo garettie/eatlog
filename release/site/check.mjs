@@ -9,6 +9,7 @@ const routes = new Map([
   ['/privacy', 'privacy/index.html'],
   ['/terms', 'terms/index.html'],
   ['/support', 'support/index.html'],
+  ['/test', 'test/index.html'],
 ]);
 
 const readSiteFile = (relativePath) => readFileSync(join(siteRoot, relativePath), 'utf8');
@@ -46,7 +47,7 @@ for (const [route, html] of pages) {
 }
 
 const homepage = pages.get('/');
-for (const route of ['/privacy', '/terms', '/support']) {
+for (const route of ['/privacy', '/terms', '/support', '/test']) {
   assert.match(homepage, new RegExp(`href="${route}"`), `homepage needs a ${route} link`);
 }
 assert.match(homepage, /free, open-source/i, 'homepage must lead with free and open-source positioning');
@@ -65,7 +66,9 @@ assert.doesNotMatch(homepage, /tier-(?:pugo|manok|itik)(?:\.svg|"|\b)/i, 'homepa
 assert.match(homepage, /href="\/styles\.css\?v=[^"]+"/, 'homepage stylesheet needs a cache-busting version');
 assert.match(homepage, /href="\/home\.css\?v=[^"]+"/, 'homepage stylesheet override needs a cache-busting version');
 assert.match(homepage, /src="\/site\.js\?v=[^"]+"/, 'homepage script needs a cache-busting version');
-assert.match(homepage, /<a class="header-action" href="#release-status">Release status<\/a>/, 'release status link needs the homepage release target');
+assert.match(homepage, /<a class="header-action" href="\/test">Join the test<\/a>/, 'the header action opens the closed-test page');
+assert.match(pages.get('/test'), /href="https:\/\/groups\.google\.com\/g\/eatlog-closed-testers"/, '/test needs the tester group link');
+assert.match(pages.get('/test'), /href="https:\/\/play\.google\.com\/apps\/testing\/com\.sgaret\.eatlog"/, '/test needs the Play opt-in link');
 assert.match(homepage, /<section\b(?=[^>]*\bclass=["'][^"']*\bmog-final\b[^"']*["'])(?=[^>]*\bid=["']release-status["'])[^>]*>/i, 'homepage needs a release status target');
 assert.match(homepage, /<button\b[^>]*\bdata-cook-button\b[^>]*>\s*Let him cook!\s*<\/button>/i, 'release section needs the cooking interaction');
 assert.match(homepage, /src="\/assets\/fire-click\.svg"/, 'cooking interaction needs the one-shot fire SVG');
