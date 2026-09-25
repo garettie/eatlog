@@ -57,7 +57,7 @@ npm run android
 
 That builds a development version of the app, installs it, and starts the bundler. Once it's installed, `npm start` is enough.
 
-With no setup you get everything local, plus My key if you paste in your own Gemini key. USDA search, Eatlog AI, and purchases need your own worker and RevenueCat project. See [worker/README.md](worker/README.md), then put your URLs and keys in `.env.local`.
+With no setup you get everything local, plus My key if you paste in your own Gemini key. USDA search, Eatlog AI, and purchases need your own worker and RevenueCat project. See [worker/README.md](worker/README.md), then copy `.env.example` to `.env.local` and fill it in.
 
 ## Contributing
 
