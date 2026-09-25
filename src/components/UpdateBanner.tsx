@@ -9,17 +9,30 @@ import { haptics } from '../utils/haptics';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import { useDiscardGuardContext } from './sheet-states/useDiscardGuard';
 
+const COPY = {
+  ota: {
+    message: 'An update is ready. Restart to apply it.',
+    action: 'Restart',
+    actionLabel: 'Restart Eatlog to apply the update',
+  },
+  store: {
+    message: 'A new version of Eatlog is on Google Play.',
+    action: 'Update',
+    actionLabel: 'Open Google Play to update Eatlog',
+  },
+} as const;
+
 /**
- * Announces a downloaded update on Today only. Restarting is the user's call and never the
- * app's: an unannounced reload during a meal review would discard the edit being made.
+ * Announces an update on Today only. Applying it is the user's call and never the app's: an
+ * unannounced reload, or Play replacing the app mid-install, would discard the edit being made.
  */
 export default function UpdateBanner() {
-  const { ready, restart, dismiss } = useAppUpdate();
+  const { kind, apply, dismiss } = useAppUpdate();
   const { isAnyDirty } = useDiscardGuardContext();
   const reduced = useReducedMotion();
-  const [restarting, setRestarting] = useState(false);
+  const [applying, setApplying] = useState(false);
 
-  const handleRestart = useCallback(() => {
+  const handleApply = useCallback(() => {
     // Unsaved edits outlive this component, so ask the owner of that state rather than
     // assuming Today being visible means nothing is in progress.
     if (isAnyDirty()) {
@@ -27,16 +40,17 @@ export default function UpdateBanner() {
       return;
     }
     haptics.tap();
-    setRestarting(true);
-    void restart().finally(() => setRestarting(false));
-  }, [isAnyDirty, restart]);
+    setApplying(true);
+    void apply().finally(() => setApplying(false));
+  }, [isAnyDirty, apply]);
 
   const handleDismiss = useCallback(() => {
     haptics.tap();
     dismiss();
   }, [dismiss]);
 
-  if (!ready) return null;
+  if (!kind) return null;
+  const copy = COPY[kind];
 
   return (
     <Animated.View
@@ -47,16 +61,16 @@ export default function UpdateBanner() {
     >
       <MaterialIcons name="system-update-alt" size={22} color={M3.onSecondaryContainer} />
       <Text className="text-m3-on-secondary-container text-sm font-medium flex-1">
-        An update is ready. Restart to apply it.
+        {copy.message}
       </Text>
       <Pressable
-        onPress={handleRestart}
-        disabled={restarting}
+        onPress={handleApply}
+        disabled={applying}
         className="min-h-[48px] px-3 items-center justify-center rounded-full active:opacity-70 disabled:opacity-50"
         accessibilityRole="button"
-        accessibilityLabel="Restart Eatlog to apply the update"
+        accessibilityLabel={copy.actionLabel}
       >
-        <Text className="text-m3-on-secondary-container text-sm font-semibold">Restart</Text>
+        <Text className="text-m3-on-secondary-container text-sm font-semibold">{copy.action}</Text>
       </Pressable>
       <Pressable
         onPress={handleDismiss}
