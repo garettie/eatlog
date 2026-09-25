@@ -184,16 +184,20 @@
 }
 
 /* ---- FOSS. BYOK.: fat type with CC0 pixel fire ("Fire" by i_rk_jain) burning behind it ---- */
+/* A burning crown resting on the main phone's top edge. --main-h mirrors the main phone's
+   height at each breakpoint, since the phone is centered in the stage. */
 .mog-foss {
+  --main-h: calc(min(25vw, 360px) * 860 / 405);
   position: absolute;
   z-index: 5;
-  right: 0;
-  bottom: 13%;
-  width: fit-content;
+  bottom: calc(50% + var(--main-h) / 2 - 0.5em);
+  left: 50%;
+  width: max-content;
   margin: 0;
   padding-top: 0.55em;
-  font-size: clamp(1.7rem, 2.5vw, 2.5rem);
-  rotate: -5deg;
+  font-size: clamp(1.5rem, 2.2vw, 2.2rem);
+  translate: -50% 0 80px;
+  rotate: -4deg;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -1021,6 +1025,7 @@
   }
 
   .mog-phone--main { width: 280px; }
+  .mog-foss { --main-h: calc(280px * 860 / 405); }
   .mog-phone--left,
   .mog-phone--right { width: 200px; }
 
@@ -1126,6 +1131,10 @@
 
   .mog-phone--main {
     width: min(58vw, 290px);
+  }
+
+  .mog-foss {
+    --main-h: calc(min(58vw, 290px) * 860 / 405);
   }
 
   .mog-phone--left,
@@ -1423,6 +1432,10 @@
     width: min(54vw, 260px);
   }
 
+  .mog-foss {
+    --main-h: calc(min(54vw, 260px) * 860 / 405);
+  }
+
   .mog-phone--left,
   .mog-phone--right {
     width: min(36vw, 160px);
@@ -1572,6 +1585,13 @@
     width: auto;
     height: min(78svh, 700px);
   }
+
+  /* Outranks the min-width: 1101px width rule below, which leaves this height in place. The
+     crown also sits lower here so its flames clear the sticky header on short screens. */
+  .mog-stage .mog-foss {
+    --main-h: min(78svh, 700px);
+    bottom: calc(50% + var(--main-h) / 2 - 1em);
+  }
 }
 
 /* ============================================================
@@ -1659,6 +1679,10 @@
 @media (min-width: 1101px) {
   .mog-phone--main {
     width: min(24vw, 368px);
+  }
+
+  .mog-foss {
+    --main-h: calc(min(24vw, 368px) * 860 / 405);
   }
 
   .mog-phone--left,
