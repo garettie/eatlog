@@ -447,11 +447,8 @@
 }
 
 .mog-manifesto__foot {
-  max-width: 920px;
+  max-width: 640px;
   margin: 70px 0 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 0.72fr;
-  gap: clamp(32px, 7vw, 100px);
 }
 
 .mog-manifesto__foot p {
@@ -459,13 +456,6 @@
   color: #c7c9d1;
   font-size: clamp(1.05rem, 1.5vw, 1.28rem);
   line-height: 1.55;
-}
-
-.mog-manifesto__foot .mog-manifesto__aside {
-  padding-left: 20px;
-  border-left: 1px solid #393c44;
-  color: #8e919b;
-  font-size: 0.96rem;
 }
 
 .mog-story {
@@ -657,32 +647,8 @@
   line-height: 1.66;
 }
 
-.mog-private__controls {
-  margin: 42px 0 34px;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  border-top: 1px solid #cfd0d4;
-  list-style: none;
-}
-
-.mog-private__controls li {
-  padding: 17px 24px 17px 0;
-  border-bottom: 1px solid #cfd0d4;
-  color: #1f2127;
-  font-weight: 600;
-}
-
-.mog-private__controls li:nth-child(odd) {
-  border-right: 1px solid #cfd0d4;
-}
-
-.mog-private__controls li:nth-child(even) {
-  padding-left: 24px;
-}
-
 .mog-dark-link {
+  margin-top: 30px;
   color: var(--mog-black);
 }
 
@@ -786,13 +752,6 @@
   font-size: 1.8rem;
 }
 
-.mog-receipt__joke {
-  margin: 28px 0 0;
-  color: #70737d;
-  font-size: 0.68rem;
-  text-align: center;
-}
-
 .mog-plans {
   padding: clamp(100px, 11vw, 160px) 0;
   border-bottom: 1px solid var(--mog-line);
@@ -808,12 +767,10 @@
 
 .mog-plan-cards article {
   min-width: 0;
-  padding: 34px clamp(20px, 3vw, 42px);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-  gap: 14px 20px;
-  align-items: center;
+  padding: 40px clamp(20px, 3vw, 42px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .mog-plan-cards article + article {
@@ -821,7 +778,6 @@
 }
 
 .mog-plan-cards img {
-  grid-row: 1 / 3;
   width: clamp(58px, 5vw, 76px);
   height: auto;
 }
@@ -832,73 +788,47 @@
 }
 
 .mog-plan-cards h3 {
+  margin-top: 22px;
   color: var(--mog-white);
   font-size: 1.35rem;
 }
 
-.mog-plan-cards p {
-  color: #8f929c;
-  font-size: 0.8rem;
-}
-
 .mog-plan-cards article > strong {
-  grid-column: 1 / -1;
-  margin-top: 18px;
+  margin-top: 10px;
   color: var(--mog-white);
   font-size: clamp(2.4rem, 4vw, 4.5rem);
   letter-spacing: -0.05em;
   line-height: 1;
 }
 
-.mog-plan-cards article > strong span,
-.mog-plan-cards article > strong small {
-  color: #8f929c;
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0;
+.mog-plan-cards p {
+  margin-top: 14px;
+  color: #aeb0ba;
+  font-size: 1rem;
 }
 
-.mog-plan-table {
-  margin-top: 40px;
-  border: 0;
-  border-radius: 0;
+.mog-plan-cards .mog-button {
+  margin-top: 28px;
+}
+
+.mog-plan-cards .mog-button:disabled {
+  border-color: #3a3d45;
   background: transparent;
+  color: #8f929c;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.home-page .mog-plan-table .plan-table {
-  table-layout: fixed;
-}
-
-.home-page .mog-plan-table th,
-.home-page .mog-plan-table td {
-  padding: 18px 22px;
-  border-color: #30323a;
-}
-
-.home-page .mog-plan-table thead th {
+.mog-plans__same {
+  margin: 30px 0 0;
   color: var(--mog-white);
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.home-page .mog-plan-table thead th:first-child,
-.home-page .mog-plan-table tbody th {
-  width: 40%;
-  text-align: left;
-}
-
-.home-page .mog-plan-table thead th:not(:first-child),
-.home-page .mog-plan-table td {
-  width: 30%;
-  text-align: center;
+  font-weight: 600;
 }
 
 .home-page .plan-note {
-  max-width: 940px;
-  margin: 26px auto 0;
+  max-width: 640px;
+  margin: 12px 0 0;
   color: #8f929c;
-  text-align: center;
 }
 
 .mog-faq {
@@ -1161,8 +1091,6 @@
 
   .mog-manifesto__foot {
     margin-top: 52px;
-    grid-template-columns: 1fr;
-    gap: 26px;
   }
 
   .mog-story,
@@ -1283,25 +1211,9 @@
     grid-template-columns: 1fr;
   }
 
-  .mog-plan-cards article {
-    grid-template-columns: auto 1fr auto;
-    grid-template-rows: auto;
-  }
-
   .mog-plan-cards article + article {
     border-top: 1px solid #363941;
     border-left: 0;
-  }
-
-  .mog-plan-cards img {
-    grid-row: auto;
-  }
-
-  .mog-plan-cards article > strong {
-    grid-column: auto;
-    margin-top: 0;
-    font-size: 2.4rem;
-    text-align: right;
   }
 
   .home-page .mog-faq .faq-layout {
@@ -1486,18 +1398,6 @@
     font-size: clamp(2.45rem, 12vw, 3.8rem);
   }
 
-  .mog-private__controls {
-    grid-template-columns: 1fr;
-  }
-
-  .mog-private__controls li:nth-child(odd) {
-    border-right: 0;
-  }
-
-  .mog-private__controls li:nth-child(even) {
-    padding-left: 0;
-  }
-
   .mog-receipt {
     padding: 24px 20px;
     box-shadow: 8px 11px 0 #dedfe2;
@@ -1512,19 +1412,16 @@
   }
 
   .mog-plan-cards article {
-    grid-template-columns: 54px 1fr;
-    gap: 12px 16px;
+    padding-inline: 0;
   }
 
   .mog-plan-cards img {
     width: 54px;
   }
 
-  .mog-plan-cards article > strong {
-    grid-column: 1 / -1;
-    text-align: left;
+  .mog-plan-cards .mog-button {
+    width: 100%;
   }
-
 
   .mog-final {
     padding-block: 58px;
@@ -1938,50 +1835,6 @@ html.js .mog-receipt[data-reveal].is-revealed {
   font-variant-numeric: tabular-nums;
 }
 
-.home-page .mog-plan-table {
-  margin-top: 48px;
-  border: 1px solid #30323a;
-  border-radius: 22px;
-  background: #101216;
-}
-
-.home-page .mog-plan-table thead th {
-  padding-block: 22px;
-  border-bottom: 1px solid #3a3d45;
-  background: #15171c;
-}
-
-.home-page .mog-plan-table tbody tr {
-  transition: background 200ms ease-out;
-}
-
-.home-page .mog-plan-table tbody tr:hover {
-  background: #16181e;
-}
-
-.home-page .mog-plan-table tbody tr:last-child th,
-.home-page .mog-plan-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.home-page .mog-plan-table .feature-check {
-  color: var(--mog-white);
-}
-
-.home-page .mog-plan-table td {
-  color: #8f929c;
-}
-
-.home-page .mog-plan-table td .feature-check {
-  color: var(--mog-white);
-}
-
-.home-page .mog-plan-table .plan-table__difference th,
-.home-page .mog-plan-table .plan-table__difference td {
-  color: var(--mog-white);
-  font-weight: 600;
-}
-
 /* ---- Receipt: tactile ---- */
 .mog-receipt {
   transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 320ms ease-out;
@@ -2144,59 +1997,79 @@ html.js .mog-receipt[data-reveal].is-revealed:hover {
   }
 }
 
-/* Phones: each feature takes its own line, with both plans' values side by side under it. */
-@media (max-width: 720px) {
-  .home-page .mog-plan-table {
-    padding: 0;
-    overflow: hidden;
-  }
-
-  .home-page .mog-plan-table .plan-table,
-  .home-page .mog-plan-table thead,
-  .home-page .mog-plan-table tbody {
-    display: block;
-    min-width: 0;
-  }
-
-  .home-page .mog-plan-table tr {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .home-page .mog-plan-table thead th:first-child {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  .home-page .mog-plan-table thead th:not(:first-child),
-  .home-page .mog-plan-table tbody th,
-  .home-page .mog-plan-table tbody td {
-    width: auto;
-  }
-
-  .home-page .mog-plan-table thead th {
-    padding: 18px 12px;
-  }
-
-  .home-page .mog-plan-table tbody th {
-    grid-column: 1 / -1;
-    padding: 16px 18px 6px;
-    border-bottom: 0;
-  }
-
-  .home-page .mog-plan-table td {
-    padding: 0 12px 16px;
-    line-height: 1.35;
-  }
+/* ---- Release actions: GitHub leads, the cook button is a small aside ---- */
+.mog-final__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-@media (max-width: 520px) {
+.mog-cook__button {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: #53555d;
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
 
-  .home-page .mog-plan-table {
-    border-radius: 18px;
+.mog-cook__button:hover {
+  color: var(--mog-black);
+}
+
+/* ---- Phones: capped headlines, numbers above headings, tighter steps ---- */
+@media (max-width: 620px) {
+  .mog-manifesto h2,
+  .mog-story__heading h2,
+  .mog-plans__heading h2,
+  .mog-private h2,
+  .mog-faq h2,
+  .mog-final h2,
+  .mog-story__step h3 {
+    font-size: clamp(2rem, 9vw, 2.5rem);
+    line-height: 1;
+  }
+
+  .mog-story__steps {
+    gap: 48px;
+  }
+
+  .mog-story__step {
+    padding-top: 48px;
+  }
+
+  .mog-story__step-number {
+    position: static;
+    display: block;
+    margin-bottom: 14px;
+    transform: none;
+    font-size: 3.5rem;
+  }
+
+  .mog-final__inner {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .mog-final__inner > img,
+  .mog-final p:not(.mog-section-tag) {
+    margin-inline: 0;
+  }
+
+  .mog-final__actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .mog-final__actions .mog-button {
+    width: 100%;
+  }
+
+  .mog-cook {
+    align-self: center;
   }
 }

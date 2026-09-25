@@ -51,14 +51,15 @@ for (const route of ['/privacy', '/terms', '/support']) {
 }
 assert.match(homepage, /free, open-source/i, 'homepage must lead with free and open-source positioning');
 assert.match(homepage, /href="https:\/\/github\.com\/garettie\/eatlog"/, 'homepage needs a source link');
-assert.match(homepage, /Eatlog Omelette/, 'homepage needs the optional paid plan');
-assert.match(homepage, /your own Google Gemini key/, 'homepage needs optional BYOK');
-assert.match(homepage, /30 per rolling 24 hours; 250 per rolling 30 days/, 'homepage needs the hosted allowance');
+assert.match(homepage, /<h3>Omelette<\/h3>/, 'homepage needs the optional paid plan');
+assert.doesNotMatch(homepage, /Eatlog Omelette|Eatlog AI|hosted AI|Eatlog-hosted|My key/, 'the site calls the paid tier Omelette and never uses app-only route names');
+assert.match(homepage, /your own Gemini key/, 'homepage needs optional BYOK');
+assert.match(homepage, /30 scans a day and 250 a month/, 'homepage needs the Omelette allowance');
 assert.match(homepage, /src="\/assets\/diary-cropped\.jpg"/, 'hero needs the current Diary screenshot');
 assert.match(homepage, /src="\/assets\/consistency-cropped\.jpg"/, 'story trend needs the current consistency screenshot');
 assert.match(homepage, /src="\/assets\/planscreen3-405\.jpg"/, 'story step 04 keeps its plan-update screenshot');
 assert.doesNotMatch(homepage, /\b(?:Pugo|Manok|Itik)\b|PHP\s*79|PHP\s*799|paid adaptive|paid features monthly/i, 'homepage still sells obsolete plans');
-assert.equal([...homepage.matchAll(/<th scope="col"/g)].length, 3, 'plan table needs a feature column and exactly two plan columns');
+assert.doesNotMatch(homepage, /<table\b/, 'pricing shows two cards, never a comparison table');
 assert.doesNotMatch(homepage, /tier-tab|data-tier-panel|plan-mobile/, 'the plan comparison must show both plans at once, never behind tabs');
 assert.doesNotMatch(homepage, /tier-(?:pugo|manok|itik)(?:\.svg|"|\b)/i, 'homepage references obsolete tier artwork');
 assert.match(homepage, /href="\/styles\.css\?v=[^"]+"/, 'homepage stylesheet needs a cache-busting version');
