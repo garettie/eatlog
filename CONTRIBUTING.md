@@ -17,5 +17,3 @@ For a security issue, email the [published support address](mailto:sggajitos@gma
 `AGENTS.md` contains the project instructions, design rules live in `DESIGN.md`, and domain terms in `CONTEXT.md`. Using an assistant or installing the maintainer's tools is optional.
 
 Machine-specific editor settings, assistant hooks, and generated critiques are ignored. Use `.private/` for private scratch notes. Keep credentials in a password manager or the relevant service's secret store.
-
-The maintainer develops in a separate repository and publishes snapshots here, so an accepted pull request lands in the next snapshot rather than as its own merge.
