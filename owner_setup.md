@@ -1,6 +1,6 @@
 # Eatlog Android release: owner work remaining
 
-> Historical owner setup record. Its monthly subscription sales, old prices, and three-tier steps are superseded. Use `release/OWNER_INPUTS.md` and `release/OWNER_RELEASE_CHECKLIST.md` for current production actions. Do not run the billing commands below as a new setup procedure; preserve existing product IDs for restoration.
+> Historical owner setup record. Its monthly subscription sales, old prices, and three-tier steps are superseded. Use `release/OWNER_RELEASE_CHECKLIST.md` for current production actions. Do not run the billing commands below as a new setup procedure; preserve existing product IDs for restoration.
 
 Updated: 2026-08-24
 

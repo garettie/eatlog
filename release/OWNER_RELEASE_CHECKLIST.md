@@ -32,4 +32,4 @@ The repository changes remain in preview. Each box below changes or verifies an 
 - [ ] Watch Worker errors/latency, quotas, provider cost, purchase/restore, consent complaints, and support. Roll back Worker or app with the recorded compatible pair if access or data handling diverges. Keep local logging available during service outages.
 - [ ] Repeat the device, billing, privacy, screenshot, and form gates for iOS; Health Connect stays Android-only and HealthKit remains outside v1.
 
-Owner/account dependencies and values are in [OWNER_INPUTS.md](OWNER_INPUTS.md). Exact device actions are in [UI_SMOKE_SCRIPT.md](qa/UI_SMOKE_SCRIPT.md) and [DEVICE_MATRIX.md](qa/DEVICE_MATRIX.md). The Worker procedure is [WORKER_RELEASE.md](runbooks/WORKER_RELEASE.md). No checkbox is marked complete by this preview source update.
+Exact device actions are in [UI_SMOKE_SCRIPT.md](qa/UI_SMOKE_SCRIPT.md) and [DEVICE_MATRIX.md](qa/DEVICE_MATRIX.md). The Worker procedure is [WORKER_RELEASE.md](runbooks/WORKER_RELEASE.md). No checkbox is marked complete by this preview source update.

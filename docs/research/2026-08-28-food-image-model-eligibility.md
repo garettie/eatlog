@@ -8,7 +8,7 @@ This note answers whether Eatlog can use a different AI model specifically for s
 
 - Worker calls `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key=...` with `GEMINI_API_KEY` from `worker/src/index.ts` line 21-22 and `GEMINI_ORIGIN` constant.
 - `GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']` with sequential fallback, `GEMINI_TOTAL_TIMEOUT_MS = 20000`, `MAX_IMAGE_BYTES = 4 MiB` decoded, `MAX_ESTIMATE_BODY_BYTES = 6 MiB`, `GEMINI_MAX_OUTPUT_TOKENS = 2048`. All four operations (`scan`, `describe`, `clarify-meal`, `clarify-component`) share the same loop and `FOOD_ESTIMATE_SCHEMA` via `generationConfig.responseMimeType = 'application/json'` and `responseSchema`.
-- `FOOD_ESTIMATE_SCHEMA` omits `maxItems`; `AGENTS.md` line 256 and `worker/src/index.ts` comment state Gemini Flash-Lite rejects `maxItems` and `normalizeGeminiResponse` enforces `MAX_COMPONENTS = 20`.
+- `FOOD_ESTIMATE_SCHEMA` omits `maxItems`; the project lessons in `AGENTS.md` and `worker/src/index.ts` comment state Gemini Flash-Lite rejects `maxItems` and `normalizeGeminiResponse` enforces `MAX_COMPONENTS = 20`.
 - Image input is `inlineData: { mimeType: 'image/jpeg', data: base64 }`; `decodeJpeg` validates JPEG magic and size. Worker tests assert the static request (system instruction + schema + prompt) stays at or below 4,500 bytes and that `maxItems` is absent.
 - Consent gates the feature: `RemoteEstimateConsentContext` fail-closed before install-token loading; onboarding and on-demand share the full-screen consent flow. The consented recipient named in the UI and docs is Google/Gemini.
 

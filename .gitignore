@@ -59,3 +59,22 @@ fix_imports.py
 
 # API keys
 src/config/api.ts
+
+# Machine-specific tools and generated notes
+/.private/
+/.agents/
+/.claude/
+/.codex/
+/.cursor/
+/.vscode/
+/.impeccable/critique/
+
+# Local app data and build artifacts
+*.eatlog-backup
+*.marco-backup
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.apk
+*.aab
+*.ipa

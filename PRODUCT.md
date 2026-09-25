@@ -157,9 +157,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 
 ## Evidence on Hand
 
-- `macro-tracker-mvp-spec.md`: current implementation/spec contract.
 - `DESIGN.md` and `.impeccable/design.json`: current visual system and machine-readable design tokens.
-- `dynamic_macro_tracker_material_3_expressive_ui.html`: original Material 3 reference; source values only, not a literal current-screen contract.
 - `tailwind.config.js`, `src/theme/tokens.ts`, and `src/theme/motion.ts`: normative runtime design tokens.
 - `src/services/foodScan.ts` and `src/services/foodSearch.ts`: live scan, description, cache, USDA, and Open Food Facts logic.
 - `src/db/database.ts`, `src/utils/calculations.ts`, `src/utils/foodIcons.ts`, and `src/utils/mealPhotos.ts`: current local persistence, target math, media, and diary semantics.

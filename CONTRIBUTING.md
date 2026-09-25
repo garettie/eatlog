@@ -11,3 +11,13 @@ Manual logging and its tests need no online credentials. A personal Gemini key c
 Before opening a pull request, run `env TMPDIR=/tmp npm test`, `npm run typecheck`, `npm run store:metadata:check`, `npm run store:artwork:check`, and `npm run site:check`. If a native or provider scenario could not run, say which one and why. Website screenshots are owner-maintained; leave the checked-in screenshots intact.
 
 For a security issue, email the [published support address](mailto:sggajitos@gmail.com) with a concise description. Do not put keys, personal meal data, or exploit details in a public issue. The [0BSD license](LICENSE) covers this source; Eatlog-hosted AI access and third-party data or services have separate terms.
+
+## Development files
+
+Shared agent instructions, implementation plans, design rules, and architecture docs are tracked so they are available across devices. `AGENTS.md` contains the project instructions; using an assistant or installing the maintainer's tools is optional. Dated plans and reports may describe earlier behavior; check their status against current code and release documentation.
+
+Machine-specific editor settings, assistant hooks, and generated critiques are ignored. Use `.private/` for private scratch notes. Ignored files stay on that device and are not included in a clone.
+
+Use branches and commits in the public repository to transfer code between devices. Copy personal notes separately if needed. Keep credentials in a password manager or the relevant service's secret store.
+
+Before pulling a cleanup that removes previously tracked notes on another device, copy those files outside the checkout. Git may delete its tracked copies when applying the removal. Ignoring or untracking a file does not remove its contents from earlier commits.
