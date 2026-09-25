@@ -70,7 +70,7 @@ assert.match(homepage, /<a class="header-action" href="\/test">Join the test<\/a
 assert.match(pages.get('/test'), /href="https:\/\/groups\.google\.com\/g\/eatlog-closed-testers"/, '/test needs the tester group link');
 assert.match(pages.get('/test'), /href="https:\/\/play\.google\.com\/apps\/testing\/com\.sgaret\.eatlog"/, '/test needs the Play opt-in link');
 assert.match(homepage, /<section\b(?=[^>]*\bclass=["'][^"']*\bmog-final\b[^"']*["'])(?=[^>]*\bid=["']release-status["'])[^>]*>/i, 'homepage needs a release status target');
-assert.match(homepage, /<button\b[^>]*\bdata-cook-button\b[^>]*>\s*Let him cook!\s*<\/button>/i, 'release section needs the cooking interaction');
+assert.match(homepage, /<a\b(?=[^>]*\bhref="\/test")(?=[^>]*\bdata-cook-button\b)[^>]*>\s*Let's cook!\s*<\/a>/i, 'the cook button opens the closed-test page');
 assert.match(homepage, /src="\/assets\/fire-click\.svg"/, 'cooking interaction needs the one-shot fire SVG');
 
 const compliancePages = ['/privacy', '/terms'].map((route) => pages.get(route));

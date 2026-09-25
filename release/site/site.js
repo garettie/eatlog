@@ -148,42 +148,47 @@
     let effectTimer = 0;
     let startFrame = 0;
     let showFrame = 0;
+    let navigateTimer = 0;
 
-    cookButton.addEventListener('click', () => {
+    cookButton.addEventListener('click', (event) => {
+      // Modified clicks (new tab, new window) and reduced motion go straight to the link.
+      if (reducedMotion.matches || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
       pressCount += 1;
 
-      if (!reducedMotion.matches) {
-        const currentPress = pressCount;
-        const nextEffect = document.createElement('img');
-        nextEffect.className = 'mog-cook__fire-effect';
-        nextEffect.dataset.cookFireEffect = '';
-        nextEffect.alt = '';
+      const currentPress = pressCount;
+      const nextEffect = document.createElement('img');
+      nextEffect.className = 'mog-cook__fire-effect';
+      nextEffect.dataset.cookFireEffect = '';
+      nextEffect.alt = '';
 
-        window.cancelAnimationFrame(startFrame);
-        window.cancelAnimationFrame(showFrame);
-        window.clearTimeout(effectTimer);
-        cookFire.classList.remove('is-active');
-        fireEffect.replaceWith(nextEffect);
-        fireEffect = nextEffect;
+      window.cancelAnimationFrame(startFrame);
+      window.cancelAnimationFrame(showFrame);
+      window.clearTimeout(effectTimer);
+      cookFire.classList.remove('is-active');
+      fireEffect.replaceWith(nextEffect);
+      fireEffect = nextEffect;
 
-        startFrame = window.requestAnimationFrame(() => {
+      startFrame = window.requestAnimationFrame(() => {
+        if (fireEffect !== nextEffect) return;
+        nextEffect.src = `/assets/fire-click.svg?press=${currentPress}`;
+        showFrame = window.requestAnimationFrame(() => {
           if (fireEffect !== nextEffect) return;
-          nextEffect.src = `/assets/fire-click.svg?press=${currentPress}`;
-          showFrame = window.requestAnimationFrame(() => {
-            if (fireEffect !== nextEffect) return;
-            cookFire.classList.add('is-active');
-            effectTimer = window.setTimeout(() => cookFire.classList.remove('is-active'), 3000);
-          });
+          cookFire.classList.add('is-active');
+          effectTimer = window.setTimeout(() => cookFire.classList.remove('is-active'), 3000);
         });
-      }
+      });
 
       if (cookStatus) cookStatus.textContent = 'Cooking!';
+      window.clearTimeout(navigateTimer);
+      navigateTimer = window.setTimeout(() => window.location.assign(cookButton.href), 1400);
     });
 
     window.addEventListener('pagehide', () => {
       window.cancelAnimationFrame(startFrame);
       window.cancelAnimationFrame(showFrame);
       window.clearTimeout(effectTimer);
+      window.clearTimeout(navigateTimer);
     }, { once: true });
   }
 })();
