@@ -29,7 +29,7 @@ async function main() {
   mkdirSync('src/data', { recursive: true });
   writeFileSync('src/data/commonFoods.json.tmp', output);
   renameSync('src/data/commonFoods.json.tmp', 'src/data/commonFoods.json');
-  writeFileSync('docs/research/common-foods-catalog-review.md', `${report.join('\n')}\n`);
+  console.log(`\n${report.join('\n')}`);
 }
 
 void main().catch((error) => {

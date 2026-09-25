@@ -19,7 +19,7 @@ Eatlog is a local food and weight log. Local features are free. Optional AI esti
 - Native modules require a development build; Expo Go cannot run the full app. Keep generated native folders and dependencies out of source edits.
 - Before hosted-service changes, read `worker/README.md` and `release/runbooks/WORKER_RELEASE.md`. Before native release changes, read `release/config/NATIVE_CONFIGURATION.md`.
 - Health Connect stays Android-only; HealthKit is outside iOS v1.
-- Issues live in `garettie/eatlog`. Read `docs/agents/issue-tracker.md` for issue work and `docs/agents/triage-labels.md` when assigning triage labels.
+- Issues live in `garettie/eatlog`. Triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
 - Keep credentials and personal meal data out of commits, logs, issues, and screenshots. Deployment, store submission, paid provider runs, and production configuration changes need authorization for the action.
 
 ## Maintaining these instructions
