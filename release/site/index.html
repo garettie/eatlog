@@ -19,7 +19,10 @@
       content="Eatlog is a free, open-source AI calorie and macro tracker. Scan meals with your own Gemini key, or pay once to use mine. No account, and your diary stays on your phone."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Eatlog: Free, open-source AI calorie tracker" />
+    <meta
+      property="og:title"
+      content="Eatlog: Free, open-source AI calorie tracker"
+    />
     <meta
       property="og:description"
       content="Eatlog is a free, open-source AI calorie and macro tracker. Scan meals with your own Gemini key, or pay once to use mine. No account, and your diary stays on your phone."
@@ -29,7 +32,7 @@
     <link rel="icon" href="/assets/favicon.png" type="image/png" />
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="stylesheet" href="/styles.css?v=20260924-impeccable" />
-    <link rel="stylesheet" href="/home.css?v=20260925-copy" />
+    <link rel="stylesheet" href="/home.css?v=20260925-foss" />
     <script src="/site.js?v=20260924-impeccable" defer></script>
   </head>
   <body class="home-page">
@@ -58,7 +61,9 @@
           <summary>Menu</summary>
           <nav aria-label="Mobile navigation">
             <a href="#daily-loop">The app</a><a href="#local-first">Your data</a
-            ><a href="#plans">Pricing</a><a href="https://github.com/garettie/eatlog">Source</a><a href="/support">Support</a>
+            ><a href="#plans">Pricing</a
+            ><a href="https://github.com/garettie/eatlog">Source</a
+            ><a href="/support">Support</a>
           </nav>
         </details>
         <a class="header-action" href="#release-status">Release status</a>
@@ -69,8 +74,14 @@
       <section class="mog-hero" aria-labelledby="hero-title">
         <div class="section-shell mog-hero__grid">
           <div class="mog-hero__copy">
-            <p class="mog-kicker">
-              <span aria-hidden="true"></span> Free and open source. Bring your own key.
+            <p class="mog-foss">
+              <span class="mog-foss__fire" aria-hidden="true"
+                ><span></span><span></span><span></span><span></span><span></span
+              ></span>
+              <span class="mog-foss__text" aria-hidden="true">FOSS. BYOK.</span>
+              <span class="mog-foss__spoken"
+                >Free and open source. Bring your own key.</span
+              >
             </p>
             <h1 id="hero-title">Before you Eat,<br /><em>Log.</em></h1>
             <p class="mog-wordplay">
@@ -78,15 +89,13 @@
               <strong>Eatlog.</strong>
             </p>
             <p class="mog-hero__lede">
-              Yet another AI calorie and macro tracker. The difference is it's
-              open source and you bring your own Gemini key, so it's free, and
-              Google's free tier pretty much covers one person forever, or until
-              Google decides to tighten it up.
+              Yet another AI calorie and macro tracker. But this time, it's free
+              and open source. Bring your own key via Google AI Studio. Google's
+              free tier pretty much covers one person forever, or until Google
+              decides to tighten it up.
             </p>
             <div class="mog-hero__actions">
-              <a class="mog-button" href="#daily-loop"
-                >See how it works</a
-              >
+              <a class="mog-button" href="#daily-loop">See how it works</a>
               <a class="mog-text-link" href="https://github.com/garettie/eatlog"
                 >Read the source <span aria-hidden="true">↗</span></a
               >
@@ -98,7 +107,10 @@
               </li>
               <li>
                 <strong>Your own key</strong
-                ><span>Your photos go from your phone straight to Google, they don't pass through me.</span>
+                ><span
+                  >Your photos go from your phone straight to Google, they don't
+                  pass through me.</span
+                >
               </li>
               <li>
                 <strong>No account</strong
@@ -194,10 +206,10 @@
             ><span>NO ACCOUNT</span><i aria-hidden="true"></i>
           </div>
           <div class="mog-ticker__group" aria-hidden="true">
-            <span>OPEN SOURCE</span><i></i><span>BRING YOUR OWN KEY</span
-            ><i></i><span>AI MACRO TRACKER</span><i></i><span>ADAPTIVE RECOMMENDATIONS</span
-            ><i></i><span>LOCAL BACKUP</span><i></i><span>NO ACCOUNT</span
-            ><i></i>
+            <span>OPEN SOURCE</span><i></i><span>BRING YOUR OWN KEY</span><i></i
+            ><span>AI MACRO TRACKER</span><i></i
+            ><span>ADAPTIVE RECOMMENDATIONS</span><i></i
+            ><span>LOCAL BACKUP</span><i></i><span>NO ACCOUNT</span><i></i>
           </div>
         </div>
       </div>
@@ -206,9 +218,7 @@
         <div class="section-shell">
           <p class="mog-section-tag" data-reveal>Why it's free</p>
           <h2 id="manifesto-title" data-reveal style="--reveal-delay: 80ms">
-            Free app. Open code.<br /><span
-              >AI on your own key.</span
-            >
+            Free app. Open code.<br /><span>AI on your own key.</span>
           </h2>
           <div
             class="mog-manifesto__foot"
@@ -269,7 +279,11 @@
                 <img
                   class="mog-story__image"
                   data-story-image="trend"
-                  src="/assets/consistency-cropped.jpg"
+                  src="/assets/weightscreen-405.jpg"
+                  srcset="
+                    /assets/weightscreen-405.jpg 405w,
+                    /assets/weightscreen.jpg     810w
+                  "
                   sizes="min(38vw, 430px)"
                   width="810"
                   height="1720"
@@ -388,8 +402,8 @@
                   <p>
                     Your scale weight jumps around day to day, so Eatlog tracks
                     a trend line instead. It also shows how fast you're actually
-                    losing compared to your plan, and when you'd hit your goal at
-                    that pace.
+                    losing compared to your plan, and when you'd hit your goal
+                    at that pace.
                   </p>
                 </div>
               </article>
@@ -468,12 +482,20 @@
                 <span>Logging and saved meals</span><strong>STAYS HERE</strong>
               </li>
               <li>
-                <span>Scans with your key</span><strong>STRAIGHT TO GOOGLE</strong
-                ><small>Your photo or text goes to Google with your key, I never see it.</small>
+                <span>Scans with your key</span
+                ><strong>STRAIGHT TO GOOGLE</strong
+                ><small
+                  >Your photo or text goes to Google with your key, I never see
+                  it.</small
+                >
               </li>
               <li>
-                <span>Scans with Omelette</span><strong>THROUGH MY SERVER</strong
-                ><small>It goes through my Cloudflare worker to Google, since it's using my key.</small>
+                <span>Scans with Omelette</span
+                ><strong>THROUGH MY SERVER</strong
+                ><small
+                  >It goes through my Cloudflare worker to Google, since it's
+                  using my key.</small
+                >
               </li>
               <li>
                 <span>Food search</span><strong>SEARCH TERM ONLY</strong
@@ -496,7 +518,9 @@
           <div class="mog-plans__heading" data-reveal>
             <div>
               <p class="mog-section-tag">Pricing</p>
-              <h2 id="plans-title">The egg is free. The omelette is optional.</h2>
+              <h2 id="plans-title">
+                The egg is free. The omelette is optional.
+              </h2>
             </div>
             <p>
               Everything in the app is free, AI included, as long as you use
@@ -510,18 +534,32 @@
 
           <div class="mog-plan-cards" aria-label="Eatlog pricing" data-reveal>
             <article data-reveal style="--reveal-delay: 0ms">
-              <img src="/assets/tier-eatlog.svg?v=20260924-egg" width="72" height="72" alt="" />
+              <img
+                src="/assets/tier-eatlog.svg?v=20260924-egg"
+                width="72"
+                height="72"
+                alt=""
+              />
               <h3>Eatlog</h3>
               <strong>Free</strong>
               <p>AI on your own key.</p>
-              <a class="mog-button" href="https://aistudio.google.com/apikey">Get a free key</a>
+              <a class="mog-button" href="https://aistudio.google.com/apikey"
+                >Get a free key</a
+              >
             </article>
             <article data-reveal style="--reveal-delay: 90ms">
-              <img src="/assets/tier-omelette.svg?v=20260924-egg" width="72" height="72" alt="" />
+              <img
+                src="/assets/tier-omelette.svg?v=20260924-egg"
+                width="72"
+                height="72"
+                alt=""
+              />
               <h3>Omelette</h3>
               <strong>₱349 once</strong>
               <p>AI on my key, no setup.</p>
-              <button class="mog-button" type="button" disabled>Coming with the Play release</button>
+              <button class="mog-button" type="button" disabled>
+                Coming with the Play release
+              </button>
             </article>
           </div>
 
@@ -568,8 +606,8 @@
               <summary>How do I get a key?</summary>
               <p>
                 Go to
-                <a href="https://aistudio.google.com/apikey">Google AI Studio</a>,
-                create a key, and paste it into Profile → AI estimates. Takes
+                <a href="https://aistudio.google.com/apikey">Google AI Studio</a
+                >, create a key, and paste it into Profile → AI estimates. Takes
                 like two minutes. It's kept in your phone's secure storage and
                 doesn't get included in backups.
               </p>
@@ -580,7 +618,8 @@
                 Yes, under ___, so you can do pretty much anything with it. That
                 covers the
                 <a href="https://github.com/garettie/eatlog">app code</a>, not
-                free use of the Omelette server, since that's my key and my bill.
+                free use of the Omelette server, since that's my key and my
+                bill.
               </p>
             </details>
             <details>

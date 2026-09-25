@@ -56,7 +56,7 @@ assert.doesNotMatch(homepage, /Eatlog Omelette|Eatlog AI|hosted AI|Eatlog-hosted
 assert.match(homepage, /your own Gemini key/, 'homepage needs optional BYOK');
 assert.match(homepage, /30 scans a day and 250 a month/, 'homepage needs the Omelette allowance');
 assert.match(homepage, /src="\/assets\/diary-cropped\.jpg"/, 'hero needs the current Diary screenshot');
-assert.match(homepage, /src="\/assets\/consistency-cropped\.jpg"/, 'story trend needs the current consistency screenshot');
+assert.equal([...homepage.matchAll(/src="\/assets\/weightscreen-405\.jpg"/g)].length, 2, 'story step 03 shows the weight chart on desktop and phones');
 assert.match(homepage, /src="\/assets\/planscreen3-405\.jpg"/, 'story step 04 keeps its plan-update screenshot');
 assert.doesNotMatch(homepage, /\b(?:Pugo|Manok|Itik)\b|PHP\s*79|PHP\s*799|paid adaptive|paid features monthly/i, 'homepage still sells obsolete plans');
 assert.doesNotMatch(homepage, /<table\b/, 'pricing shows two cards, never a comparison table');
