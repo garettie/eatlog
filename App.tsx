@@ -29,7 +29,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 
 import { initDatabase, getActiveMealPhotoUris } from "./src/db/database";
-import { cleanupOrphanMealPhotos } from "./src/utils/mealPhotos";
+import { cleanupImagePickerCache, cleanupOrphanMealPhotos } from "./src/utils/mealPhotos";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { navigationLinking } from "./src/navigation/linking";
 import { M3, TYPE } from "./src/theme/tokens";
@@ -112,7 +112,8 @@ function AppContent() {
 				InteractionManager.runAfterInteractions(() => {
 					void getActiveMealPhotoUris()
 						.then((uris) => cleanupOrphanMealPhotos(uris, cleanupStartedAt))
-						.catch((e) => console.error("Meal photo cleanup error:", e));
+						.catch((e) => console.error("Meal photo cleanup error:", e))
+						.finally(() => cleanupImagePickerCache(cleanupStartedAt));
 				});
 			} catch (e) {
 				console.error("DB init error:", e);

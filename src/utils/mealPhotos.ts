@@ -6,6 +6,8 @@ import { MAX_IMAGE_BYTES } from '../services/foodEstimateCore';
 const PHOTO_DIR = `${FileSystem.documentDirectory}meal-photos/`;
 // Small copies for list rails. A cache, never data: not backed up, rebuilt on demand.
 const THUMBNAIL_DIR = `${FileSystem.cacheDirectory}meal-photo-thumbnails/`;
+// expo-image-picker copies every camera shot and gallery pick here and never deletes it.
+const PICKER_CACHE_DIR = `${FileSystem.cacheDirectory}ImagePicker/`;
 const MAX_PHOTO_DIMENSION = 1600;
 const PHOTO_QUALITY = 0.75;
 const ESTIMATE_QUALITY = 0.65;
@@ -125,5 +127,26 @@ export async function cleanupOrphanMealPhotos(
     );
   } catch (e) {
     console.error('[mealPhotos] orphan cleanup failed', e);
+  }
+}
+
+/**
+ * Delete image picker copies left from earlier sessions. Saved meal photos are re-encoded into
+ * PHOTO_DIR, so nothing reads a picker copy once the sheet that picked it has closed.
+ */
+export async function cleanupImagePickerCache(createdBefore: number): Promise<void> {
+  try {
+    const info = await FileSystem.getInfoAsync(PICKER_CACHE_DIR);
+    if (!info.exists) return;
+    const files = await FileSystem.readDirectoryAsync(PICKER_CACHE_DIR);
+    for (const f of files) {
+      const file = await FileSystem.getInfoAsync(PICKER_CACHE_DIR + f);
+      // modificationTime is in seconds.
+      if (file.exists && file.modificationTime * 1000 < createdBefore) {
+        await FileSystem.deleteAsync(PICKER_CACHE_DIR + f, { idempotent: true }).catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.error('[mealPhotos] picker cache cleanup failed', e);
   }
 }
