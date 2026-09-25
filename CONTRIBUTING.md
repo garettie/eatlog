@@ -14,10 +14,8 @@ For a security issue, email the [published support address](mailto:sggajitos@gma
 
 ## Development files
 
-Shared agent instructions, implementation plans, design rules, and architecture docs are tracked so they are available across devices. `AGENTS.md` contains the project instructions; using an assistant or installing the maintainer's tools is optional. Dated plans and reports may describe earlier behavior; check their status against current code and release documentation.
+`AGENTS.md` contains the project instructions, design rules live in `DESIGN.md`, and domain terms in `CONTEXT.md`. Using an assistant or installing the maintainer's tools is optional.
 
-Machine-specific editor settings, assistant hooks, and generated critiques are ignored. Use `.private/` for private scratch notes. Ignored files stay on that device and are not included in a clone.
+Machine-specific editor settings, assistant hooks, and generated critiques are ignored. Use `.private/` for private scratch notes. Keep credentials in a password manager or the relevant service's secret store.
 
-Use branches and commits in the public repository to transfer code between devices. Copy personal notes separately if needed. Keep credentials in a password manager or the relevant service's secret store.
-
-Before pulling a cleanup that removes previously tracked notes on another device, copy those files outside the checkout. Git may delete its tracked copies when applying the removal. Ignoring or untracking a file does not remove its contents from earlier commits.
+The maintainer develops in a separate repository and publishes snapshots here, so an accepted pull request lands in the next snapshot rather than as its own merge.

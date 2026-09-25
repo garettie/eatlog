@@ -16,7 +16,6 @@ const shareDocumentPaths = [
   '../release/store/POLICY_WORKSHEETS.md',
   '../release/qa/UI_SMOKE_SCRIPT.md',
   '../release/qa/DEVICE_MATRIX.md',
-  '../release/OWNER_RELEASE_CHECKLIST.md',
   '../release/config/NATIVE_CONFIGURATION.md',
 ];
 const shareDocuments = shareDocumentPaths.map((path) => ({

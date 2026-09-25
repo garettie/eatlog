@@ -1,0 +1,14 @@
+# Paths kept in the private working repository and left out of the public export.
+# One git pathspec glob per line; see scripts/export-public.sh.
+
+# Owner planning, research, and design-tool state
+.planning/**
+.impeccable/**
+docs/research/2026-*
+
+# Personal agent tooling
+skills-lock.json
+
+# The export tooling itself
+.publicignore
+scripts/export-public.sh
