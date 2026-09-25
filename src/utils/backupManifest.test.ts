@@ -6,13 +6,15 @@ import {
   createBackupManifestV2,
   isSupportedBackupFileName,
   isSafeArchivePath,
-  MAX_BACKUP_ARCHIVE_BYTES,
-  MAX_BACKUP_UNCOMPRESSED_BYTES,
+  ALWAYS_ALLOWED_UNCOMPRESSED_BYTES,
+  MAX_BACKUP_EXPANSION_RATIO,
+  restoreSpaceNeeded,
   validateBackupArchiveSizes,
   validateBackupCounts,
   validateExtractedBackupPaths,
   validateBackupFileIntegrity,
   validateBackupManifest,
+  validateRestoreSpace,
 } from './backupManifest';
 import { INSTALLATION_TOKEN_FILE_NAME } from '../services/installIdentity';
 
@@ -96,15 +98,30 @@ test('backup allowlist excludes the app-scoped installation identity', () => {
   }, 9), /unexpected file metadata/);
 });
 
-test('validates empty, compressed, and expanded archive size boundaries', () => {
+test('validates empty archives and zip-bomb expansion without a fixed size cap', () => {
+  const gigabyte = 1024 ** 3;
+  const hundredMegabytes = 100 * 1024 * 1024;
   assert.doesNotThrow(() => validateBackupArchiveSizes(1, 1));
-  assert.doesNotThrow(() => validateBackupArchiveSizes(MAX_BACKUP_ARCHIVE_BYTES, MAX_BACKUP_UNCOMPRESSED_BYTES));
-  for (const size of [0, -1, Number.NaN, MAX_BACKUP_ARCHIVE_BYTES + 1]) {
-    assert.throws(() => validateBackupArchiveSizes(size), /empty or too large/);
+  assert.doesNotThrow(() => validateBackupArchiveSizes(1, ALWAYS_ALLOWED_UNCOMPRESSED_BYTES));
+  // Years of photos: large, but JPEGs barely compress.
+  assert.doesNotThrow(() => validateBackupArchiveSizes(5 * gigabyte, 6 * gigabyte));
+  assert.doesNotThrow(() => validateBackupArchiveSizes(hundredMegabytes, hundredMegabytes * MAX_BACKUP_EXPANSION_RATIO));
+  for (const size of [0, -1, Number.NaN]) {
+    assert.throws(() => validateBackupArchiveSizes(size), /empty/);
   }
-  for (const size of [0, -1, Number.NaN, MAX_BACKUP_UNCOMPRESSED_BYTES + 1]) {
-    assert.throws(() => validateBackupArchiveSizes(1, size), /expands beyond/);
+  for (const size of [0, -1, Number.NaN, ALWAYS_ALLOWED_UNCOMPRESSED_BYTES + 1]) {
+    assert.throws(() => validateBackupArchiveSizes(1, size), /damaged/);
   }
+  assert.throws(() => validateBackupArchiveSizes(hundredMegabytes, hundredMegabytes * MAX_BACKUP_EXPANSION_RATIO + 1), /damaged/);
+});
+
+test('restore asks for free space up front and never blocks when space is unknown', () => {
+  const gigabyte = 1024 ** 3;
+  const needed = restoreSpaceNeeded(gigabyte, gigabyte / 2);
+  assert.ok(needed > 2.5 * gigabyte);
+  assert.doesNotThrow(() => validateRestoreSpace(needed, needed));
+  assert.doesNotThrow(() => validateRestoreSpace(needed, Number.NaN));
+  assert.throws(() => validateRestoreSpace(needed, needed - 1), /needs about 2\.\d GB of free space/);
 });
 
 test('no-photo and multi-photo archive layouts support Unicode and exact allowlists', () => {

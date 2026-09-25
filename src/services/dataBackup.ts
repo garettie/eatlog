@@ -22,7 +22,9 @@ import {
   validateExtractedBackupPaths,
   validateBackupFileIntegrity,
   validateBackupManifest,
+  validateRestoreSpace,
   isSupportedBackupFileName,
+  restoreSpaceNeeded,
 } from '../utils/backupManifest';
 import { getMealPhotoDirectory } from '../utils/mealPhotos';
 import { getApplicationInfo } from '../utils/applicationInfo';
@@ -149,14 +151,33 @@ function listExtractedFiles(directory: Directory, prefix = ''): string[] {
   return paths;
 }
 
+// Unmeasurable sizes skip the free-space check: failing to measure is no reason to refuse a restore.
+function livePhotoBytes(): number {
+  try {
+    const livePhotos = new Directory(getMealPhotoDirectory());
+    return livePhotos.exists ? livePhotos.size ?? 0 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function availableDiskBytes(): number {
+  try {
+    return Paths.availableDiskSpace;
+  } catch {
+    return Number.NaN;
+  }
+}
+
 async function validateBackupFile(file: File, onProgress?: OwnershipProgressListener, originalName?: string): Promise<RestorePreview> {
   if (!isSupportedBackupFileName(originalName ?? file.uri)) {
     throw new Error('Choose an .eatlog-backup or legacy .marco-backup file.');
   }
-  if (!file.exists) throw new Error('This backup file is empty or too large.');
+  if (!file.exists) throw new Error("Couldn't open that backup file. Try choosing it again.");
   validateBackupArchiveSizes(file.size);
   const uncompressedSize = await getUncompressedSize(nativePath(file.uri));
   validateBackupArchiveSizes(file.size, uncompressedSize);
+  validateRestoreSpace(restoreSpaceNeeded(uncompressedSize, livePhotoBytes()), availableDiskBytes());
 
   const stage = new Directory(Paths.cache, `eatlog-restore-stage-${Date.now()}`);
   stage.create({ intermediates: true });
@@ -198,7 +219,13 @@ export async function pickAndInspectBackup(onProgress?: OwnershipProgressListene
     multiple: false,
   });
   if (result.canceled) return null;
-  return validateBackupFile(new File(result.assets[0].uri), onProgress, result.assets[0].name);
+  // The picker's cache copy is as large as the backup and is not needed once unpacked.
+  const picked = new File(result.assets[0].uri);
+  try {
+    return await validateBackupFile(picked, onProgress, result.assets[0].name);
+  } finally {
+    try { if (picked.exists) picked.delete(); } catch { /* the cache is cleared eventually */ }
+  }
 }
 
 export function discardRestorePreview(preview: RestorePreview): void {

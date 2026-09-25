@@ -41,22 +41,42 @@ export interface BackupManifestV2 {
 
 export type BackupManifest = BackupManifestV1 | BackupManifestV2;
 
-export const MAX_BACKUP_ARCHIVE_BYTES = 1024 * 1024 * 1024;
-export const MAX_BACKUP_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024;
+// No fixed size cap: a long-time user's photos can pass any round number, and a backup the app
+// created must always restore. Real backups are mostly JPEGs that barely compress, while a zip
+// bomb expands hundreds of times over, so the expansion ratio is what separates them.
+export const MAX_BACKUP_EXPANSION_RATIO = 20;
+/** Below this an archive may expand freely: a photo-less backup's database compresses well. */
+export const ALWAYS_ALLOWED_UNCOMPRESSED_BYTES = 256 * 1024 * 1024;
+const RESTORE_SPACE_HEADROOM_BYTES = 200 * 1024 * 1024;
 
 export function createBackupManifestV2(value: Omit<BackupManifestV2, 'formatVersion'>): BackupManifestV2 {
   return { formatVersion: 2, ...value };
 }
 
 export function validateBackupArchiveSizes(archiveBytes: number, uncompressedBytes?: number): void {
-  if (!Number.isSafeInteger(archiveBytes) || archiveBytes <= 0 || archiveBytes > MAX_BACKUP_ARCHIVE_BYTES) {
-    throw new Error('This backup file is empty or too large.');
+  if (!Number.isSafeInteger(archiveBytes) || archiveBytes <= 0) {
+    throw new Error('This backup file is empty.');
   }
   if (uncompressedBytes !== undefined
     && (!Number.isSafeInteger(uncompressedBytes) || uncompressedBytes <= 0
-      || uncompressedBytes > MAX_BACKUP_UNCOMPRESSED_BYTES)) {
-    throw new Error('This backup expands beyond the supported size limit.');
+      || uncompressedBytes > Math.max(ALWAYS_ALLOWED_UNCOMPRESSED_BYTES, archiveBytes * MAX_BACKUP_EXPANSION_RATIO))) {
+    throw new Error("This backup file is damaged and can't be opened.");
   }
+}
+
+/**
+ * Free space a restore needs at its peak: the unpacked staging copy, the restored photos copied
+ * out of it, and the safety copy of the current photos kept until the restore is verified.
+ */
+export function restoreSpaceNeeded(uncompressedBytes: number, livePhotoBytes: number): number {
+  return uncompressedBytes * 2 + livePhotoBytes + RESTORE_SPACE_HEADROOM_BYTES;
+}
+
+/** Fails before unpacking, so a full phone gets a clear message rather than a failed restore. */
+export function validateRestoreSpace(neededBytes: number, availableBytes: number): void {
+  if (!Number.isFinite(availableBytes) || availableBytes >= neededBytes) return;
+  const gigabytes = Math.max(0.1, Math.ceil((neededBytes / 1024 ** 3) * 10) / 10);
+  throw new Error(`Restoring this backup needs about ${gigabytes} GB of free space. Free up some space and try again.`);
 }
 
 export function validateExtractedBackupPaths(
