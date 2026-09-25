@@ -1,6 +1,6 @@
 # Eatlog store policy worksheets
 
-Drafted 2026-09-24 for the preview source. These are proposed form answers, not changes to Play Console or App Store Connect. Reconcile them with the exact signed binary, SDK behavior, provider terms, and current console questions before submission. The [route matrix](../privacy/ROUTE_MATRIX.md) supplies the code trace.
+Updated 2026-09-25 for the free, bring-your-own-key release. These are the answers to enter; the consoles only change when you enter them. Recheck them if the app starts sending anything new. The [route matrix](../privacy/ROUTE_MATRIX.md) supplies the code trace.
 
 ## Product and consent facts
 
@@ -10,21 +10,35 @@ Drafted 2026-09-24 for the preview source. These are proposed form answers, not 
 - The app has no Eatlog account, cloud diary, ads, or third-party analytics. RevenueCat and store checks, USDA via the Worker, explicit direct Open Food Facts search, and Expo updates are other network activity.
 - Android Health Connect reads/writes Weight only after the user connects it. iOS v1 has no HealthKit or Apple Health.
 
-## Google Play Data Safety draft
+## Google Play Data Safety answers
 
-Play's [Data safety instructions](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-AE) distinguish on-device processing, temporary processing, and transfers to service providers. Use the final console wording to classify each row; a declared transfer is not automatically a declared third-party sharing event.
+Play counts data as collected when the app sends it off the phone, including when an SDK sends it or it goes straight to a third party such as Google. Transfers to a service provider working for you, or ones the user starts and expects, are not "sharing" ([Play definitions](https://support.google.com/googleplay/android-developer/answer/10787469)). So everything below is collected, nothing is shared, and nothing is marked ephemeral, because Google and USDA can keep what they receive.
 
-| Data type to assess | Transfer and reason | Optionality and linkage | Final check |
-| --- | --- | --- | --- |
-| Photos and videos | User-selected estimate image to Google directly on My key, or via Eatlog Worker on hosted AI | Optional AI action; request can carry provider/account or installation metadata | Confirm Google/Cloudflare retention and console category |
-| Other user-generated content | Description, limited re-estimate context, and food-search query to Google, Worker/USDA, or Open Food Facts as selected | Optional online action; no Eatlog account | Distinguish Google BYOK from hosted processing |
-| Device or other IDs | Random installation ID to RevenueCat and Worker for entitlement, quota, and abuse controls | Generated for access checks; no ad ID | Verify SDK and Worker fields in signed binary |
-| App activity and diagnostics | Worker route/status/latency and aggregate model/token/cost counts; SDK/service operational data may also be processed | No food body in Eatlog logs; no ad tracking | Inspect production logs and SDK disclosures |
-| Purchases | Store and RevenueCat process product/entitlement and receipt metadata | Optional purchase, tied to installation ID | Verify store and RevenueCat declarations |
-| Health and fitness | Local food/weight data stays on device except selected estimate content and user-authorized Android Health Connect Weight transfer | No Eatlog health-data backend | Complete Health Apps and Health Connect forms separately |
-| Financial details, contacts, precise location, audio, messages | No such fields requested by Eatlog | No account or advertising use | Recheck merged manifest and SDK disclosures |
+Overview questions:
 
-Data uses are app functionality, service security, and entitlement verification. Eatlog does not sell data or use cross-app tracking. HTTPS protects transport. In-app Delete all data removes local records/key/consent, but cannot erase copies the user shared, revoke a Google key, reverse a store purchase, or remove provider records. Do not claim universal provider-side deletion. The owner must save the completed console questionnaire as release evidence.
+- Does your app collect or share any of the required user data types? **Yes**
+- Is all of the user data collected by your app encrypted in transit? **Yes** (HTTPS only)
+- Which account creation methods does your app support? **My app does not allow users to create an account**
+- Data deletion: the app has no account, so no deletion URL is required. Delete all data in Profile erases the phone's copy; the Support page covers email requests.
+
+Data types:
+
+| Play category → type | Collected | Shared | Required or optional | Purposes | Why |
+| --- | --- | --- | --- | --- | --- |
+| Photos and videos → Photos | Yes | No | Optional | App functionality | A meal photo the user sends for an estimate goes to Google, directly with My key or through the Worker with Eatlog AI |
+| App activity → Other user-generated content | Yes | No | Optional | App functionality | Meal descriptions and re-estimate notes sent for an estimate |
+| App activity → In-app search history | Yes | No | Optional | App functionality | Food search text goes to USDA through the Worker, and to Open Food Facts on a full search |
+| Financial info → Purchase history | Yes | No | Optional | App functionality | Google Play and the RevenueCat SDK handle the Omelette purchase and restores |
+| Device or other IDs | Yes | No | Required | App functionality; Fraud prevention, security, and compliance | A random install ID is the RevenueCat user ID and the Worker's quota and abuse key; it's sent even with no purchase |
+
+Leave everything else unchecked:
+
+- Health and fitness: weight syncs with Health Connect on the phone and never leaves it. Food text and photos sent for estimates are already declared above.
+- Location, personal info, contacts, messages, audio, files, calendar, web browsing: never requested.
+- App info and performance: the app sends no crash logs or diagnostics. The Worker logs only its own status and latency.
+- Advertising ID: not used. No ads, no analytics SDK, no tracking.
+
+Eatlog does not sell data. Delete all data cannot erase copies the user shared, revoke a Google key, reverse a store purchase, or remove what providers already hold, so never claim provider-side deletion.
 
 ## Apple App Privacy draft
 
@@ -51,7 +65,7 @@ Eatlog uses platform HTTPS/TLS and no proprietary cryptography. Recheck the fina
 
 ## Reviewer access
 
-The isolated preview APK uses RevenueCat Test Store. Its purchase dialog can return Success without a charge or personal API key. This is the only self-service restricted-feature review path currently implemented. A production Play/App Store review build still needs a complimentary unlock that works without payment or a personal key; the current source has no hidden code redemption flow. Do not submit a production restricted-access answer that says all features are free or asks a reviewer to buy. See [review material](REVIEW_MATERIAL.md).
+Play review uses license testing. List the reviewer Google accounts as license testers in Play Console, put their email and password in App access, and paste `reviewerNotes.google` from `metadata.mjs` as the instructions. License testers buy Omelette without being charged and need no Google key. There is no hidden unlock in the app and none is needed. The Test Store "Success" button only exists in the preview build, so never point a reviewer at it.
 
 ## Sources to recheck at submission
 

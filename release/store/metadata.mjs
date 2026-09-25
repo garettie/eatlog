@@ -38,23 +38,24 @@ export const storeMetadata = {
   },
   google: {
     title: "Eatlog",
-    shortDescription: "Free, open-source food logging. Your diary stays yours.",
+    shortDescription: "Free, open-source AI calorie tracker. Bring your own Gemini key.",
     fullDescription: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Eatlog is a free, open-source food and weight log. Keep a diary on your phone, with no account to create.
+Snap your meal and Eatlog's AI splits it into foods, with grams, calories, and macros for each. Fix anything it got wrong before you save. Eatlog is a free, open-source calorie and macro tracker with no account, and your diary stays on your phone.
 
-Log lunch, then eat it.
-Enter food by hand, search foods, or reuse a past meal. Today shows calories and macros. Diary keeps the details. Analytics shows your weight trend, intake, and logging consistency. Review target suggestions before accepting them. These tools are free.
+Bring your own key. Paste your own Google Gemini API key from Google AI Studio, and Eatlog sends your photo or description straight to Google. Eatlog doesn't charge for this. Google's free tier is usually enough for one person, but Google sets the limits, can charge a project with billing turned on, and on the free tier may use what you send to improve its models.
 
-AI estimates are optional. Add your own Google Gemini API key to send a selected photo or description directly to Google, then edit the result before saving. Eatlog does not charge for My key. Google sets its own availability, limits, data terms, and possible charges.
+No key? Eatlog Omelette is a one-time purchase that runs your estimates through Eatlog instead, up to 30 operations per rolling 24 hours and 250 per rolling 30 days. You see the price in your currency before you buy, and you can switch back to your own key anytime.
 
-Eatlog Omelette is an optional one-time purchase for Eatlog-hosted AI estimates without your own key. It has a rolling allowance of 30 operations per 24 hours and 250 per 30 days. A purchase never changes your local feature access, and you can still choose My key. See the localized price in the store purchase sheet.
+Scan with the camera, pick a photo, or type what you ate. Tell it what it missed and it redoes the estimate. You can also search foods, enter a meal by hand, or reuse a past one, no key needed.
 
-Make a restorable backup, export readable CSV, share a meal card, or delete local data when you choose. Android also offers optional Weight sync with Health Connect.
+Log your weight and see the trend instead of the daily noise, your pace against your plan, and when you'd reach your goal. Once there's enough data, Eatlog suggests a new calorie target, and nothing changes until you accept it.
+
+Everything you log stays on your phone. Back it up and restore it, export it to CSV, share a meal card, or delete it all from Profile. On Android, your weight can sync with Health Connect.
 
 Food entries, nutrition targets, and AI results are estimates. Review them before relying on them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
     releaseNotes:
-      "Initial release. Free, open-source food logging with manual entry, saved meals, Diary, Analytics, backups, and optional AI estimates through your own key or Eatlog Omelette.",
+      "First release. Snap or describe a meal for an AI estimate with your own Gemini key, or buy Eatlog Omelette once to skip the key. Logging, weight trends, backups, and export are free.",
     category: "Health & Fitness",
     healthAppsCategory: "Nutrition and Weight Management",
     requiredHealthDisclaimer:
@@ -62,27 +63,28 @@ Food entries, nutrition targets, and AI results are estimates. Review them befor
   },
   apple: {
     title: "Eatlog",
-    subtitle: "Free, open-source food log",
+    subtitle: "AI food log, bring your key",
     keywords:
-      "nutrition,calories,macros,meals,diary,weight,tracker,food log,backup",
+      "calories,macros,calorie ai,food scan,meal photo,nutrition,food diary,weight,tracker,gemini",
     description: `Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog.
 
-Eatlog is a free, open-source food and weight log. Your diary stays on your phone. No account to create.
+Snap your meal and Eatlog's AI splits it into foods, with grams, calories, and macros for each. Fix anything it got wrong before you save. Eatlog is a free, open-source calorie and macro tracker with no account, and your diary stays on your phone.
 
-LOG LUNCH, THEN EAT IT
-Enter food by hand, search foods, or reuse a past meal. Today shows calories and macros. Diary keeps the details. Analytics shows weight trend, intake, and logging consistency. Target suggestions wait for your decision. All local tools are free.
+Bring your own key. Paste your own Google Gemini API key from Google AI Studio, and Eatlog sends your photo or description straight to Google. Eatlog doesn't charge for this. Google's free tier is usually enough for one person, but Google sets the limits, can charge a project with billing turned on, and on the free tier may use what you send to improve its models.
 
-AI estimates are optional. With your own Google Gemini API key, a selected photo or description goes directly to Google. Edit each estimate before saving. Eatlog does not charge for My key; Google controls its limits, billing, and data terms.
+No key? Eatlog Omelette is a one-time purchase that runs your estimates through Eatlog instead, up to 30 operations per rolling 24 hours and 250 per rolling 30 days. You see the price in your currency before you buy, and you can switch back to your own key anytime.
 
-Eatlog Omelette is an optional one-time purchase for Eatlog-hosted AI without your own key. Hosted use allows 30 operations per rolling 24 hours and 250 per rolling 30 days. The store shows the current localized price. You can still choose My key after buying.
+Scan with the camera, pick a photo, or type what you ate. Tell it what it missed and it redoes the estimate. You can also search foods, enter a meal by hand, or reuse a past one, no key needed.
 
-Create a restorable backup, export readable CSV, share a meal card, or delete local data.
+Log your weight and see the trend instead of the daily noise, your pace against your plan, and when you'd reach your goal. Once there's enough data, Eatlog suggests a new calorie target, and nothing changes until you accept it.
+
+Everything you log stays on your phone. Back it up and restore it, export it to CSV, share a meal card, or delete it all from Profile.
 
 Food entries, nutrition targets, and AI results are estimates. Review them before relying on them. Eatlog is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Consult a qualified healthcare professional for medical advice, diagnosis, or treatment.`,
     promotionalText:
-      "Itlog, eat itlog, log it, log eat, log eat itlog, Eatlog. Free, open-source food logging, with optional AI estimates.",
+      "Snap a meal, get calories and macros. Free and open source with your own Gemini key, or buy Eatlog Omelette once and skip the key.",
     releaseNotes:
-      "Initial release. Free, open-source food logging with manual entry, saved meals, Diary, Analytics, backups, and optional AI estimates through your own key or Eatlog Omelette.",
+      "First release. Snap or describe a meal for an AI estimate with your own Gemini key, or buy Eatlog Omelette once to skip the key. Logging, weight trends, backups, and export are free.",
     primaryCategory: "Health & Fitness",
     secondaryCategory: "Food & Drink",
     firstVersionReleaseNotesFieldAvailable: false,
@@ -107,9 +109,9 @@ Backup and restore uses .eatlog-backup archives; CSV exports cannot be restored.
     featureGraphicAltText:
       "Eatlog white egg-shaped nutrition scale mark centered on a dark background.",
     screenshotAltText: [
-      "Today shows calorie and macro progress with the center Add control.",
       "Editable meal estimate lists food components, amounts, and nutrition.",
-      "Food search shows common USDA results and explicit full-search options.",
+      "AI estimates settings show My key and Eatlog AI choices.",
+      "Today shows calorie and macro progress with the center Add control.",
       "Diary shows meals, entries, totals, and a saved meal photo.",
       "Analytics shows weight trend, calorie history, and logging consistency.",
       "Plan review shows a suggested change with Accept and Keep choices.",
