@@ -311,7 +311,7 @@ export function useAiSetup(): AiSetupContextValue {
 
 /**
  * The one check every AI entry point makes before sending anything. It replaces asking for
- * hosted consent directly: My key never asks for it, and no one without a key or Itik is sent
+ * hosted consent directly: the Google AI key route never asks for it, and no one without a key or Itik is sent
  * anywhere. Resolves true when the estimate may start on the route the client will read.
  */
 export function useAiGate(): () => Promise<boolean> {
@@ -323,7 +323,7 @@ export function useAiGate(): () => Promise<boolean> {
 
   return useCallback(async () => {
     const keyState = await userApiKeyStore.load();
-    // My key never waits on RevenueCat.
+    // The direct route never waits on RevenueCat.
     const paid = keyState.hasKey && keyState.route === 'my-key' ? 'free' : await ensurePaidAccess();
     const gate = decideAiGate(keyState, paid);
     if (gate === 'my-key') return true;

@@ -297,7 +297,7 @@ export function PrivacyScreen() {
     const estimateEnabled = decision === 'accepted';
     const estimateCopy = serviceConfig.availability.hostedGemini
         ? "This choice controls hosted Eatlog AI only. A selected photo, meal title, description, or re-estimate context goes through Eatlog's service to Google Gemini. Eatlog uses an installation token, purchase status, and usage records to enforce access and fair use. Withdrawing consent stops future hosted estimates; it does not remove your Google key."
-        : 'Eatlog AI is unavailable in this build. My key can still send selected estimates directly to Google.';
+        : 'Eatlog AI is unavailable in this build. You can still send estimates directly to Google with your own key.';
 
     const handleEstimatePrivacyAction = async () => {
         if (consentBusy) return;
@@ -345,7 +345,7 @@ export function PrivacyScreen() {
                     )}
                     <LinkRow
                         icon="key"
-                        title="My key controls"
+                        title="Google AI key"
                         detail={keyState.hasKey
                             ? 'Your key is saved on this phone. Direct estimates go to Google, not through Eatlog. Manage or remove it in AI estimates.'
                             : 'Optional. Add your Google key in AI estimates. Checking it sends the key to Google without meal content.'}
@@ -353,8 +353,8 @@ export function PrivacyScreen() {
                     />
                     <InfoRow
                         icon="policy"
-                        title="Google key terms"
-                        detail="Eatlog charges nothing for My key. Google sets availability, quotas, billing, and data use. Unpaid Gemini API content may be used to improve Google products and reviewed by people. Billed projects and some regions have different terms. An Eatlog purchase does not change your Google project."
+                        title="Google API terms"
+                        detail="Eatlog doesn't charge for estimates sent with your own key. Google sets availability, quotas, billing, and data use. Unpaid Gemini API content may be used to improve Google products and reviewed by people. Billed projects and some regions have different terms. An Eatlog purchase does not change your Google project."
                     />
                     <LinkRow
                         icon="open-in-new"

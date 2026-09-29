@@ -14,14 +14,14 @@ No screenshot is complete until it is captured from a running release-candidate 
 - Foods: `Synthetic rice bowl` (500 kcal, 25 g protein, 70 g carbs, 13 g fat) and `Synthetic toast` (120 kcal, 4 g protein, 20 g carbs, 3 g fat).
 - History: 30 days of plausible synthetic meals; 21 complete food-log days; eight synthetic weigh-ins from 65.4 kg to 65.0 kg; no real names, health records, locations, notifications, or account details.
 - Photos: staged meal images made for QA with no faces, labels containing personal data, geotags, or copyrighted packaging as the focal point. Strip metadata before capture.
-- Provider results: use a real Scan or Describe run with the synthetic input, through My key with your own Gemini key. Do not inject a result only for the screenshot.
+- Provider results: use a real Scan or Describe run with the synthetic input and your own Gemini key. Do not inject a result only for the screenshot.
 
 ## Shot list
 
 | Order | Screen and state | What must be visible | Alt text source |
 | --- | --- | --- | --- |
 | 1 | Estimate review | Editable components, amounts, and nutrition from a real Scan; no consent overlay | Editable meal estimate lists food components, amounts, and nutrition. |
-| 2 | Profile → AI estimates | My key selected with a masked key, and the Eatlog AI choice | AI estimates settings show My key and Eatlog AI choices. |
+| 2 | Profile → AI estimates | Google AI key selected with a masked key, and the Eatlog AI choice | AI estimates settings show Google AI key and Eatlog AI choices. |
 | 3 | Today | Calorie/macro progress, one recent meal, center Add control | Today shows calorie and macro progress with the center Add control. |
 | 4 | Diary | Meals, totals, long synthetic food name, and one staged meal photo | Diary shows meals, entries, totals, and a saved meal photo. |
 | 5 | Analytics | Weight trend, calorie history, and 30-day logging consistency | Analytics shows weight trend, calorie history, and logging consistency. |

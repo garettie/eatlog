@@ -2,7 +2,7 @@ import { FOOD_ESTIMATE_SYSTEM_INSTRUCTION, promptFor, type EstimateInput } from 
 
 /**
  * How an estimate is asked of Gemini and how its reply is read back, shared by Eatlog AI (the
- * Worker, with the owner's key) and My key (the app, with the user's). Who authenticates the
+ * Worker, with the owner's key) and the direct route (the app, with the user's). Who authenticates the
  * call, and where it leaves from, stays with each route.
  */
 

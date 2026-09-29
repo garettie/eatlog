@@ -279,7 +279,7 @@ test('initial estimates proceed while re-estimates gate before private content c
     assert.ok(consent >= 0 && accessGate >= 0 && accessGate < consent);
     assert.equal(source.includes('await ensurePaidAccess()'), false);
   }
-  // Redo goes through the same gate as a first estimate: My key redoes on the user's key, and
+  // Redo goes through the same gate as a first estimate: direct re-estimates use the user's key, and
   // Eatlog AI still needs Itik, which the gate checks and the Worker enforces.
   for (const marker of ['const handleClarify =', 'const handleClarifyComponent =']) {
     const start = review.indexOf(marker);
@@ -289,7 +289,7 @@ test('initial estimates proceed while re-estimates gate before private content c
   }
   assert.equal(review.includes('ensurePaidAccess'), false);
   assert.equal(review.includes('requestConsent'), false);
-  // My key is decided before RevenueCat is asked; hosted consent is asked only for Eatlog AI.
+  // The direct route is decided before RevenueCat is asked; hosted consent is asked only for Eatlog AI.
   const gateHook = aiSetup.slice(aiSetup.indexOf('export function useAiGate'));
   assert.ok(gateHook.indexOf("keyState.route === 'my-key'") < gateHook.indexOf('await ensurePaidAccess()'));
   assert.match(gateHook, /if \(gate === 'eatlog-ai'\) return requestConsent\(\);/);

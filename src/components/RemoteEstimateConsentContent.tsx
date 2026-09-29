@@ -45,7 +45,7 @@ function ConsentActions({
         disabled={busy}
         accessibilityRole="button"
         accessibilityLabel="Not now. Keep Eatlog AI off."
-        accessibilityHint="Keeps local features and My key available"
+        accessibilityHint="Keeps local features and estimates with your own Google key available"
         accessibilityState={{ disabled: !!busy }}
         className={`min-h-[48px] items-center justify-center px-5 active:opacity-60 ${busy ? 'opacity-50' : ''}`}
       >

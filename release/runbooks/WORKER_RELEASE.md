@@ -1,6 +1,6 @@
 # Worker release and rollback
 
-This runbook covers the Worker used for USDA search and optional hosted Eatlog AI. A user's My key estimate goes directly from the app to Google and is outside this Worker. Steps marked **OWNER-ONLY** require production credentials or change external state. The preview release audit runs local checks and a read-only health check when a staging origin is available. Do not deploy production as part of the BYOK preview transition.
+This runbook covers the Worker used for USDA search and optional hosted Eatlog AI. An estimate with a user's own key goes directly from the app to Google and is outside this Worker. Steps marked **OWNER-ONLY** require production credentials or change external state. The preview release audit runs local checks and a read-only health check when a staging origin is available. Do not deploy production as part of the BYOK preview transition.
 
 Subscription development uses `wrangler.subscription-staging.jsonc`; Play production uses `wrangler.subscription-production.jsonc`. Neither may be deployed over the legacy `eatlog-food` Worker. Staging and production have separate Worker names, Durable Object state, rate-limit namespaces, RevenueCat projects, Worker secret bindings, and EAS environments.
 
@@ -26,7 +26,7 @@ Before any production change, record these facts in the release record without s
 - app commit, app version/builds, and Worker commit/package version;
 - production Worker origin and current deployment version;
 - previous healthy deployment version and exact rollback target;
-- hosted paid/legacy Gemini route `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite`, and the date each model's structured-output availability was checked; My key uses direct app-to-Google requests;
+- hosted paid/legacy Gemini route `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite`, and the date each model's structured-output availability was checked; the user's key uses direct app-to-Google requests;
 - USDA search/detail contract-check date;
 - configured install, IP, and emergency limiter names and values;
 - date and result of Gemini quota/budget and Cloudflare notification checks;
@@ -41,7 +41,7 @@ Use the official [Cloudflare deployment commands](https://developers.cloudflare.
 2. Against local or preview, run `npm run smoke:validation`. It checks a wrong method, missing token, malformed JSON, and oversized text with synthetic input. It never calls USDA or Gemini. It does consume rate-limit entries, so production use requires owner approval.
 3. **OWNER-ONLY — external provider calls.** With a fresh synthetic installation token, run common and full USDA searches, then one selected-food detail request. Use only generic test queries. Record Worker status, latency, result count, and cache outcome; do not capture the query, token, headers, or response body in release evidence. Check USDA quota headers only in an owner-controlled direct contract check or provider console.
 4. **OWNER-ONLY — Gemini cost, model compatibility, and quota.** After explicit cost approval, use non-sensitive synthetic inputs with a Test Store Omelette entitlement against staging. Confirm Scan, Describe, and both re-estimate operations use `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite`, accept the structured schema, stay inside the shared 20-second budget, normalize into editable results, and emit configured cost metadata. A Google location refusal must retry the same model through the `wnam`-pinned GeminiRelay. Exercise model fallback only through a controlled staging failure; never weaken the schema to make a model pass.
-5. Exercise the hosted allowance in staging only after owner cost approval: 30 delivered operations per rolling 24 hours and 250 per rolling 30 days, shared across Scan, Photo, Describe, and meal/component re-estimation. Five no-food outcomes per rolling 24 hours have a separate ceiling. Provider failures and timeouts refund reservations; duplicate requests do not refund a sibling's reservation. Use local tests for exact boundaries and concurrency. Verify a free install receives `PAID_ACCESS_REQUIRED` without a Gemini call, while its local features and My key route remain usable.
+5. Exercise the hosted allowance in staging only after owner cost approval: 30 delivered operations per rolling 24 hours and 250 per rolling 30 days, shared across Scan, Photo, Describe, and meal/component re-estimation. Five no-food outcomes per rolling 24 hours have a separate ceiling. Provider failures and timeouts refund reservations; duplicate requests do not refund a sibling's reservation. Use local tests for exact boundaries and concurrency. Verify a free install receives `PAID_ACCESS_REQUIRED` without a Gemini call, while its local features and direct estimate route remain usable.
 
 Do not run provider smokes against production merely to fill a checklist. Stop if they would incur unapproved cost, consume a constrained quota, or use personal content.
 
@@ -125,7 +125,7 @@ Before first production use, drill this sequence on a preview Worker: deploy a h
 
 Estimate responses carry `X-Eatlog-Protocol: 2`. Requests may carry `X-Eatlog-Request-Version: 2`; both are headers, so the JSON body contract installed clients send is unchanged and a Worker that predates the protocol simply omits and ignores them.
 
-Deploy a compatible Worker before the app that offers hosted AI. A client that sends a random per-action identifier is safe against an older Worker, which treats it as any other identifier. A client that still derives its identifier from the payload is safe against this Worker, which deduplicates only inside a two-minute window and charges a later resubmission of the same meal normally. My key estimates use direct Google requests and have no Worker protocol dependency.
+Deploy a compatible Worker before the app that offers hosted AI. A client that sends a random per-action identifier is safe against an older Worker, which treats it as any other identifier. A client that still derives its identifier from the payload is safe against this Worker, which deduplicates only inside a two-minute window and charges a later resubmission of the same meal normally. Estimates with the user's key use direct Google requests and have no Worker protocol dependency.
 
 Before enabling a new app path, record a rollback Worker version that already understands this protocol. An older Worker remains deployable in an emergency, but it reintroduces free duplicate execution and is not an acceptable ongoing rollback target — prepare the compatible build first and note its version here alongside the deployed one.
 

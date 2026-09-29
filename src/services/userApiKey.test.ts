@@ -90,7 +90,7 @@ test('an unreadable credential store keeps the saved choice and surfaces on use'
   await assert.rejects(store.getKey());
 });
 
-test('saving a key selects My key with or without Omelette', async () => {
+test('saving a key selects the direct route with or without Omelette', async () => {
   const pugo = createUserApiKeyStore(memorySecure().storage, memoryRecords().storage);
   await pugo.save(KEY, false);
   assert.equal(pugo.currentRoute(), 'my-key');

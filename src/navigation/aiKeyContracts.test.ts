@@ -61,11 +61,11 @@ test('onboarding offers the AI choice instead of hosted consent', () => {
   assert.doesNotMatch(onboarding, /useRemoteEstimateConsent|RemoteEstimateConsentContent/);
 });
 
-test('a build without an Eatlog Worker still offers My key estimates', () => {
+test('a build without an Eatlog Worker still offers direct estimates with a Google key', () => {
   assert.match(services, /gemini: true/);
   assert.match(services, /hostedGemini: foodWorkerUrl\.length > 0/);
   assert.match(choice, /serviceConfig\.availability\.hostedGemini/);
-  assert.match(privacy, /title="My key controls"/);
+  assert.match(privacy, /title="Google AI key"/);
 });
 
 test('adding a key checks it with Google before saving, and only a rejection stops the save', () => {

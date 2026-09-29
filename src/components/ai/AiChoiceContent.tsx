@@ -116,7 +116,7 @@ export default function AiChoiceContent({
             <ChoiceCard
               icon="auto-awesome"
               title="Eatlog AI"
-              detail={`With ${PAID_PLAN_NAME}, a one-time purchase. Hosted fair use applies.`}
+              detail={`Buy Eatlog ${PAID_PLAN_NAME} once to estimate meals without your own key.`}
               onPress={onEatlogAi}
               disabled={busy}
               emphasis="low"

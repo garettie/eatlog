@@ -17,7 +17,7 @@ Last updated September 24, 2026. Email [sggajitos@gmail.com](mailto:sggajitos@gm
 
 ## AI estimates or food search are unavailable
 
-Manual logging, saved meals, targets, and local analytics still work. First check your connection. For My key, open Profile > AI estimates and check that your key is saved, the route is My key, and your Google project can use Gemini in your region. The key check sends your key to Google without meal data. An invalid or unreadable key needs replacement; removing it from Eatlog does not revoke it at Google. Google may enforce its own quota or billing rules.
+Manual logging, saved meals, targets, and local analytics still work. First check your connection. If you use your own key, open Profile > AI estimates. Check that your key is saved, Google AI key is selected, and your Google project can use Gemini in your region. The key check sends your key to Google without meal data. An invalid or unreadable key needs replacement; removing it from Eatlog does not revoke it at Google. Google may enforce its own quota or billing rules.
 
 For Eatlog AI, check that Profile > AI estimates selects Eatlog AI and hosted consent is on in Profile > Privacy. Omelette, valid legacy, or complimentary access is required. The hosted allowance is 30 combined operations per rolling 24 hours and 250 per rolling 30 days. If access or the provider is unavailable, try later. Do not buy again to fix a network error.
 

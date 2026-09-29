@@ -16,7 +16,7 @@ import { M3 } from '../theme/tokens';
 
 const ROUTE_OPTIONS: { value: AiRoute; label: string }[] = [
   { value: 'eatlog-ai', label: 'Eatlog AI' },
-  { value: 'my-key', label: 'My key' },
+  { value: 'my-key', label: 'Google AI key' },
 ];
 
 /** What estimates run on right now, said once at the top of the screen. */
@@ -121,13 +121,13 @@ export function AiEstimatesScreen() {
               />
               <Text className="px-1 text-sm text-m3-on-surface-variant">
                 {keyState.route === 'my-key'
-                  ? 'My key sends selected meal details directly to Google. Google controls your project limits and billing.'
+                  ? 'Selected meal details go directly to Google with your key. Google controls your project limits and billing.'
                   : 'Eatlog AI sends selected meal details through Eatlog to Google. The hosted fair-use limits apply.'}
               </Text>
             </View>
           ) : null}
 
-          <Section title="Google key">
+          <Section title="Google AI key">
             {keyState.hasKey ? (
               <>
                 <ProfileSettingRow
@@ -154,7 +154,7 @@ export function AiEstimatesScreen() {
             ) : (
               <ProfileSettingRow
                 icon="key"
-                title="Add a Google key"
+                title="Add a Google AI key"
                 detail="No Eatlog charge; Google controls limits and billing"
                 onPress={() => { void openKeySetup('add'); }}
                 showDivider={false}
@@ -166,8 +166,8 @@ export function AiEstimatesScreen() {
             <Section title="Eatlog AI">
               <ProfileSettingRow
                 icon="auto-awesome"
-                title={`Get ${PAID_PLAN_NAME}`}
-                detail="One-time purchase for hosted estimates, subject to fair use"
+                title={`Get Eatlog ${PAID_PLAN_NAME}`}
+                detail="Buy once to use Eatlog AI without your own key"
                 onPress={() => navigation.navigate('SubscriptionPlan')}
                 showDivider={false}
               />

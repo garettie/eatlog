@@ -10,7 +10,7 @@ import {
 } from './foodEstimateGemini';
 
 /**
- * My key: the estimate goes from this device straight to Google, authenticated with the user's
+ * Direct route: the estimate goes from this device straight to Google, authenticated with the user's
  * own key. Nothing about it reaches Eatlog — no install identity, grant, request identifier, or
  * usage report — and it never uses the Worker or its regional relay.
  */

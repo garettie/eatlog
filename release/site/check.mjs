@@ -22,8 +22,8 @@ const legalSources = new Map([
 
 const legalFactPatterns = new Map([
   ['privacy', [/Sean Garette Gajitos/, /sggajitos@gmail\.com/, /September 24, 2026|2026-09-24/, /1\.3/, /device credential store/, /model-list endpoint/, /directly to Google Gemini/, /through its Cloudflare Worker/, /separate consent records/, /30 per rolling 24 hours|hosted allowance/, /Gemini terms/, /RevenueCat/, /USDA FoodData Central/, /Open Food Facts/, /Health Connect/, /Delete all data/, /not a medical device/i]],
-  ['terms', [/Sean Garette Gajitos/, /sggajitos@gmail\.com/, /September 24, 2026|2026-09-24/, /1\.3/, /0BSD/, /one-time, non-renewing purchase/, /Legacy subscription customers/, /30 combined/, /250 in a rolling 30-day window/, /five recent provider responses/, /Google sets separate limits for My key/, /not a medical device/i]],
-  ['support', [/sggajitos@gmail\.com/, /September 24, 2026|2026-09-24/, /My key/, /Eatlog AI/, /Restore purchases/, /\.eatlog-backup/, /\.marco-backup/, /CSV export cannot be restored/, /Remove key/, /Delete all data/]],
+  ['terms', [/Sean Garette Gajitos/, /sggajitos@gmail\.com/, /September 24, 2026|2026-09-24/, /1\.3/, /0BSD/, /one-time, non-renewing purchase/, /Legacy subscription customers/, /30 combined/, /250 in a rolling 30-day window/, /five recent provider responses/, /Google sets separate limits for estimates sent with your own key/, /not a medical device/i]],
+  ['support', [/sggajitos@gmail\.com/, /September 24, 2026|2026-09-24/, /Google AI key/, /Eatlog AI/, /Restore purchases/, /\.eatlog-backup/, /\.marco-backup/, /CSV export cannot be restored/, /Remove key/, /Delete all data/]],
 ]);
 
 for (const [route, html] of pages) {

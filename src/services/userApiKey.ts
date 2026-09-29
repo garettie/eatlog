@@ -11,7 +11,7 @@ import type { PaidAccessDecision } from './billing.types';
  * consent record therefore belongs to an earlier install and is erased, not used.
  */
 
-/** Who funds an estimate: Eatlog AI through the hosted service, or My key straight to Google. */
+/** Who funds an estimate: Eatlog AI through the hosted service, or the user's key straight to Google. */
 export type AiRoute = 'eatlog-ai' | 'my-key';
 
 const MANOK_CONSENT_VERSION = 1;
@@ -175,7 +175,7 @@ export function createUserApiKeyStore(secure: SecureKeyStorage, records: KeyReco
   /**
    * Saving is the Manok consent. The credential is written first and the record second; if the
    * record cannot be written, the key is taken back out so it never sits there unconsented.
-   * Saving a key is an explicit choice to use My key, including for a paid user.
+   * Saving a key is an explicit choice to use the direct route, including for a paid user.
    */
   async function save(key: string, itik: boolean): Promise<void> {
     await load();

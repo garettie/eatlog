@@ -71,7 +71,7 @@ function googleError(status: number, errorStatus: string, message: string, reaso
 }
 
 /**
- * A My key client with every Eatlog dependency wired to fail loudly: no Worker URL, a paywall
+ * A direct-estimate client with every Eatlog dependency wired to fail loudly: no Worker URL, a paywall
  * answer from RevenueCat, no hosted consent, and an install identity that must not be read.
  */
 function myKeyClient(respond: (call: Call, index: number) => Response | Promise<Response>, overrides: Partial<FoodEstimateClientOptions> = {}) {
@@ -83,8 +83,8 @@ function myKeyClient(respond: (call: Call, index: number) => Response | Promise<
         hasConsent: () => { throw new Error('hosted consent must not be read'); },
         getAiAuthorization: () => ({ ok: false, kind: 'paid-access-required' }),
         getInstallationToken: () => { throw new Error('install identity must not be read'); },
-        acceptAiGrant: () => { throw new Error('no grant exists on My key'); },
-        requestId: () => { throw new Error('no request identifier is sent on My key'); },
+        acceptAiGrant: () => { throw new Error('no grant exists on the direct route'); },
+        requestId: () => { throw new Error('no request identifier is sent on the direct route'); },
         fetchImpl: (async (input, init) => {
             const call = { url: String(input), init: init ?? {} };
             calls.push(call);
@@ -95,7 +95,7 @@ function myKeyClient(respond: (call: Call, index: number) => Response | Promise<
     return { client, calls };
 }
 
-test('My key posts straight to Google with the key in a header and nothing Eatlog-specific', async () => {
+test('the direct route posts straight to Google with the key in a header and nothing Eatlog-specific', async () => {
     const { client, calls } = myKeyClient(() => geminiReply());
 
     const result = await client.describeMeal('adobo with rice');
@@ -112,7 +112,7 @@ test('My key posts straight to Google with the key in a header and nothing Eatlo
     assert.equal(body.generationConfig.responseMimeType, 'application/json');
 });
 
-test('My key and Eatlog AI deliver the same review result for the same model answer', async () => {
+test('Direct estimates and Eatlog AI deliver the same review result for the same model answer', async () => {
     // The Worker answers with the shared normalization of the same model output.
     const hosted = createFoodEstimateClient({
         workerUrl: WORKER_URL,
@@ -135,7 +135,7 @@ test('My key and Eatlog AI deliver the same review result for the same model ans
     assert.deepEqual(fromDirect, fromHosted);
 });
 
-test('every operation runs on My key without the Worker, RevenueCat, or hosted consent', async () => {
+test('every operation runs on the direct route without the Worker, RevenueCat, or hosted consent', async () => {
     const { client, calls } = myKeyClient(() => geminiReply({ ...modelAnswer(), components: [modelAnswer().components[0]] }));
     const context = { components: [{ name: 'Chicken', estimatedGrams: 150 }], originalDescription: 'adobo' };
 

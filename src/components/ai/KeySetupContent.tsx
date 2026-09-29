@@ -42,7 +42,7 @@ const DISCLOSURE: { icon: keyof typeof MaterialIcons.glyphMap; text: string }[] 
   },
   {
     icon: 'payments',
-    text: 'Eatlog charges nothing for My key. Google sets availability and limits, and may charge a project with billing enabled.',
+    text: "Eatlog doesn't charge for estimates sent with your own key. Google sets availability and limits, and may charge a project with billing enabled.",
   },
   {
     icon: 'visibility',

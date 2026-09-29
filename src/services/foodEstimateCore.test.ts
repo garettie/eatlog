@@ -37,6 +37,6 @@ test('the largest valid estimate fits the Eatlog AI request body limit', () => {
   assert.ok(byteLength(JSON.stringify({ operation, ...fields })) <= MAX_ESTIMATE_BODY_BYTES);
 });
 
-test('the largest valid estimate fits Google’s request limit on the My key route', () => {
+test('the largest valid estimate fits Google’s request limit on the direct route', () => {
   assert.ok(byteLength(buildGeminiEstimateBody(largestInput())) <= GEMINI_MAX_REQUEST_BYTES);
 });

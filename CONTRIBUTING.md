@@ -6,7 +6,7 @@ Eatlog is a free, open-source local food log. Small fixes are welcome, including
 
 Install Node.js and npm, then run `npm ci`. Use `npm start` with a native development build; Expo Go cannot run Eatlog's native modules. `npm run android` builds the Android development variant. `npm run ios` needs macOS and Xcode.
 
-Manual logging and its tests need no online credentials. A personal Gemini key can be added in the app to exercise My key. Hosted AI, USDA search, and purchase checks need a separately configured preview Worker, provider keys, and RevenueCat Test Store setup. See [Worker setup](worker/README.md) and [native configuration](release/config/NATIVE_CONFIGURATION.md). Keep credentials in local or service-managed secrets, never in a commit, issue, screenshot, log, or test fixture.
+Manual logging and its tests need no online credentials. You can add a personal Gemini key in the app to test direct estimates. Hosted AI, USDA search, and purchase checks need a separately configured preview Worker, provider keys, and RevenueCat Test Store setup. See [Worker setup](worker/README.md) and [native configuration](release/config/NATIVE_CONFIGURATION.md). Keep credentials in local or service-managed secrets, never in a commit, issue, screenshot, log, or test fixture.
 
 Before opening a pull request, run `env TMPDIR=/tmp npm test`, `npm run typecheck`, `npm run store:metadata:check`, `npm run store:artwork:check`, and `npm run site:check`. If a native or provider scenario could not run, say which one and why. Website screenshots are owner-maintained; leave the checked-in screenshots intact.
 

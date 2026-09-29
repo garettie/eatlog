@@ -48,10 +48,10 @@ export default function PaywallScreen({ navigation }: NativeStackScreenProps<Roo
           <View className="flex-row items-start gap-3">
             <View className="min-w-0 flex-1 gap-1">
               <Text accessibilityRole="header" className="text-2xl font-bold text-m3-on-surface">
-                Get {PAID_PLAN_NAME}
+                Get Eatlog {PAID_PLAN_NAME}
               </Text>
               <Text className="text-sm text-m3-on-surface-variant">
-                A one-time purchase for hosted AI estimates. Your own Google key is still an option in free Eatlog.
+                Buy once for Eatlog AI estimates without your own Google key. You can still use your key in free Eatlog.
               </Text>
             </View>
             <Pressable

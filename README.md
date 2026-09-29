@@ -21,11 +21,11 @@ Website: [eatlog.pages.dev](https://eatlog.pages.dev)
 
 The app works fine without AI. If you want photo or text estimates, go to **Profile → AI estimates** and pick one:
 
-**My key.** Paste your own Google AI Studio Gemini key. Your photo or text goes straight from your phone to Google, it doesn't pass through me. I don't charge for this. Google's free tier is plenty for one person, but Google sets the limits and can change them, and on the free tier they can use what you send to improve their models. If you turn on billing for your Google project, Google can charge you. Check their [API terms](https://ai.google.dev/gemini-api/terms) and [billing guide](https://ai.google.dev/gemini-api/docs/billing).
+**Use your own key.** Paste a Gemini key from Google AI Studio. Your photo or text goes straight from your phone to Google, it doesn't pass through me. I don't charge for this. Google's free tier is plenty for one person, but Google sets the limits and can change them, and on the free tier they can use what you send to improve their models. If you turn on billing for your Google project, Google can charge you. Check their [API terms](https://ai.google.dev/gemini-api/terms) and [billing guide](https://ai.google.dev/gemini-api/docs/billing).
 
 **Eatlog AI.** For people who'd rather not make a key. It's unlocked by the Eatlog Omelette purchase, which is a one-time payment. Your photo or text goes through my Cloudflare worker to Google, using my key. It's capped at 30 estimates per rolling 24 hours and 250 per rolling 30 days so nobody burns through it. The Play Store shows the price in your currency before you buy.
 
-If you paid, you can still switch back to My key whenever. Either way, you review the estimate before it's saved.
+If you paid, you can still switch back to your own key whenever. Either way, you review the estimate before it's saved.
 
 About your key: it's kept in your phone's credential store, the app only ever shows its first and last four characters, and it's left out of backups and CSV exports. Removing it from Eatlog doesn't revoke it on Google's side, so do that in AI Studio if you need to.
 
@@ -33,7 +33,7 @@ About your key: it's kept in your phone's credential store, the app only ever sh
 
 Everything you log stays on your phone, in the app's private storage. It only leaves in these cases:
 
-- AI estimates go to Google, straight from your phone with My key or through my worker with Eatlog AI.
+- AI estimates go to Google, straight from your phone with your own key or through my worker with Eatlog AI.
 - Food search goes to USDA through my worker. A full search also asks Open Food Facts directly.
 - The app checks purchases with RevenueCat using a random install ID, even if you never use AI.
 - Backups and exports go wherever you send them.
@@ -57,7 +57,7 @@ npm run android
 
 That builds a development version of the app, installs it, and starts the bundler. Once it's installed, `npm start` is enough.
 
-With no setup you get everything local, plus My key if you paste in your own Gemini key. USDA search, Eatlog AI, and purchases need your own worker and RevenueCat project. See [worker/README.md](worker/README.md), then copy `.env.example` to `.env.local` and fill it in.
+With no setup you get everything local. Add your own Gemini key for direct estimates. USDA search, Eatlog AI, and purchases need your own worker and RevenueCat project. See [worker/README.md](worker/README.md), then copy `.env.example` to `.env.local` and fill it in.
 
 ## Contributing
 

@@ -3,7 +3,7 @@ import { formatFoodDisplayName } from '../utils/foodDisplayName';
 /**
  * The estimate contract both AI routes share: what may be asked, how it is prompted, and how the
  * model's JSON becomes an editable estimate. The Worker runs it for Eatlog AI and the app runs it
- * for My key, so a change here reaches the two routes through a deploy and an OTA update
+ * for the direct route, so a change here reaches the two routes through a deploy and an OTA update
  * respectively. Nothing in this file knows which provider answered or who paid for it.
  */
 

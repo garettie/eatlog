@@ -780,7 +780,7 @@ export default function ReviewState({
 		const name = mealName.trim();
 		if (!name || clarifying) return;
 		setClarifyError(null);
-		// My key redoes on the user's key; Eatlog AI needs Itik, which the Worker enforces.
+		// Direct re-estimates use the user's key; Eatlog AI needs Itik, which the Worker enforces.
 		if (!await ensureAiReady()) return;
 		setClarifying(true);
 		try {

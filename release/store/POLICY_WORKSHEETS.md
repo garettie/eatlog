@@ -4,9 +4,9 @@ Updated 2026-09-25 for the free, bring-your-own-key release. These are the answe
 
 ## Product and consent facts
 
-- Eatlog is free and open source. All local features are free. An API key is optional. My key sends selected estimate content directly to Google; Eatlog does not bill that route. Google's project, region, model, quota, and billing status control its charges and data treatment.
+- Eatlog is free and open source. All local features are free. An API key is optional. Estimates with your own Google key send selected content directly to Google; Eatlog does not bill that route. Google's project, region, model, quota, and billing status control its charges and data treatment.
 - Eatlog Omelette is a one-time non-consumable purchase of hosted AI access, subject to 30 combined operations per rolling 24 hours and 250 per rolling 30 days. Legacy subscribers and complimentary grants retain access. New monthly sales are out of scope. The purchase price must come from the live localized store sheet.
-- Hosted consent and My key consent are separate. Saving/checking a key sends the key to Google before a meal estimate, but no meal content. A selected estimate sends its photo/text. Local diary storage does not mean selected AI content stays on device.
+- Hosted consent and consent for direct estimates are separate. Saving/checking a key sends the key to Google before a meal estimate, but no meal content. A selected estimate sends its photo/text. Local diary storage does not mean selected AI content stays on device.
 - The app has no Eatlog account, cloud diary, ads, or third-party analytics. RevenueCat and store checks, USDA via the Worker, explicit direct Open Food Facts search, and Expo updates are other network activity.
 - Android Health Connect reads/writes Weight only after the user connects it. iOS v1 has no HealthKit or Apple Health.
 
@@ -25,7 +25,7 @@ Data types:
 
 | Play category → type | Collected | Shared | Required or optional | Purposes | Why |
 | --- | --- | --- | --- | --- | --- |
-| Photos and videos → Photos | Yes | No | Optional | App functionality | A meal photo the user sends for an estimate goes to Google, directly with My key or through the Worker with Eatlog AI |
+| Photos and videos → Photos | Yes | No | Optional | App functionality | A meal photo the user sends for an estimate goes to Google, directly with the user's key or through the Worker with Eatlog AI |
 | App activity → Other user-generated content | Yes | No | Optional | App functionality | Meal descriptions and re-estimate notes sent for an estimate |
 | App activity → In-app search history | Yes | No | Optional | App functionality | Food search text goes to USDA through the Worker, and to Open Food Facts on a full search |
 | Financial info → Purchase history | Yes | No | Optional | App functionality | Google Play and the RevenueCat SDK handle the Omelette purchase and restores |

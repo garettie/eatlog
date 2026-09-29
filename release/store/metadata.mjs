@@ -24,7 +24,7 @@ export const storeMetadata = {
     accountRequired: false,
     localFirst: true,
     remoteFeatures: [
-      "My key direct Gemini estimates",
+      "Direct Gemini estimates with a Google AI key",
       "Eatlog AI hosted estimates",
       "USDA search and detail",
       "Open Food Facts explicit full search",
@@ -94,14 +94,14 @@ Food entries, nutrition targets, and AI results are estimates. Review them befor
 
 To review Eatlog Omelette, sign in to Google Play with the license-tester account listed in App access. Open Profile > Plan, choose Eatlog Omelette, and complete the purchase with the test payment method. License testers are not charged, and no personal Google key is needed.
 
-Complete onboarding with synthetic adult data. Use Add for manual entry. For AI, open Profile > AI estimates and choose Eatlog AI after the test purchase, then accept its separate consent. Scan opens the camera; Photo opens the picker; Describe uses typed text. A selected photo and optional meal title, or typed text and limited re-estimate context, go through Eatlog's Worker to Google Gemini. My key sends selected content directly to Google and its setup validates a key with Google before a meal estimate. Review every result before saving. USDA search uses the Worker; explicit full search also contacts Open Food Facts directly. Local logging works offline.
+Complete onboarding with synthetic adult data. Use Add for manual entry. For AI, open Profile > AI estimates and choose Eatlog AI after the test purchase, then accept its separate consent. Scan opens the camera; Photo opens the picker; Describe uses typed text. A selected photo and optional meal title, or typed text and limited re-estimate context, go through Eatlog's Worker to Google Gemini. Select Google AI key to send the selected content directly to Google. Eatlog checks the key with Google before saving it. Review every result before saving. USDA search uses the Worker; explicit full search also contacts Open Food Facts directly. Local logging works offline.
 
 Android only: Profile > Health Connect requests Weight read/write after Connect. Backup and restore uses .eatlog-backup archives; CSV exports cannot be restored. Delete all data has two confirmations.`,
     apple: `Eatlog is free and has no login. Manual logging, saved meals, weight, Diary, Analytics, adaptive target suggestions, backups, export, and sharing need no purchase or API key. Eatlog Omelette is a one-time non-consumable hosted-AI purchase. Existing subscribers retain legacy access, but the app does not offer a new subscription.
 
 To review Eatlog Omelette, open Profile > Plan, choose Eatlog Omelette, and complete the purchase with a sandbox account. Sandbox purchases are not charged, and no personal Google key is needed.
 
-Complete onboarding with synthetic adult data. Use Add for manual entry. For AI, open Profile > AI estimates and choose Eatlog AI after the sandbox purchase, then accept its separate consent. Scan opens the camera; Photo opens the picker; Describe uses typed text. A selected photo and optional meal title, or typed text and limited re-estimate context, go through Eatlog's Worker to Google Gemini. My key sends selected content directly to Google and its setup validates a key with Google before a meal estimate. Review every result before saving. USDA search uses the Worker; explicit full search also contacts Open Food Facts directly.
+Complete onboarding with synthetic adult data. Use Add for manual entry. For AI, open Profile > AI estimates and choose Eatlog AI after the sandbox purchase, then accept its separate consent. Scan opens the camera; Photo opens the picker; Describe uses typed text. A selected photo and optional meal title, or typed text and limited re-estimate context, go through Eatlog's Worker to Google Gemini. Select Google AI key to send the selected content directly to Google. Eatlog checks the key with Google before saving it. Review every result before saving. USDA search uses the Worker; explicit full search also contacts Open Food Facts directly.
 
 Backup and restore uses .eatlog-backup archives; CSV exports cannot be restored. Delete all data has two confirmations. iOS v1 has no Health Connect or Apple Health integration.`,
   },
@@ -110,7 +110,7 @@ Backup and restore uses .eatlog-backup archives; CSV exports cannot be restored.
       "Eatlog white egg-shaped nutrition scale mark centered on a dark background.",
     screenshotAltText: [
       "Editable meal estimate lists food components, amounts, and nutrition.",
-      "AI estimates settings show My key and Eatlog AI choices.",
+      "AI estimates settings show Google AI key and Eatlog AI choices.",
       "Today shows calorie and macro progress with the center Add control.",
       "Diary shows meals, entries, totals, and a saved meal photo.",
       "Analytics shows weight trend, calorie history, and logging consistency.",

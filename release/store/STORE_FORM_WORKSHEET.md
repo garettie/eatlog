@@ -20,7 +20,7 @@ Updated 2026-09-25 for the free, bring-your-own-key release. These are the answe
 
 The store listing copy is in `metadata.mjs` and validated by `npm run store:metadata:check`. Reviewer notes in that file describe the production license-testing purchase path. The owner supplies the license-tester email credentials in App access.
 
-Do not assume a one-time Eatlog purchase changes Google's treatment of a user's own key. A free-tier Google project and a billed project have different [Gemini API terms](https://ai.google.dev/gemini-api/terms), including regional exceptions. Google sets My key quotas and possible charges. Eatlog's hosted quota comes from Worker code.
+Do not assume a one-time Eatlog purchase changes Google's treatment of a user's own key. A free-tier Google project and a billed project have different [Gemini API terms](https://ai.google.dev/gemini-api/terms), including regional exceptions. Google sets the quotas and possible charges for estimates sent with your own key. Eatlog's hosted quota comes from Worker code.
 
 Store account items still requiring direct verification: current Omelette offering/package and localized price, legacy subscription visibility, purchase and restore on the tested binary, license-tester reviewer accounts, app privacy/data safety forms, account agreements, countries, support/legal URLs, final screenshots, and review contacts. No store form has been changed by this worksheet.
 

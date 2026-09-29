@@ -1,6 +1,6 @@
 # Product
 
-> Current product direction: free open-source logging, optional My key, optional one-time Eatlog Omelette. Earlier phase notes remain design history.
+> Current product direction: free open-source logging, optional Google AI key, optional one-time Eatlog Omelette. Earlier phase notes remain design history.
 
 <!-- impeccable:product-schema 1 -->
 
@@ -27,7 +27,7 @@ Free, open-source food logging with a fast local path: reuse an editable past me
 ## Access model
 
 - Eatlog is free and open source. Every local feature, including adaptive recommendations, sharing, backup, and export, is free.
-- My key is an optional setting, not a plan. A saved Google Gemini API key sends selected estimates directly to Google under the user's project, regional terms, limits, and possible charges.
+- A Google AI key is an optional setting, not a plan. A saved Google Gemini API key sends selected estimates directly to Google under the user's project, regional terms, limits, and possible charges.
 - Eatlog Omelette is an optional one-time purchase for Eatlog-hosted AI without a personal key. The Worker enforces 30 combined operations per rolling 24 hours and 250 per rolling 30 days. Legacy subscription access and complimentary grants remain valid; new monthly sales are not offered.
 - Expiry, refund, or revocation never deletes owned food, weight, target, or adaptive data. Entitlement state stays outside SQLite, backups, and CSV exports.
 
@@ -43,7 +43,7 @@ Occasional: open Profile to change personal details, goals, targets, or units; c
 | --- | --- | --- |
 | Onboarding and initial targets | Implemented | Strong first-run flow; needs an edit path and physical-device verification. |
 | Today | Implemented | Coherent daily summary with useful empty, loading, and error states. |
-| Food entry | Implemented | Local past-meal reuse, search, and manual logging are free. Scan, Photo, Describe, and meal/component re-estimation use the selected optional My key or hosted route with separate consent. |
+| Food entry | Implemented | Local past-meal reuse, search, and manual logging are free. Scan, Photo, Describe, and meal/component re-estimation use the selected Google AI key or Eatlog AI route with separate consent. |
 | Diary | Implemented | Backdating, grouped meals, editing, delete/undo, photos, and empty states are present. |
 | Weight and Analytics | Implemented | Weight/chart metrics and adaptive reviews are free local features. |
 | Profile and Settings | Implemented | Profile editing, privacy controls, backup/restore, CSV export, reset, Health Connect, help, and detail routes are available. |
@@ -61,7 +61,7 @@ The implemented core has a coherent visual language and daily loop. Source-level
 - Six setup/calculation steps plus an optional final full-screen AI-estimate consent step when the build has an estimate Worker, with direct editable/ruler-assisted body measurements, initial Mifflin-St Jeor BMR/TDEE calculation, calorie/macro target creation, and a reduced-motion-aware completion flow.
 - Today dashboard: calorie ring, consumed/remaining toggle, macro rails with overflow, latest-food shortcut, photo-first empty state, and calendar-accurate scale/trend/goal weight display.
 - Central entry bottom sheet: local camera/gallery selection, ranked past-meal reuse with the newly selected photo, explicit new estimation, natural-language description, local/USDA/Open Food Facts search, manual entry, searchable pinned recents, daily/backdated weight entry, component review/edit/remove/undo, portion controls, meal assignment, and Android Back/discard behavior.
-- Gemini vision/text meal estimation returns a named meal and per-100g component nutrition. My key calls Google directly; Eatlog AI uses the Worker and its regional relay when needed. Both routes cover initial and follow-up estimates.
+- Gemini vision/text meal estimation returns a named meal and per-100g component nutrition. Estimates with the user's key call Google directly; Eatlog AI uses the Worker and its regional relay when needed. Both routes cover initial and follow-up estimates.
 - On-device SQLite profile, food log, meal, target, food-cache, weight-log, pin, and adaptive-review records with sequential non-destructive migrations.
 - Diary: calendar strip, overflow-aware daily macro rail, consistent meal-period headers, standalone food and grouped-meal cards, real scan thumbnails, food-relevant icon fallback, expandable components, aligned edit/delete swipe actions, and undo.
 - Analytics: 1M/3M/6M/1Y weight ranges, scale and EWMA trend charting, intake coverage, expenditure/target context, goal-rate progress, and persisted weekly Accept/Keep recommendations.
@@ -74,7 +74,7 @@ The implemented core has a coherent visual language and daily loop. Source-level
 
 **Post-MVP:** cloud multi-device sync; barcode camera scanning; offline food search; HealthKit/Apple Health; auth/accounts; notifications; social features; coach messaging; light theme; localization.
 
-**Hard constraints:** Android-first cross-platform Expo managed workflow and EAS store distribution; local-first canonical app data with a Worker for remote search, hosted AI, entitlements, and quotas; selected My key estimates go directly to Google; canonical food/weight data remains on-device except selected remote actions and user exports; Onest remains bundled; photo capture, import, and description lead while reuse, search, and manual entry remain complete; no silent system-font fallback; shared semantics stay consistent across purpose-built screen compositions. The only user-managed credential is their own Google key, kept in SecureStore and masked on Profile → AI estimates.
+**Hard constraints:** Android-first cross-platform Expo managed workflow and EAS store distribution; local-first canonical app data with a Worker for remote search, hosted AI, entitlements, and quotas; selected estimates with the user's key go directly to Google; canonical food/weight data remains on-device except selected remote actions and user exports; Onest remains bundled; photo capture, import, and description lead while reuse, search, and manual entry remain complete; no silent system-font fallback; shared semantics stay consistent across purpose-built screen compositions. The only user-managed credential is their own Google key, kept in SecureStore and masked on Profile → AI estimates.
 
 ## MVP Completion Contract
 
@@ -112,7 +112,7 @@ Profile is an operating surface, not a list of speculative toggles. Keep each gr
 ### Preferences
 
 - Metric or imperial measurement display.
-- Separate hosted and My key consent, route choice, key replacement/removal, full-screen hosted enable/decline flow, food-source status, network-use disclosure, and privacy copy.
+- Separate consent for hosted estimates and estimates with the user's key, route choice, key replacement/removal, full-screen hosted enable/decline flow, food-source status, network-use disclosure, and privacy copy.
 - Owner-provisioned hosted and USDA credentials stay outside the UI.
 - Do not add appearance, reminder, notification, or other inert settings during MVP.
 
