@@ -48,6 +48,8 @@ components are nutritionally material ingredient-level entries. Use the fewest e
 
 estimatedGrams is the component's total edible grams in the entire stated or pictured food before share selection. Amount precedence, highest first: user-stated amount, legible label, visible scale, typical portion. A stated amount is final; a whole-dish assumption never overrides it. Split a stated dish weight across ingredients, never assign that weight to each. Nutrients are per 100g in the same raw/cooked state as those grams. Convert labeled per-serving nutrients by 100 / labeled serving grams. Count oil/sauce once; when separate, base entries must exclude it. Never add oil to an oil-inclusive fried-food estimate. Null unsupported brands/preparation; lower confidence for uncertain recipes or scale.
 
+Use stated calories and macros for the amount eaten; estimate only missing values. Apply each fact only to its named food or meal. Keep nutrition numbers out of food names. Respect per-serving quantities and labeled calories even when macros imply a different total.
+
 servingLabel and servingSizeGrams describe the SAME one practical unit, not the amount eaten or servings per container. Two eggs: estimatedGrams 100, servingLabel "1 egg", servingSizeGrams 50. 30g cookies: estimatedGrams stays 30. For countable foods provide one-piece mass. Use food-specific density, never 1ml=1g by default. If no defensible unit mass exists, null BOTH fields. Without better evidence use 1 cup cooked rice 180g, 1 egg 50g, 1 slice bread 30g, 1 tbsp oil 14g for photos and descriptions.
 
 Estimate the stated or pictured whole before the user chooses their share. For a countable shared whole set servesTotal and singular servingUnit: whole pizza 8, "slice"; shared pot 4, "bowl". Null both for a personal plate, drink or label. Ingredient count is never serving count.`;
@@ -106,6 +108,117 @@ const MAX_CALORIES_PER_100G = 1000;
 const MAX_MACRO_PER_100G = 100;
 /** Protein, carbohydrate and fat together, with room for label rounding. */
 const MAX_MACRO_MASS_PER_100G = 102;
+
+type NutritionField = 'caloriesPer100g' | 'proteinPer100g' | 'carbsPer100g' | 'fatPer100g';
+
+const NUTRIENT_LABELS: Record<string, NutritionField> = {
+  kcal: 'caloriesPer100g', calorie: 'caloriesPer100g', calories: 'caloriesPer100g', cal: 'caloriesPer100g', cals: 'caloriesPer100g',
+  protein: 'proteinPer100g',
+  carb: 'carbsPer100g', carbs: 'carbsPer100g', carbohydrate: 'carbsPer100g', carbohydrates: 'carbsPer100g',
+  fat: 'fatPer100g', fats: 'fatPer100g',
+};
+const NUTRITION_JOINERS = new Set([':', '=', '-', '–', '—', '(', ')', 'g', 'gram', 'grams', 'of', 'is']);
+const NUMBER_TOKEN = /^\d/;
+
+/** A shared token grammar lets punctuation and line breaks vary without changing the meaning. */
+export function statedNutrition(text: string): Partial<Record<NutritionField, number>> {
+  // A basis can govern an entire multiline block, not just the closest nutrient.
+  // Leave scoped amounts to the model rather than applying a per-unit value as a meal total.
+  if (/\b(?:per|each|apiece)\b|\/\s*(?:\d+\s*)?(?:g|grams?|servings?|portions?|pieces?)\b/i.test(text)) return {};
+  const tokens = (text.match(/\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?|[a-z]+|[^\s]/gi) ?? [])
+    .map((token) => token.toLowerCase());
+  const values: Partial<Record<NutritionField, number>> = {};
+  type Candidate = { value: number; index: number; distance: number };
+  const nearbyNumber = (start: number, direction: -1 | 1): Candidate | null => {
+    for (let distance = 1; distance <= 5; distance += 1) {
+      const token = tokens[start + direction * distance];
+      if (!token) return null;
+      if (NUMBER_TOKEN.test(token)) {
+        const value = Number(/,\d{3}(?:\.|$)/.test(token) ? token.replace(/,/g, '') : token.replace(',', '.'));
+        return Number.isFinite(value) && value >= 0 ? { value, index: start + direction * distance, distance } : null;
+      }
+      if (!NUTRITION_JOINERS.has(token)) return null;
+    }
+    return null;
+  };
+  const labels: Array<{ field: NutritionField; candidates: Candidate[] }> = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(NUTRIENT_LABELS, tokens[index])) continue;
+    const field = NUTRIENT_LABELS[tokens[index]];
+    const candidates = [nearbyNumber(index, -1), nearbyNumber(index, 1)]
+      .filter((candidate): candidate is Candidate => candidate !== null)
+      .filter((candidate) => {
+        // "200g protein shake" and "fat-free" name foods, not macro totals.
+        if (candidate.index < index && field !== 'caloriesPer100g') {
+          const nextWord = tokens[index + 1];
+          if (/^[a-z]+$/.test(nextWord ?? '') && !['and', 'from'].includes(nextWord) && !NUTRIENT_LABELS[nextWord]) return false;
+          if (nextWord === '-' && /^[a-z]+$/.test(tokens[index + 2] ?? '')) return false;
+        }
+        return true;
+      });
+    if (candidates.length) labels.push({ field, candidates });
+  }
+  // Multiple mentions may be separate foods, a correction, or a subtotal and total.
+  // Their meaning requires the full description; choosing one silently loses user input.
+  if (new Set(labels.map((label) => label.field)).size !== labels.length) return {};
+  const usedNumbers = new Set<number>();
+  while (labels.length) {
+    // Give a label with only one available value first choice, then use proximity for ties.
+    labels.sort((a, b) => {
+      const availableA = a.candidates.filter((candidate) => !usedNumbers.has(candidate.index));
+      const availableB = b.candidates.filter((candidate) => !usedNumbers.has(candidate.index));
+      return availableA.length - availableB.length
+        || (availableA[0]?.distance ?? Infinity) - (availableB[0]?.distance ?? Infinity);
+    });
+    const label = labels.shift()!;
+    const match = label.candidates.filter((candidate) => !usedNumbers.has(candidate.index))
+      .sort((a, b) => a.distance - b.distance || b.index - a.index)[0];
+    if (!match) continue;
+    values[label.field] = match.value;
+    usedNumbers.add(match.index);
+  }
+  return values;
+}
+
+function applyStatedNutrition(
+  components: Array<Record<string, unknown>>,
+  input: EstimateInput | undefined,
+): Array<Record<string, unknown>> | null {
+  const text = input?.operation === 'describe' || input?.operation === 'scan'
+    ? input.text
+    : input?.operation === 'clarify-meal' ? input.context?.originalDescription : undefined;
+  if (!text) return components;
+  const stated = statedNutrition(text);
+  const fields = Object.keys(stated) as NutritionField[];
+  if (!fields.length) return components;
+  const grams = components.map((component) => component.estimatedGrams as number);
+  const totalGrams = grams.reduce((sum, amount) => sum + amount, 0);
+  const result = components.map((component) => ({ ...component }));
+  for (const field of fields) {
+    const total = stated[field]!;
+    const current = components.map((component, index) => (component[field] as number) * grams[index] / 100);
+    const currentTotal = current.reduce((sum, amount) => sum + amount, 0);
+    for (let index = 0; index < result.length; index += 1) {
+      const share = currentTotal > 0 ? current[index] / currentTotal : grams[index] / totalGrams;
+      result[index][field] = total * share * 100 / grams[index];
+    }
+  }
+  const withinBounds = (component: Record<string, unknown>): boolean =>
+    (component.caloriesPer100g as number) <= MAX_CALORIES_PER_100G
+    && (component.proteinPer100g as number) <= MAX_MACRO_PER_100G
+    && (component.carbsPer100g as number) <= MAX_MACRO_PER_100G
+    && (component.fatPer100g as number) <= MAX_MACRO_PER_100G
+    && (component.proteinPer100g as number) + (component.carbsPer100g as number) + (component.fatPer100g as number) <= MAX_MACRO_MASS_PER_100G;
+  if (result.some((component) => !withinBounds(component))) {
+    // A model can put most guessed nutrients in one tiny component. Spread only the user's
+    // stated meal totals by food mass when that split cannot represent the totals safely.
+    for (const component of result) {
+      for (const field of fields) component[field] = stated[field]! * 100 / totalGrams;
+    }
+    if (result.some((component) => !withinBounds(component))) return null;
+  }
+  return result;
+}
 
 function nullableText(value: unknown): string | null | undefined {
   if (value === null) return null;
@@ -219,7 +332,7 @@ function normalizeCountedServing(
 }
 
 /** The model's parsed JSON as an estimate either route can deliver, or null when it is unusable. */
-export function normalizeFoodEstimate(value: unknown, operation: EstimateOperation): Record<string, unknown> | null {
+export function normalizeFoodEstimate(value: unknown, operation: EstimateOperation, input?: EstimateInput): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const result = value as Record<string, unknown>;
   if (result.status === 'unrecognized') {
@@ -288,12 +401,14 @@ export function normalizeFoodEstimate(value: unknown, operation: EstimateOperati
     };
   });
   if (components.some((component) => component == null)) return null;
+  const respectedComponents = applyStatedNutrition(components as Array<Record<string, unknown>>, input);
+  if (!respectedComponents) return null;
   return {
     status: 'recognized',
     unrecognizedReason: null,
     mealName,
     servesTotal: division.servesTotal,
     servingUnit: division.servingUnit,
-    components,
+    components: respectedComponents,
   };
 }

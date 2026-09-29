@@ -116,6 +116,30 @@ test('the direct route posts straight to Google with the key in a header and not
     assert.equal(body.generationConfig.responseMimeType, 'application/json');
 });
 
+test('the direct route keeps stated nutrition from a multiline Describe entry', async () => {
+    const { client } = myKeyClient(() => geminiReply());
+    const result = await client.describeMeal('Chicken adobo with rice\nCalories: 650\nProtein - 40 g\nCarbs: 70g\nFat: 20g');
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const totals = result.result.components.reduce((sum, component) => {
+        const grams = component.defaultAmount.grams;
+        assert.notEqual(component.caloriesPer100g, null);
+        assert.notEqual(component.proteinPer100g, null);
+        assert.notEqual(component.carbsPer100g, null);
+        assert.notEqual(component.fatPer100g, null);
+        return {
+            calories: sum.calories + component.caloriesPer100g! * grams / 100,
+            protein: sum.protein + component.proteinPer100g! * grams / 100,
+            carbs: sum.carbs + component.carbsPer100g! * grams / 100,
+            fat: sum.fat + component.fatPer100g! * grams / 100,
+        };
+    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+    assert.ok(Math.abs(totals.calories - 650) < 0.3);
+    assert.ok(Math.abs(totals.protein - 40) < 0.3);
+    assert.ok(Math.abs(totals.carbs - 70) < 0.3);
+    assert.ok(Math.abs(totals.fat - 20) < 0.3);
+});
+
 test('Direct estimates and Eatlog AI deliver the same review result for the same model answer', async () => {
     // The Worker answers with the shared normalization of the same model output.
     const hosted = createFoodEstimateClient({

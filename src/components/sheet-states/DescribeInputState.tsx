@@ -80,7 +80,7 @@ export default function DescribeInputState({ onResult, onBack, onSearch, onManua
         value={text}
         onChangeText={setText}
         accessibilityLabel="Meal description"
-        placeholder="e.g. chicken rice bowl with broccoli, about 500g"
+        placeholder="e.g. chicken rice bowl, 500g, 650 cals, 35g protein"
         placeholderTextColor={M3.placeholder}
         multiline
         textAlignVertical="top"

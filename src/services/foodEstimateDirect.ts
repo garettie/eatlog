@@ -134,7 +134,7 @@ export async function requestDirectEstimate(
         const answer = candidateText(candidate);
         let parsed: unknown = null;
         try { parsed = answer === null ? null : JSON.parse(answer); } catch { parsed = null; }
-        const estimate = normalizeFoodEstimate(parsed, input.operation);
+        const estimate = normalizeFoodEstimate(parsed, input.operation, input);
         if (estimate) return { ok: true, estimate };
         last = 'invalid-response';
     }

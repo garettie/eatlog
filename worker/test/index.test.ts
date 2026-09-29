@@ -174,6 +174,18 @@ const recognized = {
   }],
 };
 
+test('hosted Describe keeps manually stated nutrition when Gemini guesses different values', async () => {
+  const { response, body } = await call(request('/v1/estimate', 'POST', {
+    operation: 'describe', text: 'Rice bowl, 300 cals, 10g protein, 45g carbs, 8g fat',
+  }), { fetchImpl: (async () => geminiResponse(recognized)) as typeof fetch });
+  assert.equal(response.status, 200);
+  const component = body.components[0];
+  assert.ok(Math.abs(component.caloriesPer100g * component.estimatedGrams / 100 - 300) < 0.001);
+  assert.ok(Math.abs(component.proteinPer100g * component.estimatedGrams / 100 - 10) < 0.001);
+  assert.ok(Math.abs(component.carbsPer100g * component.estimatedGrams / 100 - 45) < 0.001);
+  assert.ok(Math.abs(component.fatPer100g * component.estimatedGrams / 100 - 8) < 0.001);
+});
+
 function subscriptionEnv(overrides: Partial<Env> = {}): Env {
   return makeEnv(overrides);
 }
@@ -788,7 +800,8 @@ test('caps a maximum clarification request before calling Gemini', async () => {
 
   assert.equal(result.response.status, 200);
   const requestBytes = Buffer.byteLength(JSON.stringify(upstreamBody));
-  assert.ok(requestBytes <= 8_900, `Maximum Gemini clarification request grew to ${requestBytes} bytes`);
+  // The shared nutrition instruction adds a small fixed amount to every request.
+  assert.ok(requestBytes <= 9_200, `Maximum Gemini clarification request grew to ${requestBytes} bytes`);
 });
 
 test('accepts a synthetic JPEG scan without calling a real provider', async () => {

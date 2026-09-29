@@ -1225,7 +1225,7 @@ async function geminiEstimate(
     }
     let parsed: unknown;
     try { parsed = JSON.parse(text); } catch { parsed = null; }
-    const normalized = normalizeFoodEstimate(parsed, input.operation);
+    const normalized = normalizeFoodEstimate(parsed, input.operation, input);
     if (normalized) {
       noteModelHealthy(model);
       report('succeeded', upstream, finishReason);

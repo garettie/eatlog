@@ -23,6 +23,7 @@ import {
     type EstimateContextComponent,
     type EstimateInput,
     type EstimateOperation,
+    statedNutrition,
 } from './foodEstimateCore';
 import { requestDirectEstimate } from './foodEstimateDirect';
 import { userApiKeyStore, type AiRoute } from './userApiKey';
@@ -458,7 +459,8 @@ export function createFoodEstimateClient(options: FoodEstimateClientOptions) {
         // returns a clean name, so echoing the raw title back would restate the quantity.
         // Numbers that belong to a name ("24 Chicken", "100 Plus") are not amounts.
         const scanTitle = operation === 'scan' ? input.text?.trim() : undefined;
-        const providedMealTitle = scanTitle && !hasFoodAmount(scanTitle) ? scanTitle : undefined;
+        const providedMealTitle = scanTitle && !hasFoodAmount(scanTitle)
+            && Object.keys(statedNutrition(scanTitle)).length === 0 ? scanTitle : undefined;
         const originalDescription = operation === 'describe' || operation === 'scan'
             ? input.text
             : input.context?.originalDescription;
