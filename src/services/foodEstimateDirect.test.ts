@@ -9,6 +9,10 @@ import { createFoodEstimateClient, type AiRoute, type FoodEstimateClientOptions 
 const USER_KEY = 'synthetic-user-key-0000';
 const WORKER_URL = 'https://food.example.workers.dev';
 
+test('estimates prefer Gemini 3.5 Flash-Lite with 3.1 as fallback', () => {
+    assert.deepEqual(GEMINI_ESTIMATE_MODELS, ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']);
+});
+
 interface Call {
     url: string;
     init: RequestInit;

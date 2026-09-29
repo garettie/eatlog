@@ -82,6 +82,7 @@
         }
       ],
       "./plugins/withEatlogMediaPermissions",
+      "./plugins/withEatlogColors",
       "@react-native-community/datetimepicker"
     ],
     "extra": {

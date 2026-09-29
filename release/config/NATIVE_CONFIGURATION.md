@@ -46,6 +46,16 @@ The merged release manifest is a release gate: the legacy write declaration must
 
 Primary references: [Expo permissions guide](https://docs.expo.dev/guides/permissions/#android) and [Expo Media Library](https://docs.expo.dev/versions/v54.0.0/sdk/media-library/).
 
+## Android color protection
+
+`plugins/withEatlogColors.js` sets `android:forceDarkAllowed=false` on the existing `AppTheme` and adds application metadata `force_dark_google=true`, Xiaomi's documented opt-out from MIUI color inversion. Eatlog already supplies its dark palette, including white actions; automatic recoloring can reverse those actions. The plugin preserves the theme parent and other manifest/theme settings and adds no native dependency.
+
+The plugin preserves the existing `AppTheme` parent. Expo introspection without generated native files can synthesize a Light theme; that output does not establish the theme parent in a compiled APK. The app draws its own dark surfaces independently of the native parent.
+
+This change requires a new Android binary; an OTA update cannot apply it. Generated configuration checks verify the declarations, but do not establish visual behavior on every Xiaomi/HyperOS version.
+
+References: [Android Force Dark](https://developer.android.com/develop/ui/views/theming/darktheme#force-dark), [Xiaomi dark-mode guidance, FAQ 3](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1595).
+
 ## iOS settings
 
 The evaluated production config uses the candidate bundle identifier, iPhone-only device family, the canonical 1024 by 1024 Eatlog icon, camera and photo-library purpose strings, the add-only string `Allow Eatlog to save share images to your photo library.`, and `ITSAppUsesNonExemptEncryption=false`. The add-only permission is requested only after Save image; native sharing requests no Photos permission. No microphone purpose string is generated. Eatlog uses standard HTTPS and platform cryptography and does not implement non-exempt encryption.

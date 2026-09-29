@@ -8,10 +8,8 @@ import { FOOD_ESTIMATE_SYSTEM_INSTRUCTION, promptFor, type EstimateInput } from 
 
 export const GEMINI_ORIGIN = 'https://generativelanguage.googleapis.com';
 
-// gemini-3.5-flash-lite is returning 503 "experiencing high demand" and, when it does answer,
-// takes 30-60s for a request its sibling serves in 3-7s. It leads the list again once Google's
-// capacity recovers; until then it is the fallback rather than the first call.
-export const GEMINI_ESTIMATE_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'] as const;
+// Shared priority for hosted and direct estimates; retain 3.1 for provider failures/timeouts.
+export const GEMINI_ESTIMATE_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] as const;
 
 /** The least one model attempt is given, so a hung model cannot leave the next one unreachable. */
 export const GEMINI_MODEL_FLOOR_MS = 9000;
