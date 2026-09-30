@@ -58,8 +58,7 @@ export type ProfileStackParamList = {
     Units: undefined;
     Privacy: undefined;
     BackupRestore: undefined;
-    ExportData: undefined;
-    ImportData: undefined;
+    CsvTransfer: undefined;
     HealthConnect: undefined;
     HowEatlogWorks: undefined;
     About: undefined;

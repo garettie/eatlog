@@ -16,6 +16,7 @@ import {
   getFoodLogsByDate,
   getFoodLogsByDateRange,
   getDailyTargetForDate,
+  getEarliestDailyTarget,
   getDailyTargetsByDateRange,
   getMealsByIds,
   updateFoodLog,
@@ -31,6 +32,7 @@ import {
 } from '../db/database';
 import { todayISO, isoFromDate, getMonthStart, getMonthDates, isToday, isFuture, formatDayHeader, formatMonthLabel } from '../utils/calendar';
 import { useToday } from '../hooks/useToday';
+import { calendarTarget } from '../utils/calendarTarget';
 import { M3 } from '../theme/tokens';
 import WeekStrip from '../components/WeekStrip';
 import { warmMealPhotoThumbnails } from '../utils/mealPhotoThumbnails';
@@ -482,10 +484,11 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
     if (pending) return pending;
 
     const request = (async () => {
-        const [initialTarget, targetChanges, logs] = await Promise.all([
+        const [initialTarget, targetChanges, logs, earliestTarget] = await Promise.all([
           getDailyTargetForDate(startISO),
           getDailyTargetsByDateRange(startISO, endISO),
           getFoodLogsByDateRange(startISO, endISO),
+          getEarliestDailyTarget(),
         ]);
 
         let activeTarget = initialTarget;
@@ -500,7 +503,8 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
             activeTarget = targetChanges[targetIndex];
             targetIndex += 1;
           }
-          if (activeTarget) targetMap.set(dayISO, activeTarget);
+          const displayedTarget = calendarTarget(activeTarget, earliestTarget);
+          if (displayedTarget) targetMap.set(dayISO, displayedTarget);
         }
 
         const mealIds = [...new Set(logs.flatMap((log) => log.meal_id == null ? [] : [log.meal_id]))];

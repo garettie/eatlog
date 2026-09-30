@@ -1500,6 +1500,14 @@ export async function getDailyTargetForDate(dateISO: string): Promise<DailyTarge
   );
 }
 
+/** Stable display reference for imported dates preceding all recorded targets. */
+export async function getEarliestDailyTarget(): Promise<DailyTarget | null> {
+  const db = await getDb();
+  return db.getFirstAsync<DailyTarget>(
+    'SELECT * FROM daily_targets ORDER BY effective_date ASC, id ASC LIMIT 1'
+  );
+}
+
 export interface DayMacros {
   log_date: string;
   calories: number;

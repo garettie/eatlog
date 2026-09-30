@@ -318,8 +318,7 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
 
                     <Section title="Data & Sync">
                         <ProfileSettingRow icon="backup" title="Backup and restore" detail="Back up or restore your Eatlog data" onPress={() => navigation.navigate('BackupRestore')} />
-                        <ProfileSettingRow icon="file-upload" title="Import CSV" detail="Bring in Macro-compatible history" onPress={() => navigation.navigate('ImportData')} />
-                        <ProfileSettingRow icon="file-download" title="Export CSV" detail="Save a Macro-compatible CSV" onPress={() => navigation.navigate('ExportData')} />
+                        <ProfileSettingRow icon="import-export" title="CSV import and export" detail="Transfer Macro-compatible history" onPress={() => navigation.navigate('CsvTransfer')} />
                         <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase local logs, photos, and saved key" onPress={deleteAllData} showDivider={false} />
                     </Section>
                     {supportsHealthConnect(Platform.OS) ? (

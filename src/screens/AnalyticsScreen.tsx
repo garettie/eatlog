@@ -19,6 +19,7 @@ import {
   WeightLog,
   getDailyCaloriesByDateRange,
   getDailyTargetForDate,
+  getEarliestDailyTarget,
   getDailyTargetsByDateRange,
   getFoodLoggedDatesThrough,
   getProfile,
@@ -353,6 +354,7 @@ function AnalyticsScreen({
       const initialTarget = await getDailyTargetForDate(gridStart);
       const targetChanges = await getDailyTargetsByDateRange(gridStart, gridEnd);
       const totals = await getDailyCaloriesByDateRange(gridStart, gridEnd);
+      const earliestTarget = await getEarliestDailyTarget();
       const targetHistory = (initialTarget
         ? [initialTarget, ...targetChanges.filter((item) => item.id !== initialTarget.id)]
         : targetChanges
@@ -362,7 +364,7 @@ function AnalyticsScreen({
         target_calories,
         tdee_estimate,
       }));
-      const model = buildCalorieCalendar(normalizedMonthStart, todayISO(), totals, targetHistory);
+      const model = buildCalorieCalendar(normalizedMonthStart, todayISO(), totals, targetHistory, earliestTarget);
       if (cacheGeneration === calorieMonthGenerationRef.current && mountedRef.current) {
         calorieMonthCacheRef.current.set(normalizedMonthStart, model);
       }

@@ -15,7 +15,6 @@ import {
     restoreBackup,
     shareBackup,
 } from '../services/dataBackup';
-import { exportData } from '../services/dataExport';
 import {
     connectHealthConnect,
     getHealthConnectStatus,
@@ -159,35 +158,6 @@ export function BackupRestoreScreen() {
                         <PrimaryButton title="Restore this backup" onPress={confirmRestore} />
                     </Card>
                 ) : null}
-                {message ? <Message text={message} /> : null}
-                {error ? <Message text={error} error /> : null}
-            </ScrollView>
-        </Screen>
-    );
-}
-
-export function ExportDataScreen() {
-    const [progress, setProgress] = useState<OwnershipProgressEvent | null>(null);
-    const [message, setMessage] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const run = useCallback(async () => {
-        setProgress(null); setMessage(null); setError(null);
-        try {
-            const result = await exportData(setProgress);
-            setMessage(result.summary);
-        } catch (cause) {
-            setError(cause instanceof Error ? cause.message : 'Could not export your data.');
-        } finally {
-            setProgress(null);
-        }
-    }, []);
-    return (
-        <Screen>
-            <ScrollView contentContainerClassName="p-6 gap-6">
-                <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Export a Macro CSV</Text><Text className="text-sm text-m3-on-surface-variant">Save meal and weight history with your current profile and targets in one Macro-compatible CSV.</Text></View>
-                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For CSV import and export</Text><Text className="text-sm text-m3-on-surface-variant">CSV excludes meal photos, your Google key, target history, and adaptive reviews. Use Backup & restore for a full Eatlog recovery.</Text></Card>
-                <PrimaryButton title="Create CSV export" icon="file-download" onPress={() => void run()} disabled={progress != null} />
-                {progress ? <ProgressCard progress={progress} /> : null}
                 {message ? <Message text={message} /> : null}
                 {error ? <Message text={error} error /> : null}
             </ScrollView>

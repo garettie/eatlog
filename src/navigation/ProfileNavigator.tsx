@@ -13,8 +13,8 @@ import {
   UnitsScreen,
   type ProfileStackParamList,
 } from '../screens/ProfilePlanScreens';
-import { CsvImportScreen } from '../screens/CsvImportScreen';
-import { BackupRestoreScreen, ExportDataScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
+import { CsvTransferScreen } from '../screens/CsvTransferScreen';
+import { BackupRestoreScreen, HealthConnectScreen } from '../screens/DataSyncScreens';
 import { AboutScreen, AttributionsScreen, HowEatlogWorksScreen, PrivacyScreen } from '../screens/ProfileInfoScreens';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import { ProfileSubscriptionPlanScreen } from '../screens/PlanScreen';
@@ -39,8 +39,7 @@ const NUTRITION_TARGETS_OPTIONS = { title: 'Nutrition targets' } as const;
 const UNITS_OPTIONS = { title: 'Units' } as const;
 const PRIVACY_OPTIONS = { title: 'Privacy' } as const;
 const BACKUP_RESTORE_OPTIONS = { title: 'Backup & restore' } as const;
-const EXPORT_DATA_OPTIONS = { title: 'Export CSV' } as const;
-const IMPORT_DATA_OPTIONS = { title: 'Import CSV' } as const;
+const CSV_TRANSFER_OPTIONS = { title: 'CSV import and export' } as const;
 const HEALTH_CONNECT_OPTIONS = { title: 'Health Connect' } as const;
 const HOW_EATLOG_WORKS_OPTIONS = { title: 'How Eatlog works' } as const;
 const ABOUT_OPTIONS = { title: 'About' } as const;
@@ -90,8 +89,7 @@ function ProfileNavigator({ dataVersion, onDataChanged }: ProfileNavigatorProps)
       </Stack.Screen>
       <Stack.Screen name="Privacy" component={PrivacyScreen} options={PRIVACY_OPTIONS} />
       <Stack.Screen name="BackupRestore" component={BackupRestoreScreen} options={BACKUP_RESTORE_OPTIONS} />
-      <Stack.Screen name="ImportData" component={CsvImportScreen} options={IMPORT_DATA_OPTIONS} />
-      <Stack.Screen name="ExportData" component={ExportDataScreen} options={EXPORT_DATA_OPTIONS} />
+      <Stack.Screen name="CsvTransfer" component={CsvTransferScreen} options={CSV_TRANSFER_OPTIONS} />
       {supportsHealthConnect(Platform.OS) ? (
         <Stack.Screen name="HealthConnect" options={HEALTH_CONNECT_OPTIONS}>
           {renderHealthConnect}

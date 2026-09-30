@@ -8,6 +8,7 @@ Status: implemented locally; phone acceptance and native runtime verification pe
 - Export one Macro-schema CSV with current profile/target metadata, meals, components, and weights.
 - Import history with Merge as default or confirmed Replace history. Both preserve the profile and target history.
 - Preview dates, timezone, duplicates, conflicting weights, and ingredient fallbacks before mutation.
+- One Profile destination contains both CSV import and export. Calendar totals and rings use the earliest saved target as a stable display reference before the first recorded plan, without changing target history.
 - Recognize whole-number source rounding. Preserve recorded nutrition totals; retain validated original detail for unchanged re-export when ingredients disagree.
 - Retain counts and units when mass is unknown. Editors, search, reuse, and logging keep physical grams and gram densities null.
 - Store stable source identities in schema version 11. Capture a safety database before an exclusive import transaction; verify integrity before commit.

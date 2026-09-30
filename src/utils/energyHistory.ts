@@ -6,6 +6,7 @@ import {
   getMonthStart,
   parseLocalISO,
 } from './calendar';
+import { calendarTarget } from './calendarTarget';
 
 export type EnergyRange = '1M' | '3M' | '6M' | '1Y';
 
@@ -103,6 +104,7 @@ export function buildCalorieCalendar(
   today: string,
   dailyEnergy: readonly DailyEnergy[],
   targetHistory: readonly EnergyTarget[],
+  earliestTarget: EnergyTarget | null = null,
 ): CalorieCalendarMonth {
   const normalizedMonthStartDate = getMonthStart(parseLocalISO(monthStart));
   const normalizedMonthStart = formatLocalISO(normalizedMonthStartDate);
@@ -121,7 +123,7 @@ export function buildCalorieCalendar(
   const weeks = grid.map((dates) => {
     const days = dates.map((date) => {
       const dateISO = formatLocalISO(date);
-      const target = activeTarget(targets, dateISO);
+      const target = calendarTarget(activeTarget(targets, dateISO), earliestTarget);
       const calories = energyByDate.has(dateISO) ? energyByDate.get(dateISO)! : null;
       const future = dateISO > normalizedToday;
       let status: CalorieCalendarDayStatus;

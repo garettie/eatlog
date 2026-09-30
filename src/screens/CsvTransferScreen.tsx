@@ -7,13 +7,15 @@ import ResponsiveContent from '../components/ResponsiveContent';
 import SegmentedControl from '../components/SegmentedControl';
 import { useDataMaintenance } from '../context/DataMaintenanceContext';
 import { importCsv, pickAndInspectCsv, reinspectCsv } from '../services/csvImport';
+import { exportData } from '../services/dataExport';
+import type { OwnershipProgressEvent } from '../services/dataOwnership.types';
 import { getDefaultCsvTimezone } from '../services/macroCsv';
 import { supportsHealthConnect } from '../services/platformFeatures';
 import type { CsvImportMode, CsvImportPreview } from '../services/macroCsv.types';
 import { FORM_MAX_WIDTH } from '../theme/layout';
 import { M3 } from '../theme/tokens';
 
-export function CsvImportScreen() {
+export function CsvTransferScreen() {
     const { runDataMaintenance } = useDataMaintenance();
     const healthSync = supportsHealthConnect(Platform.OS);
     const [preview, setPreview] = useState<CsvImportPreview | null>(null);
@@ -21,6 +23,8 @@ export function CsvImportScreen() {
     const [mode, setMode] = useState<CsvImportMode>('merge');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [message, setMessage] = useState<string | null>(null);
+    const [progress, setProgress] = useState<OwnershipProgressEvent | null>(null);
     const timezoneChanged = preview != null && timezone.trim() !== preview.parsed.timezone;
     const mounted = useRef(true);
     const busyRef = useRef(false);
@@ -29,7 +33,7 @@ export function CsvImportScreen() {
     async function inspect(changeTimezone = false) {
         if (busyRef.current) return;
         busyRef.current = true;
-        setBusy(true); setError(null);
+        setBusy(true); setError(null); setMessage(null);
         try {
             const result = changeTimezone && preview
                 ? await reinspectCsv(preview, timezone.trim())
@@ -40,6 +44,37 @@ export function CsvImportScreen() {
         } finally {
             busyRef.current = false;
             if (mounted.current) setBusy(false);
+        }
+    }
+
+    async function exportCsv() {
+        if (busyRef.current) return;
+        busyRef.current = true;
+        setBusy(true); setError(null); setMessage(null); setProgress(null);
+        try {
+            const result = await exportData((event) => { if (mounted.current) setProgress(event); });
+            // Export creates stable record identities. Refresh a pending preview so
+            // replacement still validates against the current database snapshot.
+            let refreshed: CsvImportPreview | null = null;
+            if (preview) {
+                try {
+                    refreshed = await reinspectCsv(preview, preview.parsed.timezone);
+                } catch {
+                    if (mounted.current) {
+                        setPreview(null);
+                        setError('Choose the CSV again to refresh its import preview.');
+                    }
+                }
+            }
+            if (mounted.current) {
+                if (refreshed) setPreview(refreshed);
+                setMessage(result.summary);
+            }
+        } catch (cause) {
+            if (mounted.current) setError(cause instanceof Error ? cause.message : 'Could not export the CSV.');
+        } finally {
+            busyRef.current = false;
+            if (mounted.current) { setBusy(false); setProgress(null); }
         }
     }
 
@@ -67,11 +102,14 @@ export function CsvImportScreen() {
             <ResponsiveContent className="flex-1" maxWidth={FORM_MAX_WIDTH}>
                 <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="p-6 gap-6">
                     <View className="gap-2">
-                        <Text className="text-lg font-bold text-m3-on-surface">Import a Macro CSV</Text>
-                        <Text className="text-sm text-m3-on-surface-variant">Bring meal and weight history from Macro or another Eatlog CSV export. Your profile and targets stay as they are. Use Backup & restore for a full Eatlog backup.</Text>
+                        <Text className="text-lg font-bold text-m3-on-surface">CSV import and export</Text>
+                        <Text className="text-sm text-m3-on-surface-variant">Transfer meal and weight history with Macro-compatible CSV files. Import keeps your profile and targets; export includes your current profile and targets. Use Backup & restore for a full Eatlog backup, including photos.</Text>
                     </View>
                     <PrimaryButton title={preview ? 'Choose another CSV' : 'Choose CSV to import'} icon="file-upload" onPress={() => void inspect()} disabled={busy} />
-                    {busy ? <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite"><ActivityIndicator color={M3.primary} /><Text className="text-sm text-m3-on-surface-variant">Checking your CSV</Text></View> : null}
+                    <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy }} disabled={busy} onPress={() => void exportCsv()} className={`min-h-[48px] items-center justify-center rounded-full border border-m3-outline px-5 active:opacity-70 ${busy ? 'opacity-40' : ''}`}>
+                        <Text className="text-sm font-semibold text-m3-primary">Export CSV</Text>
+                    </Pressable>
+                    {busy ? <View className="flex-row items-center gap-3" accessibilityLiveRegion="polite"><ActivityIndicator color={M3.primary} /><Text className="text-sm text-m3-on-surface-variant">{progress?.message ?? 'Checking your CSV'}</Text></View> : null}
                     {preview ? <>
                         <Card className="p-5 gap-3">
                             <Text className="text-base font-semibold text-m3-on-surface">{preview.fileName}</Text>
@@ -93,6 +131,7 @@ export function CsvImportScreen() {
                         </View>
                         <PrimaryButton title={mode === 'merge' ? 'Import CSV' : 'Replace history with CSV'} onPress={apply} disabled={busy || timezoneChanged} />
                     </> : null}
+                    {message ? <Text accessibilityLiveRegion="polite" className="text-sm text-m3-on-surface-variant">{message}</Text> : null}
                     {error ? <Text accessibilityLiveRegion="assertive" className="text-sm text-m3-error">{error}</Text> : null}
                 </ScrollView>
             </ResponsiveContent>
