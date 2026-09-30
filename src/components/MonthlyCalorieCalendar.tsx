@@ -108,7 +108,7 @@ function WeekRow({
 }) {
   const accessibilityLabel = `Week ${dateLabel(week.startDate)} through ${dateLabel(week.endDate)}: ${weekAccessibilityLabel(week)}`;
   const deviationColor = week.deltaCalories != null && week.deltaCalories > 0
-    ? M3.caloriesOverflow
+    ? M3.calendarCaloriesOverflow
     : M3.calories;
   const cellWidth = dayAreaWidth / 7;
   const ringScale = size / CALENDAR_DAY.size;
@@ -178,7 +178,7 @@ function WeekRow({
                       cy={centerY}
                       r={ringRadius}
                       fill="none"
-                      stroke={M3.caloriesOverflow}
+                      stroke={M3.calendarCaloriesOverflow}
                       strokeWidth={ringStroke}
                       strokeLinecap="round"
                       strokeDasharray={circumference}
@@ -421,7 +421,7 @@ function MonthlyCalorieCalendar({
                     className="text-compact font-semibold tabular-nums"
                     style={{
                       color: selectedDay.deltaCalories != null && selectedDay.deltaCalories > 0
-                        ? M3.caloriesOverflow
+                        ? M3.calendarCaloriesOverflow
                         : M3.calories,
                     }}
                   >
