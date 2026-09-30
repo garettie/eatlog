@@ -317,13 +317,16 @@ function ProfileScreen({ dataVersion }: ProfileScreenProps) {
                     </Section>
 
                     <Section title="Data & Sync">
-                        <ProfileSettingRow icon="backup" title="Backup and restore" detail="Back up or restore your data" onPress={() => navigation.navigate('BackupRestore')} />
-                        <ProfileSettingRow icon="file-download" title="Export data" detail="Save readable CSV files" onPress={() => navigation.navigate('ExportData')} />
-                        {supportsHealthConnect(Platform.OS) ? (
-                            <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync weight with Android" onPress={() => navigation.navigate('HealthConnect')} />
-                        ) : null}
+                        <ProfileSettingRow icon="backup" title="Backup and restore" detail="Back up or restore your Eatlog data" onPress={() => navigation.navigate('BackupRestore')} />
+                        <ProfileSettingRow icon="file-upload" title="Import CSV" detail="Bring in Macro-compatible history" onPress={() => navigation.navigate('ImportData')} />
+                        <ProfileSettingRow icon="file-download" title="Export CSV" detail="Save a Macro-compatible CSV" onPress={() => navigation.navigate('ExportData')} />
                         <ProfileSettingRow icon="delete-outline" title="Delete all data" detail="Erase local logs, photos, and saved key" onPress={deleteAllData} showDivider={false} />
                     </Section>
+                    {supportsHealthConnect(Platform.OS) ? (
+                        <Section title="Sync">
+                            <ProfileSettingRow icon="health-and-safety" title="Health Connect" detail="Sync weight with Android" onPress={() => navigation.navigate('HealthConnect')} showDivider={false} />
+                        </Section>
+                    ) : null}
 
                     <Section title="Help & About">
                         <ProfileSettingRow icon="help-outline" title="How Eatlog works" detail="How targets adapt to your logs" onPress={() => navigation.navigate('HowEatlogWorks')} />

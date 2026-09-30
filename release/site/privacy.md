@@ -43,7 +43,7 @@ On Android, you can grant Eatlog permission to read and write Weight records in 
 
 ## Camera, files, backups, and sharing
 
-Eatlog asks for camera access when you choose camera Scan. Photo uses the system photo picker; Restore uses the document picker. A restorable `.eatlog-backup` or supported legacy `.marco-backup` contains a database snapshot and referenced meal photos. The readable CSV export contains profile and history tables, but no photos, Google key, consent, purchase records, or Health Connect synchronization metadata. A CSV export cannot be restored.
+Eatlog asks for camera access when you choose camera Scan. Photo uses the system photo picker; Restore uses the document picker. A restorable `.eatlog-backup` or supported legacy `.marco-backup` contains a database snapshot and referenced meal photos. Macro-compatible CSV export contains current profile and target metadata and food and weight history, but no photos, Google key, consent, purchase records, or Health Connect synchronization metadata. CSV import can merge or replace food and weight history while preserving your profile and targets. Use an Eatlog backup for full recovery.
 
 Eatlog creates meal share images on your device and opens the system share sheet. Backup and export sharing also use the system share sheet. You choose the destination. Eatlog has no sharing backend, public link, or feed. Apps or storage providers you choose control their copies.
 

@@ -45,7 +45,9 @@ export default function FoodSearchResultRow({
 		?? (food.defaultAmount.kind === "last-logged"
 			? "Last logged"
 			: food.defaultAmount.kind === "reviewed" ? "Reviewed amount" : "100 g");
-	const portionText = formatPortionLabel(
+	const portionText = food.unknownMass
+		? `${food.unknownMass.quantity * food.defaultAmount.grams / 100} ${food.unknownMass.unit}`
+		: formatPortionLabel(
 		amountLabel,
 		food.defaultAmount.grams,
 		/ml\b/i.test(amountLabel) ? "ml" : "g",

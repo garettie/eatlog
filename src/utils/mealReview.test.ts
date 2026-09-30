@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { recordedPortionValues } from './recordedPortion';
 import type { FoodResult } from '../services/foodSearchTypes';
 import {
   computeMealTotals,
@@ -11,6 +12,7 @@ import {
   scaleComponentPortions,
   scaleFromDivision,
   toEditable,
+  toEstimateContext,
 } from './mealReview';
 
 function food(overrides: Partial<FoodResult> = {}): FoodResult {
@@ -116,4 +118,33 @@ test('a division converts to the scale the portion control reads', () => {
     scaleFromDivision({ servesTotal: 8, servingUnit: 'slice' }),
     { kind: 'shared', unit: 'slice', servesTotal: 8 },
   );
+});
+
+
+test('loading and saving known gram nutrition preserves source decimal densities', () => {
+  const source = food({ caloriesPer100g: 123.4567, proteinPer100g: 1.2345, carbsPer100g: 2.3456, fatPer100g: 3.4567,
+    defaultAmount: { kind: 'reviewed', grams: 73.25, servingId: 'serving' } });
+  const component = toEditable(source);
+  const stored = recordedPortionValues(source, component.selection, component.per100g);
+  assert.equal(component.per100g.protein, 1.2345);
+  assert.equal(stored.protein_g, 1.2345 * (73.25 / 100));
+  assert.equal(stored.calories, 123.4567 * (73.25 / 100));
+  assert.equal(stored.protein_g_per_100g, 1.2345);
+});
+
+test('unknown count scaling stays exact and never enters gram estimate context', () => {
+  const source = food({ unknownMass: { quantity: 2.3333, unit: 'piece' },
+    portions: [{ id: 'counted-unit', label: 'piece', grams: 100 / 2.3333 }],
+    defaultAmount: { kind: 'last-logged', grams: 100, servingId: 'counted-unit' } });
+  const component = toEditable(source);
+  const factor = 1.23456789;
+  const [scaled] = scaleComponentPortions([component], factor);
+  assert.equal(scaled.selection.grams, 100 * factor);
+  const stored = recordedPortionValues(source, scaled.selection, scaled.per100g);
+  assert.equal(stored.portion_quantity, (100 * factor / 100) * 2.3333);
+  assert.equal(stored.grams_logged, null);
+  assert.equal(stored.serving_size_g, null);
+  assert.equal(stored.protein_g_per_100g, null);
+  assert.deepEqual(toEstimateContext([scaled]), []);
+  assert.deepEqual(toEstimateContext([scaled, toEditable(food())]), [{ name: 'Pizza Dough', estimatedGrams: 800 }]);
 });

@@ -313,6 +313,13 @@ function hasSameProviderIdentity(first: FoodResult, second: FoodResult): boolean
     || second.alternateSourceIds.some((item) => item.source === first.source && item.id === first.sourceFoodId);
 }
 
+function hasSameNutritionBasis(first: FoodResult, second: FoodResult): boolean {
+  if (!first.unknownMass && !second.unknownMass) return true;
+  return !!first.unknownMass && !!second.unknownMass
+    && first.unknownMass.unit === second.unknownMass.unit
+    && first.unknownMass.quantity === second.unknownMass.quantity;
+}
+
 function appendAlternates(canonical: FoodResult, duplicate: FoodResult): void {
   const additions = [
     { source: duplicate.source, id: duplicate.sourceFoodId },
@@ -336,7 +343,7 @@ export function rankAndDeduplicateFoodResults(
   const priority = (item: FoodResult) => item.history ? 0 : item.isCommonFood ? 1 : 2;
   // Select the canonical provider record before filtering or ranking by query text.
   for (const item of items) {
-    const index = identityGroups.findIndex((existing) => hasSameProviderIdentity(existing, item));
+    const index = identityGroups.findIndex((existing) => hasSameNutritionBasis(existing, item) && hasSameProviderIdentity(existing, item));
     if (index < 0) {
       identityGroups.push({ ...item, alternateSourceIds: [...item.alternateSourceIds] });
       continue;
@@ -358,7 +365,8 @@ export function rankAndDeduplicateFoodResults(
 
   for (const item of ranked) {
     const key = dedupKey(item);
-    const candidates = canonical.filter((existing) => hasSameProviderIdentity(existing, item) || dedupKey(existing) === key);
+    const candidates = canonical.filter((existing) => hasSameNutritionBasis(existing, item)
+      && (hasSameProviderIdentity(existing, item) || dedupKey(existing) === key));
     let merged = false;
     for (const existing of candidates) {
       if (hasSameProviderIdentity(existing, item)) {
@@ -620,6 +628,8 @@ export interface FoodHistoryRecord {
   data_type: string | null;
   preparation: string | null;
   grams_logged: number | null;
+  portion_quantity?: number | null;
+  portion_unit?: string | null;
   serving_size_g: number | null;
   serving_label: string | null;
   calories_per_100g: number | null;
@@ -644,6 +654,8 @@ export interface ReusableFoodLog {
   brand: string | null;
   preparation: string | null;
   grams_logged: number | null;
+  portion_quantity?: number | null;
+  portion_unit?: string | null;
   serving_size_g: number | null;
   serving_label: string | null;
   calories_per_100g: number | null;
@@ -664,6 +676,11 @@ interface PreparedHistoryRecord {
 }
 
 function historyMacros(row: FoodHistoryRecord): PreparedHistoryRecord['macros'] | null {
+  if (row.grams_logged == null) {
+    const totals = [row.calories, row.protein_g, row.carbs_g, row.fat_g];
+    if (!totals.every((value) => Number.isFinite(value) && value >= 0)) return null;
+    return { caloriesPer100g: totals[0], proteinPer100g: totals[1], carbsPer100g: totals[2], fatPer100g: totals[3] };
+  }
   const stored = [
     row.calories_per_100g,
     row.protein_g_per_100g,
@@ -717,10 +734,17 @@ function historyDataType(row: Pick<FoodHistoryRecord, 'data_type' | 'source'>): 
 }
 
 export function foodResultFromLog(log: ReusableFoodLog, id: string): FoodResult {
+  const unknownMass = log.grams_logged == null ? {
+    quantity: log.portion_quantity != null && Number.isFinite(log.portion_quantity) && log.portion_quantity > 0
+      ? log.portion_quantity : 1,
+    unit: log.portion_unit?.trim() || 'serving',
+  } : undefined;
   const grams = log.grams_logged && log.grams_logged > 0 ? log.grams_logged : 100;
   const ratio = 100 / grams;
   const servingLabel = log.serving_label?.trim();
-  const portions = buildFoodPortions(
+  const portions = unknownMass
+    ? [{ id: 'counted-unit', label: unknownMass.unit, grams: 100 / unknownMass.quantity }]
+    : buildFoodPortions(
     log.serving_size_g
       && log.serving_size_g > 0
       && servingLabel
@@ -739,10 +763,11 @@ export function foodResultFromLog(log: ReusableFoodLog, id: string): FoodResult 
     brand: log.brand,
     preparation: log.preparation,
     normalizedName: log.name.toLowerCase(),
-    caloriesPer100g: log.calories_per_100g ?? log.calories * ratio,
-    proteinPer100g: log.protein_g_per_100g ?? log.protein_g * ratio,
-    carbsPer100g: log.carbs_g_per_100g ?? log.carbs_g * ratio,
-    fatPer100g: log.fat_g_per_100g ?? log.fat_g * ratio,
+    caloriesPer100g: unknownMass ? log.calories : log.calories_per_100g ?? log.calories * ratio,
+    proteinPer100g: unknownMass ? log.protein_g : log.protein_g_per_100g ?? log.protein_g * ratio,
+    carbsPer100g: unknownMass ? log.carbs_g : log.carbs_g_per_100g ?? log.carbs_g * ratio,
+    fatPer100g: unknownMass ? log.fat_g : log.fat_g_per_100g ?? log.fat_g * ratio,
+    unknownMass,
     portions,
     defaultAmount: { kind: 'last-logged', grams, servingId: serving?.id ?? null },
     alternateSourceIds: [],
@@ -798,9 +823,11 @@ export function buildPersonalFoodResults(
     const groupKey = isEstimatedHistory(record.row)
       ? `estimate:${historyNameKey(record)}`
       : providerKey ? `provider:${providerKey}` : `name:${historyNameKey(record)}`;
-    const group = groups.get(groupKey) ?? [];
+    const massKey = record.row.grams_logged == null
+      ? `unknown:${record.row.portion_unit ?? 'serving'}:${record.row.portion_quantity ?? 1}:${groupKey}` : groupKey;
+    const group = groups.get(massKey) ?? [];
     group.push(record);
-    groups.set(groupKey, group);
+    groups.set(massKey, group);
   }
 
   const clusters: PreparedHistoryRecord[][] = [];
@@ -830,7 +857,7 @@ export function buildPersonalFoodResults(
     const representative = cluster[0];
     const row = representative.row;
     const pinKey = historyPinKey(representative.normalizedName, row.brand, representative.preparation);
-    const lastGrams = row.grams_logged && row.grams_logged > 0
+    const lastGrams = row.grams_logged == null ? 100 : row.grams_logged && row.grams_logged > 0
       ? row.grams_logged
       : row.serving_size_g && row.serving_size_g > 0 ? row.serving_size_g : 100;
     const servingRecord = cluster.find((record) => {
@@ -865,8 +892,11 @@ export function buildPersonalFoodResults(
       normalizedName: representative.normalizedName,
       searchText: [row.name, row.brand, row.parent_meal_name].filter(Boolean).join(' '),
       ...representative.macros,
-      portions,
-      defaultAmount: { kind: 'last-logged', grams: lastGrams, servingId: serving?.id ?? null },
+      ...(row.grams_logged == null ? (() => {
+        const unknown = foodResultFromLog(row, `history-${row.id}`);
+        return { unknownMass: unknown.unknownMass, portions: unknown.portions };
+      })() : { portions }),
+      defaultAmount: { kind: 'last-logged', grams: lastGrams, servingId: row.grams_logged == null ? 'counted-unit' : serving?.id ?? null },
       history: {
         representativeLogId: row.id,
         lastLoggedAt: row.logged_at,
@@ -906,13 +936,15 @@ export function createQuickLogInput(
     brand: food.brand,
     data_type: food.dataType,
     preparation: food.preparation,
-    grams_logged: food.defaultAmount.grams,
-    serving_size_g: serving?.grams ?? null,
-    serving_label: serving?.label ?? null,
-    calories_per_100g: food.caloriesPer100g,
-    protein_g_per_100g: food.proteinPer100g,
-    carbs_g_per_100g: food.carbsPer100g,
-    fat_g_per_100g: food.fatPer100g,
+    grams_logged: food.unknownMass ? null : food.defaultAmount.grams,
+    portion_quantity: food.unknownMass?.quantity ?? null,
+    portion_unit: food.unknownMass?.unit ?? null,
+    serving_size_g: food.unknownMass ? null : serving?.grams ?? null,
+    serving_label: food.unknownMass?.unit ?? serving?.label ?? null,
+    calories_per_100g: food.unknownMass ? null : food.caloriesPer100g,
+    protein_g_per_100g: food.unknownMass ? null : food.proteinPer100g,
+    carbs_g_per_100g: food.unknownMass ? null : food.carbsPer100g,
+    fat_g_per_100g: food.unknownMass ? null : food.fatPer100g,
     calories: food.history.calories,
     protein_g: food.history.protein,
     carbs_g: food.history.carbs,

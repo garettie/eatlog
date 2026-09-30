@@ -9,11 +9,8 @@ import { useDiscardGuard } from './sheet-states/useDiscardGuard';
 import { useSheetDialogHost } from './SheetDialog';
 import { M3 } from '../theme/tokens';
 
-export function portionRatio(food: FoodLog, grams: number): number {
-  if (food.grams_logged && food.grams_logged > 0) return grams / food.grams_logged;
-  if (food.calories_per_100g != null) return grams / 100;
-  return 1;
-}
+import { portionRatio, editedPortionAmount } from '../utils/diaryPortion';
+export { portionRatio } from '../utils/diaryPortion';
 
 interface DiaryEditSheetProps {
   food: FoodLog | null;
@@ -35,7 +32,7 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
 
   useEffect(() => {
     if (food) {
-      const initial = food.grams_logged ?? 150;
+      const initial = editedPortionAmount(food);
       baselineRef.current = initial;
       setGrams(initial);
     }
@@ -72,6 +69,9 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
     );
   }, [food]);
 
+  const unknownMass = food?.grams_logged == null;
+  const amountUnit = unknownMass ? food?.portion_unit || 'serving' : 'grams';
+  const amountStep = unknownMass ? 1 : 10;
   const ratio = food ? portionRatio(food, grams) : 1;
   const previewCals = food ? Math.round(food.calories * ratio) : 0;
   const previewP = food ? Math.round(food.protein_g * ratio * 10) / 10 : 0;
@@ -114,9 +114,9 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
 
           <View className="flex-row items-center justify-center gap-4 bg-m3-surface-container-high rounded-2xl py-4">
             <Pressable
-              onPress={() => setGrams((g) => Math.max(1, g - 10))}
+              onPress={() => setGrams((g) => Math.max(unknownMass ? 0.1 : 1, g - amountStep))}
               accessibilityRole="button"
-              accessibilityLabel="Decrease portion by 10 grams"
+              accessibilityLabel={`Decrease portion by ${amountStep} ${amountUnit}`}
               className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
             >
               <MaterialIcons name="remove" size={22} color={M3.onSurface} />
@@ -125,20 +125,20 @@ export default function DiaryEditSheet({ food, saving, onSave, onClosed }: Diary
               <BottomSheetTextInput
                 value={String(grams)}
                 onChangeText={(t) => {
-                  const v = parseInt(t, 10);
-                  if (!isNaN(v) && v > 0) setGrams(v);
+                  const v = Number(t);
+                  if (Number.isFinite(v) && v > 0) setGrams(v);
                   else if (t === '') setGrams(0);
                 }}
                 keyboardType="numeric"
-                accessibilityLabel="Portion in grams"
+                accessibilityLabel={`Portion in ${amountUnit}`}
                 className="text-white text-3xl font-bold text-center w-24 h-12"
               />
-              <Text className="text-m3-on-surface-variant text-xs">grams</Text>
+              <Text className="text-m3-on-surface-variant text-xs">{amountUnit}</Text>
             </View>
             <Pressable
-              onPress={() => setGrams((g) => g + 10)}
+              onPress={() => setGrams((g) => g + amountStep)}
               accessibilityRole="button"
-              accessibilityLabel="Increase portion by 10 grams"
+              accessibilityLabel={`Increase portion by ${amountStep} ${amountUnit}`}
               className="w-12 h-12 rounded-full bg-m3-surface-container-highest items-center justify-center active:opacity-70"
             >
               <MaterialIcons name="add" size={22} color={M3.onSurface} />

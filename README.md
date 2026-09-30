@@ -15,7 +15,7 @@ Website: [eatlog.pages.dev](https://eatlog.pages.dev)
 - Search foods, log manually, or reuse a past meal. None of that needs a key.
 - Track weight as a trend line, with your actual pace against your plan and when you'd hit your goal.
 - Get calorie target suggestions once there's enough data. It asks first, nothing changes on its own.
-- Back up, restore, export to CSV, or wipe everything from Profile.
+- Back up, restore, import or export Macro-compatible CSV, or wipe everything from Profile.
 
 ## AI estimates
 
@@ -40,7 +40,7 @@ Everything you log stays on your phone, in the app's private storage. It only le
 
 The [privacy policy](release/site/privacy.md) has the full details.
 
-Backups are `.eatlog-backup` files you can restore later. CSV exports are for spreadsheets and can't be restored. On Android, weight can sync with Health Connect.
+Backups are `.eatlog-backup` files for full recovery. Macro-compatible CSV import and export transfer food and weight history. CSV import can merge or replace history while preserving your profile and targets. On Android, weight can sync with Health Connect.
 
 Eatlog isn't a medical device. The estimates and targets can be wrong.
 

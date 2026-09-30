@@ -42,7 +42,8 @@ import {
   MealGroup,
   SwipeRowsActiveContext,
 } from '../components/JournalSection';
-import DiaryEditSheet, { portionRatio } from '../components/DiaryEditSheet';
+import DiaryEditSheet from '../components/DiaryEditSheet';
+import { editedPortionValues } from '../utils/diaryPortion';
 import { DURATION, EASING } from '../theme/motion';
 import ResponsiveContent from '../components/ResponsiveContent';
 import { READING_MAX_WIDTH } from '../theme/layout';
@@ -833,6 +834,8 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
           data_type: food.data_type,
           preparation: food.preparation,
           grams_logged: food.grams_logged,
+          portion_quantity: food.portion_quantity,
+          portion_unit: food.portion_unit,
           serving_size_g: food.serving_size_g,
           serving_label: food.serving_label,
           calories_per_100g: food.calories_per_100g,
@@ -886,6 +889,8 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
               data_type: c.data_type,
               preparation: c.preparation,
               grams_logged: c.grams_logged,
+              portion_quantity: c.portion_quantity,
+              portion_unit: c.portion_unit,
               serving_size_g: c.serving_size_g,
               serving_label: c.serving_label,
               calories_per_100g: c.calories_per_100g,
@@ -915,20 +920,7 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
 
     setEdit((e) => ({ ...e, saving: true }));
     try {
-      const ratio = portionRatio(food, grams);
-
-      const newCalories = Math.round(food.calories * ratio);
-      const newProtein = Math.round(food.protein_g * ratio * 10) / 10;
-      const newCarbs = Math.round(food.carbs_g * ratio * 10) / 10;
-      const newFat = Math.round(food.fat_g * ratio * 10) / 10;
-
-      await updateFoodLog(food.id, {
-        grams_logged: grams,
-        calories: newCalories,
-        protein_g: newProtein,
-        carbs_g: newCarbs,
-        fat_g: newFat,
-      });
+      await updateFoodLog(food.id, editedPortionValues(food, grams));
       dayCacheRef.current.clear();
       monthCacheRef.current.clear();
       onDataChanged();

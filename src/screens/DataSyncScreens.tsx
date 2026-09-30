@@ -184,8 +184,8 @@ export function ExportDataScreen() {
     return (
         <Screen>
             <ScrollView contentContainerClassName="p-6 gap-6">
-                <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Export your data</Text><Text className="text-sm text-m3-on-surface-variant">Save your food, weight, target, and review history as readable CSV files.</Text></View>
-                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For reading, not restoring</Text><Text className="text-sm text-m3-on-surface-variant">{supportsHealthConnect(Platform.OS) ? 'CSV exports exclude meal photos, your Google key, caches, and Health Connect sync metadata. Use Backup & restore to restore Eatlog.' : 'CSV exports exclude meal photos, your Google key, and caches. Use Backup & restore to restore Eatlog.'}</Text></Card>
+                <View className="gap-2"><Text className="text-lg font-bold text-m3-on-surface">Export a Macro CSV</Text><Text className="text-sm text-m3-on-surface-variant">Save meal and weight history with your current profile and targets in one Macro-compatible CSV.</Text></View>
+                <Card className="p-5 gap-2"><Text className="text-sm font-semibold text-m3-on-surface">For CSV import and export</Text><Text className="text-sm text-m3-on-surface-variant">CSV excludes meal photos, your Google key, target history, and adaptive reviews. Use Backup & restore for a full Eatlog recovery.</Text></Card>
                 <PrimaryButton title="Create CSV export" icon="file-download" onPress={() => void run()} disabled={progress != null} />
                 {progress ? <ProgressCard progress={progress} /> : null}
                 {message ? <Message text={message} /> : null}

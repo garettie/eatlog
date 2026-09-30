@@ -31,6 +31,13 @@ function amountLabel(kind: Exclude<FoodAmountOptionKind, 'serving'>): string {
 }
 
 export function buildFoodAmountOptions(food: FoodResult): FoodAmountOption[] {
+  if (food.unknownMass) {
+    const portion = food.portions[0];
+    return [
+      { id: 'last-logged', kind: 'last-logged', label: 'Last logged', grams: 100, servingId: portion?.id ?? null },
+      ...(portion ? [{ id: `serving:${portion.id}`, kind: 'serving' as const, label: `1 ${food.unknownMass.unit}`, grams: portion.grams, servingId: portion.id }] : []),
+    ];
+  }
   const servings = food.portions.map((portion): FoodAmountOption => ({
     id: `serving:${portion.id}`,
     kind: 'serving',
@@ -69,6 +76,7 @@ export function buildFoodAmountOptions(food: FoodResult): FoodAmountOption[] {
 }
 
 export function initialPortionSelection(food: FoodResult): PortionSelection {
+  if (food.unknownMass) return { grams: 100, mode: 'servings', selectedServingId: food.portions[0]?.id ?? null, selectedAmountId: 'last-logged' };
   const options = buildFoodAmountOptions(food);
   const defaultOption = food.defaultAmount.kind === 'serving'
     ? options.find((option) => option.servingId === food.defaultAmount.servingId)
@@ -102,7 +110,7 @@ export function selectFoodAmount(
 ): PortionSelection {
   return {
     grams: option.grams,
-    mode: option.kind === 'serving' ? 'servings' : 'grams',
+    mode: option.kind === 'serving' || (selection.mode === 'servings' && option.id === 'last-logged' && selection.selectedServingId === 'counted-unit') ? 'servings' : 'grams',
     selectedServingId: option.kind === 'reference'
       ? selection.selectedServingId
       : option.servingId ?? selection.selectedServingId,

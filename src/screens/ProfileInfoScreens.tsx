@@ -385,7 +385,7 @@ export function PrivacyScreen() {
                 <SectionTitle title="Files and deletion" />
                 <Card className="overflow-hidden">
                     <InfoRow icon="backup" title="Backups" detail="Backups contain your local database and saved meal photos. They do not include your Google key." />
-                    <InfoRow icon="file-download" title="CSV exports" detail="CSV files contain readable log data, not photos or your Google key. Files you share or save outside Eatlog remain there until you remove them." />
+                    <InfoRow icon="file-download" title="CSV import and export" detail="Macro-compatible CSV files transfer meal and weight history. Exports also contain your current profile and targets, but imports keep your Eatlog profile and targets. Photos and your Google key are excluded. Files you share or save outside Eatlog remain there until you remove them." />
                     <InfoRow
                         icon="delete-outline"
                         title="Delete all data"

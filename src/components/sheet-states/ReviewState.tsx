@@ -47,6 +47,7 @@ import { useViewTransition } from "./useViewTransition";
 import MealSelector from "../MealSelector";
 import { useResponsiveLayout } from "../../theme/layout";
 import PortionStepper from "../PortionStepper";
+import { recordedPortionValues } from "../../utils/recordedPortion";
 import PrimaryButton from "../PrimaryButton";
 import MealPhotoEditor from "../MealPhotoEditor";
 import { useSheetDialog } from "../SheetDialog";
@@ -424,18 +425,18 @@ export default function ReviewState({
 			totalGrams = 0;
 		for (const comp of components) {
 			const ratio = comp.selection.grams / 100;
-			cal += Math.round(comp.per100g.calories * ratio);
-			pro10 += Math.round(comp.per100g.protein * ratio * 10);
-			carb10 += Math.round(comp.per100g.carbs * ratio * 10);
-			fat10 += Math.round(comp.per100g.fat * ratio * 10);
+			cal += comp.per100g.calories * ratio;
+			pro10 += comp.per100g.protein * ratio * 10;
+			carb10 += comp.per100g.carbs * ratio * 10;
+			fat10 += comp.per100g.fat * ratio * 10;
 			totalGrams += comp.selection.grams;
 		}
 		return {
-			calories: cal,
-			protein: pro10 / 10,
-			carbs: carb10 / 10,
-			fat: fat10 / 10,
-			totalGrams: Math.round(totalGrams),
+			calories: Math.round(cal),
+			protein: Math.round(pro10) / 10,
+			carbs: Math.round(carb10) / 10,
+			fat: Math.round(fat10) / 10,
+			totalGrams: components.some((comp) => comp.food.unknownMass) ? null : Math.round(totalGrams),
 		};
 	}, [components]);
 
@@ -542,7 +543,7 @@ export default function ReviewState({
 			const rounded =
 				field === "calories" ? Math.round(value) : Math.round(value * 10) / 10;
 			setEditDraft((draft) =>
-				draft ? { ...draft, per100g: { ...draft.per100g, [field]: rounded } } : draft,
+				draft ? { ...draft, per100g: { ...draft.per100g, [field]: draft.food.unknownMass ? value : rounded } } : draft,
 			);
 		},
 		[],
@@ -611,6 +612,9 @@ export default function ReviewState({
 	// is the truth and a bogus "67 of 67" never reaches the control.
 	const singleServing = useMemo(() => {
 		if (components.length !== 1) return null;
+		// Unknown-mass quantities can be volumes or fractional counts. The meal
+		// selector scales the recorded portion; the food editor edits its actual unit.
+		if (components[0].food.unknownMass) return null;
 		const serving = selectedServing(components[0].food, components[0].selection);
 		return serving && serving.grams > 0 ? serving : null;
 	}, [components]);
@@ -715,13 +719,6 @@ export default function ReviewState({
 				meal_type: meal,
 				photo_uri: selectedPhotoUri,
 				components: components.map((comp) => {
-					const grams = comp.selection.grams;
-					const serving = selectedServing(comp.food, comp.selection);
-					const ratio = grams / 100;
-					const cal = Math.round(comp.per100g.calories * ratio);
-					const pro = Math.round(comp.per100g.protein * ratio * 10) / 10;
-					const carb = Math.round(comp.per100g.carbs * ratio * 10) / 10;
-					const fat = Math.round(comp.per100g.fat * ratio * 10) / 10;
 					return {
 						log_date: effectiveLogDate,
 						name: comp.food.name.trim(),
@@ -731,17 +728,7 @@ export default function ReviewState({
 						brand: comp.food.brand,
 						data_type: comp.food.dataType,
 						preparation: comp.food.preparation,
-						grams_logged: grams,
-						serving_size_g: serving?.grams ?? null,
-						serving_label: serving?.label ?? null,
-						calories_per_100g: comp.per100g.calories,
-						protein_g_per_100g: comp.per100g.protein,
-						carbs_g_per_100g: comp.per100g.carbs,
-						fat_g_per_100g: comp.per100g.fat,
-						calories: cal,
-						protein_g: pro,
-						carbs_g: carb,
-						fat_g: fat,
+						...recordedPortionValues(comp.food, comp.selection, comp.per100g),
 					};
 				}),
 			});
@@ -787,7 +774,7 @@ export default function ReviewState({
 			const clarification = await onClarify({
 				name,
 				originalDescription: result?.originalDescription,
-				components: toEstimateContext(components),
+				components: components.some((item) => item.food.unknownMass) ? [] : toEstimateContext(components),
 			});
 			if (clarification.consentDeclined) return;
 			const newResult = clarification.result;
@@ -832,7 +819,7 @@ export default function ReviewState({
 	const handleClarifyComponent = useCallback(
 		async (component: EditableComponent) => {
 			const name = component.food.name.trim();
-			if (!name || clarifyingComponentId) return;
+			if (!name || clarifyingComponentId || component.food.unknownMass) return;
 			setComponentClarifyError(null);
 			if (!await ensureAiReady()) return;
 			setClarifyingComponentId(component.food.id);
@@ -1429,10 +1416,12 @@ function FoodEditorView({
 			? serving.grams / 100
 			: 1;
 	const nutritionBasis =
+		component.food.unknownMass ? `1 ${component.food.unknownMass.unit}` :
 		component.selection.mode === "servings" && serving
 			? formatPortionLabel(serving.label, serving.grams)
 			: "100 g";
 	const nutritionAccessibilityBasis =
+		component.food.unknownMass ? `per 1 ${component.food.unknownMass.unit}` :
 		component.selection.mode === "servings" && serving
 			? `per ${formatPortionLabel(serving.label, serving.grams)}`
 			: "per 100 grams";
@@ -1495,7 +1484,9 @@ function FoodEditorView({
 							)}
 							<View className="bg-m3-surface-container-high px-3 py-1 rounded-full">
 								<Text className="text-m3-on-surface tabular-nums text-xs font-semibold">
-									{`${Math.round(component.per100g.calories)} kcal / 100 g`}
+									{component.food.unknownMass
+										? `${Math.round(component.per100g.calories / component.food.unknownMass.quantity)} kcal / ${component.food.unknownMass.unit}`
+										: `${Math.round(component.per100g.calories)} kcal / 100 g`}
 								</Text>
 							</View>
 						</View>
@@ -1524,7 +1515,7 @@ function FoodEditorView({
 								<View className="flex-row items-center gap-2">
 									<Pressable
 										onPress={onRedo}
-										disabled={clarifyingComponentId !== null || logging}
+										disabled={clarifyingComponentId !== null || logging || !!component.food.unknownMass}
 										accessibilityRole="button"
 										accessibilityLabel={`Redo the ${component.food.name} estimate with AI`}
 										accessibilityHint="Replaces this food estimate. Undo restores previous values."
@@ -1582,6 +1573,7 @@ function FoodEditorView({
 							Portion
 						</Text>
 						<PortionStepper
+							massUnknown={!!component.food.unknownMass}
 							unitMode={component.selection.mode}
 							servings={servings}
 							grams={component.selection.grams}
@@ -1675,7 +1667,9 @@ function FoodEditorView({
 														label={`${fieldLabel} ${nutritionAccessibilityBasis}${field === "calories" ? ", kilocalories" : ", grams"}`}
 														onValueChange={(value) => {
 															const per100gValue =
-																perServingMul === 1
+																component.food.unknownMass
+																	? value / perServingMul
+																: perServingMul === 1
 																	? value
 																	: field === "calories"
 																		? Math.round(value / perServingMul)

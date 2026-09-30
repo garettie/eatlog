@@ -37,10 +37,10 @@ export function toEditable(food: FoodResult): EditableComponent {
   return {
     food,
     per100g: {
-      calories: Math.round(food.caloriesPer100g ?? 0),
-      protein: Math.round((food.proteinPer100g ?? 0) * 10) / 10,
-      carbs: Math.round((food.carbsPer100g ?? 0) * 10) / 10,
-      fat: Math.round((food.fatPer100g ?? 0) * 10) / 10,
+      calories: food.caloriesPer100g ?? 0,
+      protein: food.proteinPer100g ?? 0,
+      carbs: food.carbsPer100g ?? 0,
+      fat: food.fatPer100g ?? 0,
     },
     selection: initialPortionSelection(food),
     portionValid: true,
@@ -65,7 +65,9 @@ export function scaleComponentPortions(
 ): EditableComponent[] {
   if (!Number.isFinite(factor) || factor <= 0 || factor === 1) return components;
   return components.map((component) => {
-    const grams = Math.round(component.selection.grams * factor * 10) / 10;
+    const grams = component.food.unknownMass
+      ? component.selection.grams * factor
+      : Math.round(component.selection.grams * factor * 10) / 10;
     if (!Number.isFinite(grams) || grams <= 0) return component;
     return {
       ...component,
@@ -145,6 +147,7 @@ export function componentNameChanged(component: EditableComponent): boolean {
 
 export function toEstimateContext(components: EditableComponent[]): EstimateContextComponent[] {
   return components
+    .filter((component) => !component.food.unknownMass)
     .map((component) => ({
       name: component.food.name.trim(),
       estimatedGrams: component.selection.grams,
@@ -161,6 +164,10 @@ export function formatCollapsedPortion(
   component: EditableComponent,
   serving: FoodResult['portions'][number] | null,
 ): string {
+  if (component.food.unknownMass) {
+    const { quantity, unit } = component.food.unknownMass;
+    return `${Math.round(component.selection.grams / 100 * quantity * 100) / 100} ${unit}`;
+  }
   const grams = Math.round(component.selection.grams * 10) / 10;
   if (!serving || component.selection.mode !== 'servings') return `${grams}g`;
 

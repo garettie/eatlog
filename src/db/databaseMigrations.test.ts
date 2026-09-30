@@ -117,6 +117,7 @@ test('real fresh-database path reaches the complete current empty schema', async
   assert.deepEqual(rows(db, "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"), [
     { name: 'adaptive_intake_day_confirmations' },
     { name: 'adaptive_reviews' },
+    { name: 'csv_record_links' },
     { name: 'daily_targets' },
     { name: 'food_cache' },
     { name: 'food_logs' },

@@ -798,6 +798,8 @@ export interface FoodLog {
   data_type: string | null;
   preparation: string | null;
   grams_logged: number | null;
+  portion_quantity?: number | null;
+  portion_unit?: string | null;
   serving_size_g: number | null;
   serving_label: string | null;
   calories_per_100g: number | null;
@@ -836,6 +838,8 @@ export interface FoodLogInput {
   data_type?: string | null;
   preparation?: string | null;
   grams_logged?: number | null;
+  portion_quantity?: number | null;
+  portion_unit?: string | null;
   serving_size_g?: number | null;
   serving_label?: string | null;
   calories_per_100g?: number | null;
@@ -854,8 +858,8 @@ async function insertFoodLogWithDb(
 ): Promise<number> {
   const result = await db.runAsync(
     `INSERT INTO food_logs
-      (log_date, name, source, source_food_id, meal, meal_id, brand, data_type, preparation, grams_logged, serving_size_g, serving_label, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (log_date, name, source, source_food_id, meal, meal_id, brand, data_type, preparation, grams_logged, portion_quantity, portion_unit, serving_size_g, serving_label, calories_per_100g, protein_g_per_100g, carbs_g_per_100g, fat_g_per_100g, calories, protein_g, carbs_g, fat_g)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       params.log_date,
       params.name,
@@ -867,6 +871,8 @@ async function insertFoodLogWithDb(
       params.data_type ?? null,
       params.preparation ?? null,
       params.grams_logged ?? null,
+      params.portion_quantity ?? null,
+      params.portion_unit ?? null,
       params.serving_size_g ?? null,
       params.serving_label ?? null,
       params.calories_per_100g ?? null,
@@ -1598,7 +1604,8 @@ export async function getMealsByIds(ids: number[]): Promise<MealRow[]> {
 }
 
 export async function updateFoodLog(id: number, params: {
-  grams_logged: number;
+  grams_logged: number | null;
+  portion_quantity?: number | null;
   calories: number;
   protein_g: number;
   carbs_g: number;
@@ -1607,8 +1614,8 @@ export async function updateFoodLog(id: number, params: {
   const db = await getDb();
   await db.runAsync(
     `UPDATE food_logs SET
-       grams_logged = ?, calories = ?, protein_g = ?, carbs_g = ?, fat_g = ?
+       grams_logged = ?, portion_quantity = ?, calories = ?, protein_g = ?, carbs_g = ?, fat_g = ?
      WHERE id = ?`,
-    [params.grams_logged, params.calories, params.protein_g, params.carbs_g, params.fat_g, id]
+    [params.grams_logged, params.portion_quantity ?? null, params.calories, params.protein_g, params.carbs_g, params.fat_g, id]
   );
 }

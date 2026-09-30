@@ -41,7 +41,7 @@ Open Profile > Backup and restore > Create backup, then choose a destination in 
 
 Choose Restore backup in the same screen and select the archive. Eatlog checks its manifest, files, hashes, record counts, photos, database integrity, and schema before replacement. Keep the original until you verify the restored diary. Backup and restore do not move your Gemini key, route consent, installation token, or store entitlement to another device.
 
-Profile > Export data creates a readable ZIP of CSV files. It excludes meal photos, Gemini keys, route consent, store data, and Health Connect sync metadata. A CSV export cannot be restored.
+Profile > Export CSV creates one Macro-compatible CSV file. Import CSV can merge or replace food and weight history while preserving your profile and targets. CSV excludes meal photos, Google keys, route consent, store data, and Health Connect sync metadata. Use an Eatlog backup for full recovery.
 
 ## Delete data or remove your key
 

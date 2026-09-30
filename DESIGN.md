@@ -277,7 +277,10 @@ Profile uses the same Operate mode as the rest of Eatlog. It should feel like an
 ### Data & Sync
 
 - Start with a short local-ownership statement: `Your data lives on this device until you export a file.`
-- Use separate rows for Create backup, Restore backup, Export data, and Delete all data.
+- Use separate rows for Backup and restore, Import CSV, Export CSV, and Delete all data. Health Connect has a separate Sync group so no group exceeds four rows.
+- CSV import and export use one Macro-compatible file for meal and weight history. CSV export includes current profile and target metadata; import preserves the Eatlog profile and target history. Full Eatlog archives remain the recovery format.
+- CSV import previews date range, counts, ingredient fallbacks, duplicates, and weight conflicts. Merge is the default. Meal timezone is editable and must be applied before importing. Replace history requires a destructive confirmation and explains photo removal, cleared reviews and completeness confirmations, recalculated trends, and paused Health Connect sync.
+- Foods without a known gram weight edit their recorded quantity and unit. Keep gram controls and weight-based nutrition labels absent for those foods; retain exact nutrition in saved records and round only displayed values.
 - Backup and export show progress, success location/share confirmation, and recoverable failure copy.
 - Restore shows archive date, app version, database version, food/weight counts, and photo count before confirmation.
 - Create a safety backup before restore. If restore fails, keep the existing database active and state that no data changed.

@@ -269,7 +269,7 @@ export default function ProfileCorrectionScreen({ navigation }: Props) {
           <PrimaryButton title="Export my data" icon="file-download" onPress={() => void exportBlockedData()} disabled={busy} />
           <PrimaryButton title="Delete all data" icon="delete-outline" onPress={deleteAllData} disabled={busy} />
         </View>
-        <Text className="text-xs leading-4 text-m3-on-surface-variant">Supported adults: {NUTRITION_SAFETY_POLICY.minimumAge}–{NUTRITION_SAFETY_POLICY.maximumAge}. Export is readable CSV and cannot restore data.</Text>
+        <Text className="text-xs leading-4 text-m3-on-surface-variant">Supported adults: {NUTRITION_SAFETY_POLICY.minimumAge}–{NUTRITION_SAFETY_POLICY.maximumAge}. CSV transfers food and weight history. Use an Eatlog backup for full recovery.</Text>
       </ScrollView>
     </SafeAreaView>
   );

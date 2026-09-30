@@ -32,6 +32,7 @@ import { useDiscardGuardContext } from './useDiscardGuard';
 import { M3 } from '../../theme/tokens';
 import { useResponsiveLayout } from '../../theme/layout';
 import { DURATION } from '../../theme/motion';
+import { recordedPortionValues } from '../../utils/recordedPortion';
 
 function dataTypeLabel(dt: DataType): string {
   switch (dt) {
@@ -196,17 +197,12 @@ export default function SingleFoodReviewState({
         brand: food.brand,
         data_type: food.dataType,
         preparation: food.preparation,
-        grams_logged: gramsNum,
-        serving_size_g: serving?.grams ?? null,
-        serving_label: serving?.label ?? null,
-        calories_per_100g: food.caloriesPer100g,
-        protein_g_per_100g: food.proteinPer100g,
-        carbs_g_per_100g: food.carbsPer100g,
-        fat_g_per_100g: food.fatPer100g,
-        calories: macros.calories,
-        protein_g: macros.protein,
-        carbs_g: macros.carbs,
-        fat_g: macros.fat,
+        ...recordedPortionValues(food, selection, {
+          calories: food.caloriesPer100g ?? 0,
+          protein: food.proteinPer100g ?? 0,
+          carbs: food.carbsPer100g ?? 0,
+          fat: food.fatPer100g ?? 0,
+        }),
       });
       loggedRef.current = true;
       onLogComplete({ logId, meal, name: food.name, calories: macros.calories, logDate: targetLogDate });
@@ -216,7 +212,7 @@ export default function SingleFoodReviewState({
     } finally {
       setLogging(false);
     }
-  }, [food, macros, gramsNum, portionValid, meal, onLogComplete, effectiveLogDate, serving]);
+  }, [food, macros, gramsNum, portionValid, meal, onLogComplete, effectiveLogDate, selection]);
 
   if (!food) return null;
 
@@ -257,13 +253,16 @@ export default function SingleFoodReviewState({
             <View className="self-start bg-m3-surface-container-high px-3 py-1 rounded-full">
               <Text className="text-m3-on-surface tabular-nums text-xs font-semibold">
                 {food.caloriesPer100g != null
-                  ? `${Math.round(food.caloriesPer100g)} kcal / 100 g`
+                  ? food.unknownMass
+                    ? `${Math.round(food.caloriesPer100g / food.unknownMass.quantity)} kcal / ${food.unknownMass.unit}`
+                    : `${Math.round(food.caloriesPer100g)} kcal / 100 g`
                   : '---'}
               </Text>
             </View>
           </View>
 
           <PortionStepper
+            massUnknown={!!food.unknownMass}
             unitMode={selection.mode}
             servings={servings}
             grams={gramsNum}

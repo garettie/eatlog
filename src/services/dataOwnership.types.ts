@@ -1,6 +1,6 @@
 import type { BackupManifest } from '../utils/backupManifest';
 
-export type OwnershipOperation = 'backup' | 'inspect' | 'restore' | 'export' | 'reset';
+export type OwnershipOperation = 'backup' | 'inspect' | 'restore' | 'export' | 'import' | 'reset';
 
 export interface OwnershipProgressEvent {
   operation: OwnershipOperation;

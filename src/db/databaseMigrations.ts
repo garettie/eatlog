@@ -1,7 +1,8 @@
 import { FOOD_LOG_DATA_TYPE_MIGRATION_SQL } from './foodLogDataTypeMigration';
 import { WEIGHT_ORIGIN_MIGRATION_SQL } from './weightOriginMigration';
+import { CSV_RECORD_MIGRATION_SQL } from './csvRecordMigration';
 
-export const CURRENT_DATABASE_VERSION = 10;
+export const CURRENT_DATABASE_VERSION = 11;
 
 interface MigrationExecutor {
   execAsync(sql: string): Promise<void>;
@@ -341,5 +342,10 @@ export async function migrateDatabase(db: MigrationDatabase): Promise<void> {
         PRAGMA user_version = 10;
       `);
     });
+    currentVersion = 10;
+  }
+
+  if (currentVersion === 10) {
+    await db.withExclusiveTransactionAsync((txn) => txn.execAsync(CSV_RECORD_MIGRATION_SQL));
   }
 }

@@ -12,6 +12,7 @@ import {
 } from '../utils/portionLabels';
 
 interface PortionStepperProps {
+  massUnknown?: boolean;
   unitMode: PortionMode;
   servings: number;
   grams: number;
@@ -36,6 +37,7 @@ function formatGrams(value: number): string {
 }
 
 export default function PortionStepper({
+  massUnknown = false,
   unitMode,
   servings,
   grams,
@@ -102,7 +104,7 @@ export default function PortionStepper({
           {amountOptions.map((option) => {
             const selected = option.id === selectedAmountId;
             const unit = /ml\b/i.test(option.label) ? 'ml' : 'g';
-            const optionLabel = formatPortionLabel(option.label, option.grams, unit);
+            const optionLabel = massUnknown ? option.label : formatPortionLabel(option.label, option.grams, unit);
             return (
               <Pressable
                 key={option.id}
@@ -125,7 +127,7 @@ export default function PortionStepper({
       ) : null}
 
       <View className={`flex-row items-center ${hasServing ? 'gap-2' : ''}`}>
-        {hasServing ? (
+        {hasServing && !massUnknown ? (
           <View className="flex-1 min-w-0">
             <SegmentedControl
               options={[
@@ -150,7 +152,7 @@ export default function PortionStepper({
           </View>
         ) : null}
 
-        <View className={`${hasServing ? 'w-[104px] shrink-0' : 'flex-1'} h-[52px] bg-m3-surface-container rounded-xl px-2 items-center justify-center border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/50'}`}>
+        <View className={`${hasServing && !massUnknown ? 'w-[104px] shrink-0' : 'flex-1'} h-[52px] bg-m3-surface-container rounded-xl px-2 items-center justify-center border ${editorInvalid ? 'border-m3-error' : 'border-m3-outline-variant/50'}`}>
           {unitMode === 'servings' && hasServing ? (
             // Value and unit are flex siblings, never overlapping layers: a long serving
             // count keeps its own space and a long unit label ("piece") stays clear of it.

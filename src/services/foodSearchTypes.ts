@@ -55,6 +55,8 @@ export interface FoodResult {
   fatPer100g: number | null;
   portions: FoodPortion[];
   defaultAmount: FoodDefaultAmount;
+  /** With unknown mass, gram-shaped amount fields are calculation references only. */
+  unknownMass?: { quantity: number; unit: string };
   history?: FoodHistoryMetadata;
   isPinned?: boolean;
   isCommonFood?: boolean;

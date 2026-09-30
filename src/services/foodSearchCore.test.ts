@@ -267,7 +267,7 @@ test('AI history grouping preserves brands, preparations, and manual nutrition v
   assert.equal(results.length, 8);
 });
 
-test('derives per-100 g macros from absolute values and excludes unusable rows', () => {
+test('derives gram densities and retains unknown-mass totals without density', () => {
   const results = buildPersonalFoodResults([
     history({
       id: 1, name: 'Rice', grams_logged: 200,
@@ -279,8 +279,12 @@ test('derives per-100 g macros from absolute values and excludes unusable rows',
       calories_per_100g: null, protein_g_per_100g: null, carbs_g_per_100g: null, fat_g_per_100g: null,
     }),
   ], []);
-  assert.equal(results.length, 1);
-  assert.equal(results[0].caloriesPer100g, 130);
+  assert.equal(results.length, 2);
+  assert.equal(results.find((food) => food.name === 'Rice')?.caloriesPer100g, 130);
+  const unknown = results.find((food) => food.name === 'Unknown')!;
+  assert.deepEqual(unknown.unknownMass, { quantity: 1, unit: 'serving' });
+  assert.equal(createQuickLogInput(unknown, '2026-09-30', 'snack').grams_logged, null);
+  assert.equal(createQuickLogInput(unknown, '2026-09-30', 'snack').calories_per_100g, null);
 });
 
 test('ranks personal, pin, frequency, then recency within lexical tier', () => {
