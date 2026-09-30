@@ -773,10 +773,10 @@ function DiaryScreen({ requestedDate, onOpenEntry, onEditMeal, onSelectedDateCha
   const consumedFat = shownLogs.reduce((s, l) => s + l.fat_g, 0);
 
   const macroCells = useMemo(() => [
-    { icon: 'local-fire-department', consumed: consumedCals, target: targetCalories, barColor: M3.calories, unit: 'kcal' as const },
-    { letter: 'P', consumed: consumedProtein, target: targetProtein, barColor: M3.protein, unit: 'g' as const },
-    { letter: 'C', consumed: consumedCarbs, target: targetCarbs, barColor: M3.carbs, unit: 'g' as const },
-    { letter: 'F', consumed: consumedFat, target: targetFat, barColor: M3.fat, unit: 'g' as const },
+    { icon: 'local-fire-department', consumed: consumedCals, target: targetCalories, barColor: M3.calories, overflowColor: M3.caloriesOverflow, unit: 'kcal' as const },
+    { letter: 'P', consumed: consumedProtein, target: targetProtein, barColor: M3.protein, overflowColor: M3.proteinOverflow, unit: 'g' as const },
+    { letter: 'C', consumed: consumedCarbs, target: targetCarbs, barColor: M3.carbs, overflowColor: M3.carbsOverflow, unit: 'g' as const },
+    { letter: 'F', consumed: consumedFat, target: targetFat, barColor: M3.fat, overflowColor: M3.fatOverflow, unit: 'g' as const },
   ], [
     consumedCals,
     consumedCarbs,

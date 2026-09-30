@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
-import { Text, View } from 'react-native';
+import { Text, useWindowDimensions, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Reanimated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { DURATION, EASING } from '../theme/motion';
-import { M3 } from '../theme/tokens';
+import { M3, TYPE } from '../theme/tokens';
 
 interface MacroCell {
   icon?: string;
@@ -12,6 +12,7 @@ interface MacroCell {
   consumed: number;
   target: number;
   barColor: string;
+  overflowColor: string;
   unit: string;
 }
 
@@ -19,7 +20,13 @@ interface MacroRailProps {
   cells: MacroCell[];
 }
 
-function MacroCellView({ icon, letter, consumed, target, barColor, unit }: MacroCell) {
+function MacroCellView({ icon, letter, consumed, target, barColor, overflowColor, unit, fontScale }: MacroCell & { fontScale: number }) {
+  const difference = Math.round(Math.abs(consumed - target));
+  const isOver = consumed > target && difference > 0;
+  const differenceValue = unit === 'kcal' ? difference.toLocaleString() : difference;
+  const differenceLabel = target <= 0 || difference === 0
+    ? ''
+    : `${isOver ? '+' : ''}${differenceValue}${unit === 'kcal' ? ' kcal' : 'g'} ${isOver ? 'over' : 'under'}`;
   const fraction = target > 0 ? Math.min(1, consumed / target) : 0;
   const overflow = target > 0 ? Math.min(1, Math.max(0, (consumed - target) / target)) : 0;
   const reduced = useReducedMotion();
@@ -43,23 +50,22 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
   }));
 
   return (
-    <View className="flex-1 min-w-0 gap-1" accessibilityLabel={`${unit === 'kcal' ? 'Calories' : letter === 'P' ? 'Protein' : letter === 'C' ? 'Carbohydrates' : 'Fat'}: ${Math.round(consumed)} of ${Math.round(target)} ${unit}`} accessibilityRole="text">
-      <View className="flex-row items-center justify-center gap-1">
-        {icon ? (
-          <MaterialIcons name={icon as any} size={11} color={M3.onSurface} />
-        ) : (
-          <Text className="text-compact font-bold leading-none" style={{ color: M3.onSurface }}>
-            {letter}
+    <View className="flex-1 min-w-0 gap-2" accessible accessibilityLabel={`${unit === 'kcal' ? 'Calories' : letter === 'P' ? 'Protein' : letter === 'C' ? 'Carbohydrates' : 'Fat'}: ${Math.round(consumed)} of ${Math.round(target)} ${unit}${differenceLabel ? `, ${differenceLabel}` : ''}`} accessibilityRole="text">
+      <View className="items-center gap-1">
+        <View className="flex-row items-center justify-center gap-1">
+          {icon ? (
+            <MaterialIcons name={icon as any} size={TYPE.compact.fontSize * fontScale} color={M3.onSurface} />
+          ) : (
+            <Text className="text-compact font-bold" style={{ color: M3.onSurface }}>
+              {letter}
+            </Text>
+          )}
+          <Text className="text-m3-on-surface text-compact font-semibold tabular-nums text-center shrink">
+            {unit === 'kcal' ? Math.round(consumed).toLocaleString() : Math.round(consumed)}
           </Text>
-        )}
-        <Text
-          className="text-m3-on-surface-variant text-compact font-semibold tabular-nums leading-none shrink"
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.75}
-        >
-          {unit === 'kcal' ? Math.round(consumed).toLocaleString() : Math.round(consumed)}
-          <Text className="text-m3-on-surface-variant/60"> / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}</Text>
+        </View>
+        <Text className="text-m3-on-surface-variant text-compact tabular-nums text-center">
+          / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}
         </Text>
       </View>
       <View
@@ -70,18 +76,40 @@ function MacroCellView({ icon, letter, consumed, target, barColor, unit }: Macro
           className="h-full w-full rounded-full overflow-hidden"
           style={[{ backgroundColor: barColor }, fillStyle]}
         >
-          <Reanimated.View className="absolute inset-0 bg-black/25" style={overflowStyle} />
+          <Reanimated.View className="absolute inset-0" style={[{ backgroundColor: overflowColor }, overflowStyle]} />
         </Reanimated.View>
+      </View>
+      {/* Reserve two lines so calorie wrapping and zero differences do not shift the diary. */}
+      <View style={{ minHeight: TYPE.compact.lineHeight * fontScale * 2 }}>
+        {differenceLabel ? (
+          <Text
+            className="text-compact font-semibold tabular-nums text-center"
+            style={{ color: isOver ? overflowColor : M3.onSurfaceVariant }}
+          >
+            {differenceLabel}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
 }
 
 function MacroRail({ cells }: MacroRailProps) {
+  const { width, fontScale } = useWindowDimensions();
+  const columns = width / fontScale < 360 ? 2 : 4;
+  const rows = [];
+  for (let index = 0; index < cells.length; index += columns) {
+    rows.push(cells.slice(index, index + columns));
+  }
+
   return (
-    <View className="flex-row items-end gap-3 px-4 py-3">
-      {cells.map((cell, i) => (
-        <MacroCellView key={cell.icon || cell.letter || i} {...cell} />
+    <View className="gap-4 px-4 py-4">
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} className="flex-row items-start gap-3">
+          {row.map((cell, cellIndex) => (
+            <MacroCellView key={cell.icon || cell.letter || cellIndex} {...cell} fontScale={fontScale} />
+          ))}
+        </View>
       ))}
     </View>
   );
