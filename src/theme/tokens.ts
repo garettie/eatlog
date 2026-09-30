@@ -35,7 +35,6 @@ export const M3 = {
   fatContainer: '#453812',
   calories: '#a0cafd',
   caloriesOverflow: '#6eaefc',
-  calendarCaloriesOverflow: '#f2ce78',
   expenditure: '#d0bcff',
   goalRateSafe: '#8ed9aa',
   goalRateCaution: '#f0cc72',

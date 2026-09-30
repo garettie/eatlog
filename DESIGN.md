@@ -24,7 +24,6 @@ colors:
   fat-overflow: "#ddb141"
   calories: "#a0cafd"
   calories-overflow: "#6eaefc"
-  calendar-calories-overflow: "#f2ce78"
   expenditure: "#d0bcff"
   error: "#ffb4ab"
   web-interactive: "#ff7b73"
@@ -134,8 +133,7 @@ Eatlog uses a near-black neutral stack for structure and reserves named macro co
 
 ### Primary
 - **White Action**: primary actions, selected dashboard state, the active FAB, the dashboard calorie ring, and the selected calendar day.
-- **Calorie Blue**: calorie analytics and the base progress arc in calendar rings.
-- **Calendar Calorie Overflow**: soft amber for over-target arcs in the Diary strip and monthly calorie calendar, plus positive signed deviation in the monthly calendar.
+- **Calorie Blue**: calorie analytics and calendar completion rings.
 
 ### Secondary
 - **Protein Rose**: protein labels, pills, and progress.
@@ -153,7 +151,7 @@ Eatlog uses a near-black neutral stack for structure and reserves named macro co
 
 **The Nutrient Meaning Rule.** Protein is rose, carbs are green, fat is gold, and expenditure is lavender on every screen. Never reuse these colors as decoration or generic success/error states; a status hue that merely resembles one is fine. Goal-progress icons use Goal Rate Safe green (on pace, reached) and Goal Rate Caution gold (slower, faster, moving away, outside maintenance). The pinned heart is the one deliberate Error Coral use outside errors.
 
-**The Nutrient Overflow Rule.** The first full ring or bar uses the nutrient's base color. Intake above target refills from the start in a darker same-hue token, capped at one additional full cycle. In the Diary strip and monthly calorie calendar, calorie overflow arcs and positive signed deviation use Calendar Calorie Overflow amber while the base progress arc stays Calorie Blue. The dashboard calorie ring uses White Action with an Ink overflow arc. Error Coral remains reserved for errors and destructive actions.
+**The Nutrient Overflow Rule.** The first full ring or bar uses the nutrient's base color. Intake above target refills from the start in a slightly darker same-hue token, capped at one additional full cycle. The dashboard calorie ring uses White Action with an Ink overflow arc. Error Coral remains reserved for errors and destructive actions.
 
 **Website Interaction Rule.** The public website uses coral `#ff7b73` for focus, links, disclosure marks, and generic section labels. Keep calorie blue reserved for calorie information; keep protein rose, carb green, fat gold, and expenditure lavender tied to their nutrient or analytics meaning.
 
