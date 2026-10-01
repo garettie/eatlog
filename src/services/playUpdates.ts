@@ -5,6 +5,8 @@ import { getApplicationInfo } from '../utils/applicationInfo';
 
 interface EatlogPlayUpdatesModule {
   isUpdateAvailableAsync(): Promise<boolean>;
+  // Optional for installed binaries that have detection but predate explicit Play targeting.
+  openPlayListingAsync?(): Promise<void>;
 }
 
 // Optional on purpose: builds installed before this module shipped still receive OTA updates,
@@ -30,9 +32,14 @@ export async function isPlayUpdateAvailable(): Promise<boolean> {
 export async function openPlayListing(): Promise<void> {
   const { applicationId } = getApplicationInfo();
   if (!applicationId) return;
-  try {
-    await Linking.openURL(`market://details?id=${applicationId}`);
-  } catch {
-    await Linking.openURL(`https://play.google.com/store/apps/details?id=${applicationId}`).catch(() => {});
+  if (native?.openPlayListingAsync) {
+    try {
+      await native.openPlayListingAsync();
+      return;
+    } catch {
+      // Google Play is absent or disabled. Fall back to the web listing.
+    }
   }
+  // Never use a generic market:// link: OEM stores can claim it as their default.
+  await Linking.openURL(`https://play.google.com/store/apps/details?id=${applicationId}`).catch(() => {});
 }

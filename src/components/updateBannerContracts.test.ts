@@ -39,9 +39,20 @@ test('a Play Store build is announced, never installed by the app', () => {
   // Detection only: the user updates from the listing. No in-app download, install, or restart.
   assert.match(playModule, /isUpdateAvailableAsync/);
   assert.doesNotMatch(playModule, /completeUpdate|startUpdateFlow/);
-  assert.match(playUpdates, /market:\/\/details\?id=/);
+  assert.match(playUpdates, /native\.openPlayListingAsync\(\)/);
   // A new store build supersedes any bundle made for the installed one.
   assert.match(hook, /storeUpdate\s*\?\s*'store'/);
+});
+
+test('the store handoff targets Google Play rather than the default OEM store', () => {
+  assert.match(playModule, /setPackage\("com\.android\.vending"\)/);
+  assert.match(playModule, /Intent\.ACTION_VIEW/);
+  assert.match(playModule, /Intent\.FLAG_ACTIVITY_NEW_TASK/);
+  assert.match(playModule, /details\?id=\$\{context\.packageName\}/);
+  // Older binaries lack the new method; Play-less phones need a web fallback too.
+  assert.match(playUpdates, /if \(native\?\.openPlayListingAsync\)/);
+  assert.match(playUpdates, /Linking\.openURL\(`https:\/\/play\.google\.com/);
+  assert.doesNotMatch(playUpdates, /Linking\.openURL\(`market:/);
 });
 
 test('builds without the Play module keep running OTA updates', () => {

@@ -1,5 +1,7 @@
 package expo.modules.eatlogplayupdates
 
+import android.content.Intent
+import android.net.Uri
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
 import com.google.android.play.core.install.model.UpdateAvailability
 import expo.modules.kotlin.Promise
@@ -16,6 +18,16 @@ import expo.modules.kotlin.modules.ModuleDefinition
 class EatlogPlayUpdatesModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("EatlogPlayUpdates")
+
+    AsyncFunction("openPlayListingAsync") {
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      val intent = Intent(Intent.ACTION_VIEW).apply {
+        data = Uri.parse("https://play.google.com/store/apps/details?id=${context.packageName}")
+        setPackage("com.android.vending")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
+      context.startActivity(intent)
+    }
 
     AsyncFunction("isUpdateAvailableAsync") { promise: Promise ->
       val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
