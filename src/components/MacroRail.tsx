@@ -80,17 +80,14 @@ function MacroCellView({ icon, letter, consumed, target, barColor, overflowColor
           <Reanimated.View className="absolute inset-0" style={[{ backgroundColor: overflowColor }, overflowStyle]} />
         </Reanimated.View>
       </View>
-      {/* Reserve two lines so calorie wrapping and zero differences do not shift the diary. */}
-      <View style={{ minHeight: TYPE.compact.lineHeight * fontScale * 2 }}>
-        {differenceLabel ? (
-          <Text
-            className="text-compact font-semibold tabular-nums text-center"
-            style={{ color: isOver ? overflowColor : M3.onSurfaceVariant }}
-          >
-            {differenceLabel}
-          </Text>
-        ) : null}
-      </View>
+      {differenceLabel ? (
+        <Text
+          className="text-compact font-semibold tabular-nums text-center"
+          style={{ color: isOver ? overflowColor : M3.onSurfaceVariant }}
+        >
+          {differenceLabel}
+        </Text>
+      ) : null}
     </View>
   );
 }
