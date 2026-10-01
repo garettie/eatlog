@@ -13,6 +13,8 @@ const options = () => { let n = 0; return { timezone: 'Asia/Manila', createId: (
 test('Macro export round trips grouped nutrition and metric weights with quoted names', () => {
   const output = buildMacroCsv(snapshot(), options());
   const parsed = parseMacroCsv(output.text, 'Asia/Manila');
+  assert.equal(parsed.timestampFormatSource, 'metadata');
+  assert.equal(parsed.timestampFormat, 'macro-wall-clock');
   assert.equal(parsed.meals.length, 1);
   assert.equal(parsed.weights[0].kilograms, 60);
   assert.equal(parsed.meals[0].name, 'Egg, "boiled"\nLunch');
@@ -48,10 +50,27 @@ test('unknown grams use one serving and standalone foods become meals', () => {
   assert.equal(parsed.meals[0].components[0].protein_g, 13);
 });
 
-test('timestamps preserve SQLite UTC clocks on diary date and backdated entries use local noon', () => {
-  assert.equal(exportMealTimestamp('2026-06-17', '2026-06-16 23:30:00', 'Asia/Manila'), '2026-06-16T23:30:00.000Z');
-  assert.equal(exportMealTimestamp('2026-06-17', '2026-09-01 23:30:00', 'Asia/Manila'), '2026-06-17T04:00:00.000Z');
-  assert.equal(exportMealTimestamp('2026-03-08', 'invalid', 'America/New_York'), '2026-03-08T16:00:00.000Z');
+test('timestamps encode local diary clocks in Macro format and backdated entries use noon', () => {
+  assert.equal(exportMealTimestamp('2026-06-17', '2026-06-16 23:30:00', 'Asia/Manila'), '2026-06-17T07:30:00.000Z');
+  assert.equal(exportMealTimestamp('2026-06-17', '2026-09-01 23:30:00', 'Asia/Manila'), '2026-06-17T12:00:00.000Z');
+  assert.equal(exportMealTimestamp('2026-03-08', 'invalid', 'America/New_York'), '2026-03-08T12:00:00.000Z');
+});
+
+test('every Eatlog meal section survives Macro export even when logged late or backdated', () => {
+  for (const mealType of ['breakfast', 'lunch', 'dinner', 'snack'] as const) {
+    for (const createdAt of ['2026-06-17T15:30:00Z', '2026-07-01 15:30:00']) {
+      const data = snapshot();
+      data.meals[0].meal_type = mealType;
+      data.meals[0].created_at = createdAt;
+      data.foods[0].meal = mealType;
+      const exported = buildMacroCsv(data, options());
+      for (const timezone of ['Asia/Manila', 'UTC', 'America/New_York']) {
+        const imported = parseMacroCsv(exported.text, timezone).meals[0];
+        assert.equal(imported.mealType, mealType);
+        assert.equal(imported.logDate, data.meals[0].log_date);
+      }
+    }
+  }
 });
 
 test('metadata stays metric regardless of display preferences and uses current targets', () => {

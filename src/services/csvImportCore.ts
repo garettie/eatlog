@@ -114,6 +114,9 @@ export async function applyCsvImport(
 ): Promise<CsvImportResult> {
   if (mode !== 'merge' && mode !== 'replace') throw new Error('Choose Merge or Replace history.');
   const { parsed } = preview;
+  if (parsed.meals.length && parsed.timestampFormatSource === 'unconfirmed') {
+    throw new Error('Choose which app exported the CSV before importing.');
+  }
   if (!parsed.meals.length && !parsed.weights.length) throw new Error('The CSV has no meal or weight history to import.');
   const result: CsvImportResult = { mealsAdded: 0, mealsSkipped: 0, weightsAdded: 0, weightsSkipped: 0 };
   await db.withExclusiveTransactionAsync(async (txn) => {

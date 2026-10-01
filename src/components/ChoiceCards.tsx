@@ -15,16 +15,17 @@ export interface ChoiceCardOption<T extends string> {
 
 interface ChoiceCardsProps<T extends string> {
   options: ChoiceCardOption<T>[];
-  value: T;
+  value: T | null;
   onChange: (value: T) => void;
   accessibilityLabel: string;
+  disabled?: boolean;
 }
 
 /**
  * A choice list of side-by-side cards (stacked on narrow screens): the selected card steps up one
  * surface tone with a 2dp White Action outline. Goal, sex, and units all choose through it.
  */
-export default function ChoiceCards<T extends string>({ options, value, onChange, accessibilityLabel }: ChoiceCardsProps<T>) {
+export default function ChoiceCards<T extends string>({ options, value, onChange, accessibilityLabel, disabled = false }: ChoiceCardsProps<T>) {
   const reduced = useReducedMotion();
   const { isNarrow } = useResponsiveLayout();
   return (
@@ -35,9 +36,10 @@ export default function ChoiceCards<T extends string>({ options, value, onChange
           <Pressable
             key={option.value}
             onPress={() => onChange(option.value)}
+            disabled={disabled}
             accessibilityRole="radio"
             accessibilityLabel={option.subtitle ? `${option.title}: ${option.subtitle}` : option.title}
-            accessibilityState={{ checked: selected }}
+            accessibilityState={{ checked: selected, disabled }}
             className={`${isNarrow ? 'w-full flex-row items-center gap-3' : 'flex-1 items-center'} p-5 rounded-2xl gap-1 ${reduced ? '' : 'active:scale-[0.97]'} ${
               selected
                 ? 'bg-m3-surface-container-high border-2 border-m3-primary'

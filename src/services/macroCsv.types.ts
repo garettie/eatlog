@@ -8,6 +8,8 @@ export const MACRO_CSV_COLUMNS = [
 
 export type MacroCsvRow = Record<typeof MACRO_CSV_COLUMNS[number], string>;
 export type CsvImportMode = 'merge' | 'replace';
+export type CsvTimestampFormat = 'macro-wall-clock' | 'eatlog-utc';
+export const EATLOG_CSV_FORMAT = { version: 1, timestampFormat: 'macro-wall-clock' } as const;
 
 export interface CsvMeal {
   sourceId: string;
@@ -30,6 +32,8 @@ export interface ParsedMacroCsv {
   meals: CsvMeal[];
   weights: CsvWeight[];
   timezone: string;
+  timestampFormat: CsvTimestampFormat;
+  timestampFormatSource: 'metadata' | 'selected' | 'unconfirmed';
   dateStart: string | null;
   dateEnd: string | null;
   detailFallbacks: number;

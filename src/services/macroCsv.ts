@@ -1,7 +1,8 @@
-import type { FoodLogInput, MealType } from '../db/database';
+import type { FoodLogInput } from '../db/database';
 import { validateWeightKg } from '../utils/nutritionSafety';
 import { parseSqliteUtcTimestamp } from '../utils/sqliteTimestamp';
-import { MACRO_CSV_COLUMNS, type MacroCsvRow, type ParsedMacroCsv } from './macroCsv.types';
+import { MACRO_CSV_COLUMNS, type CsvImportPreview, type CsvTimestampFormat, type MacroCsvRow, type ParsedMacroCsv } from './macroCsv.types';
+import { legacyEatlogMealType, macroCsvDateParts, macroMealType, macroWallClockToInstant } from './macroCsvTime';
 
 export const MAX_MACRO_CSV_BYTES = 20 * 1024 * 1024;
 export const MAX_MACRO_CSV_CHARACTERS = MAX_MACRO_CSV_BYTES;
@@ -14,6 +15,15 @@ type Detail = { name: string; quantity: number; unit: string; perServing: Nutrie
 
 export function getDefaultCsvTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+
+/** Keep source selection when refreshing a preview or reparsing before a write. */
+export function reparseMacroCsv(
+  preview: Pick<CsvImportPreview, 'text' | 'parsed'>,
+  timezone = preview.parsed.timezone,
+  selectedFormat = preview.parsed.timestampFormatSource === 'selected' ? preview.parsed.timestampFormat : undefined,
+): ParsedMacroCsv {
+  return parseMacroCsv(preview.text, timezone, selectedFormat);
 }
 
 /** Strict RFC 4180 reader. Record numbers include the header, including multiline records. */
@@ -81,19 +91,6 @@ function validDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
     && Number.isFinite(parseSqliteUtcTimestamp(`${value}T00:00:00Z`).getTime());
 }
-export function macroCsvDateParts(timestamp: Date, timezone: string): { date: string; hour: number; minute: number; second: number } {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
-  }).formatToParts(timestamp);
-  const part = (key: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === key)!.value;
-  return { date: `${part('year')}-${part('month')}-${part('day')}`, hour: Number(part('hour')),
-    minute: Number(part('minute')), second: Number(part('second')) };
-}
-function mealType(hour: number): MealType {
-  return hour >= 5 && hour < 11 ? 'breakfast' : hour >= 11 && hour < 16 ? 'lunch'
-    : hour >= 16 && hour < 22 ? 'dinner' : 'snack';
-}
 function detailsFrom(row: MacroCsvRow): Detail[] | null {
   const payload = object(json(row.payload_json));
   const details = payload?.ingredientsDetailed;
@@ -140,7 +137,10 @@ function sanitizedPayload(row: MacroCsvRow, details: Detail[] | null): string {
   return JSON.stringify(result);
 }
 
-export function parseMacroCsv(text: string, timezone: string): ParsedMacroCsv {
+export function parseMacroCsv(text: string, timezone: string, selectedFormat?: CsvTimestampFormat): ParsedMacroCsv {
+  if (selectedFormat !== undefined && selectedFormat !== 'macro-wall-clock' && selectedFormat !== 'eatlog-utc') {
+    throw new Error('Choose Macro or Eatlog as the CSV source.');
+  }
   try { macroCsvDateParts(new Date(0), timezone); } catch { throw new Error('Choose a valid IANA timezone.'); }
   const records = readCsv(text);
   if (!records.length || records[0].join(',') !== MACRO_CSV_COLUMNS.join(',')) {
@@ -151,16 +151,31 @@ export function parseMacroCsv(text: string, timezone: string): ParsedMacroCsv {
     return Object.fromEntries(MACRO_CSV_COLUMNS.map((key, i) => [key, values[i]])) as MacroCsvRow;
   });
   let unitSystem: string | null = null;
+  let detectedFormat: CsvTimestampFormat | undefined;
   for (const [index, row] of rows.entries()) {
     if (row.record_type === 'meta') {
-      const user = object(object(json(row.payload_json))?.user);
+      const payload = object(json(row.payload_json));
+      if (payload && 'eatlogCsv' in payload) {
+        const format = object(payload.eatlogCsv);
+        if (format?.version !== 1 || (format.timestampFormat !== 'macro-wall-clock' && format.timestampFormat !== 'eatlog-utc')) {
+          throw new Error(`Row ${index + 2}: unsupported Eatlog CSV format. Update Eatlog before importing this file.`);
+        }
+        if (detectedFormat && detectedFormat !== format.timestampFormat) throw new Error(`Row ${index + 2}: conflicting CSV formats.`);
+        detectedFormat = format.timestampFormat;
+      }
+      const user = object(payload?.user);
       const units = user?.unitSystem;
       if (units !== 'metric' && units !== 'imperial') throw new Error(`Row ${index + 2}: metadata needs metric or imperial unitSystem.`);
       if (unitSystem && unitSystem !== units) throw new Error(`Row ${index + 2}: conflicting weight units.`);
       unitSystem = units;
     }
   }
-  const parsed: ParsedMacroCsv = { meals: [], weights: [], timezone, dateStart: null, dateEnd: null, detailFallbacks: 0 };
+  // Unmarked files can be inspected provisionally, but cannot be imported until
+  // the user identifies the exporting app. Their headers cannot distinguish it.
+  const timestampFormat = detectedFormat ?? selectedFormat ?? 'macro-wall-clock';
+  const parsed: ParsedMacroCsv = { meals: [], weights: [], timezone, timestampFormat,
+    timestampFormatSource: detectedFormat ? 'metadata' : selectedFormat ? 'selected' : 'unconfirmed',
+    dateStart: null, dateEnd: null, detailFallbacks: 0 };
   const seen = new Set<string>(), dates: string[] = [];
   for (const [index, row] of rows.entries()) {
     const error = (message: string): never => { throw new Error(`Row ${index + 2}: ${message}`); };
@@ -186,8 +201,12 @@ export function parseMacroCsv(text: string, timezone: string): ParsedMacroCsv {
     if (!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(row.created_at)) error('meal timestamp must include a timezone offset.');
     const timestamp = parseSqliteUtcTimestamp(row.created_at);
     if (!Number.isFinite(timestamp.getTime())) error('invalid meal timestamp.');
-    const { date, hour } = macroCsvDateParts(timestamp, timezone);
-    const meal = mealType(hour);
+    // Match Macro's formatMealDayKey and mealWallClockMinutes: read UTC fields
+    // directly because these timestamps already encode the diary's local clock.
+    const legacy = timestampFormat === 'eatlog-utc';
+    const local = legacy ? macroCsvDateParts(timestamp, timezone) : null;
+    const date = local?.date ?? timestamp.toISOString().slice(0, 10);
+    const meal = local ? legacyEatlogMealType(local.hour) : macroMealType(timestamp.getUTCHours());
     const values = nutrients.map(key => number(row[key]));
     if (values.some(value => value == null)) error('calories and macros must be finite, non-negative numbers.');
     const totals = Object.fromEntries(nutrients.map((key, i) => [key, values[i]!])) as Nutrients;
@@ -245,7 +264,7 @@ export function parseMacroCsv(text: string, timezone: string): ParsedMacroCsv {
       ai_clarification_question: '',
       ai_clarification_used: /^(true|false|0|1)$/.test(row.ai_clarification_used) ? row.ai_clarification_used : '',
     };
-    parsed.meals.push({ sourceId: row.id, name: row.name.trim(), createdAt: timestamp.toISOString(),
+    parsed.meals.push({ sourceId: row.id, name: row.name.trim(), createdAt: (legacy ? timestamp : macroWallClockToInstant(timestamp, timezone)).toISOString(),
       logDate: date, mealType: meal, components, originalRow, detailFallback: !reliable });
     dates.push(date);
   }

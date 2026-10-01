@@ -1,9 +1,10 @@
-import type { DailyTarget, ExportMeal, FoodLog, Profile, WeightLog } from '../db/database';
+import type { DailyTarget, ExportMeal, FoodLog, MealType, Profile, WeightLog } from '../db/database';
 import { csv } from '../utils/csv';
 import { parseSqliteUtcTimestamp } from '../utils/sqliteTimestamp';
-import { MACRO_CSV_COLUMNS, type MacroCsvRow } from './macroCsv.types';
+import { EATLOG_CSV_FORMAT, MACRO_CSV_COLUMNS, type MacroCsvRow } from './macroCsv.types';
 import { parseMacroCsv } from './macroCsv';
 import { fingerprintFood, fingerprintMeal, fingerprintWeight, type CsvRecordLink } from './csvRecordIdentity';
+import { macroMealType } from './macroCsvTime';
 
 export interface MacroExportSnapshot {
   profile: Profile | null;
@@ -32,21 +33,17 @@ function clockParts(date: Date, timezone: string): Record<string, string> {
   return Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
 }
 
-/** Preserve diary dates even for entries backdated after their creation. */
-export function exportMealTimestamp(logDate: string, createdAt: string, timezone: string): string {
+/** Encode diary dates and meal sections as Macro wall-clock timestamps. */
+export function exportMealTimestamp(logDate: string, createdAt: string, timezone: string, mealType?: MealType): string {
   const original = parseSqliteUtcTimestamp(createdAt);
   if (Number.isFinite(original.getTime())) {
     const p = clockParts(original, timezone);
-    if (`${p.year}-${p.month}-${p.day}` === logDate) return original.toISOString();
+    if (`${p.year}-${p.month}-${p.day}` === logDate && (!mealType || macroMealType(Number(p.hour)) === mealType)) {
+      return `${logDate}T${p.hour}:${p.minute}:${p.second}.${String(original.getUTCMilliseconds()).padStart(3, '0')}Z`;
+    }
   }
-  const desired = Date.parse(`${logDate}T12:00:00Z`);
-  let instant = desired;
-  for (let pass = 0; pass < 3; pass++) {
-    const p = clockParts(new Date(instant), timezone);
-    const local = Date.parse(`${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}Z`);
-    instant += desired - local;
-  }
-  return new Date(instant).toISOString();
+  const hour = mealType ? { breakfast: '08', lunch: '12', dinner: '19', snack: '15' }[mealType] : '12';
+  return `${logDate}T${hour}:00:00.000Z`;
 }
 
 export function buildMacroCsv(snapshot: MacroExportSnapshot, options: { timezone: string; createId: () => string; today?: string }): { text: string; newLinks: CsvRecordLink[] } {
@@ -89,7 +86,7 @@ export function buildMacroCsv(snapshot: MacroExportSnapshot, options: { timezone
   });
   if (latestWeight) user.weight = latestWeight.scale_weight_kg;
   if (target) Object.assign(user, { dailyCalories: target.target_calories, protein: target.target_protein_g, carbs: target.target_carbs_g, fats: target.target_fat_g });
-  rows.push(row({ record_type: 'meta', payload_json: JSON.stringify({ user, appStartDate, onboardingCompleted: !!profile, progressBannerDismissed: false, communityBannerDismissed: false, mealsAccuracyTipBannerDismissed: true, firstMealReviewPrompted: true }) }));
+  rows.push(row({ record_type: 'meta', payload_json: JSON.stringify({ eatlogCsv: EATLOG_CSV_FORMAT, user, appStartDate, onboardingCompleted: !!profile, progressBannerDismissed: false, communityBannerDismissed: false, mealsAccuracyTipBannerDismissed: true, firstMealReviewPrompted: true }) }));
 
   const emitMeal = (meal: ExportMeal, foods: FoodLog[], standaloneId: number | null) => {
     if (foods.length === 0) return;
@@ -121,7 +118,7 @@ export function buildMacroCsv(snapshot: MacroExportSnapshot, options: { timezone
       protein: String(foods.reduce((sum, food) => sum + food.protein_g, 0)),
       carbs: String(foods.reduce((sum, food) => sum + food.carbs_g, 0)),
       fats: String(foods.reduce((sum, food) => sum + food.fat_g, 0)),
-      created_at: exportMealTimestamp(meal.log_date, meal.created_at, options.timezone),
+      created_at: exportMealTimestamp(meal.log_date, meal.created_at, options.timezone, meal.meal_type),
       ingredients_json: original?.ingredients_json ?? JSON.stringify(ingredients.map((item) => `${item.quantity} ${item.unit} ${item.name}`)),
       ai_needs_clarification: 'false', ai_clarification_used: 'false',
       payload_json: original?.payload_json ?? JSON.stringify({ ingredientsDetailed: ingredients }),

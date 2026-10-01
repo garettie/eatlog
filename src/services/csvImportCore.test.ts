@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { URL } from 'node:url';
 import { migrateDatabase } from '../db/databaseMigrations';
 import { createSyntheticSchemaV4Fixture } from '../db/testFixtures/schemaV4';
 import { csv } from '../utils/csv';
@@ -51,7 +53,7 @@ function makeText(overrides: Partial<MacroCsvRow> = {}, weights = true): string 
   return csv([[...MACRO_CSV_COLUMNS],
     row({ record_type: 'meta', payload_json: JSON.stringify({ user: { unitSystem: 'metric' } }) }),
     row({ record_type: 'meal', id: 'macro-synthetic', name: "McDonald's café, bowl",
-      calories: '200', protein: '10', carbs: '30', fats: '4', created_at: '2026-08-01T23:30:00Z',
+      calories: '200', protein: '10', carbs: '30', fats: '4', created_at: '2026-08-02T07:30:00Z',
       ingredients_json: '[]', payload_json: '{}', ...overrides }),
     ...(weights ? [row({ record_type: 'weight', id: 'synthetic-conflict', date: '2026-07-29', weight: '75' }),
       row({ record_type: 'weight', id: 'synthetic-new', date: '2026-08-02', weight: '70' })] : []),
@@ -59,7 +61,7 @@ function makeText(overrides: Partial<MacroCsvRow> = {}, weights = true): string 
 }
 
 async function preview(db: NodeCsvDatabase, text = makeText()) {
-  return inspectCsvAgainstDatabase(db, 'synthetic.csv', text, parseMacroCsv(text, 'Asia/Manila'));
+  return inspectCsvAgainstDatabase(db, 'synthetic.csv', text, parseMacroCsv(text, 'Asia/Manila', 'macro-wall-clock'));
 }
 
 async function history(db: NodeCsvDatabase) {
@@ -123,11 +125,11 @@ test('merge skips whole occupied days across source IDs and sections, but import
   const db = await fixture();
   try {
     const meals: Partial<MacroCsvRow>[] = [
-      { id: 'other-app-breakfast', created_at: '2026-07-30T00:00:00Z' },
-      { id: 'other-app-dinner', created_at: '2026-07-30T10:00:00Z' },
+      { id: 'other-app-breakfast', created_at: '2026-07-30T08:00:00Z' },
+      { id: 'other-app-dinner', created_at: '2026-07-30T18:00:00Z' },
       { id: 'standalone-day-snack', created_at: '2026-07-31T15:00:00Z' },
-      { id: 'new-day-breakfast', created_at: '2026-08-02T00:00:00Z' },
-      { id: 'new-day-lunch', created_at: '2026-08-02T04:00:00Z' },
+      { id: 'new-day-breakfast', created_at: '2026-08-02T08:00:00Z' },
+      { id: 'new-day-lunch', created_at: '2026-08-02T12:00:00Z' },
       // A weight alone does not block meals on that day.
       { id: 'weight-only-day', created_at: '2026-07-29T04:00:00Z' },
     ];
@@ -267,6 +269,48 @@ test('empty imports cannot erase history', async () => {
     const before = await history(db);
     await assert.rejects(applyCsvImport(db, await preview(db, text), 'replace'), /no meal or weight/);
     assert.deepEqual(await history(db), before);
+  } finally { db.db.close(); }
+});
+
+test('unmarked meal imports require source selection before merge or replacement writes', async () => {
+  const db = await fixture();
+  try {
+    const text = makeText();
+    const p = await inspectCsvAgainstDatabase(db, 'synthetic.csv', text, parseMacroCsv(text, 'Asia/Manila'));
+    const before = await history(db);
+    for (const mode of ['merge', 'replace'] as const) {
+      await assert.rejects(applyCsvImport(db, p, mode), /Choose which app/);
+      assert.deepEqual(await history(db), before);
+    }
+  } finally { db.db.close(); }
+});
+
+test('legacy export uses the corrected local day for merge conflicts and survives replacement and re-export', async () => {
+  const db = await fixture();
+  try {
+    const text = readFileSync(new URL('./testFixtures/legacyEatlog.csv', import.meta.url), 'utf8');
+    const parsed = parseMacroCsv(text, 'Asia/Manila', 'eatlog-utc');
+    await db.runAsync('UPDATE food_logs SET log_date = ? WHERE id = ?', ['2026-06-17', 22]);
+    const p = await inspectCsvAgainstDatabase(db, 'legacy.csv', text, parsed);
+    assert.equal(p.duplicateMeals, 1);
+    const before = await history(db);
+    assert.deepEqual(await applyCsvImport(db, p, 'merge'), { mealsAdded: 0, mealsSkipped: 1, weightsAdded: 0, weightsSkipped: 0 });
+    assert.deepEqual(await history(db), before);
+    assert.equal((await applyCsvImport(db, p, 'replace')).mealsAdded, 1);
+    const meals = await db.getAllAsync<ExportMeal>('SELECT * FROM meals');
+    const foods = await db.getAllAsync<FoodLog>('SELECT * FROM food_logs');
+    assert.equal(meals[0].log_date, '2026-06-17');
+    assert.equal(meals[0].meal_type, 'breakfast');
+    assert.equal(foods[0].log_date, '2026-06-17');
+    assert.equal(foods[0].meal, 'breakfast');
+    assert.equal(foods[0].logged_at, '2026-06-16T23:30:00.000Z');
+    const exported = buildMacroCsv({ profile: null, currentTarget: null, meals, foods, weights: [],
+      links: await db.getAllAsync<CsvRecordLink>('SELECT * FROM csv_record_links') },
+    { timezone: 'Asia/Manila', createId: () => { throw new Error('Must preserve identity'); } });
+    const restored = parseMacroCsv(exported.text, 'Asia/Manila');
+    assert.equal(restored.timestampFormatSource, 'metadata');
+    assert.deepEqual(restored.meals.map(row => [row.logDate, row.mealType, row.createdAt]),
+      parsed.meals.map(row => [row.logDate, row.mealType, row.createdAt]));
   } finally { db.db.close(); }
 });
 

@@ -3,10 +3,10 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 import { getDb, getActiveMealPhotoUris } from '../db/database';
 import { cleanupOrphanMealPhotos } from '../utils/mealPhotos';
-import { parseMacroCsv, getDefaultCsvTimezone, MAX_MACRO_CSV_BYTES } from './macroCsv';
+import { parseMacroCsv, reparseMacroCsv, getDefaultCsvTimezone, MAX_MACRO_CSV_BYTES } from './macroCsv';
 import { applyCsvImport, inspectCsvAgainstDatabase } from './csvImportCore';
 import { waitForHealthConnectIdle } from './healthConnect';
-import type { CsvImportMode, CsvImportPreview } from './macroCsv.types';
+import type { CsvImportMode, CsvImportPreview, CsvTimestampFormat } from './macroCsv.types';
 import type { OwnershipProgressListener, OwnershipResult } from './dataOwnership.types';
 
 export async function pickAndInspectCsv(timezone = getDefaultCsvTimezone()): Promise<CsvImportPreview | null> {
@@ -27,8 +27,10 @@ export async function pickAndInspectCsv(timezone = getDefaultCsvTimezone()): Pro
   }
 }
 
-export async function reinspectCsv(preview: CsvImportPreview, timezone: string): Promise<CsvImportPreview> {
-  return inspectCsvAgainstDatabase(await getDb(), preview.fileName, preview.text, parseMacroCsv(preview.text, timezone));
+export async function reinspectCsv(preview: CsvImportPreview, timezone: string,
+  selectedFormat?: CsvTimestampFormat,
+): Promise<CsvImportPreview> {
+  return inspectCsvAgainstDatabase(await getDb(), preview.fileName, preview.text, reparseMacroCsv(preview, timezone, selectedFormat));
 }
 
 export async function importCsv(
@@ -36,8 +38,11 @@ export async function importCsv(
   mode: CsvImportMode,
   onProgress?: OwnershipProgressListener,
 ): Promise<OwnershipResult> {
-  // Reparse the original bytes before any write; the reviewed timezone is fixed.
-  const parsed = parseMacroCsv(preview.text, preview.parsed.timezone);
+  // Reparse the original bytes using exactly the source and timezone reviewed.
+  const parsed = reparseMacroCsv(preview);
+  if (parsed.meals.length && parsed.timestampFormatSource === 'unconfirmed') {
+    throw new Error('Choose which app exported the CSV before importing.');
+  }
   const reviewed = { ...preview, parsed };
   await waitForHealthConnectIdle();
   const directory = new Directory(Paths.cache, `eatlog-csv-safety-${Date.now()}`);
