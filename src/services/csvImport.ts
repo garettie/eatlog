@@ -58,7 +58,7 @@ export async function importCsv(
     }
     const skipped = result.mealsSkipped + result.weightsSkipped;
     return { operation: 'import', completedAt: new Date().toISOString(),
-      summary: `Imported ${result.mealsAdded} meals and ${result.weightsAdded} weights.${skipped ? ` Kept ${skipped} existing records.` : ''}` };
+      summary: `Imported ${result.mealsAdded} meals and ${result.weightsAdded} weights.${skipped ? ` Skipped ${skipped} incoming records and kept existing history.` : ''}` };
   } finally {
     try { await safety.closeAsync(); } catch { /* Already closed after the snapshot. */ }
     // Preserve the internal safety database on failure; the transaction rolls back.

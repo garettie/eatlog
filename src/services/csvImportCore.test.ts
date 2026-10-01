@@ -119,6 +119,59 @@ test('replace only clears history and derived reviews, pauses sync, preserves pr
   } finally { db.db.close(); }
 });
 
+test('merge skips whole occupied days across source IDs and sections, but imports every meal on empty days', async () => {
+  const db = await fixture();
+  try {
+    const meals: Partial<MacroCsvRow>[] = [
+      { id: 'other-app-breakfast', created_at: '2026-07-30T00:00:00Z' },
+      { id: 'other-app-dinner', created_at: '2026-07-30T10:00:00Z' },
+      { id: 'standalone-day-snack', created_at: '2026-07-31T15:00:00Z' },
+      { id: 'new-day-breakfast', created_at: '2026-08-02T00:00:00Z' },
+      { id: 'new-day-lunch', created_at: '2026-08-02T04:00:00Z' },
+      // A weight alone does not block meals on that day.
+      { id: 'weight-only-day', created_at: '2026-07-29T04:00:00Z' },
+    ];
+    const text = csv([[...MACRO_CSV_COLUMNS], ...meals.map(fields => MACRO_CSV_COLUMNS.map(key => ({
+      record_type: 'meal', name: 'Synthetic incoming meal', calories: '200', protein: '10',
+      carbs: '30', fats: '4', ingredients_json: '[]', payload_json: '{}', ...fields,
+    } as Partial<MacroCsvRow>)[key] ?? ''))]);
+    for (const date of ['2026-07-30', '2026-07-31', '2026-08-02']) {
+      await db.runAsync("INSERT INTO adaptive_intake_day_confirmations (log_date, status, confirmation_source, confirmed_at) VALUES (?, 'complete', 'adaptive_review', ?)",
+        [date, '2026-08-03T00:00:00Z']);
+    }
+    const before = await history(db);
+    const p = await preview(db, text);
+    assert.equal(p.duplicateMeals, 3);
+    assert.deepEqual(await applyCsvImport(db, p, 'merge'),
+      { mealsAdded: 3, mealsSkipped: 3, weightsAdded: 0, weightsSkipped: 0 });
+    assert.deepEqual(await db.getAllAsync('SELECT * FROM meals WHERE id = 11'),
+      (before.meals as ExportMeal[]).filter(meal => meal.id === 11));
+    assert.deepEqual(await db.getAllAsync('SELECT * FROM food_logs WHERE id IN (21, 22)'), before.food_logs);
+    assert.deepEqual(await db.getAllAsync('SELECT meal_type FROM meals WHERE log_date = ? ORDER BY id', ['2026-08-02']),
+      [{ meal_type: 'breakfast' }, { meal_type: 'lunch' }]);
+    assert.deepEqual(await db.getAllAsync('SELECT log_date FROM adaptive_intake_day_confirmations ORDER BY log_date'),
+      [{ log_date: '2026-07-30' }, { log_date: '2026-07-31' }]);
+    assert.equal((await preview(db, text)).duplicateMeals, 6);
+    assert.equal((await applyCsvImport(db, await preview(db, text), 'merge')).mealsAdded, 0);
+  } finally { db.db.close(); }
+});
+
+test('merge rechecks occupied days after preview and replace still imports those days', async () => {
+  const db = await fixture();
+  try {
+    const p = await preview(db, makeText({}, false));
+    assert.equal(p.duplicateMeals, 0);
+    await db.runAsync('UPDATE food_logs SET log_date = ? WHERE id = ?', ['2026-08-02', 22]);
+    const before = await history(db);
+    assert.deepEqual(await applyCsvImport(db, p, 'merge'),
+      { mealsAdded: 0, mealsSkipped: 1, weightsAdded: 0, weightsSkipped: 0 });
+    assert.deepEqual(await history(db), before);
+    const refreshed = await preview(db, makeText({}, false));
+    assert.equal(refreshed.duplicateMeals, 1);
+    assert.equal((await applyCsvImport(db, refreshed, 'replace')).mealsAdded, 1);
+  } finally { db.db.close(); }
+});
+
 test('a write failure rolls back replacement, including provenance, reviews, targets and sync state', async () => {
   const db = await fixture();
   try {

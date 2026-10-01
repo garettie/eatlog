@@ -46,6 +46,10 @@ function stateFingerprint(state: LocalCsvState): string {
   return JSON.stringify([state.meals, state.foods, state.weights, state.links]);
 }
 
+function occupiedMealDates(state: LocalCsvState): Set<string> {
+  return new Set([...state.meals.map((row) => row.log_date), ...state.foods.map((row) => row.log_date)]);
+}
+
 function liveMealLinks(state: LocalCsvState): Map<string, CsvRecordLink> {
   const mealIds = new Set(state.meals.map((row) => row.id));
   const foodIds = new Set(state.foods.filter((row) => row.meal_id == null).map((row) => row.id));
@@ -65,13 +69,14 @@ export async function inspectCsvAgainstDatabase(
   await db.withExclusiveTransactionAsync(async (txn) => {
     const state = await readState(txn);
     const links = liveMealLinks(state);
+    const mealDates = occupiedMealDates(state);
     const dates = new Set(state.weights.map((row) => row.log_date));
     const weightIds = new Set(state.weights.map((row) => row.id));
     const weightSources = new Set(state.links.filter((link) => link.record_type === 'weight'
       && link.weight_log_id != null && weightIds.has(link.weight_log_id)).map((link) => link.source_id));
     preview = {
       fileName, text, parsed,
-      duplicateMeals: parsed.meals.filter((meal) => links.has(meal.sourceId)).length,
+      duplicateMeals: parsed.meals.filter((meal) => mealDates.has(meal.logDate) || links.has(meal.sourceId)).length,
       changedSourceMeals: parsed.meals.filter((meal) => {
         const link = links.get(meal.sourceId);
         return link?.original_row_json != null && link.original_row_json !== JSON.stringify(meal.originalRow);
@@ -118,6 +123,9 @@ export async function applyCsvImport(
     }
     await cleanupCsvRecordLinks(txn);
     const links = mode === 'merge' ? liveMealLinks(state) : new Map<string, CsvRecordLink>();
+    // Freeze occupied days before inserting so every meal on a new day is imported.
+    const mealDates = mode === 'merge' ? occupiedMealDates(state) : new Set<string>();
+    const importedMealDates = new Set<string>();
     const weightDates = new Set(mode === 'merge' ? state.weights.map((row) => row.log_date) : []);
     if (mode === 'replace') {
       await txn.execAsync(`DELETE FROM csv_record_links;
@@ -130,7 +138,7 @@ export async function applyCsvImport(
     const progress = () => onProgress?.({ operation: 'import', phase: 'history', completed: ++completed,
       total, message: `Importing history ${completed} of ${total}`, cancellable: false });
     for (const meal of parsed.meals) {
-      if (links.has(meal.sourceId)) {
+      if (mealDates.has(meal.logDate) || links.has(meal.sourceId)) {
         result.mealsSkipped += 1;
         progress();
         continue;
@@ -159,6 +167,7 @@ export async function applyCsvImport(
         meal_id: inserted.lastInsertRowId, food_log_id: null, weight_log_id: null,
         original_row_json: JSON.stringify(meal.originalRow), native_fingerprint: fingerprintMeal(liveMeal, foods) });
       result.mealsAdded += 1;
+      importedMealDates.add(meal.logDate);
       progress();
     }
     const existingWeightIds = new Set(state.weights.map((row) => row.id));
@@ -192,7 +201,7 @@ export async function applyCsvImport(
     }
     if (mode === 'merge' && (result.mealsAdded || result.weightsAdded)) {
       await txn.execAsync("UPDATE adaptive_reviews SET status = 'superseded', resolved_at = datetime('now', 'localtime') WHERE status = 'pending';");
-      for (const date of new Set(parsed.meals.filter((meal) => !links.has(meal.sourceId)).map((meal) => meal.logDate))) {
+      for (const date of importedMealDates) {
         await txn.runAsync('DELETE FROM adaptive_intake_day_confirmations WHERE log_date = ?', [date]);
       }
     }
