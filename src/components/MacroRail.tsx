@@ -51,21 +51,22 @@ function MacroCellView({ icon, letter, consumed, target, barColor, overflowColor
 
   return (
     <View className="flex-1 min-w-0 gap-2" accessible accessibilityLabel={`${unit === 'kcal' ? 'Calories' : letter === 'P' ? 'Protein' : letter === 'C' ? 'Carbohydrates' : 'Fat'}: ${Math.round(consumed)} of ${Math.round(target)} ${unit}${differenceLabel ? `, ${differenceLabel}` : ''}`} accessibilityRole="text">
-      <View className="items-center gap-1">
-        <View className="flex-row items-center justify-center gap-1">
-          {icon ? (
-            <MaterialIcons name={icon as any} size={TYPE.compact.fontSize * fontScale} color={M3.onSurface} />
-          ) : (
-            <Text className="text-compact font-bold" style={{ color: M3.onSurface }}>
-              {letter}
-            </Text>
-          )}
-          <Text className="text-m3-on-surface text-compact font-semibold tabular-nums text-center shrink">
-            {unit === 'kcal' ? Math.round(consumed).toLocaleString() : Math.round(consumed)}
+      <View className="flex-row items-center justify-center gap-1">
+        {icon ? (
+          <MaterialIcons name={icon as any} size={TYPE.compact.fontSize * fontScale} color={M3.onSurface} />
+        ) : (
+          <Text className="text-compact font-bold leading-none" style={{ color: M3.onSurface }}>
+            {letter}
           </Text>
-        </View>
-        <Text className="text-m3-on-surface-variant text-compact tabular-nums text-center">
-          / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}
+        )}
+        <Text
+          className="text-m3-on-surface-variant text-compact font-semibold tabular-nums leading-none shrink"
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
+          {unit === 'kcal' ? Math.round(consumed).toLocaleString() : Math.round(consumed)}
+          <Text className="text-m3-on-surface-variant/60"> / {unit === 'kcal' ? Math.round(target).toLocaleString() : Math.round(target)}</Text>
         </Text>
       </View>
       <View
