@@ -359,6 +359,8 @@ export default function ReviewState({
 		if (result) {
 			originalMealNameRef.current = result.mealName;
 			setMealName(result.mealName);
+			// The sheet stays mounted between meals; reload the saved destination too.
+			setMeal(initialMeal ?? defaultMealForNow());
 			setComponents(result.components.map(toEditable));
 			setDivision(result.division ?? null);
 			setEatenPortions(result.division?.servesTotal ?? 1);
@@ -371,7 +373,7 @@ export default function ReviewState({
 			loggedRef.current = false;
 			setUndoAction(null);
 		}
-	}, [result, clearEditorDrafts, jumpToView]);
+	}, [result, initialMeal, clearEditorDrafts, jumpToView]);
 
 	useEffect(() => {
 		setSelectedPhotoUri(photoUri ?? null);
